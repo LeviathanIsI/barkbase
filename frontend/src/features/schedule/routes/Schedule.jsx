@@ -1030,10 +1030,10 @@ const TimeSpanLine = ({ pet, trackOffset = 0, onBookingClick }) => {
     <div
       className="absolute cursor-pointer group"
       style={{
-        left: `${8 + trackOffset}px`,
+        left: `${4 + trackOffset}px`,
         top: 0,
         bottom: 0,
-        width: '16px',
+        width: '20px',
       }}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
@@ -1042,17 +1042,22 @@ const TimeSpanLine = ({ pet, trackOffset = 0, onBookingClick }) => {
         onBookingClick(pet);
       }}
     >
-      {/* Dashed vertical line */}
+      {/* Dashed vertical line - positioned at 8px to align with activity dot */}
       <div
         className={cn(
-          'absolute left-1/2 -translate-x-1/2 w-0.5 h-full',
+          'absolute w-0.5',
           'border-l-2 border-dashed',
           pet.serviceType?.toLowerCase().includes('social') ? 'border-emerald-400' :
           pet.serviceType?.toLowerCase().includes('individual') ? 'border-blue-400' :
           pet.serviceType?.toLowerCase().includes('training') ? 'border-amber-400' :
           'border-gray-400'
         )}
-        style={{ opacity: 0.6 }}
+        style={{
+          left: '8px', // Align with activity dot center (4px chip offset + 4px to dot center)
+          top: 0,
+          height: '100%',
+          opacity: 0.6,
+        }}
       />
       {/* Hover highlight */}
       <div className="absolute inset-0 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--bb-color-accent-soft)]" />
@@ -1107,25 +1112,31 @@ const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick }) => {
         onBookingClick(pet);
       }}
     >
-      {/* Vertical line connecting from top */}
+      {/* Vertical line connecting from top - aligned with activity dot */}
       <div
         className={cn(
-          'absolute left-1/2 -translate-x-1/2 w-0.5 top-0 h-3',
+          'absolute w-0.5',
           'border-l-2 border-dashed',
           pet.serviceType?.toLowerCase().includes('social') ? 'border-emerald-400' :
           pet.serviceType?.toLowerCase().includes('individual') ? 'border-blue-400' :
           pet.serviceType?.toLowerCase().includes('training') ? 'border-amber-400' :
           'border-gray-400'
         )}
-        style={{ opacity: 0.6 }}
+        style={{
+          left: '8px', // Align with activity dot
+          top: 0,
+          height: '12px',
+          opacity: 0.6,
+        }}
       />
       {/* End time label */}
       <div
         className={cn(
-          'absolute left-0 top-3 text-[9px] font-medium px-1 rounded',
+          'absolute top-3 text-[9px] font-medium px-1 rounded',
           'text-[color:var(--bb-color-text-muted)]',
           'group-hover:bg-[var(--bb-color-accent-soft)]'
         )}
+        style={{ left: '2px' }}
       >
         {formatEndTime()}
       </div>
@@ -1354,9 +1365,9 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
             'border-gray-400'
           )}
           style={{
-            top: 'calc(100% + 2px)', // Start 2px below chip to align dash pattern
-            height: `calc(${100 - cellHeightPercent}% + 6px)`,
-            left: '12px',
+            top: '100%', // Start at chip bottom
+            height: `calc(${100 - cellHeightPercent}% + 8px)`, // Extend to cell bottom
+            left: '8px', // Align with activity dot (same as TimeSpanLine)
             opacity: 0.6,
           }}
         />
