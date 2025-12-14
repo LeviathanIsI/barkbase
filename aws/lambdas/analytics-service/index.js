@@ -2273,11 +2273,600 @@ async function handleGetSegments(tenantId) {
   }
 }
 
+// =============================================================================
+// HUBSPOT-STYLE FILTER TYPE SYSTEM
+// =============================================================================
+
+/**
+ * Filter Types - defines how each filter should be processed
+ */
+const FILTER_TYPES = {
+  PROPERTY: 'PROPERTY',     // Direct column lookup
+  COMPUTED: 'COMPUTED',     // Requires subquery/aggregation
+  ASSOCIATION: 'ASSOCIATION', // Filter on related objects
+};
+
+/**
+ * Field Definition Registries - maps frontend fields to database handling
+ */
+const FIELD_DEFINITIONS = {
+  pets: {
+    // Direct column mappings (PROPERTY type)
+    name: { type: 'PROPERTY', column: 'name', dataType: 'string' },
+    species: { type: 'PROPERTY', column: 'species', dataType: 'enum', options: ['DOG', 'CAT', 'OTHER'] },
+    breed: { type: 'PROPERTY', column: 'breed', dataType: 'string' },
+    sex: { type: 'PROPERTY', column: 'gender', dataType: 'enum', options: ['MALE', 'FEMALE', 'UNKNOWN'] },
+    gender: { type: 'PROPERTY', column: 'gender', dataType: 'enum', options: ['MALE', 'FEMALE', 'UNKNOWN'] },
+    birthdate: { type: 'PROPERTY', column: 'date_of_birth', dataType: 'date' },
+    dateOfBirth: { type: 'PROPERTY', column: 'date_of_birth', dataType: 'date' },
+    weight: { type: 'PROPERTY', column: 'weight', dataType: 'number' },
+    status: { type: 'PROPERTY', column: 'status', dataType: 'enum', options: ['ACTIVE', 'INACTIVE', 'DECEASED'] },
+    isActive: { type: 'PROPERTY', column: 'is_active', dataType: 'boolean' },
+    createdAt: { type: 'PROPERTY', column: 'created_at', dataType: 'date' },
+
+    // Computed fields - require special SQL generation
+    vaccinationStatus: { type: 'COMPUTED', dataType: 'enum', options: ['current', 'expiring', 'expired', 'missing'] },
+    totalBookings: { type: 'COMPUTED', dataType: 'number' },
+    lastBookingDate: { type: 'COMPUTED', dataType: 'date' },
+    isFixed: { type: 'COMPUTED', dataType: 'boolean' }, // Not in DB, would need to add or derive
+  },
+
+  owners: {
+    // Direct column mappings
+    firstName: { type: 'PROPERTY', column: 'first_name', dataType: 'string' },
+    lastName: { type: 'PROPERTY', column: 'last_name', dataType: 'string' },
+    email: { type: 'PROPERTY', column: 'email', dataType: 'string' },
+    phone: { type: 'PROPERTY', column: 'phone', dataType: 'string' },
+    isActive: { type: 'PROPERTY', column: 'is_active', dataType: 'boolean' },
+    createdAt: { type: 'PROPERTY', column: 'created_at', dataType: 'date' },
+    tags: { type: 'PROPERTY', column: 'tags', dataType: 'array' },
+
+    // Computed fields
+    status: { type: 'COMPUTED', dataType: 'enum', options: ['active', 'inactive', 'blocked'] }, // Maps to is_active
+    petCount: { type: 'COMPUTED', dataType: 'number' },
+    totalSpend: { type: 'COMPUTED', dataType: 'currency' },
+    totalBookings: { type: 'COMPUTED', dataType: 'number' },
+    lastBookingDate: { type: 'COMPUTED', dataType: 'date' },
+  },
+
+  bookings: {
+    // Direct column mappings (with frontend-friendly aliases)
+    status: { type: 'PROPERTY', column: 'status', dataType: 'enum', options: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'NO_SHOW'] },
+    startDate: { type: 'PROPERTY', column: 'check_in', dataType: 'date' },
+    checkIn: { type: 'PROPERTY', column: 'check_in', dataType: 'date' },
+    endDate: { type: 'PROPERTY', column: 'check_out', dataType: 'date' },
+    checkOut: { type: 'PROPERTY', column: 'check_out', dataType: 'date' },
+    createdAt: { type: 'PROPERTY', column: 'created_at', dataType: 'date' },
+    totalPriceCents: { type: 'PROPERTY', column: 'total_price_cents', dataType: 'number' },
+
+    // Computed fields
+    totalAmount: { type: 'COMPUTED', dataType: 'currency' }, // Frontend sends dollars
+    isPaid: { type: 'COMPUTED', dataType: 'boolean' },
+    serviceType: { type: 'COMPUTED', dataType: 'string' },
+  },
+};
+
+/**
+ * Computed Field SQL Builders
+ * Each builder returns { sql: string, params: array }
+ */
+const COMPUTED_FIELD_BUILDERS = {
+  // =========================================================================
+  // PET COMPUTED FIELDS
+  // =========================================================================
+
+  'pets.vaccinationStatus': (operator, value, paramIndex, tableAlias, tenantId) => {
+    const ta = tableAlias;
+
+    // Handle different vaccination status values
+    if (value === 'expired') {
+      return {
+        sql: `EXISTS (
+          SELECT 1 FROM "Vaccination" v
+          WHERE v.pet_id = ${ta}.id
+          AND v.tenant_id = ${ta}.tenant_id
+          AND v.expires_at < NOW()
+        )`,
+        params: [],
+      };
+    }
+
+    if (value === 'expiring') {
+      return {
+        sql: `EXISTS (
+          SELECT 1 FROM "Vaccination" v
+          WHERE v.pet_id = ${ta}.id
+          AND v.tenant_id = ${ta}.tenant_id
+          AND v.expires_at BETWEEN NOW() AND NOW() + INTERVAL '30 days'
+        )`,
+        params: [],
+      };
+    }
+
+    if (value === 'current') {
+      // Current = has vaccinations AND none are expired or expiring
+      return {
+        sql: `(
+          EXISTS (
+            SELECT 1 FROM "Vaccination" v
+            WHERE v.pet_id = ${ta}.id
+            AND v.tenant_id = ${ta}.tenant_id
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM "Vaccination" v2
+            WHERE v2.pet_id = ${ta}.id
+            AND v2.tenant_id = ${ta}.tenant_id
+            AND v2.expires_at < NOW() + INTERVAL '30 days'
+          )
+        )`,
+        params: [],
+      };
+    }
+
+    if (value === 'missing') {
+      // Missing = no vaccination records at all
+      return {
+        sql: `NOT EXISTS (
+          SELECT 1 FROM "Vaccination" v
+          WHERE v.pet_id = ${ta}.id
+          AND v.tenant_id = ${ta}.tenant_id
+        )`,
+        params: [],
+      };
+    }
+
+    // Default fallback
+    return { sql: 'TRUE', params: [] };
+  },
+
+  'pets.totalBookings': (operator, value, paramIndex, tableAlias, tenantId) => {
+    const ta = tableAlias;
+    const sqlOp = mapOperatorToSql(operator);
+    return {
+      sql: `(
+        SELECT COUNT(*) FROM "Booking" b
+        JOIN "BookingPet" bp ON bp.booking_id = b.id
+        WHERE bp.pet_id = ${ta}.id
+        AND b.tenant_id = ${ta}.tenant_id
+      ) ${sqlOp} $${paramIndex}`,
+      params: [parseInt(value) || 0],
+    };
+  },
+
+  'pets.lastBookingDate': (operator, value, paramIndex, tableAlias, tenantId) => {
+    const ta = tableAlias;
+    const sqlOp = mapOperatorToSql(operator);
+
+    if (operator === 'is_empty') {
+      return {
+        sql: `NOT EXISTS (
+          SELECT 1 FROM "Booking" b
+          JOIN "BookingPet" bp ON bp.booking_id = b.id
+          WHERE bp.pet_id = ${ta}.id
+          AND b.tenant_id = ${ta}.tenant_id
+        )`,
+        params: [],
+      };
+    }
+
+    if (operator === 'is_not_empty') {
+      return {
+        sql: `EXISTS (
+          SELECT 1 FROM "Booking" b
+          JOIN "BookingPet" bp ON bp.booking_id = b.id
+          WHERE bp.pet_id = ${ta}.id
+          AND b.tenant_id = ${ta}.tenant_id
+        )`,
+        params: [],
+      };
+    }
+
+    if (operator === 'in_last_days') {
+      return {
+        sql: `(
+          SELECT MAX(b.check_in) FROM "Booking" b
+          JOIN "BookingPet" bp ON bp.booking_id = b.id
+          WHERE bp.pet_id = ${ta}.id
+          AND b.tenant_id = ${ta}.tenant_id
+        ) >= NOW() - INTERVAL '${parseInt(value) || 30} days'`,
+        params: [],
+      };
+    }
+
+    if (operator === 'more_than_days_ago') {
+      return {
+        sql: `(
+          SELECT MAX(b.check_in) FROM "Booking" b
+          JOIN "BookingPet" bp ON bp.booking_id = b.id
+          WHERE bp.pet_id = ${ta}.id
+          AND b.tenant_id = ${ta}.tenant_id
+        ) < NOW() - INTERVAL '${parseInt(value) || 30} days'`,
+        params: [],
+      };
+    }
+
+    return {
+      sql: `(
+        SELECT MAX(b.check_in) FROM "Booking" b
+        JOIN "BookingPet" bp ON bp.booking_id = b.id
+        WHERE bp.pet_id = ${ta}.id
+        AND b.tenant_id = ${ta}.tenant_id
+      ) ${sqlOp} $${paramIndex}`,
+      params: [value],
+    };
+  },
+
+  'pets.isFixed': (operator, value, paramIndex, tableAlias, tenantId) => {
+    // isFixed doesn't exist in DB schema - return TRUE to not filter
+    console.warn('[FILTER] isFixed field not implemented - field does not exist in Pet table');
+    return { sql: 'TRUE', params: [] };
+  },
+
+  // =========================================================================
+  // OWNER COMPUTED FIELDS
+  // =========================================================================
+
+  'owners.status': (operator, value, paramIndex, tableAlias, tenantId) => {
+    const ta = tableAlias;
+    // Map 'active'/'inactive'/'blocked' to is_active boolean
+    if (value === 'active') {
+      return { sql: `${ta}.is_active = true`, params: [] };
+    }
+    if (value === 'inactive' || value === 'blocked') {
+      return { sql: `${ta}.is_active = false`, params: [] };
+    }
+    return { sql: 'TRUE', params: [] };
+  },
+
+  'owners.petCount': (operator, value, paramIndex, tableAlias, tenantId) => {
+    const ta = tableAlias;
+    const sqlOp = mapOperatorToSql(operator);
+    return {
+      sql: `(
+        SELECT COUNT(*) FROM "PetOwner" po
+        JOIN "Pet" p ON po.pet_id = p.id
+        WHERE po.owner_id = ${ta}.id
+        AND po.tenant_id = ${ta}.tenant_id
+        AND p.is_active = true
+      ) ${sqlOp} $${paramIndex}`,
+      params: [parseInt(value) || 0],
+    };
+  },
+
+  'owners.totalSpend': (operator, value, paramIndex, tableAlias, tenantId) => {
+    const ta = tableAlias;
+    const sqlOp = mapOperatorToSql(operator);
+    // Convert dollars to cents for comparison
+    const cents = Math.round((parseFloat(value) || 0) * 100);
+    return {
+      sql: `(
+        SELECT COALESCE(SUM(b.total_price_cents), 0)
+        FROM "Booking" b
+        WHERE b.owner_id = ${ta}.id
+        AND b.tenant_id = ${ta}.tenant_id
+        AND b.status NOT IN ('CANCELLED', 'NO_SHOW')
+      ) ${sqlOp} $${paramIndex}`,
+      params: [cents],
+    };
+  },
+
+  'owners.totalBookings': (operator, value, paramIndex, tableAlias, tenantId) => {
+    const ta = tableAlias;
+    const sqlOp = mapOperatorToSql(operator);
+    return {
+      sql: `(
+        SELECT COUNT(*) FROM "Booking" b
+        WHERE b.owner_id = ${ta}.id
+        AND b.tenant_id = ${ta}.tenant_id
+      ) ${sqlOp} $${paramIndex}`,
+      params: [parseInt(value) || 0],
+    };
+  },
+
+  'owners.lastBookingDate': (operator, value, paramIndex, tableAlias, tenantId) => {
+    const ta = tableAlias;
+    const sqlOp = mapOperatorToSql(operator);
+
+    if (operator === 'is_empty') {
+      return {
+        sql: `NOT EXISTS (
+          SELECT 1 FROM "Booking" b
+          WHERE b.owner_id = ${ta}.id
+          AND b.tenant_id = ${ta}.tenant_id
+        )`,
+        params: [],
+      };
+    }
+
+    if (operator === 'is_not_empty') {
+      return {
+        sql: `EXISTS (
+          SELECT 1 FROM "Booking" b
+          WHERE b.owner_id = ${ta}.id
+          AND b.tenant_id = ${ta}.tenant_id
+        )`,
+        params: [],
+      };
+    }
+
+    if (operator === 'in_last_days') {
+      return {
+        sql: `(
+          SELECT MAX(b.check_in) FROM "Booking" b
+          WHERE b.owner_id = ${ta}.id
+          AND b.tenant_id = ${ta}.tenant_id
+        ) >= NOW() - INTERVAL '${parseInt(value) || 30} days'`,
+        params: [],
+      };
+    }
+
+    if (operator === 'more_than_days_ago') {
+      return {
+        sql: `(
+          SELECT MAX(b.check_in) FROM "Booking" b
+          WHERE b.owner_id = ${ta}.id
+          AND b.tenant_id = ${ta}.tenant_id
+        ) < NOW() - INTERVAL '${parseInt(value) || 30} days'`,
+        params: [],
+      };
+    }
+
+    return {
+      sql: `(
+        SELECT MAX(b.check_in) FROM "Booking" b
+        WHERE b.owner_id = ${ta}.id
+        AND b.tenant_id = ${ta}.tenant_id
+      ) ${sqlOp} $${paramIndex}`,
+      params: [value],
+    };
+  },
+
+  // =========================================================================
+  // BOOKING COMPUTED FIELDS
+  // =========================================================================
+
+  'bookings.totalAmount': (operator, value, paramIndex, tableAlias, tenantId) => {
+    const ta = tableAlias;
+    const sqlOp = mapOperatorToSql(operator);
+    // Convert dollars to cents for comparison
+    const cents = Math.round((parseFloat(value) || 0) * 100);
+    return {
+      sql: `${ta}.total_price_cents ${sqlOp} $${paramIndex}`,
+      params: [cents],
+    };
+  },
+
+  'bookings.isPaid': (operator, value, paramIndex, tableAlias, tenantId) => {
+    const ta = tableAlias;
+    const isPaid = value === true || value === 'true' || value === 'is_true';
+
+    // Check if deposit_cents >= total_price_cents (simple paid check)
+    if (isPaid) {
+      return {
+        sql: `${ta}.deposit_cents >= ${ta}.total_price_cents`,
+        params: [],
+      };
+    }
+    return {
+      sql: `${ta}.deposit_cents < ${ta}.total_price_cents`,
+      params: [],
+    };
+  },
+
+  'bookings.serviceType': (operator, value, paramIndex, tableAlias, tenantId) => {
+    const ta = tableAlias;
+    const sqlOp = operator === 'is_not' ? '!=' : '=';
+    return {
+      sql: `(
+        SELECT s.name FROM "Service" s
+        WHERE s.id = ${ta}.service_id
+      ) ${sqlOp} $${paramIndex}`,
+      params: [value],
+    };
+  },
+};
+
+/**
+ * Map frontend operators to SQL operators
+ */
+function mapOperatorToSql(operator) {
+  const operatorMap = {
+    'is': '=',
+    'equals': '=',
+    'is_not': '!=',
+    'not_equals': '!=',
+    'contains': 'ILIKE',
+    'not_contains': 'NOT ILIKE',
+    'starts_with': 'ILIKE',
+    'ends_with': 'ILIKE',
+    'greater_than': '>',
+    'less_than': '<',
+    'greater_or_equal': '>=',
+    'less_or_equal': '<=',
+    'is_before': '<',
+    'is_after': '>',
+  };
+  return operatorMap[operator] || '=';
+}
+
+/**
+ * Resolve a field name to its definition, handling aliases
+ */
+function resolveFieldDefinition(objectType, fieldName) {
+  const fields = FIELD_DEFINITIONS[objectType];
+  if (!fields) return null;
+
+  // Direct lookup
+  if (fields[fieldName]) {
+    return fields[fieldName];
+  }
+
+  return null;
+}
+
+/**
+ * Build SQL clause for a single filter using the type system
+ */
+function buildSingleFilterClause(objectType, filter, paramIndex, tableAlias, tenantId) {
+  const { field, operator, value } = filter;
+
+  if (!field || !operator) {
+    return { sql: '', params: [], nextParamIndex: paramIndex };
+  }
+
+  const fieldDef = resolveFieldDefinition(objectType, field);
+
+  if (!fieldDef) {
+    console.warn(`[FILTER] Unknown field: ${field} for object type: ${objectType}`);
+    return { sql: '', params: [], nextParamIndex: paramIndex };
+  }
+
+  // Handle PROPERTY type - direct column lookup
+  if (fieldDef.type === FILTER_TYPES.PROPERTY) {
+    const column = `${tableAlias}.${fieldDef.column}`;
+    let clause = '';
+    let params = [];
+    let nextParamIndex = paramIndex;
+
+    switch (operator) {
+      case 'is':
+      case 'equals':
+        clause = `${column} = $${nextParamIndex}`;
+        params.push(value);
+        nextParamIndex++;
+        break;
+      case 'is_not':
+      case 'not_equals':
+        clause = `${column} != $${nextParamIndex}`;
+        params.push(value);
+        nextParamIndex++;
+        break;
+      case 'contains':
+        clause = `${column} ILIKE $${nextParamIndex}`;
+        params.push(`%${value}%`);
+        nextParamIndex++;
+        break;
+      case 'not_contains':
+        clause = `${column} NOT ILIKE $${nextParamIndex}`;
+        params.push(`%${value}%`);
+        nextParamIndex++;
+        break;
+      case 'starts_with':
+        clause = `${column} ILIKE $${nextParamIndex}`;
+        params.push(`${value}%`);
+        nextParamIndex++;
+        break;
+      case 'ends_with':
+        clause = `${column} ILIKE $${nextParamIndex}`;
+        params.push(`%${value}`);
+        nextParamIndex++;
+        break;
+      case 'is_empty':
+        clause = `(${column} IS NULL OR ${column} = '')`;
+        break;
+      case 'is_not_empty':
+        clause = `(${column} IS NOT NULL AND ${column} != '')`;
+        break;
+      case 'greater_than':
+        clause = `${column} > $${nextParamIndex}`;
+        params.push(parseFloat(value) || 0);
+        nextParamIndex++;
+        break;
+      case 'less_than':
+        clause = `${column} < $${nextParamIndex}`;
+        params.push(parseFloat(value) || 0);
+        nextParamIndex++;
+        break;
+      case 'greater_or_equal':
+        clause = `${column} >= $${nextParamIndex}`;
+        params.push(parseFloat(value) || 0);
+        nextParamIndex++;
+        break;
+      case 'less_or_equal':
+        clause = `${column} <= $${nextParamIndex}`;
+        params.push(parseFloat(value) || 0);
+        nextParamIndex++;
+        break;
+      case 'is_before':
+        clause = `${column} < $${nextParamIndex}`;
+        params.push(value);
+        nextParamIndex++;
+        break;
+      case 'is_after':
+        clause = `${column} > $${nextParamIndex}`;
+        params.push(value);
+        nextParamIndex++;
+        break;
+      case 'in_last_days':
+        clause = `${column} >= NOW() - INTERVAL '${parseInt(value) || 30} days'`;
+        break;
+      case 'more_than_days_ago':
+        clause = `${column} < NOW() - INTERVAL '${parseInt(value) || 30} days'`;
+        break;
+      case 'is_any_of':
+        if (Array.isArray(value) && value.length > 0) {
+          const placeholders = value.map((_, i) => `$${nextParamIndex + i}`).join(', ');
+          clause = `${column} IN (${placeholders})`;
+          params.push(...value);
+          nextParamIndex += value.length;
+        }
+        break;
+      case 'is_none_of':
+        if (Array.isArray(value) && value.length > 0) {
+          const placeholders = value.map((_, i) => `$${nextParamIndex + i}`).join(', ');
+          clause = `${column} NOT IN (${placeholders})`;
+          params.push(...value);
+          nextParamIndex += value.length;
+        }
+        break;
+      case 'is_true':
+        clause = `${column} = true`;
+        break;
+      case 'is_false':
+        clause = `${column} = false`;
+        break;
+      default:
+        console.warn(`[FILTER] Unknown operator: ${operator}`);
+        break;
+    }
+
+    return { sql: clause, params, nextParamIndex };
+  }
+
+  // Handle COMPUTED type - use specialized builder
+  if (fieldDef.type === FILTER_TYPES.COMPUTED) {
+    const builderKey = `${objectType}.${field}`;
+    const builder = COMPUTED_FIELD_BUILDERS[builderKey];
+
+    if (!builder) {
+      console.warn(`[FILTER] No builder for computed field: ${builderKey}`);
+      return { sql: '', params: [], nextParamIndex: paramIndex };
+    }
+
+    const result = builder(operator, value, paramIndex, tableAlias, tenantId);
+    return {
+      sql: result.sql,
+      params: result.params,
+      nextParamIndex: paramIndex + result.params.length,
+    };
+  }
+
+  return { sql: '', params: [], nextParamIndex: paramIndex };
+}
+
+// =============================================================================
+// END FILTER TYPE SYSTEM
+// =============================================================================
+
 /**
  * Build SQL WHERE clause from segment filters
+ * Uses the HubSpot-style filter type system for proper handling of
+ * direct columns, computed fields, and associations.
+ *
  * @param {object} filters - Filters object with groups and groupLogic
  * @param {string} objectType - 'owners', 'pets', or 'bookings'
  * @param {string} tableAlias - Table alias for column references
+ * @param {number} startParamIndex - Starting index for query parameters
  * @returns {{ whereClause: string, params: any[], paramIndex: number }}
  */
 function buildFilterWhereClause(filters, objectType, tableAlias = 'o', startParamIndex = 1) {
@@ -2285,46 +2874,7 @@ function buildFilterWhereClause(filters, objectType, tableAlias = 'o', startPara
     return { whereClause: '', params: [], paramIndex: startParamIndex };
   }
 
-  // Map frontend field names to database columns
-  const fieldMap = {
-    owners: {
-      status: 'status',
-      email: 'email',
-      phone: 'phone',
-      firstName: 'first_name',
-      lastName: 'last_name',
-      createdAt: 'created_at',
-      lastBookingDate: 'last_booking_date',
-      totalBookings: 'total_bookings',
-      totalSpend: 'total_spend',
-      petCount: 'pet_count',
-      tags: 'tags',
-    },
-    pets: {
-      status: 'status',
-      name: 'name',
-      species: 'species',
-      breed: 'breed',
-      sex: 'sex',
-      isFixed: 'is_fixed',
-      createdAt: 'created_at',
-      birthdate: 'birthdate',
-      weight: 'weight',
-      vaccinationStatus: 'vaccination_status',
-      lastBookingDate: 'last_booking_date',
-      totalBookings: 'total_bookings',
-    },
-    bookings: {
-      status: 'status',
-      serviceType: 'service_type',
-      startDate: 'start_date',
-      endDate: 'end_date',
-      createdAt: 'created_at',
-      totalAmount: 'total_amount',
-      isPaid: 'is_paid',
-    },
-  };
-
+  // Use the new type system for filter building
   const params = [];
   let paramIndex = startParamIndex;
   const groupClauses = [];
@@ -2334,122 +2884,19 @@ function buildFilterWhereClause(filters, objectType, tableAlias = 'o', startPara
 
     const filterClauses = [];
     for (const filter of group.filters) {
-      const dbColumn = fieldMap[objectType]?.[filter.field] || filter.field;
-      const fullColumn = `${tableAlias}.${dbColumn}`;
-      const op = filter.operator;
-      const val = filter.value;
+      // Use the new type system to build filter clause
+      const result = buildSingleFilterClause(
+        objectType,
+        filter,
+        paramIndex,
+        tableAlias,
+        null // tenantId is handled at query level
+      );
 
-      let clause = '';
-
-      switch (op) {
-        case 'is':
-        case 'equals':
-          clause = `${fullColumn} = $${paramIndex}`;
-          params.push(val);
-          paramIndex++;
-          break;
-        case 'is_not':
-        case 'not_equals':
-          clause = `${fullColumn} != $${paramIndex}`;
-          params.push(val);
-          paramIndex++;
-          break;
-        case 'contains':
-          clause = `${fullColumn} ILIKE $${paramIndex}`;
-          params.push(`%${val}%`);
-          paramIndex++;
-          break;
-        case 'not_contains':
-          clause = `${fullColumn} NOT ILIKE $${paramIndex}`;
-          params.push(`%${val}%`);
-          paramIndex++;
-          break;
-        case 'starts_with':
-          clause = `${fullColumn} ILIKE $${paramIndex}`;
-          params.push(`${val}%`);
-          paramIndex++;
-          break;
-        case 'ends_with':
-          clause = `${fullColumn} ILIKE $${paramIndex}`;
-          params.push(`%${val}`);
-          paramIndex++;
-          break;
-        case 'is_empty':
-          clause = `(${fullColumn} IS NULL OR ${fullColumn} = '')`;
-          break;
-        case 'is_not_empty':
-          clause = `(${fullColumn} IS NOT NULL AND ${fullColumn} != '')`;
-          break;
-        case 'greater_than':
-          clause = `${fullColumn} > $${paramIndex}`;
-          params.push(parseFloat(val) || 0);
-          paramIndex++;
-          break;
-        case 'less_than':
-          clause = `${fullColumn} < $${paramIndex}`;
-          params.push(parseFloat(val) || 0);
-          paramIndex++;
-          break;
-        case 'greater_or_equal':
-          clause = `${fullColumn} >= $${paramIndex}`;
-          params.push(parseFloat(val) || 0);
-          paramIndex++;
-          break;
-        case 'less_or_equal':
-          clause = `${fullColumn} <= $${paramIndex}`;
-          params.push(parseFloat(val) || 0);
-          paramIndex++;
-          break;
-        case 'between':
-          if (Array.isArray(val) && val.length === 2) {
-            clause = `${fullColumn} BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
-            params.push(val[0], val[1]);
-            paramIndex += 2;
-          }
-          break;
-        case 'is_before':
-          clause = `${fullColumn} < $${paramIndex}`;
-          params.push(val);
-          paramIndex++;
-          break;
-        case 'is_after':
-          clause = `${fullColumn} > $${paramIndex}`;
-          params.push(val);
-          paramIndex++;
-          break;
-        case 'in_last_days':
-          clause = `${fullColumn} >= NOW() - INTERVAL '${parseInt(val) || 30} days'`;
-          break;
-        case 'more_than_days_ago':
-          clause = `${fullColumn} < NOW() - INTERVAL '${parseInt(val) || 30} days'`;
-          break;
-        case 'is_any_of':
-          if (Array.isArray(val) && val.length > 0) {
-            const placeholders = val.map(() => `$${paramIndex++}`).join(', ');
-            clause = `${fullColumn} IN (${placeholders})`;
-            params.push(...val);
-          }
-          break;
-        case 'is_none_of':
-          if (Array.isArray(val) && val.length > 0) {
-            const placeholders = val.map(() => `$${paramIndex++}`).join(', ');
-            clause = `${fullColumn} NOT IN (${placeholders})`;
-            params.push(...val);
-          }
-          break;
-        case 'is_true':
-          clause = `${fullColumn} = true`;
-          break;
-        case 'is_false':
-          clause = `${fullColumn} = false`;
-          break;
-        default:
-          // Skip unknown operators
-          continue;
-      }
-
-      if (clause) {
-        filterClauses.push(clause);
+      if (result.sql) {
+        filterClauses.push(result.sql);
+        params.push(...result.params);
+        paramIndex = result.nextParamIndex;
       }
     }
 
