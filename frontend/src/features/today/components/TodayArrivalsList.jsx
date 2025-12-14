@@ -10,7 +10,7 @@ import { useBookingCheckInMutation } from '@/features/bookings/api';
 import PetQuickActionsDrawer from '@/features/owners/components/PetQuickActionsDrawer';
 import toast from 'react-hot-toast';
 
-const TodayArrivalsList = ({ arrivals, onBatchCheckIn, isLoading, hasError }) => {
+const TodayArrivalsList = ({ arrivals, isLoading, hasError }) => {
   // Track which bookings are checked in (to hide from list with animation)
   const [checkedInIds, setCheckedInIds] = useState(new Set());
 
@@ -32,16 +32,6 @@ const TodayArrivalsList = ({ arrivals, onBatchCheckIn, isLoading, hasError }) =>
         icon={UserCheck}
         iconClassName="text-emerald-600 dark:text-emerald-400"
         badge={<Badge variant="success">{pendingArrivals.length}</Badge>}
-        actions={
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onBatchCheckIn}
-            disabled={pendingArrivals.length === 0}
-          >
-            Batch Check-in
-          </Button>
-        }
       >
         <ListBody
           items={arrivals}

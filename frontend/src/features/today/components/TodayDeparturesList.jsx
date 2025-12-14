@@ -10,7 +10,7 @@ import { useBookingCheckOutMutation } from '@/features/bookings/api';
 import PetQuickActionsDrawer from '@/features/owners/components/PetQuickActionsDrawer';
 import toast from 'react-hot-toast';
 
-const TodayDeparturesList = ({ departures, onBatchCheckOut, isLoading, hasError }) => {
+const TodayDeparturesList = ({ departures, isLoading, hasError }) => {
   // Track which bookings are checked out (to hide from list)
   const [checkedOutIds, setCheckedOutIds] = useState(new Set());
 
@@ -32,16 +32,6 @@ const TodayDeparturesList = ({ departures, onBatchCheckOut, isLoading, hasError 
         icon={UserX}
         iconClassName="text-amber-600 dark:text-amber-400"
         badge={<Badge variant="warning">{pendingDepartures.length}</Badge>}
-        actions={
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onBatchCheckOut}
-            disabled={pendingDepartures.length === 0}
-          >
-            Batch Check-out
-          </Button>
-        }
       >
         <ListBody
           items={departures}
