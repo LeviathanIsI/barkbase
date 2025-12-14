@@ -1227,12 +1227,15 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
 
   return (
     <div
-      className="absolute"
+      className="absolute transition-all"
       style={{
         left: `${4 + trackOffset}px`,
         right: '4px',
         top: '4px',
+        zIndex: showTooltip ? 50 : 1, // Pop to front on hover
       }}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
     >
       {/* Main chip */}
       <div
@@ -1244,8 +1247,6 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
         style={{
           backgroundColor: 'var(--bb-color-bg-elevated)',
         }}
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
         onClick={(e) => {
           e.stopPropagation();
           onBookingClick(pet);
