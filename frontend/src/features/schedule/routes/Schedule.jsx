@@ -889,7 +889,10 @@ const DailyHourlyGrid = ({
       </div>
 
       {/* Grid */}
-      <div className="overflow-x-auto" ref={scrollRef}>
+      <div
+        className="overflow-x-auto overflow-y-auto [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-slate-100 dark:[&::-webkit-scrollbar-track]:bg-slate-800 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-600 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-400 dark:[&::-webkit-scrollbar-thumb:hover]:bg-slate-500 [&::-webkit-scrollbar-corner]:bg-slate-100 dark:[&::-webkit-scrollbar-corner]:bg-slate-800 scrollbar-thin scrollbar-track-slate-100 scrollbar-thumb-slate-300 dark:scrollbar-track-slate-800 dark:scrollbar-thumb-slate-600"
+        ref={scrollRef}
+      >
         <div style={{ minWidth: `${80 + runs.length * 140}px` }}>
           {/* Column Headers - Kennels/Runs */}
           <div
