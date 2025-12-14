@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import AppShell from "@/components/layout/AppShell";
 import { lazy } from "react";
 import { createBrowserRouter, Navigate, useLocation, useNavigate } from "react-router-dom";
@@ -18,7 +19,8 @@ function RoutePersistence() {
   useEffect(() => {
     try {
       localStorage.setItem('lastPath', location.pathname + location.search);
-    } catch {}
+     
+    } catch { /* ignore storage errors */ }
   }, [location]);
 
   useEffect(() => {
@@ -27,8 +29,9 @@ function RoutePersistence() {
       if (last && window.location.pathname === '/') {
         navigate(last, { replace: true });
       }
-    } catch {}
-  }, []);
+     
+    } catch { /* ignore storage errors */ }
+  }, [navigate]);
 
   return null;
 }
@@ -53,6 +56,10 @@ const SettingsFeatureToggles = lazy(() =>
 );
 const Staff = lazy(() => import("@/features/staff/routes/Staff"));
 const Incidents = lazy(() => import("@/features/incidents/routes/Incidents"));
+const Workflows = lazy(() => import("@/features/workflows/routes/Workflows"));
+const WorkflowNew = lazy(() => import("@/features/workflows/routes/WorkflowNew"));
+const WorkflowBuilder = lazy(() => import("@/features/workflows/routes/WorkflowBuilder"));
+const WorkflowDetails = lazy(() => import("@/features/workflows/routes/WorkflowDetails"));
 const Login = lazy(() => import("@/features/auth/routes/Login"));
 const AuthCallback = lazy(() => import("@/features/auth/routes/AuthCallback"));
 const SettingsLayout = lazy(() =>
@@ -273,6 +280,10 @@ export const router = createBrowserRouter([
               // Admin/Staff
               { path: "staff", element: <Staff /> },
               { path: "incidents", element: <Incidents /> },
+              { path: "workflows", element: <Workflows /> },
+              { path: "workflows/new", element: <WorkflowNew /> },
+              { path: "workflows/:id", element: <WorkflowBuilder /> },
+              { path: "workflows/:id/details", element: <WorkflowDetails /> },
               // Tenants consolidated into Settings - redirect for backwards compatibility
               { path: "tenants", element: <Navigate to="/settings" replace /> },
 

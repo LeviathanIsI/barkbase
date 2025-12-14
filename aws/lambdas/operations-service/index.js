@@ -547,6 +547,100 @@ exports.handler = async (event, context) => {
     }
 
     // ==========================================================================
+    // Workflow routes - /api/v1/workflows/*
+    // ==========================================================================
+    if (path === '/api/v1/workflows' || path === '/workflows') {
+      if (method === 'GET') {
+        return handleGetWorkflows(tenantId, event.queryStringParameters || {});
+      }
+      if (method === 'POST') {
+        return handleCreateWorkflow(tenantId, user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/workflows/stats' || path === '/workflows/stats') {
+      if (method === 'GET') {
+        return handleGetWorkflowStats(tenantId);
+      }
+    }
+
+    if (path === '/api/v1/workflows/folders' || path === '/workflows/folders') {
+      if (method === 'GET') {
+        return handleGetWorkflowFolders(tenantId);
+      }
+      if (method === 'POST') {
+        return handleCreateWorkflowFolder(tenantId, user, parseBody(event));
+      }
+    }
+
+    // Workflow folder by ID
+    const workflowFolderMatch = path.match(/\/api\/v1\/workflows\/folders\/([a-f0-9-]+)$/i);
+    if (workflowFolderMatch) {
+      const folderId = workflowFolderMatch[1];
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateWorkflowFolder(tenantId, user, folderId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeleteWorkflowFolder(tenantId, user, folderId);
+      }
+    }
+
+    // Workflow by ID routes
+    const workflowMatch = path.match(/\/api\/v1\/workflows\/([a-f0-9-]+)(\/.*)?$/i);
+    if (workflowMatch) {
+      const workflowId = workflowMatch[1];
+      const subPath = workflowMatch[2] || '';
+
+      if (subPath === '/steps') {
+        if (method === 'GET') {
+          return handleGetWorkflowSteps(tenantId, workflowId);
+        }
+        if (method === 'PUT') {
+          return handleUpdateWorkflowSteps(tenantId, user, workflowId, parseBody(event));
+        }
+      }
+      if (subPath === '/clone' && method === 'POST') {
+        return handleCloneWorkflow(tenantId, user, workflowId);
+      }
+      if (subPath === '/activate' && method === 'POST') {
+        return handleActivateWorkflow(tenantId, user, workflowId);
+      }
+      if (subPath === '/pause' && method === 'POST') {
+        return handlePauseWorkflow(tenantId, user, workflowId);
+      }
+      if (subPath === '/executions') {
+        if (method === 'GET') {
+          return handleGetWorkflowExecutions(tenantId, workflowId, event.queryStringParameters || {});
+        }
+      }
+      // Execution by ID
+      const executionMatch = subPath.match(/\/executions\/([a-f0-9-]+)(\/.*)?$/i);
+      if (executionMatch) {
+        const executionId = executionMatch[1];
+        const execSubPath = executionMatch[2] || '';
+        if (execSubPath === '/cancel' && method === 'POST') {
+          return handleCancelWorkflowExecution(tenantId, user, workflowId, executionId);
+        }
+        if (!execSubPath || execSubPath === '') {
+          if (method === 'GET') {
+            return handleGetWorkflowExecution(tenantId, workflowId, executionId);
+          }
+        }
+      }
+      if (!subPath || subPath === '') {
+        if (method === 'GET') {
+          return handleGetWorkflow(tenantId, workflowId);
+        }
+        if (method === 'PUT' || method === 'PATCH') {
+          return handleUpdateWorkflow(tenantId, user, workflowId, parseBody(event));
+        }
+        if (method === 'DELETE') {
+          return handleDeleteWorkflow(tenantId, user, workflowId);
+        }
+      }
+    }
+
+    // ==========================================================================
     // Email Notification routes - /api/v1/notifications/*
     // ==========================================================================
     if (path === '/api/v1/notifications/email' || path === '/notifications/email') {
@@ -7040,6 +7134,913 @@ async function handleNotifyOwnerOfIncident(tenantId, user, incidentId, body) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to notify owner',
+    });
+  }
+}
+
+// =============================================================================
+// WORKFLOW HANDLERS
+// =============================================================================
+
+/**
+ * Get all workflows for tenant
+ */
+async function handleGetWorkflows(tenantId, queryParams) {
+  const { status, objectType, folderId, search, limit = 50, offset = 0 } = queryParams;
+
+  console.log('[Workflows][list] tenantId:', tenantId, queryParams);
+
+  try {
+    await getPoolAsync();
+
+    let whereClause = 'w.tenant_id = $1 AND w.deleted_at IS NULL';
+    const params = [tenantId];
+    let paramIndex = 2;
+
+    if (status) {
+      whereClause += ` AND w.status = $${paramIndex++}`;
+      params.push(status);
+    }
+    if (objectType) {
+      whereClause += ` AND w.object_type = $${paramIndex++}`;
+      params.push(objectType);
+    }
+    if (folderId) {
+      whereClause += ` AND w.folder_id = $${paramIndex++}`;
+      params.push(folderId);
+    }
+    if (search) {
+      whereClause += ` AND (w.name ILIKE $${paramIndex} OR w.description ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    const result = await query(
+      `SELECT w.*, u.first_name as created_by_first_name, u.last_name as created_by_last_name
+       FROM "Workflow" w
+       LEFT JOIN "User" u ON w.created_by = u.id
+       WHERE ${whereClause}
+       ORDER BY w.updated_at DESC
+       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...params, parseInt(limit), parseInt(offset)]
+    );
+
+    const workflows = result.rows.map(row => ({
+      id: row.id,
+      tenant_id: row.tenant_id,
+      name: row.name,
+      description: row.description,
+      object_type: row.object_type,
+      status: row.status,
+      entry_condition: row.entry_condition,
+      settings: row.settings,
+      folder_id: row.folder_id,
+      enrolled_count: row.enrolled_count || 0,
+      completed_count: row.completed_count || 0,
+      last_run_at: row.last_run_at,
+      created_by: row.created_by,
+      created_by_name: row.created_by_first_name ? `${row.created_by_first_name} ${row.created_by_last_name || ''}`.trim() : null,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }));
+
+    return createResponse(200, {
+      data: workflows,
+      workflows: workflows,
+      total: workflows.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to get workflows:', error.message);
+
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, {
+        data: [],
+        workflows: [],
+        total: 0,
+        message: 'Workflow table not initialized',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve workflows',
+    });
+  }
+}
+
+/**
+ * Get single workflow
+ */
+async function handleGetWorkflow(tenantId, workflowId) {
+  console.log('[Workflows][get] id:', workflowId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT w.*, u.first_name as created_by_first_name, u.last_name as created_by_last_name
+       FROM "Workflow" w
+       LEFT JOIN "User" u ON w.created_by = u.id
+       WHERE w.id = $1 AND w.tenant_id = $2 AND w.deleted_at IS NULL`,
+      [workflowId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Workflow not found',
+      });
+    }
+
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      id: row.id,
+      tenant_id: row.tenant_id,
+      name: row.name,
+      description: row.description,
+      object_type: row.object_type,
+      status: row.status,
+      entry_condition: row.entry_condition,
+      settings: row.settings,
+      folder_id: row.folder_id,
+      enrolled_count: row.enrolled_count || 0,
+      completed_count: row.completed_count || 0,
+      last_run_at: row.last_run_at,
+      created_by: row.created_by,
+      created_by_name: row.created_by_first_name ? `${row.created_by_first_name} ${row.created_by_last_name || ''}`.trim() : null,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to get workflow:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve workflow',
+    });
+  }
+}
+
+/**
+ * Create workflow
+ */
+async function handleCreateWorkflow(tenantId, user, body) {
+  const { name, description, object_type, status = 'draft', entry_condition = {}, settings = {} } = body;
+
+  console.log('[Workflows][create] tenantId:', tenantId, 'name:', name);
+
+  if (!name || !object_type) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Name and object_type are required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `INSERT INTO "Workflow" (tenant_id, name, description, object_type, status, entry_condition, settings, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [tenantId, name, description || null, object_type, status, JSON.stringify(entry_condition), JSON.stringify(settings), user?.userId || null]
+    );
+
+    const workflow = result.rows[0];
+
+    return createResponse(201, {
+      id: workflow.id,
+      tenant_id: workflow.tenant_id,
+      name: workflow.name,
+      description: workflow.description,
+      object_type: workflow.object_type,
+      status: workflow.status,
+      entry_condition: workflow.entry_condition,
+      settings: workflow.settings,
+      created_at: workflow.created_at,
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to create workflow:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create workflow',
+    });
+  }
+}
+
+/**
+ * Update workflow
+ */
+async function handleUpdateWorkflow(tenantId, user, workflowId, body) {
+  const { name, description, status, entry_condition, settings, folder_id } = body;
+
+  console.log('[Workflows][update] id:', workflowId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const updates = [];
+    const params = [workflowId, tenantId];
+    let paramIndex = 3;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      params.push(name);
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      params.push(description);
+    }
+    if (status !== undefined) {
+      updates.push(`status = $${paramIndex++}`);
+      params.push(status);
+    }
+    if (entry_condition !== undefined) {
+      updates.push(`entry_condition = $${paramIndex++}`);
+      params.push(JSON.stringify(entry_condition));
+    }
+    if (settings !== undefined) {
+      updates.push(`settings = $${paramIndex++}`);
+      params.push(JSON.stringify(settings));
+    }
+    if (folder_id !== undefined) {
+      updates.push(`folder_id = $${paramIndex++}`);
+      params.push(folder_id);
+    }
+
+    if (updates.length === 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No fields to update',
+      });
+    }
+
+    const result = await query(
+      `UPDATE "Workflow"
+       SET ${updates.join(', ')}, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      params
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Workflow not found',
+      });
+    }
+
+    return createResponse(200, result.rows[0]);
+
+  } catch (error) {
+    console.error('[Workflows] Failed to update workflow:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update workflow',
+    });
+  }
+}
+
+/**
+ * Delete workflow (soft delete)
+ */
+async function handleDeleteWorkflow(tenantId, user, workflowId) {
+  console.log('[Workflows][delete] id:', workflowId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "Workflow"
+       SET deleted_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING id`,
+      [workflowId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Workflow not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Workflow deleted',
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to delete workflow:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete workflow',
+    });
+  }
+}
+
+/**
+ * Clone workflow
+ */
+async function handleCloneWorkflow(tenantId, user, workflowId) {
+  console.log('[Workflows][clone] id:', workflowId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    // Get original workflow
+    const originalResult = await query(
+      `SELECT * FROM "Workflow" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [workflowId, tenantId]
+    );
+
+    if (originalResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Workflow not found',
+      });
+    }
+
+    const original = originalResult.rows[0];
+
+    // Create clone
+    const cloneResult = await query(
+      `INSERT INTO "Workflow" (tenant_id, name, description, object_type, status, entry_condition, settings, folder_id, created_by)
+       VALUES ($1, $2, $3, $4, 'draft', $5, $6, $7, $8)
+       RETURNING *`,
+      [tenantId, `${original.name} (Copy)`, original.description, original.object_type,
+       JSON.stringify(original.entry_condition), JSON.stringify(original.settings), original.folder_id, user?.userId || null]
+    );
+
+    const clonedWorkflow = cloneResult.rows[0];
+
+    // Clone steps
+    const stepsResult = await query(
+      `SELECT * FROM "WorkflowStep" WHERE workflow_id = $1 ORDER BY position`,
+      [workflowId]
+    );
+
+    for (const step of stepsResult.rows) {
+      await query(
+        `INSERT INTO "WorkflowStep" (workflow_id, parent_step_id, branch_path, position, step_type, action_type, config)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [clonedWorkflow.id, null, step.branch_path, step.position, step.step_type, step.action_type, JSON.stringify(step.config)]
+      );
+    }
+
+    return createResponse(201, {
+      id: clonedWorkflow.id,
+      name: clonedWorkflow.name,
+      status: clonedWorkflow.status,
+      message: 'Workflow cloned successfully',
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to clone workflow:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to clone workflow',
+    });
+  }
+}
+
+/**
+ * Activate workflow
+ */
+async function handleActivateWorkflow(tenantId, user, workflowId) {
+  console.log('[Workflows][activate] id:', workflowId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "Workflow"
+       SET status = 'active', updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      [workflowId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Workflow not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      status: 'active',
+      message: 'Workflow activated',
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to activate workflow:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to activate workflow',
+    });
+  }
+}
+
+/**
+ * Pause workflow
+ */
+async function handlePauseWorkflow(tenantId, user, workflowId) {
+  console.log('[Workflows][pause] id:', workflowId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "Workflow"
+       SET status = 'paused', updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      [workflowId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Workflow not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      status: 'paused',
+      message: 'Workflow paused',
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to pause workflow:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to pause workflow',
+    });
+  }
+}
+
+/**
+ * Get workflow steps
+ */
+async function handleGetWorkflowSteps(tenantId, workflowId) {
+  console.log('[Workflows][getSteps] workflowId:', workflowId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    // Verify workflow exists and belongs to tenant
+    const workflowResult = await query(
+      `SELECT id FROM "Workflow" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [workflowId, tenantId]
+    );
+
+    if (workflowResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Workflow not found',
+      });
+    }
+
+    const result = await query(
+      `SELECT * FROM "WorkflowStep" WHERE workflow_id = $1 ORDER BY position`,
+      [workflowId]
+    );
+
+    return createResponse(200, {
+      steps: result.rows,
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to get steps:', error.message);
+
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, { steps: [] });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve workflow steps',
+    });
+  }
+}
+
+/**
+ * Update workflow steps (full replacement)
+ */
+async function handleUpdateWorkflowSteps(tenantId, user, workflowId, body) {
+  const { steps = [] } = body;
+
+  console.log('[Workflows][updateSteps] workflowId:', workflowId, 'steps:', steps.length);
+
+  try {
+    await getPoolAsync();
+
+    // Verify workflow exists and belongs to tenant
+    const workflowResult = await query(
+      `SELECT id FROM "Workflow" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [workflowId, tenantId]
+    );
+
+    if (workflowResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Workflow not found',
+      });
+    }
+
+    // Delete existing steps
+    await query(`DELETE FROM "WorkflowStep" WHERE workflow_id = $1`, [workflowId]);
+
+    // Insert new steps
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      await query(
+        `INSERT INTO "WorkflowStep" (workflow_id, parent_step_id, branch_path, position, step_type, action_type, config)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [workflowId, step.parent_step_id || null, step.branch_path || null, i, step.step_type, step.action_type || null, JSON.stringify(step.config || {})]
+      );
+    }
+
+    // Update workflow timestamp
+    await query(
+      `UPDATE "Workflow" SET updated_at = NOW() WHERE id = $1`,
+      [workflowId]
+    );
+
+    return createResponse(200, {
+      success: true,
+      message: 'Steps updated',
+      count: steps.length,
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to update steps:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update workflow steps',
+    });
+  }
+}
+
+/**
+ * Get workflow executions
+ */
+async function handleGetWorkflowExecutions(tenantId, workflowId, queryParams) {
+  const { status, limit = 50, offset = 0 } = queryParams;
+
+  console.log('[Workflows][getExecutions] workflowId:', workflowId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    // Verify workflow exists and belongs to tenant
+    const workflowResult = await query(
+      `SELECT id FROM "Workflow" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [workflowId, tenantId]
+    );
+
+    if (workflowResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Workflow not found',
+      });
+    }
+
+    let whereClause = 'workflow_id = $1 AND tenant_id = $2';
+    const params = [workflowId, tenantId];
+    let paramIndex = 3;
+
+    if (status) {
+      whereClause += ` AND status = $${paramIndex++}`;
+      params.push(status);
+    }
+
+    const result = await query(
+      `SELECT * FROM "WorkflowExecution"
+       WHERE ${whereClause}
+       ORDER BY enrolled_at DESC
+       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...params, parseInt(limit), parseInt(offset)]
+    );
+
+    return createResponse(200, {
+      executions: result.rows,
+      total: result.rows.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to get executions:', error.message);
+
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, { executions: [], total: 0 });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve workflow executions',
+    });
+  }
+}
+
+/**
+ * Get single workflow execution
+ */
+async function handleGetWorkflowExecution(tenantId, workflowId, executionId) {
+  console.log('[Workflows][getExecution] executionId:', executionId, 'workflowId:', workflowId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT e.*,
+              array_agg(json_build_object('id', l.id, 'step_id', l.step_id, 'status', l.status, 'started_at', l.started_at, 'completed_at', l.completed_at, 'result', l.result) ORDER BY l.started_at) as logs
+       FROM "WorkflowExecution" e
+       LEFT JOIN "WorkflowExecutionLog" l ON e.id = l.execution_id
+       WHERE e.id = $1 AND e.workflow_id = $2 AND e.tenant_id = $3
+       GROUP BY e.id`,
+      [executionId, workflowId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Execution not found',
+      });
+    }
+
+    return createResponse(200, result.rows[0]);
+
+  } catch (error) {
+    console.error('[Workflows] Failed to get execution:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve execution',
+    });
+  }
+}
+
+/**
+ * Cancel workflow execution
+ */
+async function handleCancelWorkflowExecution(tenantId, user, workflowId, executionId) {
+  console.log('[Workflows][cancelExecution] executionId:', executionId, 'workflowId:', workflowId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "WorkflowExecution"
+       SET status = 'cancelled', completed_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND workflow_id = $2 AND tenant_id = $3 AND status = 'running'
+       RETURNING *`,
+      [executionId, workflowId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Running execution not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Execution cancelled',
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to cancel execution:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to cancel execution',
+    });
+  }
+}
+
+/**
+ * Get workflow stats
+ */
+async function handleGetWorkflowStats(tenantId) {
+  console.log('[Workflows][stats] tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT
+         COUNT(*) FILTER (WHERE deleted_at IS NULL) as total,
+         COUNT(*) FILTER (WHERE status = 'active' AND deleted_at IS NULL) as active,
+         COUNT(*) FILTER (WHERE status = 'paused' AND deleted_at IS NULL) as paused,
+         COUNT(*) FILTER (WHERE status = 'draft' AND deleted_at IS NULL) as draft,
+         COALESCE(SUM(enrolled_count) FILTER (WHERE deleted_at IS NULL), 0) as total_enrolled,
+         COALESCE(SUM(completed_count) FILTER (WHERE deleted_at IS NULL), 0) as total_completed
+       FROM "Workflow"
+       WHERE tenant_id = $1`,
+      [tenantId]
+    );
+
+    return createResponse(200, result.rows[0] || {
+      total: 0,
+      active: 0,
+      paused: 0,
+      draft: 0,
+      total_enrolled: 0,
+      total_completed: 0,
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to get stats:', error.message);
+
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, {
+        total: 0,
+        active: 0,
+        paused: 0,
+        draft: 0,
+        total_enrolled: 0,
+        total_completed: 0,
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve workflow stats',
+    });
+  }
+}
+
+/**
+ * Get workflow folders
+ */
+async function handleGetWorkflowFolders(tenantId) {
+  console.log('[Workflows][getFolders] tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT * FROM "WorkflowFolder" WHERE tenant_id = $1 ORDER BY name`,
+      [tenantId]
+    );
+
+    return createResponse(200, {
+      folders: result.rows,
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to get folders:', error.message);
+
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, { folders: [] });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve workflow folders',
+    });
+  }
+}
+
+/**
+ * Create workflow folder
+ */
+async function handleCreateWorkflowFolder(tenantId, user, body) {
+  const { name, parent_id } = body;
+
+  console.log('[Workflows][createFolder] tenantId:', tenantId, 'name:', name);
+
+  if (!name) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Name is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `INSERT INTO "WorkflowFolder" (tenant_id, name, parent_id)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [tenantId, name, parent_id || null]
+    );
+
+    return createResponse(201, result.rows[0]);
+
+  } catch (error) {
+    console.error('[Workflows] Failed to create folder:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create workflow folder',
+    });
+  }
+}
+
+/**
+ * Update workflow folder
+ */
+async function handleUpdateWorkflowFolder(tenantId, user, folderId, body) {
+  const { name, parent_id } = body;
+
+  console.log('[Workflows][updateFolder] folderId:', folderId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const updates = [];
+    const params = [folderId, tenantId];
+    let paramIndex = 3;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      params.push(name);
+    }
+    if (parent_id !== undefined) {
+      updates.push(`parent_id = $${paramIndex++}`);
+      params.push(parent_id);
+    }
+
+    if (updates.length === 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No fields to update',
+      });
+    }
+
+    const result = await query(
+      `UPDATE "WorkflowFolder"
+       SET ${updates.join(', ')}, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      params
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Folder not found',
+      });
+    }
+
+    return createResponse(200, result.rows[0]);
+
+  } catch (error) {
+    console.error('[Workflows] Failed to update folder:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update workflow folder',
+    });
+  }
+}
+
+/**
+ * Delete workflow folder
+ */
+async function handleDeleteWorkflowFolder(tenantId, user, folderId) {
+  console.log('[Workflows][deleteFolder] folderId:', folderId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    // First, unset folder_id for any workflows in this folder
+    await query(
+      `UPDATE "Workflow" SET folder_id = NULL WHERE folder_id = $1 AND tenant_id = $2`,
+      [folderId, tenantId]
+    );
+
+    const result = await query(
+      `DELETE FROM "WorkflowFolder" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      [folderId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Folder not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Folder deleted',
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to delete folder:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete workflow folder',
     });
   }
 }
