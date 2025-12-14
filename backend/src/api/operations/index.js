@@ -631,7 +631,29 @@ async function getRunAssignments(event, tenantId) {
         assignments: assignmentsByRun[run.id] || []
     }));
 
-    return ok(event, 200, { runs: result, assignments, total: assignments.length });
+    // Transform flat assignments to camelCase (same format as nested runs[].assignments)
+    const transformedAssignments = assignments.map(a => ({
+        id: a.id,
+        runId: a.run_id,
+        runName: runs.find(r => r.id === a.run_id)?.name,
+        petId: a.pet_id,
+        petName: a.pet_name,
+        petSpecies: a.pet_species,
+        petBreed: a.pet_breed,
+        petPhotoUrl: a.pet_photo_url,
+        ownerName: a.owner_first_name && a.owner_last_name
+            ? `${a.owner_first_name} ${a.owner_last_name}`
+            : a.owner_first_name || a.owner_last_name || null,
+        ownerPhone: a.owner_phone,
+        bookingId: a.booking_id,
+        assignedDate: a.assigned_date,
+        startTime: a.start_time,
+        endTime: a.end_time,
+        isIndividual: a.is_individual,
+        notes: a.notes
+    }));
+
+    return ok(event, 200, { runs: result, assignments: transformedAssignments, total: transformedAssignments.length });
 }
 
 async function listRuns(event, tenantId) {
