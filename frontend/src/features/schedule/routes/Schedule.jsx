@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { addDays, startOfWeek } from 'date-fns';
+import { addDays, startOfWeek, format } from 'date-fns';
 import {
   Plus, Home, Users, Settings, ChevronRight,
   Clock, PawPrint, UserCheck, UserX, CheckCircle,
@@ -125,9 +125,9 @@ const Schedule = () => {
   const processedAssignments = useMemo(() => {
     const assignments = runAssignmentsData?.assignments || [];
     return assignments.map(assignment => {
-      // Parse the date from startAt to get the assignment date
+      // Parse the date from startAt to get the assignment date (use local date, not UTC)
       const startDate = assignment.startAt ? new Date(assignment.startAt) : null;
-      const dateStr = startDate ? startDate.toISOString().split('T')[0] : null;
+      const dateStr = startDate ? format(startDate, 'yyyy-MM-dd') : null;
 
       // Determine service type from run type or booking
       const serviceType = assignment.serviceType || assignment.runType || 'Daycare';
@@ -197,7 +197,7 @@ const Schedule = () => {
   const occupancyByDate = useMemo(() => {
     const map = {};
     weekDates.forEach(date => {
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = format(date, 'yyyy-MM-dd');
       // Count assignments for this date (using RunAssignment data)
       const count = processedAssignments.filter(a => a.dateStr === dateStr).length;
       const pct = totalCapacity > 0 ? Math.round((count / totalCapacity) * 100) : 0;
@@ -654,8 +654,8 @@ const DailyHourlyGrid = ({
   const currentHour = now.getHours();
   const isToday = currentDate.toDateString() === now.toDateString();
 
-  // Get the date string for filtering
-  const dateStr = currentDate.toISOString().split('T')[0];
+  // Get the date string for filtering (use local date, not UTC)
+  const dateStr = format(currentDate, 'yyyy-MM-dd');
 
   // Scroll to current hour on mount
   useEffect(() => {
