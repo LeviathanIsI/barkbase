@@ -13,6 +13,7 @@ import {
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 import {
   useCommissionsQuery,
@@ -167,17 +168,21 @@ const CommissionsList = ({ staffId, showActions = true }) => {
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-gray-400" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-lg dark:bg-surface-secondary text-sm"
-          >
-            <option value="">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="paid">Paid</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+          <div className="min-w-[130px]">
+            <StyledSelect
+              options={[
+                { value: '', label: 'All Status' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'approved', label: 'Approved' },
+                { value: 'paid', label: 'Paid' },
+                { value: 'cancelled', label: 'Cancelled' },
+              ]}
+              value={statusFilter}
+              onChange={(opt) => setStatusFilter(opt?.value || '')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
         </div>
       </div>
 

@@ -8,6 +8,7 @@ import Select from 'react-select';
 import Button from '@/components/ui/Button';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 import { getPets } from '@/features/pets/api';
 
@@ -296,21 +297,16 @@ export default function IncidentForm({
               <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
                 Incident Type <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
               </label>
-              <select
-                {...register('incidentType', { required: 'Type is required' })}
-                className={inputClass}
-                style={{
-                  ...inputStyles,
-                  borderColor: errors.incidentType ? 'var(--bb-color-status-negative)' : 'var(--bb-color-border-subtle)',
-                }}
-              >
-                <option value="">Select type...</option>
-                {INCIDENT_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
+              <StyledSelect
+                options={[
+                  { value: '', label: 'Select type...' },
+                  ...INCIDENT_TYPES.map((type) => ({ value: type.value, label: type.label }))
+                ]}
+                value={watch('incidentType')}
+                onChange={(opt) => setValue('incidentType', opt?.value || '', { shouldDirty: true })}
+                isClearable={false}
+                isSearchable={false}
+              />
               {errors.incidentType && (
                 <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>
                   {errors.incidentType.message}
@@ -322,17 +318,13 @@ export default function IncidentForm({
               <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
                 Severity <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
               </label>
-              <select
-                {...register('severity', { required: 'Severity is required' })}
-                className={inputClass}
-                style={inputStyles}
-              >
-                {SEVERITY_LEVELS.map((level) => (
-                  <option key={level.value} value={level.value}>
-                    {level.label} - {level.description}
-                  </option>
-                ))}
-              </select>
+              <StyledSelect
+                options={SEVERITY_LEVELS.map((level) => ({ value: level.value, label: `${level.label} - ${level.description}` }))}
+                value={watch('severity')}
+                onChange={(opt) => setValue('severity', opt?.value || 'LOW', { shouldDirty: true })}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
           </FormGrid>
 

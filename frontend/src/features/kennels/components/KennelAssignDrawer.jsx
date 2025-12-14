@@ -8,6 +8,7 @@ import { Search, PawPrint, Calendar, User, Check, AlertCircle, ArrowRightLeft, H
 import SlideOutDrawer from '@/components/ui/SlideOutDrawer';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBookingsQuery, useAssignKennelMutation } from '@/features/bookings/api';
 import toast from 'react-hot-toast';
@@ -173,16 +174,20 @@ const KennelAssignDrawer = ({ isOpen, onClose, kennel }) => {
               className="w-full pl-10 pr-4 py-2.5 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-          >
-            <option value="ALL">All Status</option>
-            <option value="PENDING">Pending</option>
-            <option value="CONFIRMED">Confirmed</option>
-            <option value="CHECKED_IN">Checked In</option>
-          </select>
+          <div className="min-w-[130px]">
+            <StyledSelect
+              options={[
+                { value: 'ALL', label: 'All Status' },
+                { value: 'PENDING', label: 'Pending' },
+                { value: 'CONFIRMED', label: 'Confirmed' },
+                { value: 'CHECKED_IN', label: 'Checked In' },
+              ]}
+              value={statusFilter}
+              onChange={(opt) => setStatusFilter(opt?.value || 'ALL')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
         </div>
 
         {/* Currently Assigned to THIS Kennel */}

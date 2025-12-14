@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Clock } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { useAvailableSlotsQuery } from '../api-templates';
 
 /**
@@ -59,18 +60,16 @@ const TimeSlotPicker = ({
     }
   };
 
-  const generateTimeOptions = () => {
+  const timeOptions = useMemo(() => {
     const options = [];
     for (let hour = 7; hour < 20; hour++) {
       for (let minute = 0; minute < 60; minute += 15) {
         const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-        options.push(time);
+        options.push({ value: time, label: time });
       }
     }
     return options;
-  };
-
-  const timeOptions = generateTimeOptions();
+  }, []);
 
   return (
     <Modal
@@ -100,36 +99,26 @@ const TimeSlotPicker = ({
               <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                 Start Time
               </label>
-              <select
-                id="startTime"
+              <StyledSelect
+                options={timeOptions}
                 value={startTime}
-                onChange={(e) => handleStartTimeChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {timeOptions.map((time) => (
-                  <option key={time} value={time}>
-                    {time}
-                  </option>
-                ))}
-              </select>
+                onChange={(opt) => handleStartTimeChange(opt?.value || '09:00')}
+                isClearable={false}
+                isSearchable={true}
+              />
             </div>
 
             <div>
               <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                 End Time
               </label>
-              <select
-                id="endTime"
+              <StyledSelect
+                options={timeOptions.filter(opt => opt.value > startTime)}
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {timeOptions.filter(time => time > startTime).map((time) => (
-                  <option key={time} value={time}>
-                    {time}
-                  </option>
-                ))}
-              </select>
+                onChange={(opt) => setEndTime(opt?.value || '09:30')}
+                isClearable={false}
+                isSearchable={true}
+              />
             </div>
 
             {availableSlots.length > 0 && (
