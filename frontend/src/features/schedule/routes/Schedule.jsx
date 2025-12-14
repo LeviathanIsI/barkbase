@@ -126,9 +126,12 @@ const Schedule = () => {
   const processedAssignments = useMemo(() => {
     const assignments = runAssignmentsData?.assignments || [];
     return assignments.map(assignment => {
-      // Parse the date from startAt to get the assignment date (use local date, not UTC)
-      const startDate = assignment.startAt ? new Date(assignment.startAt) : null;
-      const dateStr = startDate ? format(startDate, 'yyyy-MM-dd') : null;
+      // Use assignedDate from RunAssignment table, fallback to startAt for legacy data
+      const dateStr = assignment.assignedDate
+        ? format(new Date(assignment.assignedDate), 'yyyy-MM-dd')
+        : assignment.startAt
+          ? format(new Date(assignment.startAt), 'yyyy-MM-dd')
+          : null;
 
       // Determine service type from run type or booking
       const serviceType = assignment.serviceType || assignment.runType || 'Daycare';
