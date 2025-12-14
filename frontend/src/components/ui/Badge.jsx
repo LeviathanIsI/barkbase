@@ -4,6 +4,7 @@
  * Supports light/dark modes through CSS custom properties
  */
 
+/* eslint-disable react-refresh/only-export-components */
 import React from 'react';
 import { cva } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
@@ -109,9 +110,9 @@ const badgeVariants = cva(
 
         // Purple - For special states like No Show
         purple: [
-          'bg-purple-500/10',
-          'border-purple-500/20',
-          'text-purple-400',
+          'bg-[var(--bb-color-purple-soft)]',
+          'border-[var(--bb-color-purple-soft)]',
+          'text-[var(--bb-color-purple)]',
         ],
       },
       size: {
