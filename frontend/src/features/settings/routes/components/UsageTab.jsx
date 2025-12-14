@@ -1,6 +1,7 @@
 import { TrendingUp, AlertTriangle, BarChart3, Shield, Loader2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { useBillingUsageQuery } from '@/features/settings/api';
 
 export default function UsageTab() {
@@ -233,14 +234,19 @@ export default function UsageTab() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-medium text-text-primary">Bookings</span>
-              <select
-                className="rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                defaultValue="block"
-              >
-                <option value="block">Block new bookings</option>
-                <option value="allow-with-fee">Allow with fee ($0.50/booking)</option>
-                <option value="auto-upgrade">Auto-upgrade to next plan</option>
-              </select>
+              <div className="min-w-[200px]">
+                <StyledSelect
+                  options={[
+                    { value: 'block', label: 'Block new bookings' },
+                    { value: 'allow-with-fee', label: 'Allow with fee ($0.50/booking)' },
+                    { value: 'auto-upgrade', label: 'Auto-upgrade to next plan' },
+                  ]}
+                  value="block"
+                  onChange={() => {}}
+                  isClearable={false}
+                  isSearchable={false}
+                />
+              </div>
             </div>
             <p className="text-xs text-text-tertiary">
               Current setting: Block new bookings when limit is reached
@@ -251,14 +257,19 @@ export default function UsageTab() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-medium text-text-primary">Storage</span>
-              <select
-                className="rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                defaultValue="read-only"
-              >
-                <option value="block-uploads">Block uploads</option>
-                <option value="auto-upgrade">Auto-upgrade storage</option>
-                <option value="read-only">Read-only mode</option>
-              </select>
+              <div className="min-w-[180px]">
+                <StyledSelect
+                  options={[
+                    { value: 'block-uploads', label: 'Block uploads' },
+                    { value: 'auto-upgrade', label: 'Auto-upgrade storage' },
+                    { value: 'read-only', label: 'Read-only mode' },
+                  ]}
+                  value="read-only"
+                  onChange={() => {}}
+                  isClearable={false}
+                  isSearchable={false}
+                />
+              </div>
             </div>
             <p className="text-xs text-text-tertiary">
               Current setting: Read-only mode when storage limit is reached

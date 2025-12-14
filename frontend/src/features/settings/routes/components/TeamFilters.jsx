@@ -1,5 +1,6 @@
 import { Search, Filter, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 
 const TeamFilters = ({ filters, onFiltersChange }) => {
   const updateFilter = (key, value) => {
@@ -37,52 +38,68 @@ const TeamFilters = ({ filters, onFiltersChange }) => {
         </div>
 
         {/* Filter Dropdowns */}
-        <div className="flex gap-2 flex-wrap">
-          <select
-            value={filters.role}
-            onChange={(e) => updateFilter('role', e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Roles</option>
-            <option value="owner">Owner</option>
-            <option value="manager">Manager</option>
-            <option value="staff">Staff</option>
-            <option value="groomer">Groomer</option>
-            <option value="trainer">Trainer</option>
-          </select>
+        <div className="flex gap-2 flex-wrap items-center">
+          <div className="min-w-[130px]">
+            <StyledSelect
+              options={[
+                { value: 'all', label: 'All Roles' },
+                { value: 'owner', label: 'Owner' },
+                { value: 'manager', label: 'Manager' },
+                { value: 'staff', label: 'Staff' },
+                { value: 'groomer', label: 'Groomer' },
+                { value: 'trainer', label: 'Trainer' },
+              ]}
+              value={filters.role}
+              onChange={(opt) => updateFilter('role', opt?.value || 'all')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
 
-          <select
-            value={filters.status}
-            onChange={(e) => updateFilter('status', e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="pending">Pending Invite</option>
-          </select>
+          <div className="min-w-[140px]">
+            <StyledSelect
+              options={[
+                { value: 'all', label: 'All Status' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+                { value: 'pending', label: 'Pending Invite' },
+              ]}
+              value={filters.status}
+              onChange={(opt) => updateFilter('status', opt?.value || 'all')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
 
-          <select
-            value={filters.location}
-            onChange={(e) => updateFilter('location', e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Locations</option>
-            <option value="building-a">Building A</option>
-            <option value="building-b">Building B</option>
-            <option value="mobile">Mobile</option>
-          </select>
+          <div className="min-w-[140px]">
+            <StyledSelect
+              options={[
+                { value: 'all', label: 'All Locations' },
+                { value: 'building-a', label: 'Building A' },
+                { value: 'building-b', label: 'Building B' },
+                { value: 'mobile', label: 'Mobile' },
+              ]}
+              value={filters.location}
+              onChange={(opt) => updateFilter('location', opt?.value || 'all')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
 
-          <select
-            value={filters.sortBy}
-            onChange={(e) => updateFilter('sortBy', e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="name">Sort by Name</option>
-            <option value="role">Sort by Role</option>
-            <option value="recently-added">Recently Added</option>
-            <option value="last-active">Last Active</option>
-          </select>
+          <div className="min-w-[150px]">
+            <StyledSelect
+              options={[
+                { value: 'name', label: 'Sort by Name' },
+                { value: 'role', label: 'Sort by Role' },
+                { value: 'recently-added', label: 'Recently Added' },
+                { value: 'last-active', label: 'Last Active' },
+              ]}
+              value={filters.sortBy}
+              onChange={(opt) => updateFilter('sortBy', opt?.value || 'name')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
 
           {hasActiveFilters && (
             <Button

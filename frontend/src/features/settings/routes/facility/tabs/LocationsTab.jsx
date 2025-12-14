@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import SlideOutDrawer from '@/components/ui/SlideOutDrawer';
 import { Plus, Edit, X, MapPin } from 'lucide-react';
 import { useTenantStore } from '@/stores/tenant';
@@ -198,17 +199,20 @@ export default function LocationsTab() {
           />
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Type</label>
-            <select
+            <StyledSelect
+              label="Type"
+              options={[
+                { value: 'boarding', label: 'Boarding' },
+                { value: 'daycare', label: 'Daycare' },
+                { value: 'mixed', label: 'Mixed' },
+                { value: 'grooming', label: 'Grooming' },
+              ]}
               value={locationForm.type}
-              onChange={(e) => setLocationForm(prev => ({ ...prev, type: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-surface-secondary dark:text-text-primary"
-            >
-              <option value="boarding">Boarding</option>
-              <option value="daycare">Daycare</option>
-              <option value="mixed">Mixed</option>
-              <option value="grooming">Grooming</option>
-            </select>
+              onChange={(opt) => setLocationForm(prev => ({ ...prev, type: opt?.value || 'boarding' }))}
+              isClearable={false}
+              isSearchable={false}
+              menuPortalTarget={document.body}
+            />
           </div>
 
           <Input
