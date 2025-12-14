@@ -1141,8 +1141,9 @@ const TimeSpanLine = ({ pet, trackOffset = 0, onBookingClick }) => {
 const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
-  // Calculate vertical position based on end minute (0-59 maps to 0-100% of cell)
-  const endMinutePercent = ((pet._endMinute || 0) / 60) * 100;
+  // When endMinute is 0, we're in the (endHour-1) cell, so position at bottom (100%)
+  // When endMinute > 0, we're in the endHour cell, so position at endMinute%
+  const endMinutePercent = pet._endMinute === 0 ? 95 : ((pet._endMinute / 60) * 100);
 
   // Format end time
   const formatEndTime = () => {
