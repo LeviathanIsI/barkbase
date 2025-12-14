@@ -8,6 +8,7 @@ import { ChevronRight, AlertTriangle, AlertCircle, Info, Clock, CheckCircle, Fil
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import LoadingState from '@/components/ui/LoadingState';
+import StyledSelect from '@/components/ui/StyledSelect';
 import IncidentForm from '../components/IncidentForm';
 import { getIncidents, createIncident, updateIncident, deleteIncident, resolveIncident, notifyOwnerOfIncident } from '../api';
 import { getPets } from '@/features/pets/api';
@@ -370,46 +371,39 @@ const QuickReport = ({ pets, onSubmit, isSubmitting }) => {
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1 block">Pet *</label>
-          <select
+          <StyledSelect
+            options={[
+              { value: '', label: 'Select pet...' },
+              ...pets.map(p => ({ value: p.id || p.recordId, label: p.name }))
+            ]}
             value={form.petId}
-            onChange={(e) => setForm({ ...form, petId: e.target.value })}
-            className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
-            style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-            required
-          >
-            <option value="">Select pet...</option>
-            {pets.map(p => (
-              <option key={p.id || p.recordId} value={p.id || p.recordId}>{p.name}</option>
-            ))}
-          </select>
+            onChange={(opt) => setForm({ ...form, petId: opt?.value || '' })}
+            placeholder="Select pet..."
+            isClearable={false}
+            isSearchable
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1 block">Type</label>
-            <select
+            <StyledSelect
+              options={Object.entries(INCIDENT_TYPES).map(([key, cfg]) => ({ value: key, label: cfg.label }))}
               value={form.incidentType}
-              onChange={(e) => setForm({ ...form, incidentType: e.target.value })}
-              className="w-full px-2 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
-              style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-            >
-              {Object.entries(INCIDENT_TYPES).map(([key, cfg]) => (
-                <option key={key} value={key}>{cfg.label}</option>
-              ))}
-            </select>
+              onChange={(opt) => setForm({ ...form, incidentType: opt?.value || 'ILLNESS' })}
+              isClearable={false}
+              isSearchable={false}
+            />
           </div>
           <div>
             <label className="text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1 block">Severity</label>
-            <select
+            <StyledSelect
+              options={Object.entries(SEVERITY_CONFIG).map(([key, cfg]) => ({ value: key, label: cfg.label }))}
               value={form.severity}
-              onChange={(e) => setForm({ ...form, severity: e.target.value })}
-              className="w-full px-2 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
-              style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-            >
-              {Object.entries(SEVERITY_CONFIG).map(([key, cfg]) => (
-                <option key={key} value={key}>{cfg.label}</option>
-              ))}
-            </select>
+              onChange={(opt) => setForm({ ...form, severity: opt?.value || 'LOW' })}
+              isClearable={false}
+              isSearchable={false}
+            />
           </div>
         </div>
 
@@ -860,43 +854,46 @@ export default function IncidentsPage() {
           >
             <div className="flex flex-wrap items-center gap-3">
               {/* Status Filter */}
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
-                style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-              >
-                <option value="">All Statuses</option>
-                {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
-                  <option key={key} value={key}>{cfg.label}</option>
-                ))}
-              </select>
+              <div className="min-w-[140px]">
+                <StyledSelect
+                  options={[
+                    { value: '', label: 'All Statuses' },
+                    ...Object.entries(STATUS_CONFIG).map(([key, cfg]) => ({ value: key, label: cfg.label }))
+                  ]}
+                  value={filters.status}
+                  onChange={(opt) => setFilters({ ...filters, status: opt?.value || '' })}
+                  isClearable={false}
+                  isSearchable={false}
+                />
+              </div>
 
               {/* Severity Filter */}
-              <select
-                value={filters.severity}
-                onChange={(e) => setFilters({ ...filters, severity: e.target.value })}
-                className="px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
-                style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-              >
-                <option value="">All Severities</option>
-                {Object.entries(SEVERITY_CONFIG).map(([key, cfg]) => (
-                  <option key={key} value={key}>{cfg.label}</option>
-                ))}
-              </select>
+              <div className="min-w-[140px]">
+                <StyledSelect
+                  options={[
+                    { value: '', label: 'All Severities' },
+                    ...Object.entries(SEVERITY_CONFIG).map(([key, cfg]) => ({ value: key, label: cfg.label }))
+                  ]}
+                  value={filters.severity}
+                  onChange={(opt) => setFilters({ ...filters, severity: opt?.value || '' })}
+                  isClearable={false}
+                  isSearchable={false}
+                />
+              </div>
 
               {/* Type Filter */}
-              <select
-                value={filters.type}
-                onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                className="px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
-                style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-              >
-                <option value="">All Types</option>
-                {Object.entries(INCIDENT_TYPES).map(([key, cfg]) => (
-                  <option key={key} value={key}>{cfg.label}</option>
-                ))}
-              </select>
+              <div className="min-w-[130px]">
+                <StyledSelect
+                  options={[
+                    { value: '', label: 'All Types' },
+                    ...Object.entries(INCIDENT_TYPES).map(([key, cfg]) => ({ value: key, label: cfg.label }))
+                  ]}
+                  value={filters.type}
+                  onChange={(opt) => setFilters({ ...filters, type: opt?.value || '' })}
+                  isClearable={false}
+                  isSearchable={false}
+                />
+              </div>
 
               {/* Search */}
               <div className="relative flex-1 min-w-[200px]">

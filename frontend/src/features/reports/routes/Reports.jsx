@@ -39,6 +39,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -783,28 +784,28 @@ const Reports = () => {
       <div className="bg-white dark:bg-surface-primary border border-border rounded-lg px-3 py-2 flex flex-wrap items-center gap-3 text-xs">
         <div className="flex items-center gap-1.5">
           <Calendar className="h-3.5 w-3.5 text-muted" />
-          <select
-            value={dateRangeKey}
-            onChange={(e) => setDateRangeKey(e.target.value)}
-            className="px-2 py-1 bg-surface border-0 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
-          >
-            {DATE_RANGE_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+          <div className="min-w-[130px]">
+            <StyledSelect
+              options={DATE_RANGE_OPTIONS}
+              value={dateRangeKey}
+              onChange={(opt) => setDateRangeKey(opt?.value || 'thisMonth')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
         </div>
         <div className="h-4 w-px bg-border" />
         <div className="flex items-center gap-1.5">
           <TrendingUp className="h-3.5 w-3.5 text-muted" />
-          <select
-            value={compareKey}
-            onChange={(e) => setCompareKey(e.target.value)}
-            className="px-2 py-1 bg-surface border-0 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
-          >
-            {COMPARE_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+          <div className="min-w-[160px]">
+            <StyledSelect
+              options={COMPARE_OPTIONS}
+              value={compareKey}
+              onChange={(opt) => setCompareKey(opt?.value || 'previousPeriod')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
         </div>
         <div className="ml-auto text-[10px] text-muted">
           {dateRange.startDate && format(new Date(dateRange.startDate), 'MMM d')} - {dateRange.endDate && format(new Date(dateRange.endDate), 'MMM d')}

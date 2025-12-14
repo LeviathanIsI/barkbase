@@ -32,6 +32,7 @@ import {
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
+import StyledSelect from '@/components/ui/StyledSelect';
 import KennelForm from '../components/KennelForm';
 import KennelAssignDrawer from '../components/KennelAssignDrawer';
 import { useKennels, useDeleteKennel } from '../api';
@@ -775,28 +776,32 @@ const Kennels = () => {
                 />
               </div>
 
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
-                style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-              >
-                <option value="ALL">All Status</option>
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-              </select>
+              <div className="min-w-[130px]">
+                <StyledSelect
+                  options={[
+                    { value: 'ALL', label: 'All Status' },
+                    { value: 'ACTIVE', label: 'Active' },
+                    { value: 'INACTIVE', label: 'Inactive' },
+                  ]}
+                  value={statusFilter}
+                  onChange={(opt) => setStatusFilter(opt?.value || 'ALL')}
+                  isClearable={false}
+                  isSearchable={false}
+                />
+              </div>
 
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
-                style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-              >
-                <option value="ALL">All Types</option>
-                {Object.entries(KENNEL_TYPES).map(([key, config]) => (
-                  <option key={key} value={key}>{config.label}</option>
-                ))}
-              </select>
+              <div className="min-w-[130px]">
+                <StyledSelect
+                  options={[
+                    { value: 'ALL', label: 'All Types' },
+                    ...Object.entries(KENNEL_TYPES).map(([key, config]) => ({ value: key, label: config.label }))
+                  ]}
+                  value={typeFilter}
+                  onChange={(opt) => setTypeFilter(opt?.value || 'ALL')}
+                  isClearable={false}
+                  isSearchable={false}
+                />
+              </div>
             </div>
 
             {/* Active Filter Tags */}

@@ -5,6 +5,7 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle, AlertCircle, Info, Clock, CheckCircle, Filter, Plus, Eye, Trash2, Bell } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { getIncidents, deleteIncident, resolveIncident, notifyOwnerOfIncident } from '../api';
 import { cn } from '@/lib/cn';
 
@@ -161,65 +162,52 @@ export default function IncidentList({ onCreateNew, onViewIncident, onRefresh })
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--bb-color-text-secondary)' }}>
                 Status
               </label>
-              <select
+              <StyledSelect
+                options={[
+                  { value: '', label: 'All Statuses' },
+                  { value: 'OPEN', label: 'Open' },
+                  { value: 'INVESTIGATING', label: 'Investigating' },
+                  { value: 'RESOLVED', label: 'Resolved' },
+                  { value: 'CLOSED', label: 'Closed' },
+                ]}
                 value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="w-full rounded-md border px-3 py-2"
-                style={{
-                  backgroundColor: 'var(--bb-color-bg-surface)',
-                  borderColor: 'var(--bb-color-border-subtle)',
-                  color: 'var(--bb-color-text-primary)',
-                }}
-              >
-                <option value="">All Statuses</option>
-                <option value="OPEN">Open</option>
-                <option value="INVESTIGATING">Investigating</option>
-                <option value="RESOLVED">Resolved</option>
-                <option value="CLOSED">Closed</option>
-              </select>
+                onChange={(opt) => setFilters({ ...filters, status: opt?.value || '' })}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--bb-color-text-secondary)' }}>
                 Severity
               </label>
-              <select
+              <StyledSelect
+                options={[
+                  { value: '', label: 'All Severities' },
+                  { value: 'LOW', label: 'Low' },
+                  { value: 'MEDIUM', label: 'Medium' },
+                  { value: 'HIGH', label: 'High' },
+                  { value: 'CRITICAL', label: 'Critical' },
+                ]}
                 value={filters.severity}
-                onChange={(e) => setFilters({ ...filters, severity: e.target.value })}
-                className="w-full rounded-md border px-3 py-2"
-                style={{
-                  backgroundColor: 'var(--bb-color-bg-surface)',
-                  borderColor: 'var(--bb-color-border-subtle)',
-                  color: 'var(--bb-color-text-primary)',
-                }}
-              >
-                <option value="">All Severities</option>
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High</option>
-                <option value="CRITICAL">Critical</option>
-              </select>
+                onChange={(opt) => setFilters({ ...filters, severity: opt?.value || '' })}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: 'var(--bb-color-text-secondary)' }}>
                 Type
               </label>
-              <select
+              <StyledSelect
+                options={[
+                  { value: '', label: 'All Types' },
+                  ...INCIDENT_TYPES.map((type) => ({ value: type.value, label: type.label }))
+                ]}
                 value={filters.type}
-                onChange={(e) => setFilters({ ...filters, type: e.target.value })}
-                className="w-full rounded-md border px-3 py-2"
-                style={{
-                  backgroundColor: 'var(--bb-color-bg-surface)',
-                  borderColor: 'var(--bb-color-border-subtle)',
-                  color: 'var(--bb-color-text-primary)',
-                }}
-              >
-                <option value="">All Types</option>
-                {INCIDENT_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(opt) => setFilters({ ...filters, type: opt?.value || '' })}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
           </div>
         </div>

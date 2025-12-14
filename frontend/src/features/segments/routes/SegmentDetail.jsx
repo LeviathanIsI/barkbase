@@ -48,6 +48,7 @@ import Badge from '@/components/ui/Badge';
 import LoadingState from '@/components/ui/LoadingState';
 import SlideOutDrawer from '@/components/ui/SlideOutDrawer';
 import ConfirmDeleteModal from '@/components/ui/ConfirmDeleteModal';
+import StyledSelect from '@/components/ui/StyledSelect';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/apiClient';
 import { useQuery } from '@tanstack/react-query';
@@ -791,11 +792,19 @@ const OverviewTab = ({ segment, segmentType, objectType, onExport, onTabChange, 
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
-                  <select className="text-sm border border-[color:var(--bb-color-border-subtle)] rounded px-2 py-1 bg-[color:var(--bb-color-bg-surface)]">
-                    <option>100 per page</option>
-                    <option>50 per page</option>
-                    <option>25 per page</option>
-                  </select>
+                  <div className="w-32">
+                    <StyledSelect
+                      options={[
+                        { value: 100, label: '100 per page' },
+                        { value: 50, label: '50 per page' },
+                        { value: 25, label: '25 per page' },
+                      ]}
+                      value={100}
+                      onChange={() => {}}
+                      isClearable={false}
+                      isSearchable={false}
+                    />
+                  </div>
                 </div>
               </div>
             </>
@@ -1283,18 +1292,22 @@ const ActivityTab = ({ segmentId }) => {
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <span className="text-sm text-[color:var(--bb-color-text-muted)]">Event</span>
-          <select
-            value={eventFilter}
-            onChange={(e) => setEventFilter(e.target.value)}
-            className="text-sm border border-[color:var(--bb-color-border-subtle)] rounded px-2 py-1 bg-[color:var(--bb-color-bg-surface)]"
-          >
-            <option value="all">All event types</option>
-            <option value="created">Segment created</option>
-            <option value="edited">Segment edited</option>
-            <option value="member_added">Member added</option>
-            <option value="member_removed">Member removed</option>
-            <option value="filters_changed">Filters changed</option>
-          </select>
+          <div className="min-w-[160px]">
+            <StyledSelect
+              options={[
+                { value: 'all', label: 'All event types' },
+                { value: 'created', label: 'Segment created' },
+                { value: 'edited', label: 'Segment edited' },
+                { value: 'member_added', label: 'Member added' },
+                { value: 'member_removed', label: 'Member removed' },
+                { value: 'filters_changed', label: 'Filters changed' },
+              ]}
+              value={eventFilter}
+              onChange={(opt) => setEventFilter(opt?.value || 'all')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
         </div>
       </div>
 
@@ -1465,16 +1478,20 @@ const AutoConvertPanel = ({ segment, onConvert, isActive }) => {
         <label className="block text-sm font-medium text-[color:var(--bb-color-text-primary)]">
           Convert this segment to static:
         </label>
-        <select
-          value={convertOption}
-          onChange={(e) => setConvertOption(e.target.value)}
-          className="w-full max-w-md px-3 py-2 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)]"
-        >
-          <option value="never">Never</option>
-          <option value="1week">After 1 week of no changes</option>
-          <option value="1month">After 1 month of no changes</option>
-          <option value="specific">On specific date</option>
-        </select>
+        <div className="max-w-md">
+          <StyledSelect
+            options={[
+              { value: 'never', label: 'Never' },
+              { value: '1week', label: 'After 1 week of no changes' },
+              { value: '1month', label: 'After 1 month of no changes' },
+              { value: 'specific', label: 'On specific date' },
+            ]}
+            value={convertOption}
+            onChange={(opt) => setConvertOption(opt?.value || 'never')}
+            isClearable={false}
+            isSearchable={false}
+          />
+        </div>
       </div>
 
       {isActive && (
@@ -1753,14 +1770,19 @@ const AccessPanel = ({ segment }) => {
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <select
-                              defaultValue={team.access || 'none'}
-                              className="text-sm border border-[color:var(--bb-color-border-subtle)] rounded px-2 py-1 bg-[color:var(--bb-color-bg-surface)]"
-                            >
-                              <option value="none">No access</option>
-                              <option value="view">View only</option>
-                              <option value="edit">View and Edit</option>
-                            </select>
+                            <div className="w-32">
+                              <StyledSelect
+                                options={[
+                                  { value: 'none', label: 'No access' },
+                                  { value: 'view', label: 'View only' },
+                                  { value: 'edit', label: 'View and Edit' },
+                                ]}
+                                value={team.access || 'none'}
+                                onChange={() => {}}
+                                isClearable={false}
+                                isSearchable={false}
+                              />
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1804,14 +1826,19 @@ const AccessPanel = ({ segment }) => {
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <select
-                              defaultValue="none"
-                              className="text-sm border border-[color:var(--bb-color-border-subtle)] rounded px-2 py-1 bg-[color:var(--bb-color-bg-surface)]"
-                            >
-                              <option value="none">No access</option>
-                              <option value="view">View only</option>
-                              <option value="edit">View and Edit</option>
-                            </select>
+                            <div className="w-32">
+                              <StyledSelect
+                                options={[
+                                  { value: 'none', label: 'No access' },
+                                  { value: 'view', label: 'View only' },
+                                  { value: 'edit', label: 'View and Edit' },
+                                ]}
+                                value="none"
+                                onChange={() => {}}
+                                isClearable={false}
+                                isSearchable={false}
+                              />
+                            </div>
                           </td>
                         </tr>
                       ))}
