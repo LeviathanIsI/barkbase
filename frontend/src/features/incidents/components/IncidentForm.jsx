@@ -306,6 +306,7 @@ export default function IncidentForm({
                 onChange={(opt) => setValue('incidentType', opt?.value || '', { shouldDirty: true })}
                 isClearable={false}
                 isSearchable={false}
+                menuPortalTarget={document.body}
               />
               {errors.incidentType && (
                 <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>
@@ -324,6 +325,7 @@ export default function IncidentForm({
                 onChange={(opt) => setValue('severity', opt?.value || 'LOW', { shouldDirty: true })}
                 isClearable={false}
                 isSearchable={false}
+                menuPortalTarget={document.body}
               />
             </div>
           </FormGrid>
