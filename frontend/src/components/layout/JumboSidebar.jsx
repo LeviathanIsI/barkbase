@@ -26,7 +26,7 @@ const iconMap = {
   "/today": Grid3x3,
   "/bookings": BookOpen,
   "/tasks": CheckCircle,
-  "/runs": Clock,
+  "/run-schedules": Clock,
   "/pets": PawPrint,
   "/owners": Users,
   "/vaccinations": Shield,

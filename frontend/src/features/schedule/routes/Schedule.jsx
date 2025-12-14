@@ -245,7 +245,7 @@ const Schedule = () => {
 
   // Set document title
   useEffect(() => {
-    document.title = "Today's Schedule | BarkBase";
+    document.title = "Run Schedules | BarkBase";
     return () => { document.title = 'BarkBase'; };
   }, []);
 
@@ -338,12 +338,12 @@ const Schedule = () => {
             <PageHeader
               breadcrumbs={[
                 { label: 'Operations' },
-                { label: 'Schedule' }
+                { label: 'Run Schedules' }
               ]}
-              title="Today's Schedule"
+              title="Run Schedules"
             />
             <p className="mt-1 text-sm text-[color:var(--bb-color-text-muted)]">
-              Real-time facility operations — see where pets are TODAY, hour by hour
+              Manage run assignments and track pet activities throughout the day
             </p>
           </div>
 

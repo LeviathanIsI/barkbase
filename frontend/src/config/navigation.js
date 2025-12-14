@@ -31,8 +31,7 @@ export const sidebarSections = [
     defaultExpanded: true,
     items: [
       { path: '/bookings', label: 'Bookings', icon: 'calendar-plus' },
-      { path: '/schedule', label: 'Schedule', icon: 'calendar-days' },
-      { path: '/runs', label: 'Runs', icon: 'activity' },
+      { path: '/run-schedules', label: 'Run Schedules', icon: 'calendar-days' },
       { path: '/tasks', label: 'Tasks', icon: 'check-square' },
       { path: '/kennels', label: 'Kennels', icon: 'home' },
       { path: '/incidents', label: 'Incidents', icon: 'alert-triangle' },

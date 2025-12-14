@@ -236,8 +236,10 @@ export const router = createBrowserRouter([
               { index: true, element: <Navigate to="/today" replace /> },
               { path: "today", element: <TodayCommandCenter /> },
               { path: "bookings", element: <Bookings /> },
-              { path: "schedule", element: <Schedule /> },
-              { path: "calendar", element: <Navigate to="/schedule" replace /> },
+              { path: "run-schedules", element: <Schedule /> },
+              // Legacy redirects
+              { path: "schedule", element: <Navigate to="/run-schedules" replace /> },
+              { path: "calendar", element: <Navigate to="/run-schedules" replace /> },
               { path: "kennels", element: <Kennels /> },
               { path: "pets", element: <Pets /> },
               { path: "pets/:petId", element: <PetDetail /> },
@@ -251,11 +253,11 @@ export const router = createBrowserRouter([
               { path: "payments", element: <Payments /> },
               { path: "reports", element: <Reports /> },
               // Operations
-              { path: "runs", element: <RunAssignment /> },
+              { path: "runs", element: <Navigate to="/run-schedules" replace /> },
               { path: "vaccinations", element: <Vaccinations /> },
               { path: "tasks", element: <Tasks /> },
               { path: "daycare/checkin", element: <Tasks /> },
-              { path: "daycare/runs", element: <RunAssignment /> },
+              { path: "daycare/runs", element: <Navigate to="/run-schedules" replace /> },
               { path: "mobile/tasks", element: <MobileTasks /> },
               { path: "mobile/check-in", element: <MobileCheckIn /> },
               // Customer Portal
