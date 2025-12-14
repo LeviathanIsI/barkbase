@@ -498,14 +498,12 @@ async function getAvailableSlots(event, tenantId) {
     const { date } = event.queryStringParameters || {};
     const dateStr = date || new Date().toISOString().split('T')[0];
     const pool = getPool();
+    const runId = event.pathParameters.runId;
 
-    // Get the run to find its template
+    // Get the run
     const { rows: runRows } = await pool.query(
-        `SELECT r.*, rt."timePeriodMinutes", rt."capacityType", rt."maxCapacity"
-         FROM "Run" r
-         LEFT JOIN "RunTemplate" rt ON r."templateId" = rt."recordId"
-         WHERE r."recordId" = $1 AND r."tenantId" = $2`,
-        [event.pathParameters.runId, tenantId]
+        `SELECT id, name, capacity, run_type FROM "Run" WHERE id = $1 AND tenant_id = $2`,
+        [runId, tenantId]
     );
 
     if (runRows.length === 0) {
@@ -513,10 +511,15 @@ async function getAvailableSlots(event, tenantId) {
     }
 
     const run = runRows[0];
-    const timePeriod = run.timePeriodMinutes || 30;
-    const capacityType = run.capacityType || 'total';
-    const maxCapacity = run.maxCapacity || run.capacity || 10;
-    const assignments = run.assignedPets || [];
+    const timePeriod = 30; // Default time period
+    const maxCapacity = run.capacity || 10;
+
+    // Get assignments for this run on this date from RunAssignment table
+    const { rows: assignments } = await pool.query(
+        `SELECT start_time, end_time FROM "RunAssignment"
+         WHERE run_id = $1 AND tenant_id = $2 AND assigned_date = $3`,
+        [runId, tenantId, dateStr]
+    );
 
     // Generate all possible slots from 07:00 to 20:00
     const slots = [];
@@ -530,15 +533,12 @@ async function getAvailableSlots(event, tenantId) {
 
             if (endHour >= 20) break;
 
-            // Count pets in this slot if capacityType is concurrent
-            let occupied = 0;
-            if (capacityType === 'concurrent') {
-                occupied = assignments.filter(a => {
-                    return a.startTime < endTime && a.endTime > startTime;
-                }).length;
-            } else {
-                occupied = assignments.length;
-            }
+            // Count pets in this slot (concurrent capacity)
+            const occupied = assignments.filter(a => {
+                const aStart = a.start_time?.toString().slice(0, 5) || '00:00';
+                const aEnd = a.end_time?.toString().slice(0, 5) || '23:59';
+                return aStart < endTime && aEnd > startTime;
+            }).length;
 
             slots.push({
                 startTime,
@@ -557,184 +557,174 @@ async function getRunAssignments(event, tenantId) {
     const dateStr = date || new Date().toISOString().split('T')[0];
     const pool = getPool();
 
-    // First, check if runs exist for this date, if not, create from templates
-    const { rows: existingRuns } = await pool.query(
-        `SELECT COUNT(*) as count FROM "Run" WHERE "tenantId" = $1 AND DATE("date") = $2`,
-        [tenantId, dateStr]
-    );
-
-    if (parseInt(existingRuns[0].count) === 0) {
-        // No runs exist for this date, create from active templates
-        const { rows: templates } = await pool.query(
-            `SELECT * FROM "RunTemplate" WHERE "tenantId" = $1 AND "isActive" = true ORDER BY "name"`,
-            [tenantId]
-        );
-
-        if (templates.length > 0) {
-            // Insert runs based on templates
-            const insertPromises = templates.map(template =>
-                pool.query(
-                    `INSERT INTO "Run" ("recordId", "tenantId", "templateId", "name", "date", "capacity", "assignedPets", "updatedAt")
-                     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, '[]'::jsonb, NOW())`,
-                    [tenantId, template.recordId, template.name, dateStr, template.maxCapacity]
-                )
-            );
-            await Promise.all(insertPromises);
-        }
-    }
-
-    // Get all runs for the date with template info
+    // Get all active runs (Run table has: id, tenant_id, name, capacity, run_type, is_active)
     const { rows: runs } = await pool.query(
+        `SELECT id, name, capacity, run_type, is_active
+         FROM "Run"
+         WHERE tenant_id = $1 AND is_active = true
+         ORDER BY name`,
+        [tenantId]
+    );
+
+    // Get assignments for this date from RunAssignment table with pet/owner details
+    // RunAssignment schema: id, tenant_id, run_id, pet_id, booking_id, assigned_date, start_time, end_time, is_individual, notes
+    const { rows: assignments } = await pool.query(
         `SELECT
-            r."recordId",
-            r."name",
-            r."capacity",
-            r."scheduleTime",
-            r."assignedPets",
-            r."date",
-            r."templateId",
-            rt."timePeriodMinutes",
-            rt."capacityType",
-            rt."maxCapacity"
-        FROM "Run" r
-        LEFT JOIN "RunTemplate" rt ON r."templateId" = rt."recordId"
-        WHERE r."tenantId" = $1 AND DATE(r."date") = $2
-        ORDER BY r."name"`,
+           ra.id,
+           ra.run_id,
+           ra.pet_id,
+           ra.booking_id,
+           ra.assigned_date,
+           ra.start_time,
+           ra.end_time,
+           ra.is_individual,
+           ra.notes,
+           p.name as pet_name,
+           p.species as pet_species,
+           p.breed as pet_breed,
+           p.photo_url as pet_photo_url,
+           o.first_name as owner_first_name,
+           o.last_name as owner_last_name,
+           o.phone as owner_phone
+         FROM "RunAssignment" ra
+         JOIN "Pet" p ON ra.pet_id = p.id AND p.tenant_id = ra.tenant_id
+         LEFT JOIN "Owner" o ON p.owner_id = o.id AND o.tenant_id = ra.tenant_id
+         WHERE ra.tenant_id = $1 AND ra.assigned_date = $2
+         ORDER BY ra.start_time`,
         [tenantId, dateStr]
     );
 
-    // For each run, fetch the pet details for assigned pets
-    const runsWithAssignments = await Promise.all(
-        runs.map(async (run) => {
-            const assignments = run.assignedPets || [];
+    // Group assignments by run
+    const assignmentsByRun = {};
+    assignments.forEach(a => {
+        if (!assignmentsByRun[a.run_id]) {
+            assignmentsByRun[a.run_id] = [];
+        }
+        assignmentsByRun[a.run_id].push({
+            id: a.id,
+            petId: a.pet_id,
+            petName: a.pet_name,
+            petSpecies: a.pet_species,
+            petBreed: a.pet_breed,
+            petPhotoUrl: a.pet_photo_url,
+            ownerName: a.owner_first_name && a.owner_last_name
+                ? `${a.owner_first_name} ${a.owner_last_name}`
+                : a.owner_first_name || a.owner_last_name || null,
+            ownerPhone: a.owner_phone,
+            bookingId: a.booking_id,
+            assignedDate: a.assigned_date,
+            startTime: a.start_time,
+            endTime: a.end_time,
+            isIndividual: a.is_individual,
+            notes: a.notes
+        });
+    });
 
-            if (assignments.length === 0) {
-                return { ...run, assignments: [] };
-            }
+    // Merge runs with their assignments
+    const result = runs.map(run => ({
+        recordId: run.id,
+        id: run.id,
+        name: run.name,
+        capacity: run.capacity,
+        runType: run.run_type,
+        isActive: run.is_active,
+        assignments: assignmentsByRun[run.id] || []
+    }));
 
-            // Extract pet IDs from assignments (which now have petId, startTime, endTime)
-            const petIds = assignments.map(a => typeof a === 'string' ? a : a.petId);
-
-            // Fetch pet details including behavioral flags and notes
-            const { rows: pets } = await pool.query(
-                `SELECT
-                    p."recordId",
-                    p."name",
-                    p."species",
-                    p."breed",
-                    p."behaviorFlags",
-                    p."medicalNotes",
-                    p."dietaryNotes",
-                    json_agg(
-                        json_build_object(
-                            'owner', json_build_object(
-                                'recordId', o."recordId",
-                                'firstName', o."firstName",
-                                'lastName', o."lastName"
-                            )
-                        )
-                    ) FILTER (WHERE o."recordId" IS NOT NULL) as owners
-                FROM "Pet" p
-                LEFT JOIN "PetOwner" po ON po."petId" = p."recordId"
-                LEFT JOIN "Owner" o ON o."recordId" = po."ownerId" AND o."tenantId" = $1
-                WHERE p."recordId" = ANY($2) AND p."tenantId" = $1
-                GROUP BY p."recordId", p."name", p."species", p."breed", p."behaviorFlags", p."medicalNotes", p."dietaryNotes"`,
-                [tenantId, petIds]
-            );
-
-            // Create a map of pet details
-            const petMap = {};
-            pets.forEach(pet => {
-                petMap[pet.recordId] = pet;
-            });
-
-            // Map assignments to include pet details and time info
-            const detailedAssignments = assignments.map(a => {
-                const petId = typeof a === 'string' ? a : a.petId;
-                return {
-                    pet: petMap[petId],
-                    startTime: typeof a === 'object' ? a.startTime : undefined,
-                    endTime: typeof a === 'object' ? a.endTime : undefined
-                };
-            });
-
-            return {
-                ...run,
-                assignments: detailedAssignments
-            };
-        })
-    );
-
-    return ok(event, 200, runsWithAssignments);
+    return ok(event, 200, { runs: result, assignments, total: assignments.length });
 }
 
 async function listRuns(event, tenantId) {
-    const { date } = event.queryStringParameters || {};
     const pool = getPool();
+    // Run table schema: id, tenant_id, name, capacity, run_type, is_active
     const { rows } = await pool.query(
-        `SELECT * FROM "Run" WHERE "tenantId" = $1 AND DATE("date") = $2 ORDER BY "name"`,
-        [tenantId, date || new Date().toISOString().split('T')[0]]
+        `SELECT id, name, capacity, run_type, is_active
+         FROM "Run"
+         WHERE tenant_id = $1 AND is_active = true
+         ORDER BY name`,
+        [tenantId]
     );
-    return ok(event, 200, rows);
+    return ok(event, 200, rows.map(r => ({
+        recordId: r.id,
+        id: r.id,
+        name: r.name,
+        capacity: r.capacity,
+        runType: r.run_type,
+        isActive: r.is_active
+    })));
 }
 
 async function createRun(event, tenantId) {
-    const { name, date, capacity, assignedPets } = JSON.parse(event.body);
+    const { name, capacity, runType } = JSON.parse(event.body);
     const pool = getPool();
+    // Run table schema: id, tenant_id, name, capacity, run_type, is_active
     const { rows } = await pool.query(
-        `INSERT INTO "Run" ("recordId", "tenantId", "name", "date", "capacity", "assignedPets", "updatedAt")
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW()) RETURNING *`,
-        [tenantId, name, date, capacity || 10, JSON.stringify(assignedPets || [])]
+        `INSERT INTO "Run" (tenant_id, name, capacity, run_type, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, true, NOW(), NOW()) RETURNING *`,
+        [tenantId, name, capacity || 10, runType || 'Standard']
     );
-    return ok(event, 201, rows[0]);
+    const r = rows[0];
+    return ok(event, 201, {
+        recordId: r.id,
+        id: r.id,
+        name: r.name,
+        capacity: r.capacity,
+        runType: r.run_type,
+        isActive: r.is_active
+    });
 }
 
 async function updateRun(event, tenantId) {
-    const { assignedPets } = JSON.parse(event.body);
+    const { name, capacity, runType, isActive } = JSON.parse(event.body);
     const pool = getPool();
+    const runId = event.pathParameters.runId;
 
-    // Get the run with template info for capacity validation
+    // Get existing run
     const { rows: runRows } = await pool.query(
-        `SELECT r.*, rt."timePeriodMinutes", rt."capacityType", rt."maxCapacity"
-         FROM "Run" r
-         LEFT JOIN "RunTemplate" rt ON r."templateId" = rt."recordId"
-         WHERE r."recordId" = $1 AND r."tenantId" = $2`,
-        [event.pathParameters.runId, tenantId]
+        `SELECT * FROM "Run" WHERE id = $1 AND tenant_id = $2`,
+        [runId, tenantId]
     );
 
     if (runRows.length === 0) {
         return fail(event, 404, { message: 'Run not found' });
     }
 
-    const run = runRows[0];
-    const capacityType = run.capacityType || 'total';
-    const maxCapacity = run.maxCapacity || run.capacity || 10;
+    // Update run metadata (assignments are stored in RunAssignment table, not here)
+    const updates = [];
+    const values = [runId, tenantId];
+    let paramIndex = 3;
 
-    // Validate capacity based on capacityType
-    if (capacityType === 'total' && assignedPets.length > maxCapacity) {
-        return fail(event, 400, { message: `Total capacity exceeded. Max: ${maxCapacity}` });
+    if (name !== undefined) {
+        updates.push(`name = $${paramIndex++}`);
+        values.push(name);
     }
-
-    if (capacityType === 'concurrent') {
-        // Check for concurrent overlaps
-        const timeSlots = {};
-        assignedPets.forEach(a => {
-            if (a.startTime && a.endTime) {
-                const key = `${a.startTime}-${a.endTime}`;
-                timeSlots[key] = (timeSlots[key] || 0) + 1;
-                if (timeSlots[key] > maxCapacity) {
-                    return fail(event, 400, { message: `Concurrent capacity exceeded for slot ${a.startTime}-${a.endTime}. Max: ${maxCapacity}` });
-                }
-            }
-        });
+    if (capacity !== undefined) {
+        updates.push(`capacity = $${paramIndex++}`);
+        values.push(capacity);
     }
+    if (runType !== undefined) {
+        updates.push(`run_type = $${paramIndex++}`);
+        values.push(runType);
+    }
+    if (isActive !== undefined) {
+        updates.push(`is_active = $${paramIndex++}`);
+        values.push(isActive);
+    }
+    updates.push('updated_at = NOW()');
 
-    // Update the run
     const { rows } = await pool.query(
-        `UPDATE "Run" SET "assignedPets" = $1, "updatedAt" = NOW() WHERE "recordId" = $2 AND "tenantId" = $3 RETURNING *`,
-        [JSON.stringify(assignedPets), event.pathParameters.runId, tenantId]
+        `UPDATE "Run" SET ${updates.join(', ')} WHERE id = $1 AND tenant_id = $2 RETURNING *`,
+        values
     );
-    return ok(event, 200, rows[0]);
+    const r = rows[0];
+    return ok(event, 200, {
+        recordId: r.id,
+        id: r.id,
+        name: r.name,
+        capacity: r.capacity,
+        runType: r.run_type,
+        isActive: r.is_active
+    });
 }
 
 // ===== CHECK-IN HANDLERS =====
