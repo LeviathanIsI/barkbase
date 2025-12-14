@@ -782,17 +782,9 @@ const DailyHourlyGrid = ({
         return { ...a, position, trackIndex };
       });
 
-    if (runAssignments.length > 0) return runAssignments;
-
-    // Fall back to bookings assigned to this kennel (show as single)
-    return bookings.filter(b => {
-      if (b.runId !== runId) return false;
-      if (!b.checkInDate || !b.checkOutDate) return false;
-      const checkInStr = b.checkInDate.toISOString().split('T')[0];
-      const checkOutStr = b.checkOutDate.toISOString().split('T')[0];
-      if (dateStr < checkInStr || dateStr > checkOutStr) return false;
-      return true;
-    }).map((b, idx) => ({ ...b, position: 'single', trackIndex: idx }));
+    // Only show actual RunAssignment data - no booking fallback
+    // Bookings are for kennel reservations, RunAssignments are for run/play area scheduling
+    return runAssignments;
   };
 
   // Calculate occupancy for a run (how many hours it's occupied)
