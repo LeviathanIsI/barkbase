@@ -284,6 +284,14 @@ const Schedule = () => {
           // Use run name as additional context
           runName: bookingOrAssignment.runName,
           runId: bookingOrAssignment.runId,
+          // Run assignment times (TIME strings like "08:00")
+          startTime: bookingOrAssignment.startTime || null,
+          endTime: bookingOrAssignment.endTime || null,
+          // Full timestamps
+          startAt: bookingOrAssignment.startAt || null,
+          endAt: bookingOrAssignment.endAt || null,
+          // Service/activity type
+          serviceType: bookingOrAssignment.serviceType || 'Social',
           totalCents: bookingOrAssignment.bookingTotalCents || 0,
           amountPaidCents: 0, // TODO: fetch actual paid amount if needed
         };

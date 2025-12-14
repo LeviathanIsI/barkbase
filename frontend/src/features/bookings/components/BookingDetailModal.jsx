@@ -107,6 +107,19 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     });
   };
 
+  // Format TIME string like "08:00" or "17:30" to human readable
+  const formatTimeString = (timeStr) => {
+    if (!timeStr) return '—';
+    const parts = timeStr.split(':');
+    if (parts.length < 2) return timeStr;
+    const hour = parseInt(parts[0], 10);
+    const minute = parseInt(parts[1], 10);
+    if (isNaN(hour)) return timeStr;
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+    return minute > 0 ? `${hour12}:${minute.toString().padStart(2, '0')} ${suffix}` : `${hour12} ${suffix}`;
+  };
+
   const getStatusVariant = (status) => {
     const variants = {
       CONFIRMED: 'info',
@@ -137,6 +150,8 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     runId: booking?.runId || null,
     startAt: booking?.startAt || null,
     endAt: booking?.endAt || null,
+    startTime: booking?.startTime || null, // TIME string like "08:00"
+    endTime: booking?.endTime || null, // TIME string like "17:00"
     serviceType: booking?.serviceType || 'Social',
     runAssignmentId: booking?.runAssignmentId || null,
   };
@@ -474,12 +489,20 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                 <div className="grid grid-cols-2 gap-[var(--bb-space-4)]">
                   <InspectorField label="Start Time" layout="stacked" icon={Clock}>
                     <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
-                      {displayBooking.startAt ? formatTime(displayBooking.startAt) : '—'}
+                      {displayBooking.startTime
+                        ? formatTimeString(displayBooking.startTime)
+                        : displayBooking.startAt
+                          ? formatTime(displayBooking.startAt)
+                          : '—'}
                     </span>
                   </InspectorField>
                   <InspectorField label="End Time" layout="stacked" icon={Timer}>
                     <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
-                      {displayBooking.endAt ? formatTime(displayBooking.endAt) : '—'}
+                      {displayBooking.endTime
+                        ? formatTimeString(displayBooking.endTime)
+                        : displayBooking.endAt
+                          ? formatTime(displayBooking.endAt)
+                          : '—'}
                     </span>
                   </InspectorField>
                 </div>
@@ -507,17 +530,17 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
             {/* Quick Actions */}
             <InspectorSection title="Quick Actions" icon={ArrowRight}>
               <div className="grid grid-cols-3 gap-2">
-                <Button variant="outline" size="sm" className="w-full">
-                  <Home className="w-4 h-4 mr-1" />
-                  Change Run
+                <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-1 text-xs">
+                  <Home className="w-3.5 h-3.5 shrink-0" />
+                  <span>Change Run</span>
                 </Button>
-                <Button variant="outline" size="sm" className="w-full">
-                  <Clock className="w-4 h-4 mr-1" />
-                  Extend Time
+                <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-1 text-xs">
+                  <Clock className="w-3.5 h-3.5 shrink-0" />
+                  <span>Extend</span>
                 </Button>
-                <Button variant="outline" size="sm" className="w-full text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20">
-                  <X className="w-4 h-4 mr-1" />
-                  End Early
+                <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-1 text-xs text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20">
+                  <X className="w-3.5 h-3.5 shrink-0" />
+                  <span>End Early</span>
                 </Button>
               </div>
             </InspectorSection>
@@ -803,8 +826,8 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
         {/* Footer Actions */}
         <InspectorFooter>
           <div className="flex items-center justify-between w-full">
-            {/* Left: Cancel booking (only if we have a valid ID) */}
-            {displayBooking.status !== 'CANCELLED' && displayBooking.status !== 'CHECKED_OUT' && hasValidBookingId && (
+            {/* Left: Cancel booking (only on booking tab and if we have a valid ID) */}
+            {activeTab === 'booking' && displayBooking.status !== 'CANCELLED' && displayBooking.status !== 'CHECKED_OUT' && hasValidBookingId && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -815,49 +838,54 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                 Cancel Booking
               </Button>
             )}
-            {(displayBooking.status === 'CANCELLED' || displayBooking.status === 'CHECKED_OUT' || !hasValidBookingId) && <div />}
+            {(activeTab === 'assignment' || displayBooking.status === 'CANCELLED' || displayBooking.status === 'CHECKED_OUT' || !hasValidBookingId) && <div />}
 
             {/* Right: Primary actions */}
             <div className="flex gap-2">
               <Button variant="secondary" onClick={onClose}>
                 Close
               </Button>
-              {/* Show Check In - will open create flow if no ID */}
-              {displayBooking.status === 'CONFIRMED' && hasValidBookingId && (
-                <Button
-                  variant="primary"
-                  onClick={handleCheckIn}
-                  disabled={checkInMutation.isPending}
-                >
-                  <CheckCircle className="w-4 h-4 mr-[var(--bb-space-2)]" />
-                  {checkInMutation.isPending ? 'Checking In...' : 'Check In'}
-                </Button>
-              )}
-              {/* Show Save Booking if ID is missing - opens create flow */}
-              {!hasValidBookingId && (
-                <Button
-                  variant="primary"
-                  onClick={() => openCreateBookingWithPrefill()}
-                >
-                  <CheckCircle className="w-4 h-4 mr-[var(--bb-space-2)]" />
-                  Save Booking
-                </Button>
-              )}
-              {displayBooking.status === 'CHECKED_IN' && hasValidBookingId && (
-                <Button
-                  variant="primary"
-                  onClick={handleCheckOut}
-                  disabled={checkOutMutation.isPending}
-                >
-                  <CheckCircle className="w-4 h-4 mr-[var(--bb-space-2)]" />
-                  {checkOutMutation.isPending ? 'Checking Out...' : 'Check Out'}
-                </Button>
-              )}
-              {onEdit && displayBooking.status !== 'CANCELLED' && hasValidBookingId && (
-                <Button variant="outline" onClick={onEdit}>
-                  <Edit2 className="w-4 h-4 mr-[var(--bb-space-2)]" />
-                  Edit
-                </Button>
+              {/* Booking tab actions only */}
+              {activeTab === 'booking' && (
+                <>
+                  {/* Show Check In - will open create flow if no ID */}
+                  {displayBooking.status === 'CONFIRMED' && hasValidBookingId && (
+                    <Button
+                      variant="primary"
+                      onClick={handleCheckIn}
+                      disabled={checkInMutation.isPending}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-[var(--bb-space-2)]" />
+                      {checkInMutation.isPending ? 'Checking In...' : 'Check In'}
+                    </Button>
+                  )}
+                  {/* Show Save Booking if ID is missing - opens create flow */}
+                  {!hasValidBookingId && (
+                    <Button
+                      variant="primary"
+                      onClick={() => openCreateBookingWithPrefill()}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-[var(--bb-space-2)]" />
+                      Save Booking
+                    </Button>
+                  )}
+                  {displayBooking.status === 'CHECKED_IN' && hasValidBookingId && (
+                    <Button
+                      variant="primary"
+                      onClick={handleCheckOut}
+                      disabled={checkOutMutation.isPending}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-[var(--bb-space-2)]" />
+                      {checkOutMutation.isPending ? 'Checking Out...' : 'Check Out'}
+                    </Button>
+                  )}
+                  {onEdit && displayBooking.status !== 'CANCELLED' && hasValidBookingId && (
+                    <Button variant="outline" onClick={onEdit}>
+                      <Edit2 className="w-4 h-4 mr-[var(--bb-space-2)]" />
+                      Edit
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </div>
