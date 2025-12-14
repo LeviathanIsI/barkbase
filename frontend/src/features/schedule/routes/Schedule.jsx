@@ -1018,13 +1018,13 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
   // Show check-out button if checked in and departure is today
   const showCheckOut = isCheckedIn && isDepartureToday;
 
-  // Service type badge color
-  const getServiceColor = (service) => {
+  // Activity type dot color (based on run type)
+  const getActivityDotColor = (service) => {
     const s = (service || '').toLowerCase();
-    if (s.includes('boarding')) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
-    if (s.includes('daycare')) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
-    if (s.includes('groom')) return 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300';
-    return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+    if (s.includes('social')) return 'bg-emerald-500';
+    if (s.includes('individual')) return 'bg-blue-500';
+    if (s.includes('training')) return 'bg-amber-500';
+    return 'bg-gray-400'; // Default for unknown types
   };
 
   // Status border color
@@ -1062,23 +1062,18 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
       }}
     >
       {/* Compact single-row layout - uses horizontal space */}
-      <div className="flex items-center justify-between gap-2 h-full">
-        {/* Left: Pet name with icon */}
-        <div className="flex items-center gap-1 min-w-0">
-          <PawPrint className="h-3 w-3 shrink-0 text-[color:var(--bb-color-text-primary)]" />
+      <div className="flex items-center justify-between gap-1.5 h-full">
+        {/* Left: Activity dot + Pet name */}
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          {/* Activity type dot */}
+          <span className={cn('w-2 h-2 rounded-full shrink-0', getActivityDotColor(pet.serviceType))} />
           <span className="text-[11px] font-semibold text-[color:var(--bb-color-text-primary)] truncate">
             {pet.petName}
           </span>
         </div>
 
-        {/* Middle: Owner name */}
-        <span className="text-[9px] text-[color:var(--bb-color-text-muted)] truncate hidden sm:block">
-          {pet.ownerName}
-        </span>
-
-        {/* Right: Actions and badge */}
+        {/* Right: Check In/Out buttons only (no text badge) */}
         <div className="flex items-center gap-1 shrink-0">
-          {/* Check In/Out buttons */}
           {showCheckIn && (
             <button
               type="button"
@@ -1101,10 +1096,6 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
               {checkOutPending ? '...' : 'Out'}
             </button>
           )}
-          {/* Service badge */}
-          <span className={cn('text-[8px] font-medium px-1 py-0.5 rounded', getServiceColor(pet.serviceType))}>
-            {pet.serviceType || 'Daycare'}
-          </span>
         </div>
       </div>
 
@@ -1145,10 +1136,13 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
               </div>
             )}
 
-            {/* Service */}
+            {/* Activity Type */}
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-[color:var(--bb-color-text-muted)]">Service:</span>
-              <Badge size="sm" variant="info">{pet.serviceType || 'Daycare'}</Badge>
+              <span className="text-[color:var(--bb-color-text-muted)]">Activity:</span>
+              <div className="flex items-center gap-1.5">
+                <span className={cn('w-2 h-2 rounded-full', getActivityDotColor(pet.serviceType))} />
+                <span className="text-[color:var(--bb-color-text-primary)]">{pet.serviceType || 'Social'}</span>
+              </div>
             </div>
 
             {/* Times */}
@@ -1224,6 +1218,24 @@ const CapacityOverview = ({ stats }) => {
         </Badge>
       </div>
 
+      {/* Activity Types Legend */}
+      <div className="pt-3 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+        <p className="text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-2">Activity Types</p>
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="text-xs text-[color:var(--bb-color-text-primary)]">Social</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-blue-500" />
+            <span className="text-xs text-[color:var(--bb-color-text-primary)]">Individual</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            <span className="text-xs text-[color:var(--bb-color-text-primary)]">Training</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
