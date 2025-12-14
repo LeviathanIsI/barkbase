@@ -834,7 +834,7 @@ const DailyHourlyGrid = ({
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
         <div className="flex items-center gap-3">
           <Clock className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
-          <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Today's Facility Grid</h3>
+          <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Runs & Play Areas</h3>
           <Badge variant="info" size="sm">Today</Badge>
         </div>
       </div>
