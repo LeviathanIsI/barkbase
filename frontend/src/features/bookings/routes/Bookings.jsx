@@ -258,14 +258,20 @@ const Bookings = () => {
 
   // Sort bookings for list view - prioritize Check-ins first, Check-outs second, then others
   const sortedBookings = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const today = new Date();
+
+    // Compare dates using local time (not UTC)
+    const isSameDay = (d1, d2) => {
+      if (!d1 || !d2) return false;
+      return d1.getFullYear() === d2.getFullYear() &&
+             d1.getMonth() === d2.getMonth() &&
+             d1.getDate() === d2.getDate();
+    };
 
     // Priority function: 0 = check-in today, 1 = check-out today, 2 = other
     const getPriority = (booking) => {
-      const checkInStr = booking.checkInDate?.toISOString().split('T')[0];
-      const checkOutStr = booking.checkOutDate?.toISOString().split('T')[0];
-      if (checkInStr === todayStr) return 0;
-      if (checkOutStr === todayStr) return 1;
+      if (isSameDay(booking.checkInDate, today)) return 0;
+      if (isSameDay(booking.checkOutDate, today)) return 1;
       return 2;
     };
 
@@ -1141,29 +1147,37 @@ const WeeklyCalendarView = ({
 
   // Get bookings for a specific date, sorted by: Check-ins first, Check-outs second, then others
   const getBookingsForDate = (date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    // Compare dates using local time (not UTC) to avoid timezone issues
+    const isSameDay = (d1, d2) => {
+      if (!d1 || !d2) return false;
+      return d1.getFullYear() === d2.getFullYear() &&
+             d1.getMonth() === d2.getMonth() &&
+             d1.getDate() === d2.getDate();
+    };
+
+    // Check if targetDate is between checkIn and checkOut (inclusive) using local dates
+    const isDateInRange = (targetDate, checkIn, checkOut) => {
+      const target = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+      const start = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
+      const end = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
+      return target >= start && target <= end;
+    };
+
     return bookings
       .filter(b => {
         if (!b.checkInDate || !b.checkOutDate) return false;
-        const checkInStr = b.checkInDate.toISOString().split('T')[0];
-        const checkOutStr = b.checkOutDate.toISOString().split('T')[0];
-        return dateStr >= checkInStr && dateStr <= checkOutStr;
+        return isDateInRange(date, b.checkInDate, b.checkOutDate);
       })
       .sort((a, b) => {
-        const aCheckInStr = a.checkInDate.toISOString().split('T')[0];
-        const aCheckOutStr = a.checkOutDate.toISOString().split('T')[0];
-        const bCheckInStr = b.checkInDate.toISOString().split('T')[0];
-        const bCheckOutStr = b.checkOutDate.toISOString().split('T')[0];
-
         // Priority: 0 = check-in, 1 = check-out, 2 = in-between
-        const getPriority = (checkIn, checkOut) => {
-          if (checkIn === dateStr) return 0; // Check-in today
-          if (checkOut === dateStr) return 1; // Check-out today
+        const getPriority = (booking) => {
+          if (isSameDay(booking.checkInDate, date)) return 0; // Check-in on this day
+          if (isSameDay(booking.checkOutDate, date)) return 1; // Check-out on this day
           return 2; // In-between
         };
 
-        const aPriority = getPriority(aCheckInStr, aCheckOutStr);
-        const bPriority = getPriority(bCheckInStr, bCheckOutStr);
+        const aPriority = getPriority(a);
+        const bPriority = getPriority(b);
 
         if (aPriority !== bPriority) return aPriority - bPriority;
 
