@@ -1178,7 +1178,7 @@ const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick }) => {
           'text-[color:var(--bb-color-text-muted)]',
           'group-hover:bg-[var(--bb-color-accent-soft)]'
         )}
-        style={{ left: '6px', top: '4px' }}
+        style={{ left: '8px', top: '4px' }}
       >
         {formatEndTime()}
       </div>
