@@ -74,6 +74,36 @@ export default defineConfig(({ mode }) => {
     define: {
       __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Core React ecosystem
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            // Data fetching and state
+            'vendor-query': ['@tanstack/react-query'],
+            // UI animation and icons
+            'vendor-ui': ['framer-motion', 'lucide-react'],
+            // Charts (large dependency)
+            'charts': ['recharts'],
+            // Calendar (large dependency)
+            'calendar': [
+              '@fullcalendar/core',
+            ],
+            // Form handling
+            'forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+            // Drag and drop
+            'dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+            // Virtualization
+            'virtual': ['@tanstack/react-virtual'],
+          },
+        },
+      },
+      // Increase chunk size warning limit
+      chunkSizeWarningLimit: 1000,
+      // Generate source maps for production debugging
+      sourcemap: true,
+    },
     test: {
       globals: true,
       environment: 'jsdom',
