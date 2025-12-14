@@ -6,6 +6,7 @@
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
@@ -199,18 +200,20 @@ const PetFormModal = ({
               >
                 Species
               </label>
-              <select
-                {...register('species')}
-                className={inputClass}
-                style={inputStyles}
-              >
-                <option value="">Select species</option>
-                <option value="Dog">Dog</option>
-                <option value="Cat">Cat</option>
-                <option value="Bird">Bird</option>
-                <option value="Rabbit">Rabbit</option>
-                <option value="Other">Other</option>
-              </select>
+              <StyledSelect
+                options={[
+                  { value: '', label: 'Select species' },
+                  { value: 'Dog', label: 'Dog' },
+                  { value: 'Cat', label: 'Cat' },
+                  { value: 'Bird', label: 'Bird' },
+                  { value: 'Rabbit', label: 'Rabbit' },
+                  { value: 'Other', label: 'Other' },
+                ]}
+                value={watch('species')}
+                onChange={(opt) => setValue('species', opt?.value || '', { shouldDirty: true })}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
 
             <div className="space-y-[var(--bb-space-2,0.5rem)]">
@@ -254,14 +257,16 @@ const PetFormModal = ({
               >
                 Status
               </label>
-              <select
-                {...register('status')}
-                className={inputClass}
-                style={inputStyles}
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+              <StyledSelect
+                options={[
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]}
+                value={watch('status')}
+                onChange={(opt) => setValue('status', opt?.value || 'active', { shouldDirty: true })}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
           </FormGrid>
         </FormSection>

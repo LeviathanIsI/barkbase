@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
 
@@ -126,21 +127,16 @@ const VaccinationFormModal = ({
           >
             Vaccine Type <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
           </label>
-          <select
-            {...register('type', { required: 'Vaccine type is required' })}
-            className={inputClass}
-            style={{
-              ...inputStyles,
-              borderColor: errors.type ? 'var(--bb-color-status-negative)' : 'var(--bb-color-border-subtle)',
-            }}
-          >
-            <option value="">Select vaccine type</option>
-            {getVaccineOptions().map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+          <StyledSelect
+            options={[
+              { value: '', label: 'Select vaccine type' },
+              ...getVaccineOptions().map((type) => ({ value: type, label: type }))
+            ]}
+            value={watch('type')}
+            onChange={(opt) => setValue('type', opt?.value || '', { shouldDirty: true })}
+            isClearable={false}
+            isSearchable={false}
+          />
           {errors.type && (
             <p
               className="text-[var(--bb-font-size-xs,0.75rem)]"

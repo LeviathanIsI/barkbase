@@ -3,13 +3,17 @@
  * Uses the unified chart system with design tokens
  */
 
+import { useState } from 'react';
 import { DollarSign, Calendar, Users, BarChart3, TrendingUp, Target } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { MetricCard } from '@/components/ui/charts';
 import { chartPalette } from '@/components/ui/charts/palette';
 
 const LiveAnalyticsDashboard = () => {
+  const [dateRange, setDateRange] = useState('last7');
+
   const todaysSnapshot = [
     {
       title: 'Today\'s Revenue',
@@ -114,11 +118,19 @@ const LiveAnalyticsDashboard = () => {
           <h3 className="text-[var(--bb-font-size-lg)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
             KEY METRICS (Last 7 Days)
           </h3>
-          <select className="px-[var(--bb-space-3)] py-[var(--bb-space-2)] border border-[var(--bb-color-border-subtle)] rounded-[var(--bb-radius-md)] text-[var(--bb-font-size-sm)] bg-[var(--bb-color-bg-surface)] text-[var(--bb-color-text-primary)]">
-            <option>Last 7 days</option>
-            <option>Last 30 days</option>
-            <option>Last 90 days</option>
-          </select>
+          <div className="min-w-[140px]">
+            <StyledSelect
+              options={[
+                { value: 'last7', label: 'Last 7 days' },
+                { value: 'last30', label: 'Last 30 days' },
+                { value: 'last90', label: 'Last 90 days' },
+              ]}
+              value={dateRange}
+              onChange={(opt) => setDateRange(opt?.value || 'last7')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
         </div>
 
         {/* Revenue Trend Chart */}

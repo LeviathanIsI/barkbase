@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Search, Plus, Edit2, Trash2, ExternalLink } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import AssociationLabelModal from '@/features/settings/components/AssociationLabelModal';
 import {
   useAssociationsQuery,
@@ -133,18 +134,18 @@ const AssociationsTab = ({ objectType }) => {
           </div>
 
           {/* Filter by target object */}
-          <select
-            value={selectedToObjectType}
-            onChange={(e) => setSelectedToObjectType(e.target.value)}
-            className="rounded-lg border border-border bg-white dark:bg-surface-primary pl-3 pr-8 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="">All associated objects</option>
-            {Object.entries(OBJECT_TYPE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <div className="min-w-[180px]">
+            <StyledSelect
+              options={[
+                { value: '', label: 'All associated objects' },
+                ...Object.entries(OBJECT_TYPE_LABELS).map(([value, label]) => ({ value, label }))
+              ]}
+              value={selectedToObjectType}
+              onChange={(opt) => setSelectedToObjectType(opt?.value || '')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
         </div>
 
         <Button onClick={handleCreateAssociation} className="flex items-center gap-2">
