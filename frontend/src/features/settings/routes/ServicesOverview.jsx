@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Plus, Upload, BookOpen } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import LoadingState from '@/components/ui/LoadingState';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import ActionableEmptyState from './components/ActionableEmptyState';
 import IndustryTemplatesModal from './components/IndustryTemplatesModal';
@@ -102,6 +103,10 @@ const ServicesOverview = () => {
       hasServices: categoryServices.length > 0
     };
   }, [servicesData, servicesLoading, selectedCategory, searchQuery]);
+
+  if (servicesLoading) {
+    return <LoadingState label="Loading services..." />;
+  }
 
   return (
     <div className="space-y-6">
