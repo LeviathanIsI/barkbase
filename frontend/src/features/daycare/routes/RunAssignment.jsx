@@ -1,15 +1,17 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { 
-  DndContext, 
-  DragOverlay, 
-  useDraggable, 
-  useDroppable, 
-  PointerSensor, 
-  useSensor, 
+import {
+  DndContext,
+  DragOverlay,
+  useDraggable,
+  useDroppable,
+  PointerSensor,
+  useSensor,
   useSensors,
   closestCenter,
+  MeasuringStrategy,
 } from '@dnd-kit/core';
+import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { 
   SortableContext, 
   useSortable, 
@@ -1315,6 +1317,11 @@ const RunAssignment = () => {
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        measuring={{
+          droppable: {
+            strategy: MeasuringStrategy.Always,
+          },
+        }}
       >
         <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
           {/* Left: Run Columns */}
@@ -1381,6 +1388,7 @@ const RunAssignment = () => {
                 easing: 'ease',
               }}
               zIndex={9999}
+              modifiers={[snapCenterToCursor]}
             >
               {activeId && activePet ? (
                 <div style={{ width: 280 }}>
