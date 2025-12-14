@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Search, Filter, MoreVertical, UserPlus, Users, CheckCircle, Clock, Calendar, AlertTriangle, TrendingUp, Target } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import StyledSelect from '@/components/ui/StyledSelect';
 
 const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -180,26 +181,34 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
               />
             </div>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Status: All</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+            <div className="min-w-[130px]">
+              <StyledSelect
+                options={[
+                  { value: 'all', label: 'Status: All' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]}
+                value={statusFilter}
+                onChange={(opt) => setStatusFilter(opt?.value || 'all')}
+                isClearable={false}
+                isSearchable={false}
+              />
+            </div>
 
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Role: All</option>
-              <option value="manager">Manager</option>
-              <option value="attendant">Kennel Attendant</option>
-              <option value="groomer">Groomer</option>
-            </select>
+            <div className="min-w-[150px]">
+              <StyledSelect
+                options={[
+                  { value: 'all', label: 'Role: All' },
+                  { value: 'manager', label: 'Manager' },
+                  { value: 'attendant', label: 'Kennel Attendant' },
+                  { value: 'groomer', label: 'Groomer' },
+                ]}
+                value={roleFilter}
+                onChange={(opt) => setRoleFilter(opt?.value || 'all')}
+                isClearable={false}
+                isSearchable={false}
+              />
+            </div>
           </div>
 
           <div className="text-sm text-gray-600 dark:text-text-secondary">

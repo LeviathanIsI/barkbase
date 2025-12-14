@@ -3,6 +3,7 @@ import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import StyledSelect from '@/components/ui/StyledSelect';
 import SettingsPage from '../../components/SettingsPage';
 import { Building, MapPin, Plus, Edit, Trash2 } from 'lucide-react';
 
@@ -138,21 +139,33 @@ const Locations = () => {
           <div className="grid gap-4 md:grid-cols-3">
             <div>
               <label className="mb-2 block text-sm font-medium text-text">Building</label>
-              <select className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm">
-                <option value="">Select building...</option>
-                {buildings.map(building => (
-                  <option key={building.recordId} value={building.recordId}>{building.name}</option>
-                ))}
-              </select>
+              <StyledSelect
+                options={[
+                  { value: '', label: 'Select building...' },
+                  ...buildings.map(building => ({
+                    value: building.recordId.toString(),
+                    label: building.name,
+                  })),
+                ]}
+                isClearable={false}
+                isSearchable={false}
+                placeholder="Select building..."
+              />
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-text">Area</label>
-              <select className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm">
-                <option value="">Select area...</option>
-                {areas.map(area => (
-                  <option key={area.recordId} value={area.recordId}>{area.name}</option>
-                ))}
-              </select>
+              <StyledSelect
+                options={[
+                  { value: '', label: 'Select area...' },
+                  ...areas.map(area => ({
+                    value: area.recordId.toString(),
+                    label: area.name,
+                  })),
+                ]}
+                isClearable={false}
+                isSearchable={false}
+                placeholder="Select area..."
+              />
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-text">Kennel Range</label>

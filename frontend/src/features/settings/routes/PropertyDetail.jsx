@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { usePageView } from '@/hooks/useTelemetry';
 import apiClient from '@/lib/apiClient';
 
@@ -214,20 +215,22 @@ const PropertyDetail = () => {
                   <label className="block text-sm font-medium text-text mb-2">
                     Group <span className="text-red-600">*</span>
                   </label>
-                  <select
+                  <StyledSelect
+                    options={[
+                      { value: 'basic_info', label: 'Basic Information' },
+                      { value: 'contact_info', label: 'Contact Information' },
+                      { value: 'custom_fields', label: 'Custom Fields' },
+                      { value: 'identification', label: 'Identification' },
+                      { value: 'medical', label: 'Medical Information' },
+                      { value: 'financial', label: 'Financial' },
+                      { value: 'status', label: 'Status' },
+                      { value: 'notes', label: 'Notes' },
+                    ]}
                     value={formData.group}
-                    onChange={(e) => setFormData({ ...formData, group: e.target.value })}
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    <option value="basic_info">Basic Information</option>
-                    <option value="contact_info">Contact Information</option>
-                    <option value="custom_fields">Custom Fields</option>
-                    <option value="identification">Identification</option>
-                    <option value="medical">Medical Information</option>
-                    <option value="financial">Financial</option>
-                    <option value="status">Status</option>
-                    <option value="notes">Notes</option>
-                  </select>
+                    onChange={(opt) => setFormData({ ...formData, group: opt?.value || 'basic_info' })}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
                 </div>
 
                 {/* Description */}

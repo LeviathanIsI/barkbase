@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { TestTube, Mail, Smartphone, Monitor, Send } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 
 const NotificationTesting = () => {
   const [testChannel, setTestChannel] = useState('email');
@@ -74,17 +75,16 @@ const NotificationTesting = () => {
           <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
             Notification type
           </label>
-          <select
+          <StyledSelect
+            options={notificationTypes.map((type) => ({
+              value: type.key,
+              label: type.label,
+            }))}
             value={testType}
-            onChange={(e) => setTestType(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {notificationTypes.map((type) => (
-              <option key={type.key} value={type.key}>
-                {type.label}
-              </option>
-            ))}
-          </select>
+            onChange={(opt) => setTestType(opt?.value || 'booking')}
+            isClearable={false}
+            isSearchable={false}
+          />
           <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">
             {notificationTypes.find(t => t.key === testType)?.description}
           </p>

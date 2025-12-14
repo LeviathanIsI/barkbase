@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Switch from '@/components/ui/Switch';
+import StyledSelect from '@/components/ui/StyledSelect';
 import Badge from '@/components/ui/Badge';
 import SettingsPage from '../components/SettingsPage';
 import { Smartphone, Download, QrCode, Bell, Shield, Wifi } from 'lucide-react';
@@ -157,30 +158,34 @@ const Mobile = () => {
             <label className="block text-sm font-medium mb-2">
               Photo Quality
             </label>
-            <select
+            <StyledSelect
+              options={[
+                { value: 'low', label: 'Low (Faster uploads)' },
+                { value: 'medium', label: 'Medium (Balanced)' },
+                { value: 'high', label: 'High (Best quality)' },
+              ]}
               value={settings.photoQuality}
-              onChange={(e) => updateSetting('photoQuality', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
-            >
-              <option value="low">Low (Faster uploads)</option>
-              <option value="medium">Medium (Balanced)</option>
-              <option value="high">High (Best quality)</option>
-            </select>
+              onChange={(opt) => updateSetting('photoQuality', opt?.value || 'medium')}
+              isClearable={false}
+              isSearchable={false}
+            />
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-2">
               Data Usage
             </label>
-            <select
+            <StyledSelect
+              options={[
+                { value: 'wifi-only', label: 'Wi-Fi Only' },
+                { value: 'wifi-preferred', label: 'Wi-Fi Preferred' },
+                { value: 'unrestricted', label: 'Unrestricted' },
+              ]}
               value={settings.dataUsage}
-              onChange={(e) => updateSetting('dataUsage', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
-            >
-              <option value="wifi-only">Wi-Fi Only</option>
-              <option value="wifi-preferred">Wi-Fi Preferred</option>
-              <option value="unrestricted">Unrestricted</option>
-            </select>
+              onChange={(opt) => updateSetting('dataUsage', opt?.value || 'wifi-preferred')}
+              isClearable={false}
+              isSearchable={false}
+            />
           </div>
 
           <div>

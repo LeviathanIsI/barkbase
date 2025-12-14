@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Label from '@/components/ui/Label';
 import Textarea from '@/components/ui/Textarea';
+import StyledSelect from '@/components/ui/StyledSelect';
 
 const STEPS = [
   { id: 1, title: 'Impact Analysis', description: 'Review affected properties and assets' },
@@ -217,18 +218,22 @@ export const PropertyDeletionWizard = ({
                     {strategy.requiresSelection && cascadeStrategy === strategy.value && (
                       <div className="mt-3 pl-7">
                         <Label className="text-sm">Select Replacement Property</Label>
-                        <select
-                          className="w-full mt-1 p-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded text-gray-900 dark:text-text-primary"
-                          value={replacementPropertyId}
-                          onChange={(e) => setReplacementPropertyId(e.target.value)}
-                        >
-                          <option value="">Choose a property...</option>
-                          {compatibleProperties.map((prop) => (
-                            <option key={prop.propertyId} value={prop.propertyId}>
-                              {prop.displayLabel} ({prop.propertyName})
-                            </option>
-                          ))}
-                        </select>
+                        <div className="mt-1">
+                          <StyledSelect
+                            options={[
+                              { value: '', label: 'Choose a property...' },
+                              ...compatibleProperties.map((prop) => ({
+                                value: prop.propertyId,
+                                label: `${prop.displayLabel} (${prop.propertyName})`,
+                              })),
+                            ]}
+                            value={replacementPropertyId}
+                            onChange={(opt) => setReplacementPropertyId(opt?.value || '')}
+                            isClearable={false}
+                            isSearchable={true}
+                            menuPortalTarget={document.body}
+                          />
+                        </div>
                       </div>
                     )}
                   </div>

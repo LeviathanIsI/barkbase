@@ -1,6 +1,7 @@
 import { TrendingUp } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { useState, useMemo } from 'react';
 import { useTasksQuery } from '@/features/tasks/api';
 import { useStaffQuery } from '@/features/settings/api';
@@ -60,15 +61,17 @@ const TeamAnalytics = () => {
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-text-primary">Team Analytics</h2>
           <p className="text-gray-600 dark:text-text-secondary">Insights into team performance and efficiency</p>
         </div>
-        <div className="flex gap-2">
-          <select
+        <div className="min-w-[160px]">
+          <StyledSelect
+            options={[
+              { value: 30, label: 'Last 30 days' },
+              { value: 90, label: 'Last 90 days' },
+            ]}
             value={rangeDays}
-            onChange={(e) => setRangeDays(Number(e.target.value))}
-            className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md"
-          >
-            <option value={30}>Last 30 days</option>
-            <option value={90}>Last 90 days</option>
-          </select>
+            onChange={(opt) => setRangeDays(opt?.value || 30)}
+            isClearable={false}
+            isSearchable={false}
+          />
         </div>
       </div>
 

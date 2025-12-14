@@ -1016,14 +1016,18 @@ const InlineFilterEditor = ({ filters, onChange, objectType, previewCount, isPre
         <div key={group.id || groupIndex} className="space-y-2">
           {groupIndex > 0 && (
             <div className="flex items-center gap-2">
-              <select
-                value={filters.groupLogic || 'OR'}
-                onChange={(e) => onChange({ ...filters, groupLogic: e.target.value })}
-                className="text-xs px-2 py-1 rounded border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)]"
-              >
-                <option value="AND">AND</option>
-                <option value="OR">OR</option>
-              </select>
+              <div className="min-w-[80px]">
+                <StyledSelect
+                  options={[
+                    { value: 'AND', label: 'AND' },
+                    { value: 'OR', label: 'OR' },
+                  ]}
+                  value={filters.groupLogic || 'OR'}
+                  onChange={(opt) => onChange({ ...filters, groupLogic: opt?.value || 'OR' })}
+                  isClearable={false}
+                  isSearchable={false}
+                />
+              </div>
             </div>
           )}
 
@@ -1044,43 +1048,45 @@ const InlineFilterEditor = ({ filters, onChange, objectType, previewCount, isPre
             {group.filters?.map((filter, filterIndex) => (
               <div key={filter.id || filterIndex}>
                 {filterIndex > 0 && (
-                  <select
-                    value={group.logic || 'AND'}
-                    onChange={(e) => updateGroup(groupIndex, { logic: e.target.value })}
-                    className="text-xs px-2 py-1 mb-2 rounded border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)]"
-                  >
-                    <option value="AND">AND</option>
-                    <option value="OR">OR</option>
-                  </select>
+                  <div className="min-w-[80px] mb-2">
+                    <StyledSelect
+                      options={[
+                        { value: 'AND', label: 'AND' },
+                        { value: 'OR', label: 'OR' },
+                      ]}
+                      value={group.logic || 'AND'}
+                      onChange={(opt) => updateGroup(groupIndex, { logic: opt?.value || 'AND' })}
+                      isClearable={false}
+                      isSearchable={false}
+                    />
+                  </div>
                 )}
                 <div className="space-y-2 p-2 rounded bg-[color:var(--bb-color-bg-elevated)]">
-                  <div className="flex items-center justify-between">
-                    <select
-                      value={filter.field}
-                      onChange={(e) => updateFilter(groupIndex, filterIndex, { field: e.target.value, value: '' })}
-                      className="flex-1 text-xs px-2 py-1.5 rounded border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)] min-w-0"
-                    >
-                      {SEGMENT_FIELDS[objectType]?.map((f) => (
-                        <option key={f.key} value={f.key}>{f.label}</option>
-                      ))}
-                    </select>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <StyledSelect
+                        options={SEGMENT_FIELDS[objectType]?.map((f) => ({ value: f.key, label: f.label })) || []}
+                        value={filter.field}
+                        onChange={(opt) => updateFilter(groupIndex, filterIndex, { field: opt?.value || '', value: '' })}
+                        isClearable={false}
+                        isSearchable={true}
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={() => removeFilter(groupIndex, filterIndex)}
-                      className="ml-2 p-1 text-[color:var(--bb-color-text-muted)] hover:text-red-500 flex-shrink-0"
+                      className="p-1 text-[color:var(--bb-color-text-muted)] hover:text-red-500 flex-shrink-0"
                     >
                       <X className="h-4 w-4" />
                     </button>
                   </div>
-                  <select
+                  <StyledSelect
+                    options={OPERATORS[SEGMENT_FIELDS[objectType]?.find(f => f.key === filter.field)?.type || 'text']?.map((o) => ({ value: o.value, label: o.label })) || []}
                     value={filter.operator}
-                    onChange={(e) => updateFilter(groupIndex, filterIndex, { operator: e.target.value })}
-                    className="w-full text-xs px-2 py-1.5 rounded border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)]"
-                  >
-                    {OPERATORS[SEGMENT_FIELDS[objectType]?.find(f => f.key === filter.field)?.type || 'text']?.map((o) => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
+                    onChange={(opt) => updateFilter(groupIndex, filterIndex, { operator: opt?.value || '' })}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
                   {!['is_empty', 'is_not_empty', 'is_true', 'is_false'].includes(filter.operator) && (
                     <input
                       type="text"

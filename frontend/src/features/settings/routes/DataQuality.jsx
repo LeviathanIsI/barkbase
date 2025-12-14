@@ -3,6 +3,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Switch from '@/components/ui/Switch';
 import Badge from '@/components/ui/Badge';
+import StyledSelect from '@/components/ui/StyledSelect';
 import SettingsPage from '../components/SettingsPage';
 import { Shield, AlertTriangle, CheckCircle, RefreshCw, Database } from 'lucide-react';
 
@@ -134,15 +135,17 @@ const DataQuality = () => {
               <Database className="inline-block w-4 h-4 mr-2" />
               Backup Frequency
             </label>
-            <select
+            <StyledSelect
+              options={[
+                { value: 'hourly', label: 'Hourly' },
+                { value: 'daily', label: 'Daily' },
+                { value: 'weekly', label: 'Weekly' },
+              ]}
               value={settings.backupFrequency}
-              onChange={(e) => updateSetting('backupFrequency', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
-            >
-              <option value="hourly">Hourly</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-            </select>
+              onChange={(opt) => updateSetting('backupFrequency', opt?.value || 'daily')}
+              isClearable={false}
+              isSearchable={false}
+            />
           </div>
 
           <div>
@@ -150,17 +153,19 @@ const DataQuality = () => {
               <Shield className="inline-block w-4 h-4 mr-2" />
               Data Retention Period
             </label>
-            <select
+            <StyledSelect
+              options={[
+                { value: '30', label: '30 days' },
+                { value: '60', label: '60 days' },
+                { value: '90', label: '90 days' },
+                { value: '180', label: '180 days' },
+                { value: '365', label: '1 year' },
+              ]}
               value={settings.retentionPeriod}
-              onChange={(e) => updateSetting('retentionPeriod', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
-            >
-              <option value="30">30 days</option>
-              <option value="60">60 days</option>
-              <option value="90">90 days</option>
-              <option value="180">180 days</option>
-              <option value="365">1 year</option>
-            </select>
+              onChange={(opt) => updateSetting('retentionPeriod', opt?.value || '90')}
+              isClearable={false}
+              isSearchable={false}
+            />
           </div>
         </div>
 

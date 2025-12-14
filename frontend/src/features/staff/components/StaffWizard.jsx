@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Check, ChevronRight, ChevronLeft, Clock, Users, Calendar, CheckCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 
 const StaffWizard = ({ isOpen, onClose, onComplete }) => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -140,15 +141,18 @@ const StaffWizard = ({ isOpen, onClose, onComplete }) => {
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Employee Type</label>
-                  <select
+                  <StyledSelect
+                    options={[
+                      { value: 'full-time', label: 'Full-time' },
+                      { value: 'part-time', label: 'Part-time' },
+                      { value: 'contractor', label: 'Contractor' },
+                    ]}
                     value={staffData.employeeType}
-                    onChange={(e) => handleInputChange('employeeType', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="full-time">Full-time</option>
-                    <option value="part-time">Part-time</option>
-                    <option value="contractor">Contractor</option>
-                  </select>
+                    onChange={(opt) => handleInputChange('employeeType', opt?.value || 'full-time')}
+                    isClearable={false}
+                    isSearchable={false}
+                    menuPortalTarget={document.body}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Start Date</label>

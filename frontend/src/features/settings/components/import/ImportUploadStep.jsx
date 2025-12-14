@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { ENTITY_TYPES } from './importFieldDefinitions';
 
 const ImportUploadStep = ({
@@ -195,29 +196,23 @@ const ImportUploadStep = ({
                       {entity.description}
                     </p>
                   </div>
-                  <div className="relative">
-                    <select
+                  <div className="min-w-[220px]">
+                    <StyledSelect
+                      options={[
+                        { value: 'create_update', label: `Create and update ${entity.label.toLowerCase()}` },
+                        { value: 'create_only', label: `Create new ${entity.label.toLowerCase()} only` },
+                        { value: 'update_only', label: `Update existing ${entity.label.toLowerCase()} only` },
+                      ]}
                       value={importModes[typeId] || 'create_update'}
-                      onChange={(e) =>
+                      onChange={(opt) =>
                         onImportModesChange({
                           ...importModes,
-                          [typeId]: e.target.value,
+                          [typeId]: opt?.value || 'create_update',
                         })
                       }
-                      className="appearance-none pl-3 pr-8 py-2 rounded-lg border text-sm bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)] cursor-pointer"
-                      style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-                    >
-                      <option value="create_update">
-                        Create and update {entity.label.toLowerCase()}
-                      </option>
-                      <option value="create_only">
-                        Create new {entity.label.toLowerCase()} only
-                      </option>
-                      <option value="update_only">
-                        Update existing {entity.label.toLowerCase()} only
-                      </option>
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--bb-color-text-muted)] pointer-events-none" />
+                      isClearable={false}
+                      isSearchable={false}
+                    />
                   </div>
                 </div>
               </div>
@@ -469,19 +464,18 @@ const ImportUploadStep = ({
         <label className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">
           Select the language of the column headers in your file
         </label>
-        <div className="relative w-48">
-          <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--bb-color-text-muted)]" />
-          <select
+        <div className="w-48">
+          <StyledSelect
+            options={[
+              { value: 'en', label: 'English' },
+              { value: 'es', label: 'Spanish' },
+              { value: 'fr', label: 'French' },
+              { value: 'de', label: 'German' },
+            ]}
             defaultValue="en"
-            className="appearance-none w-full pl-9 pr-8 py-2 rounded-lg border text-sm bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)] cursor-pointer"
-            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-          >
-            <option value="en">English</option>
-            <option value="es">Spanish</option>
-            <option value="fr">French</option>
-            <option value="de">German</option>
-          </select>
-          <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--bb-color-text-muted)] pointer-events-none" />
+            isClearable={false}
+            isSearchable={false}
+          />
         </div>
       </div>
     </div>

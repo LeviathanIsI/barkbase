@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Download, Filter, Search, Receipt, FileText, Building, Loader2, Info } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import Badge from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -97,26 +98,34 @@ export default function InvoicesTab() {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">Invoice History</h2>
           <div className="flex items-center gap-3">
-            <select
-              value={filterTime}
-              onChange={(e) => setFilterTime(e.target.value)}
-              className="rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="all">All Time</option>
-              <option value="2024">2024</option>
-              <option value="2023">2023</option>
-              <option value="2022">2022</option>
-            </select>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="all">All Status</option>
-              <option value="paid">Paid</option>
-              <option value="pending">Pending</option>
-              <option value="failed">Failed</option>
-            </select>
+            <div className="min-w-[120px]">
+              <StyledSelect
+                options={[
+                  { value: 'all', label: 'All Time' },
+                  { value: '2024', label: '2024' },
+                  { value: '2023', label: '2023' },
+                  { value: '2022', label: '2022' },
+                ]}
+                value={filterTime}
+                onChange={(opt) => setFilterTime(opt?.value || 'all')}
+                isClearable={false}
+                isSearchable={false}
+              />
+            </div>
+            <div className="min-w-[140px]">
+              <StyledSelect
+                options={[
+                  { value: 'all', label: 'All Status' },
+                  { value: 'paid', label: 'Paid' },
+                  { value: 'pending', label: 'Pending' },
+                  { value: 'failed', label: 'Failed' },
+                ]}
+                value={filterStatus}
+                onChange={(opt) => setFilterStatus(opt?.value || 'all')}
+                isClearable={false}
+                isSearchable={false}
+              />
+            </div>
             <Button variant="outline" size="sm">
               <Download className="w-4 h-4 mr-2" />
               Download All
@@ -252,29 +261,33 @@ export default function InvoicesTab() {
               <label className="block text-sm font-medium text-text-primary mb-2">
                 Billing Country
               </label>
-              <select
+              <StyledSelect
+                options={[
+                  { value: 'United States', label: 'United States' },
+                  { value: 'Canada', label: 'Canada' },
+                  { value: 'United Kingdom', label: 'United Kingdom' },
+                ]}
                 value={taxSettings.country}
                 onChange={() => {}}
-                className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="United States">United States</option>
-                <option value="Canada">Canada</option>
-                <option value="United Kingdom">United Kingdom</option>
-              </select>
+                isClearable={false}
+                isSearchable={true}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-text-primary mb-2">
                 State/Province
               </label>
-              <select
+              <StyledSelect
+                options={[
+                  { value: 'California', label: 'California' },
+                  { value: 'New York', label: 'New York' },
+                  { value: 'Texas', label: 'Texas' },
+                ]}
                 value={taxSettings.state}
                 onChange={() => {}}
-                className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                <option value="California">California</option>
-                <option value="New York">New York</option>
-                <option value="Texas">Texas</option>
-              </select>
+                isClearable={false}
+                isSearchable={true}
+              />
             </div>
           </div>
         </div>

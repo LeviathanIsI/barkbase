@@ -1,6 +1,7 @@
 import { Clock, Settings } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 
 const NotificationSchedule = ({ schedule, onUpdate }) => {
   const handleFrequencyChange = (frequency) => {
@@ -110,31 +111,35 @@ const NotificationSchedule = ({ schedule, onUpdate }) => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                     From
                   </label>
-                  <select
+                  <StyledSelect
+                    options={[
+                      { value: '20:00', label: '8:00 PM' },
+                      { value: '21:00', label: '9:00 PM' },
+                      { value: '22:00', label: '10:00 PM' },
+                      { value: '23:00', label: '11:00 PM' },
+                    ]}
                     value={schedule.quietHours.start}
-                    onChange={(e) => handleQuietHoursChange('start', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md"
-                  >
-                    <option value="20:00">8:00 PM</option>
-                    <option value="21:00">9:00 PM</option>
-                    <option value="22:00">10:00 PM</option>
-                    <option value="23:00">11:00 PM</option>
-                  </select>
+                    onChange={(opt) => handleQuietHoursChange('start', opt?.value || '20:00')}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                     To
                   </label>
-                  <select
+                  <StyledSelect
+                    options={[
+                      { value: '06:00', label: '6:00 AM' },
+                      { value: '07:00', label: '7:00 AM' },
+                      { value: '08:00', label: '8:00 AM' },
+                      { value: '09:00', label: '9:00 AM' },
+                    ]}
                     value={schedule.quietHours.end}
-                    onChange={(e) => handleQuietHoursChange('end', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md"
-                  >
-                    <option value="06:00">6:00 AM</option>
-                    <option value="07:00">7:00 AM</option>
-                    <option value="08:00">8:00 AM</option>
-                    <option value="09:00">9:00 AM</option>
-                  </select>
+                    onChange={(opt) => handleQuietHoursChange('end', opt?.value || '06:00')}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
                 </div>
               </div>
 

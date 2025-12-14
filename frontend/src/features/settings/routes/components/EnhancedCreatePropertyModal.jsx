@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Eye, EyeOff, Plus, Trash2, Settings } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 
 const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProperty, onSubmit }) => {
   const [formData, setFormData] = useState({
@@ -144,12 +145,14 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
             )}
 
             {type === 'enum' && (
-              <select className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary" disabled>
-                <option>Select an option...</option>
-                {options.map((option, index) => (
-                  <option key={index} value={option}>{option}</option>
-                ))}
-              </select>
+              <StyledSelect
+                options={[
+                  { value: '', label: 'Select an option...' },
+                  ...options.map((option) => ({ value: option, label: option })),
+                ]}
+                isDisabled={true}
+                isClearable={false}
+              />
             )}
 
             {type === 'multi_enum' && (
@@ -216,12 +219,14 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
               )}
 
               {type === 'enum' && (
-                <select className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary" disabled>
-                  <option>Select an option...</option>
-                  {options.map((option, index) => (
-                    <option key={index} value={option}>{option}</option>
-                  ))}
-                </select>
+                <StyledSelect
+                  options={[
+                    { value: '', label: 'Select an option...' },
+                    ...options.map((option) => ({ value: option, label: option })),
+                  ]}
+                  isDisabled={true}
+                  isClearable={false}
+                />
               )}
 
               {type === 'multi_enum' && (
@@ -286,18 +291,21 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
                     <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                       Applies to
                     </label>
-                    <select
+                    <StyledSelect
+                      options={[
+                        { value: 'pets', label: 'Pets' },
+                        { value: 'owners', label: 'Owners' },
+                        { value: 'bookings', label: 'Bookings' },
+                        { value: 'invoices', label: 'Invoices' },
+                        { value: 'payments', label: 'Payments' },
+                        { value: 'tickets', label: 'Tickets' },
+                      ]}
                       value={formData.objectType}
-                      onChange={(e) => setFormData(prev => ({ ...prev, objectType: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="pets">Pets</option>
-                      <option value="owners">Owners</option>
-                      <option value="bookings">Bookings</option>
-                      <option value="invoices">Invoices</option>
-                      <option value="payments">Payments</option>
-                      <option value="tickets">Tickets</option>
-                    </select>
+                      onChange={(opt) => setFormData(prev => ({ ...prev, objectType: opt?.value || 'pets' }))}
+                      isClearable={false}
+                      isSearchable={false}
+                      menuPortalTarget={document.body}
+                    />
                   </div>
                 </div>
 
@@ -470,15 +478,17 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
                     <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
                       Property Group
                     </label>
-                    <select
+                    <StyledSelect
+                      options={(suggestedGroups[formData.objectType] || []).map((group) => ({
+                        value: group,
+                        label: group,
+                      }))}
                       value={formData.group}
-                      onChange={(e) => setFormData(prev => ({ ...prev, group: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {(suggestedGroups[formData.objectType] || []).map((group) => (
-                        <option key={group} value={group}>{group}</option>
-                      ))}
-                    </select>
+                      onChange={(opt) => setFormData(prev => ({ ...prev, group: opt?.value || suggestedGroups[formData.objectType]?.[0] || 'Basic Information' }))}
+                      isClearable={false}
+                      isSearchable={false}
+                      menuPortalTarget={document.body}
+                    />
                   </div>
                 </div>
               </div>

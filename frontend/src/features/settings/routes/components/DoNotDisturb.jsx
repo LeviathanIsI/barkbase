@@ -1,6 +1,7 @@
 import { Moon, Calendar, Settings } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 
 const DoNotDisturb = ({ dnd, onUpdate }) => {
   const handleStatusChange = (status) => {
@@ -123,14 +124,20 @@ const DoNotDisturb = ({ dnd, onUpdate }) => {
                     onChange={() => handleForwardingChange('forward')}
                     className="text-blue-600 dark:text-blue-400"
                   />
-                  <div className="flex-1">
+                  <div className="flex-1 flex items-center gap-2">
                     <span className="text-sm">Forward to team member:</span>
-                    <select className="ml-2 px-2 py-1 border border-gray-300 dark:border-surface-border rounded text-sm bg-white dark:bg-surface-primary">
-                      <option>Select team member</option>
-                      <option>Sarah Johnson (Manager)</option>
-                      <option>Mike Chen (Staff)</option>
-                      <option>Lisa Rodriguez (Groomer)</option>
-                    </select>
+                    <div className="min-w-[200px]">
+                      <StyledSelect
+                        options={[
+                          { value: '', label: 'Select team member' },
+                          { value: 'sarah', label: 'Sarah Johnson (Manager)' },
+                          { value: 'mike', label: 'Mike Chen (Staff)' },
+                          { value: 'lisa', label: 'Lisa Rodriguez (Groomer)' },
+                        ]}
+                        isClearable={false}
+                        isSearchable={false}
+                      />
+                    </div>
                   </div>
                 </label>
               </div>

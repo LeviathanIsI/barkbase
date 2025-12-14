@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import PropertySelector from './PropertySelector';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 
 // Operators based on property type
@@ -249,18 +250,16 @@ const PropertyConditionBuilder = ({
               <label className="block text-sm font-medium text-text mb-2">
                 Operator
               </label>
-              <select
+              <StyledSelect
+                options={[
+                  { value: '', label: 'Select operator...' },
+                  ...operators.map((op) => ({ value: op.value, label: op.label })),
+                ]}
                 value={operator}
-                onChange={(e) => handleOperatorChange(e.target.value)}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                <option value="">Select operator...</option>
-                {operators.map((op) => (
-                  <option key={op.value} value={op.value}>
-                    {op.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(opt) => handleOperatorChange(opt?.value || '')}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
           )}
 
@@ -271,18 +270,19 @@ const PropertyConditionBuilder = ({
                 Value
               </label>
               {selectedProperty?.type === 'enum' && selectedProperty?.options?.choices ? (
-                <select
+                <StyledSelect
+                  options={[
+                    { value: '', label: 'Select value...' },
+                    ...selectedProperty.options.choices.map((choice) => ({
+                      value: choice,
+                      label: choice,
+                    })),
+                  ]}
                   value={value}
-                  onChange={(e) => handleValueChange(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="">Select value...</option>
-                  {selectedProperty.options.choices.map((choice) => (
-                    <option key={choice} value={choice}>
-                      {choice}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(opt) => handleValueChange(opt?.value || '')}
+                  isClearable={false}
+                  isSearchable={false}
+                />
               ) : selectedProperty?.type === 'date' ? (
                 <input
                   type="date"

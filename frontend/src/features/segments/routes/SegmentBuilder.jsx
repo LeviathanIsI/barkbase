@@ -20,6 +20,7 @@ import {
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import LoadingState from '@/components/ui/LoadingState';
+import StyledSelect from '@/components/ui/StyledSelect';
 import toast from 'react-hot-toast';
 import {
   useSegment,
@@ -302,21 +303,17 @@ export default function SegmentBuilder() {
                         <span className="text-xs text-[color:var(--bb-color-text-muted)] ml-2">(locked)</span>
                       </div>
                     ) : (
-                      <select
+                      <StyledSelect
+                        options={OBJECT_TYPES}
                         value={objectType}
-                        onChange={(e) => {
-                          setObjectType(e.target.value);
+                        onChange={(opt) => {
+                          setObjectType(opt?.value || 'owners');
                           // Reset filters when object type changes
                           setFilters(createInitialFilters());
                         }}
-                        className="w-full px-3 py-2 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-body)] text-[color:var(--bb-color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]/50"
-                      >
-                        {OBJECT_TYPES.map((type) => (
-                          <option key={type.value} value={type.value}>
-                            {type.label}
-                          </option>
-                        ))}
-                      </select>
+                        isClearable={false}
+                        isSearchable={false}
+                      />
                     )}
                     {isEdit && (
                       <p className="text-xs text-[color:var(--bb-color-text-muted)] mt-1">
@@ -328,17 +325,13 @@ export default function SegmentBuilder() {
                     <label className="block text-sm font-medium text-[color:var(--bb-color-text-primary)] mb-1">
                       Segment Type
                     </label>
-                    <select
+                    <StyledSelect
+                      options={SEGMENT_TYPES}
                       value={segmentType}
-                      onChange={(e) => setSegmentType(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-body)] text-[color:var(--bb-color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]/50"
-                    >
-                      {SEGMENT_TYPES.map((type) => (
-                        <option key={type.value} value={type.value}>
-                          {type.label}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(opt) => setSegmentType(opt?.value || 'active')}
+                      isClearable={false}
+                      isSearchable={false}
+                    />
                     <p className="text-xs text-[color:var(--bb-color-text-muted)] mt-1">
                       {SEGMENT_TYPES.find((t) => t.value === segmentType)?.description}
                     </p>
@@ -593,54 +586,63 @@ const FilterRow = ({ filter, availableFields, onUpdate, onRemove, canRemove }) =
   );
   const needsSecondValue = ['between', 'is_between'].includes(filter.operator);
 
+  // Build options for field dropdown
+  const fieldOptions = [
+    { value: '', label: 'Select property...' },
+    ...availableFields.map((field) => ({ value: field.key, label: field.label })),
+  ];
+
+  // Build options for operator dropdown
+  const operatorOptions = [
+    { value: '', label: 'Select operator...' },
+    ...operators.map((op) => ({ value: op.value, label: op.label })),
+  ];
+
   return (
     <div className="flex items-start gap-2">
       {/* Field Dropdown */}
-      <select
-        value={filter.field}
-        onChange={(e) => onUpdate({ field: e.target.value, operator: '', value: '' })}
-        className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]/50"
-      >
-        <option value="">Select property...</option>
-        {availableFields.map((field) => (
-          <option key={field.key} value={field.key}>
-            {field.label}
-          </option>
-        ))}
-      </select>
+      <div className="flex-1 min-w-0">
+        <StyledSelect
+          options={fieldOptions}
+          value={filter.field}
+          onChange={(opt) => onUpdate({ field: opt?.value || '', operator: '', value: '' })}
+          isClearable={false}
+          isSearchable={true}
+          placeholder="Select property..."
+        />
+      </div>
 
       {/* Operator Dropdown */}
       {filter.field && (
-        <select
-          value={filter.operator}
-          onChange={(e) => onUpdate({ operator: e.target.value })}
-          className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]/50"
-        >
-          <option value="">Select operator...</option>
-          {operators.map((op) => (
-            <option key={op.value} value={op.value}>
-              {op.label}
-            </option>
-          ))}
-        </select>
+        <div className="flex-1 min-w-0">
+          <StyledSelect
+            options={operatorOptions}
+            value={filter.operator}
+            onChange={(opt) => onUpdate({ operator: opt?.value || '' })}
+            isClearable={false}
+            isSearchable={false}
+            placeholder="Select operator..."
+          />
+        </div>
       )}
 
       {/* Value Input */}
       {filter.field && filter.operator && needsValue && (
         <>
           {selectedField?.type === 'select' ? (
-            <select
-              value={filter.value}
-              onChange={(e) => onUpdate({ value: e.target.value })}
-              className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]/50"
-            >
-              <option value="">Select value...</option>
-              {selectedField.options?.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
+            <div className="flex-1 min-w-0">
+              <StyledSelect
+                options={[
+                  { value: '', label: 'Select value...' },
+                  ...(selectedField.options?.map((opt) => ({ value: opt, label: opt })) || []),
+                ]}
+                value={filter.value}
+                onChange={(opt) => onUpdate({ value: opt?.value || '' })}
+                isClearable={false}
+                isSearchable={true}
+                placeholder="Select value..."
+              />
+            </div>
           ) : selectedField?.type === 'boolean' ? null : selectedField?.type === 'date' &&
             ['in_last_days', 'more_than_days_ago'].includes(filter.operator) ? (
             <input

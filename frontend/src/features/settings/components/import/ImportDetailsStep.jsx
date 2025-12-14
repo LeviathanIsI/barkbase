@@ -9,6 +9,7 @@ import {
   Link2,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import StyledSelect from '@/components/ui/StyledSelect';
 import {
   ENTITY_TYPES,
   REQUIRED_FIELDS,
@@ -414,20 +415,20 @@ const ImportDetailsStep = ({
                 <span className="text-sm text-[color:var(--bb-color-text-muted)]">
                   Match by:
                 </span>
-                <select
-                  value={importOptions.uniqueIdentifier || uniqueFields[0]?.fieldKey}
-                  onChange={(e) =>
-                    handleOptionChange('uniqueIdentifier', e.target.value)
-                  }
-                  className="appearance-none px-3 py-1.5 rounded-lg border text-sm bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)]"
-                  style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-                >
-                  {uniqueFields.map((f) => (
-                    <option key={`${f.entityType}-${f.fieldKey}`} value={f.fieldKey}>
-                      {f.fieldLabel} ({f.entityLabel})
-                    </option>
-                  ))}
-                </select>
+                <div className="min-w-[180px]">
+                  <StyledSelect
+                    options={uniqueFields.map((f) => ({
+                      value: f.fieldKey,
+                      label: `${f.fieldLabel} (${f.entityLabel})`,
+                    }))}
+                    value={importOptions.uniqueIdentifier || uniqueFields[0]?.fieldKey}
+                    onChange={(opt) =>
+                      handleOptionChange('uniqueIdentifier', opt?.value || uniqueFields[0]?.fieldKey)
+                    }
+                    isClearable={false}
+                    isSearchable={false}
+                  />
+                </div>
               </div>
             )}
           </div>

@@ -22,6 +22,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Check, X, ChevronDown, Loader2 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 
 /**
@@ -64,42 +65,23 @@ const TextEditor = ({ value, onChange, onCommit, onCancel, type = 'text', autoFo
  * Enum/Select Editor
  */
 const EnumEditor = ({ value, options = [], onChange, onCommit, onCancel, autoFocus = true }) => {
-  const selectRef = useRef(null);
-
-  useEffect(() => {
-    if (autoFocus && selectRef.current) {
-      selectRef.current.focus();
-    }
-  }, [autoFocus]);
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      onCancel();
-    }
-  };
-
-  const handleChange = (e) => {
-    onChange(e.target.value);
+  const handleChange = (opt) => {
+    onChange(opt?.value ?? '');
     // Commit immediately on selection change
     setTimeout(() => onCommit(), 0);
   };
 
   return (
-    <select
-      ref={selectRef}
+    <StyledSelect
+      options={options}
       value={value ?? ''}
       onChange={handleChange}
-      onKeyDown={handleKeyDown}
       onBlur={onCommit}
-      className="w-full h-8 px-2 text-sm rounded border bg-[var(--bb-color-bg-body)] border-[var(--bb-color-accent)] text-[var(--bb-color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)] cursor-pointer"
-    >
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
+      isClearable={false}
+      isSearchable={false}
+      autoFocus={autoFocus}
+      menuPortalTarget={document.body}
+    />
   );
 };
 
@@ -121,33 +103,18 @@ const StatusEditor = ({ value, options = [], onChange, onCommit, onCancel }) => 
 /**
  * Relationship Editor - Searchable dropdown for related entities
  */
-const RelationshipEditor = ({ 
-  value, 
+const RelationshipEditor = ({
+  value,
   displayValue,
-  options = [], 
-  onChange, 
-  onCommit, 
+  options = [],
+  onChange,
+  onCommit,
   onCancel,
   isLoading = false,
   placeholder = 'Select...',
 }) => {
-  const selectRef = useRef(null);
-
-  useEffect(() => {
-    if (selectRef.current) {
-      selectRef.current.focus();
-    }
-  }, []);
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      onCancel();
-    }
-  };
-
-  const handleChange = (e) => {
-    const newValue = e.target.value || null;
+  const handleChange = (opt) => {
+    const newValue = opt?.value || null;
     onChange(newValue);
     setTimeout(() => onCommit(), 0);
   };
@@ -162,21 +129,17 @@ const RelationshipEditor = ({
   }
 
   return (
-    <select
-      ref={selectRef}
+    <StyledSelect
+      options={options}
       value={value ?? ''}
       onChange={handleChange}
-      onKeyDown={handleKeyDown}
       onBlur={onCommit}
-      className="w-full h-8 px-2 text-sm rounded border bg-[var(--bb-color-bg-body)] border-[var(--bb-color-accent)] text-[var(--bb-color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)] cursor-pointer"
-    >
-      <option value="">{placeholder}</option>
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
+      isClearable={true}
+      isSearchable={true}
+      placeholder={placeholder}
+      autoFocus={true}
+      menuPortalTarget={document.body}
+    />
   );
 };
 

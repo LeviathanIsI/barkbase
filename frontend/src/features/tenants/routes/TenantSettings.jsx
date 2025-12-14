@@ -56,6 +56,7 @@ import {
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
 import { saveTenantTheme } from '../api';
@@ -791,11 +792,16 @@ const OrganizationTab = () => {
             <input type="text" placeholder="94102" className="w-full px-3 py-2 bg-surface-secondary border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
           </FormField>
           <FormField label="Country">
-            <select className="w-full px-3 py-2 bg-surface-secondary border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-              <option>United States</option>
-              <option>Canada</option>
-              <option>United Kingdom</option>
-            </select>
+            <StyledSelect
+              options={[
+                { value: 'US', label: 'United States' },
+                { value: 'CA', label: 'Canada' },
+                { value: 'UK', label: 'United Kingdom' },
+              ]}
+              defaultValue="US"
+              isClearable={false}
+              isSearchable={true}
+            />
           </FormField>
         </div>
       </div>
@@ -806,25 +812,40 @@ const OrganizationTab = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField label="Timezone">
-            <select className="w-full px-3 py-2 bg-surface-secondary border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-              <option>America/New_York (EST)</option>
-              <option>America/Los_Angeles (PST)</option>
-              <option>Europe/London (GMT)</option>
-            </select>
+            <StyledSelect
+              options={[
+                { value: 'America/New_York', label: 'America/New_York (EST)' },
+                { value: 'America/Los_Angeles', label: 'America/Los_Angeles (PST)' },
+                { value: 'Europe/London', label: 'Europe/London (GMT)' },
+              ]}
+              defaultValue="America/New_York"
+              isClearable={false}
+              isSearchable={true}
+            />
           </FormField>
           <FormField label="Date Format">
-            <select className="w-full px-3 py-2 bg-surface-secondary border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-              <option>MM/DD/YYYY</option>
-              <option>DD/MM/YYYY</option>
-              <option>YYYY-MM-DD</option>
-            </select>
+            <StyledSelect
+              options={[
+                { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
+                { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
+                { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
+              ]}
+              defaultValue="MM/DD/YYYY"
+              isClearable={false}
+              isSearchable={false}
+            />
           </FormField>
           <FormField label="Currency">
-            <select className="w-full px-3 py-2 bg-surface-secondary border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-              <option>USD ($)</option>
-              <option>EUR (€)</option>
-              <option>GBP (£)</option>
-            </select>
+            <StyledSelect
+              options={[
+                { value: 'USD', label: 'USD ($)' },
+                { value: 'EUR', label: 'EUR (€)' },
+                { value: 'GBP', label: 'GBP (£)' },
+              ]}
+              defaultValue="USD"
+              isClearable={false}
+              isSearchable={false}
+            />
           </FormField>
         </div>
       </div>

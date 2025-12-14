@@ -3,6 +3,7 @@ import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import StyledSelect from '@/components/ui/StyledSelect';
 import SettingsPage from '../../components/SettingsPage';
 import { Plus, Package, Pill, AlertTriangle, Calendar } from 'lucide-react';
 
@@ -177,11 +178,16 @@ const Inventory = () => {
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-text">Notification Frequency</label>
-            <select className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm">
-              <option>Daily</option>
-              <option>Weekly</option>
-              <option>When stock is low</option>
-            </select>
+            <StyledSelect
+              options={[
+                { value: 'daily', label: 'Daily' },
+                { value: 'weekly', label: 'Weekly' },
+                { value: 'low_stock', label: 'When stock is low' },
+              ]}
+              defaultValue="daily"
+              isClearable={false}
+              isSearchable={false}
+            />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-text">Expiry Alert Days</label>

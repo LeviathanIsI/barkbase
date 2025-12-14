@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { useTenantStore } from '@/stores/tenant';
 
 export default function RulesTab() {
@@ -357,15 +358,19 @@ export default function RulesTab() {
                   min="0"
                 />
                 <span className="text-sm text-gray-500 dark:text-text-secondary">per</span>
-                <select
-                  value={checkInOut.latePickupFeeUnit}
-                  onChange={(e) => setCheckInOut(prev => ({ ...prev, latePickupFeeUnit: e.target.value }))}
-                  className="px-2 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="hour">hour</option>
-                  <option value="15min">15 min</option>
-                  <option value="30min">30 min</option>
-                </select>
+                <div className="min-w-[100px]">
+                  <StyledSelect
+                    options={[
+                      { value: 'hour', label: 'hour' },
+                      { value: '15min', label: '15 min' },
+                      { value: '30min', label: '30 min' },
+                    ]}
+                    value={checkInOut.latePickupFeeUnit}
+                    onChange={(opt) => setCheckInOut(prev => ({ ...prev, latePickupFeeUnit: opt?.value || 'hour' }))}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
+                </div>
               </div>
             </div>
           </div>

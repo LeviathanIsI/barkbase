@@ -1,8 +1,13 @@
+import { useState } from 'react';
 import { FileText, Download, Filter, Shield, Key, User, Lock, AlertTriangle, MapPin } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 
 const SecurityAudit = () => {
+  const [eventFilter, setEventFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('90');
+
   // Mock audit log data
   const auditEvents = [
     {
@@ -69,17 +74,33 @@ const SecurityAudit = () => {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-4">
-          <select className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary">
-            <option value="all">All Events</option>
-            <option value="auth">Authentication</option>
-            <option value="access">Access Control</option>
-            <option value="settings">Settings Changes</option>
-          </select>
-          <select className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary">
-            <option value="90">Last 90 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="7">Last 7 days</option>
-          </select>
+          <div className="min-w-[160px]">
+            <StyledSelect
+              options={[
+                { value: 'all', label: 'All Events' },
+                { value: 'auth', label: 'Authentication' },
+                { value: 'access', label: 'Access Control' },
+                { value: 'settings', label: 'Settings Changes' },
+              ]}
+              value={eventFilter}
+              onChange={(opt) => setEventFilter(opt?.value || 'all')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
+          <div className="min-w-[140px]">
+            <StyledSelect
+              options={[
+                { value: '90', label: 'Last 90 days' },
+                { value: '30', label: 'Last 30 days' },
+                { value: '7', label: 'Last 7 days' },
+              ]}
+              value={dateFilter}
+              onChange={(opt) => setDateFilter(opt?.value || '90')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
           <Button variant="outline" size="sm">
             <Download className="w-4 h-4 mr-2" />
             Export CSV

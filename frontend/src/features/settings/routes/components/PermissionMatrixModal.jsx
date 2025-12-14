@@ -7,6 +7,7 @@ import {
 import Button from '@/components/ui/Button';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
+import StyledSelect from '@/components/ui/StyledSelect';
 
 const PermissionMatrixModal = ({ member, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -342,18 +343,21 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Role</label>
-                <select
+                <StyledSelect
+                  options={[
+                    { value: '', label: 'Select Role' },
+                    { value: 'Owner', label: 'Owner' },
+                    { value: 'Manager', label: 'Manager' },
+                    { value: 'Staff', label: 'Staff' },
+                    { value: 'Groomer', label: 'Groomer' },
+                    { value: 'Trainer', label: 'Trainer' },
+                  ]}
                   value={formData.role}
-                  onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select Role</option>
-                  <option value="Owner">Owner</option>
-                  <option value="Manager">Manager</option>
-                  <option value="Staff">Staff</option>
-                  <option value="Groomer">Groomer</option>
-                  <option value="Trainer">Trainer</option>
-                </select>
+                  onChange={(opt) => setFormData(prev => ({ ...prev, role: opt?.value || '' }))}
+                  isClearable={false}
+                  isSearchable={false}
+                  menuPortalTarget={document.body}
+                />
               </div>
             </div>
           </div>
@@ -477,15 +481,18 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Primary Location</label>
-                <select
+                <StyledSelect
+                  options={[
+                    { value: 'Building A', label: 'Building A' },
+                    { value: 'Building B', label: 'Building B' },
+                    { value: 'Mobile', label: 'Mobile' },
+                  ]}
                   value={formData.primaryLocation}
-                  onChange={(e) => setFormData(prev => ({ ...prev, primaryLocation: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="Building A">Building A</option>
-                  <option value="Building B">Building B</option>
-                  <option value="Mobile">Mobile</option>
-                </select>
+                  onChange={(opt) => setFormData(prev => ({ ...prev, primaryLocation: opt?.value || 'Building A' }))}
+                  isClearable={false}
+                  isSearchable={false}
+                  menuPortalTarget={document.body}
+                />
               </div>
             </div>
           </div>

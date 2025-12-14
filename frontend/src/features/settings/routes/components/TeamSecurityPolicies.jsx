@@ -2,6 +2,7 @@ import { Users, Shield, Clock, Lock, AlertTriangle } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import StyledSelect from '@/components/ui/StyledSelect';
 
 const TeamSecurityPolicies = () => {
   return (
@@ -88,11 +89,19 @@ const TeamSecurityPolicies = () => {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm">Maximum session duration</span>
-              <select className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary" disabled>
-                <option>12 hours</option>
-                <option>8 hours</option>
-                <option>4 hours</option>
-              </select>
+              <div className="min-w-[140px]">
+                <StyledSelect
+                  options={[
+                    { value: '12', label: '12 hours' },
+                    { value: '8', label: '8 hours' },
+                    { value: '4', label: '4 hours' },
+                  ]}
+                  defaultValue="12"
+                  isDisabled={true}
+                  isClearable={false}
+                  isSearchable={false}
+                />
+              </div>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm">Force re-authentication for sensitive actions</span>

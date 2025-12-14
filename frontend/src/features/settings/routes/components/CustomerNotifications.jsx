@@ -1,6 +1,7 @@
 import { User, Eye, FileText } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 
 const CustomerNotifications = ({ notifications, onUpdate }) => {
   const handleConfirmationChange = (value) => {
@@ -171,17 +172,21 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
                 className="rounded border-gray-300 dark:border-surface-border"
               />
               <span>Day-of check-in (</span>
-              <select
-                value={notifications.reminders.hoursBefore}
-                onChange={(e) => handleHoursChange(parseInt(e.target.value))}
-                className="px-2 py-1 border border-gray-300 dark:border-surface-border rounded text-sm"
-                disabled={!notifications.reminders.dayOf}
-              >
-                <option value={1}>1 hour</option>
-                <option value={2}>2 hours</option>
-                <option value={3}>3 hours</option>
-                <option value={4}>4 hours</option>
-              </select>
+              <div className="min-w-[100px]">
+                <StyledSelect
+                  options={[
+                    { value: 1, label: '1 hour' },
+                    { value: 2, label: '2 hours' },
+                    { value: 3, label: '3 hours' },
+                    { value: 4, label: '4 hours' },
+                  ]}
+                  value={notifications.reminders.hoursBefore}
+                  onChange={(opt) => handleHoursChange(opt?.value || 1)}
+                  isClearable={false}
+                  isSearchable={false}
+                  isDisabled={!notifications.reminders.dayOf}
+                />
+              </div>
               <span>before)</span>
             </div>
           </div>

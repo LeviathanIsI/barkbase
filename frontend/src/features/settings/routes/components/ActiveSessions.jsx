@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Monitor, Smartphone, MapPin, Clock, LogOut, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   useAuthSessionsQuery,
@@ -58,6 +60,7 @@ const formatLastActive = (timestamp) => {
 };
 
 const ActiveSessions = () => {
+  const [sessionTimeout, setSessionTimeout] = useState('60');
   const { data: sessions = [], isLoading } = useAuthSessionsQuery();
   const revokeSession = useRevokeSessionMutation();
   const revokeAllOtherSessions = useRevokeAllOtherSessionsMutation();
@@ -176,12 +179,20 @@ const ActiveSessions = () => {
               <h4 className="font-medium text-gray-900 dark:text-text-primary">Session Timeout</h4>
               <p className="text-sm text-gray-600 dark:text-text-secondary">Automatically sign out after period of inactivity</p>
             </div>
-            <select className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary">
-              <option value="30">30 minutes</option>
-              <option value="60">1 hour</option>
-              <option value="120">2 hours</option>
-              <option value="480">8 hours</option>
-            </select>
+            <div className="min-w-[140px]">
+              <StyledSelect
+                options={[
+                  { value: '30', label: '30 minutes' },
+                  { value: '60', label: '1 hour' },
+                  { value: '120', label: '2 hours' },
+                  { value: '480', label: '8 hours' },
+                ]}
+                value={sessionTimeout}
+                onChange={(opt) => setSessionTimeout(opt?.value || '60')}
+                isClearable={false}
+                isSearchable={false}
+              />
+            </div>
           </div>
 
           <div className="flex items-center justify-between mb-4">

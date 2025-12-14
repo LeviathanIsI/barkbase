@@ -36,6 +36,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { usePropertyValuesQuery, useUpsertPropertyValuesMutation } from '@/features/settings/api';
 
 // Field type icons mapping
@@ -144,19 +145,16 @@ const FieldInput = ({ property, value, onChange, error }) => {
 
     case 'select':
       return (
-        <select
+        <StyledSelect
+          options={[
+            { value: '', label: `Select ${label.toLowerCase()}` },
+            ...options.map((opt) => ({ value: opt.value, label: opt.label })),
+          ]}
           value={value ?? ''}
-          onChange={(e) => onChange(e.target.value || null)}
-          className={baseInputClass}
-          required={required}
-        >
-          <option value="">Select {label.toLowerCase()}</option>
-          {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          onChange={(opt) => onChange(opt?.value || null)}
+          isClearable={false}
+          isSearchable={options.length > 6}
+        />
       );
 
     case 'multiselect':

@@ -1,8 +1,13 @@
+import { useState } from 'react';
 import { CheckCircle, X, AlertTriangle, MapPin, Monitor, Smartphone, Calendar, Download } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 
 const LoginHistory = () => {
+  const [activityFilter, setActivityFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('30');
+
   // Mock login history data
   const loginHistory = [
     {
@@ -88,17 +93,33 @@ const LoginHistory = () => {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-4">
-          <select className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary">
-            <option value="all">All Activity</option>
-            <option value="success">Successful Logins</option>
-            <option value="failed">Failed Attempts</option>
-            <option value="suspicious">Suspicious Activity</option>
-          </select>
-          <select className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary">
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 90 days</option>
-            <option value="365">Last year</option>
-          </select>
+          <div className="min-w-[180px]">
+            <StyledSelect
+              options={[
+                { value: 'all', label: 'All Activity' },
+                { value: 'success', label: 'Successful Logins' },
+                { value: 'failed', label: 'Failed Attempts' },
+                { value: 'suspicious', label: 'Suspicious Activity' },
+              ]}
+              value={activityFilter}
+              onChange={(opt) => setActivityFilter(opt?.value || 'all')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
+          <div className="min-w-[140px]">
+            <StyledSelect
+              options={[
+                { value: '30', label: 'Last 30 days' },
+                { value: '90', label: 'Last 90 days' },
+                { value: '365', label: 'Last year' },
+              ]}
+              value={dateFilter}
+              onChange={(opt) => setDateFilter(opt?.value || '30')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
           <Button variant="outline" size="sm">
             <Download className="w-4 h-4 mr-2" />
             Export

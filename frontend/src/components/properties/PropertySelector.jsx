@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Search } from 'lucide-react';
 import { useProperties } from '@/hooks/useProperties';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 
 const OBJECT_TYPE_LABELS = {
@@ -102,17 +103,16 @@ const PropertySelector = ({
           <label className="block text-sm font-medium text-text mb-2">
             Filtering on
           </label>
-          <select
+          <StyledSelect
+            options={Object.entries(OBJECT_TYPE_LABELS).map(([value, label]) => ({
+              value,
+              label: `${label} (Current Object)`,
+            }))}
             value={currentObjectType}
-            onChange={(e) => setCurrentObjectType(e.target.value)}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            {Object.entries(OBJECT_TYPE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label} (Current Object)
-              </option>
-            ))}
-          </select>
+            onChange={(opt) => setCurrentObjectType(opt?.value || currentObjectType)}
+            isClearable={false}
+            isSearchable={false}
+          />
         </div>
       )}
 

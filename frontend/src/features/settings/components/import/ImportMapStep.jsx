@@ -8,6 +8,7 @@ import {
   Link2,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import StyledSelect from '@/components/ui/StyledSelect';
 import {
   ENTITY_TYPES,
   REQUIRED_FIELDS,
@@ -298,20 +299,22 @@ const ImportMapStep = ({
 
         <div className="flex items-center gap-3">
           {/* Status filter */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--bb-color-text-muted)]" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="appearance-none pl-9 pr-8 py-1.5 text-sm rounded-lg border bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)]"
-              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-            >
-              <option value="all">All columns</option>
-              <option value="mapped">Mapped only</option>
-              <option value="unmapped">Unmapped only</option>
-              <option value="associations">Associations only</option>
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[color:var(--bb-color-text-muted)] pointer-events-none" />
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-[color:var(--bb-color-text-muted)]" />
+            <div className="min-w-[160px]">
+              <StyledSelect
+                options={[
+                  { value: 'all', label: 'All columns' },
+                  { value: 'mapped', label: 'Mapped only' },
+                  { value: 'unmapped', label: 'Unmapped only' },
+                  { value: 'associations', label: 'Associations only' },
+                ]}
+                value={statusFilter}
+                onChange={(opt) => setStatusFilter(opt?.value || 'all')}
+                isClearable={false}
+                isSearchable={false}
+              />
+            </div>
           </div>
 
           {/* Search */}

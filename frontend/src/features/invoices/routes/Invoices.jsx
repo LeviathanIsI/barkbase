@@ -63,6 +63,7 @@ import SlidePanel from '@/components/ui/SlidePanel';
 import SlideOutDrawer from '@/components/ui/SlideOutDrawer';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import StyledSelect from '@/components/ui/StyledSelect';
 import Textarea from '@/components/ui/Textarea';
 // Unified loader: replaced inline loading with LoadingState
 import LoadingState from '@/components/ui/LoadingState';
@@ -1689,17 +1690,21 @@ const Invoices = () => {
               </div>
 
               {/* Date Range */}
-              <select
-                value={dateRange}
-                onChange={(e) => setDateRange(e.target.value)}
-                className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-              >
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-                <option value="quarter">This Quarter</option>
-              </select>
+              <div className="min-w-[130px]">
+                <StyledSelect
+                  options={[
+                    { value: 'all', label: 'All Time' },
+                    { value: 'today', label: 'Today' },
+                    { value: 'week', label: 'This Week' },
+                    { value: 'month', label: 'This Month' },
+                    { value: 'quarter', label: 'This Quarter' },
+                  ]}
+                  value={dateRange}
+                  onChange={(opt) => setDateRange(opt?.value || 'all')}
+                  isClearable={false}
+                  isSearchable={false}
+                />
+              </div>
 
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" onClick={clearFilters}>
@@ -1859,15 +1864,19 @@ const Invoices = () => {
                 Showing {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, filteredInvoices.length)} of {filteredInvoices.length}
               </div>
               <div className="flex items-center gap-2">
-                <select
-                  value={pageSize}
-                  onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-                  className="px-2 py-1 text-sm bg-surface border-0 rounded focus:outline-none"
-                >
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
+                <div className="w-20">
+                  <StyledSelect
+                    options={[
+                      { value: 25, label: '25' },
+                      { value: 50, label: '50' },
+                      { value: 100, label: '100' },
+                    ]}
+                    value={pageSize}
+                    onChange={(opt) => { setPageSize(opt?.value || 25); setCurrentPage(1); }}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
+                </div>
                 <Button
                   variant="outline"
                   size="sm"

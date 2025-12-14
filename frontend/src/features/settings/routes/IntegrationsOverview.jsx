@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, BarChart3, Download, Upload, Settings, Eye, EyeOff, ExternalLink, MessageSquare, Star } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import IntegrationCard from './components/IntegrationCard';
 import IntegrationSetupModal from './components/IntegrationSetupModal';
 import IntegrationManagementModal from './components/IntegrationManagementModal';
@@ -456,15 +457,19 @@ const IntegrationsOverview = () => {
 
         <div className="flex items-center gap-4 mt-4">
           {/* Connection Status Filter */}
-          <select
-            value={connectionFilter}
-            onChange={(e) => setConnectionFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Status</option>
-            <option value="connected">Connected ({connectedCount})</option>
-            <option value="available">Available</option>
-          </select>
+          <div className="min-w-[180px]">
+            <StyledSelect
+              options={[
+                { value: 'all', label: 'All Status' },
+                { value: 'connected', label: `Connected (${connectedCount})` },
+                { value: 'available', label: 'Available' },
+              ]}
+              value={connectionFilter}
+              onChange={(opt) => setConnectionFilter(opt?.value || 'all')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
 
           {/* Search */}
           <div className="relative flex-1 max-w-xs">
