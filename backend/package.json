@@ -5,14 +5,20 @@
   "main": "server.js",
   "private": true,
   "scripts": {
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "db:wipe": "node scripts/wipe-database.js",
+    "db:seed": "node scripts/seed-database.js",
+    "db:reset": "node scripts/wipe-database.js && node scripts/seed-database.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@faker-js/faker": "^9.3.0",
     "bcryptjs": "^3.0.3",
+    "dotenv": "^16.4.7",
     "express": "^5.1.0",
+    "pg": "^8.13.1",
     "serverless-http": "^4.0.0"
   }
 }
