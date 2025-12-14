@@ -17,6 +17,7 @@ import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import PetAvatar from '@/components/ui/PetAvatar';
 import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
+import StyledSelect from '@/components/ui/StyledSelect';
 // Replaced with LoadingState (mascot) for page-level loading
 import LoadingState from '@/components/ui/LoadingState';
 import { UpdateChip } from '@/components/PageLoader';
@@ -770,37 +771,35 @@ const Pets = () => {
                 </div>
 
                 {/* Species Quick Filter */}
-                <select
-                  value={customFilters.species || ''}
-                  onChange={(e) => setCustomFilters({ ...customFilters, species: e.target.value || undefined })}
-                  className="h-9 rounded-lg border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
-                  style={{
-                    backgroundColor: 'var(--bb-color-bg-body)',
-                    borderColor: 'var(--bb-color-border-subtle)',
-                    color: 'var(--bb-color-text-primary)',
-                  }}
-                >
-                  <option value="">All Species</option>
-                  <option value="dog">Dogs</option>
-                  <option value="cat">Cats</option>
-                  <option value="other">Other</option>
-                </select>
+                <div className="min-w-[130px]">
+                  <StyledSelect
+                    options={[
+                      { value: '', label: 'All Species' },
+                      { value: 'dog', label: 'Dogs' },
+                      { value: 'cat', label: 'Cats' },
+                      { value: 'other', label: 'Other' },
+                    ]}
+                    value={customFilters.species || ''}
+                    onChange={(opt) => setCustomFilters({ ...customFilters, species: opt?.value || undefined })}
+                    isClearable={false}
+                    isSearchable
+                  />
+                </div>
 
                 {/* Status Quick Filter */}
-                <select
-                  value={customFilters.status || ''}
-                  onChange={(e) => setCustomFilters({ ...customFilters, status: e.target.value || undefined })}
-                  className="h-9 rounded-lg border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
-                  style={{
-                    backgroundColor: 'var(--bb-color-bg-body)',
-                    borderColor: 'var(--bb-color-border-subtle)',
-                    color: 'var(--bb-color-text-primary)',
-                  }}
-                >
-                  <option value="">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
+                <div className="min-w-[130px]">
+                  <StyledSelect
+                    options={[
+                      { value: '', label: 'All Status' },
+                      { value: 'active', label: 'Active' },
+                      { value: 'inactive', label: 'Inactive' },
+                    ]}
+                    value={customFilters.status || ''}
+                    onChange={(opt) => setCustomFilters({ ...customFilters, status: opt?.value || undefined })}
+                    isClearable={false}
+                    isSearchable
+                  />
+                </div>
 
                 {/* Clear Filters */}
                 {hasActiveFilters && (
@@ -995,14 +994,15 @@ const Pets = () => {
             >
               <div className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)]">
                 <span>Rows per page:</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
-                  className="rounded border px-2 py-1.5 text-sm"
-                  style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
-                >
-                  {PAGE_SIZE_OPTIONS.map((size) => (<option key={size} value={size}>{size}</option>))}
-                </select>
+                <div className="min-w-[100px]">
+                  <StyledSelect
+                    options={PAGE_SIZE_OPTIONS.map(size => ({ value: size, label: String(size) }))}
+                    value={pageSize}
+                    onChange={(opt) => setPageSize(Number(opt?.value) || 25)}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
+                </div>
               </div>
 
               <div className="flex items-center gap-3">
@@ -1805,31 +1805,43 @@ const FilterPanel = ({ filters, onFiltersChange, onClose }) => (
       <button type="button" onClick={onClose} className="text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]"><X className="h-4 w-4" /></button>
     </div>
     <div className="space-y-4">
-      <div>
-        <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1.5">Status</label>
-        <select value={filters.status || ''} onChange={(e) => onFiltersChange({ ...filters, status: e.target.value || undefined })} className="w-full rounded-lg border px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}>
-          <option value="">Any</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </div>
-      <div>
-        <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1.5">Species</label>
-        <select value={filters.species || ''} onChange={(e) => onFiltersChange({ ...filters, species: e.target.value || undefined })} className="w-full rounded-lg border px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}>
-          <option value="">Any</option>
-          <option value="dog">Dogs</option>
-          <option value="cat">Cats</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-      <div>
-        <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1.5">Vaccination Status</label>
-        <select value={filters.vaccinationStatus || ''} onChange={(e) => onFiltersChange({ ...filters, vaccinationStatus: e.target.value || undefined })} className="w-full rounded-lg border px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}>
-          <option value="">Any</option>
-          <option value="current">Current</option>
-          <option value="expiring">Expiring Soon</option>
-        </select>
-      </div>
+      <StyledSelect
+        label="Status"
+        options={[
+          { value: '', label: 'Any' },
+          { value: 'active', label: 'Active' },
+          { value: 'inactive', label: 'Inactive' },
+        ]}
+        value={filters.status || ''}
+        onChange={(opt) => onFiltersChange({ ...filters, status: opt?.value || undefined })}
+        isClearable={false}
+        isSearchable
+      />
+      <StyledSelect
+        label="Species"
+        options={[
+          { value: '', label: 'Any' },
+          { value: 'dog', label: 'Dogs' },
+          { value: 'cat', label: 'Cats' },
+          { value: 'other', label: 'Other' },
+        ]}
+        value={filters.species || ''}
+        onChange={(opt) => onFiltersChange({ ...filters, species: opt?.value || undefined })}
+        isClearable={false}
+        isSearchable
+      />
+      <StyledSelect
+        label="Vaccination Status"
+        options={[
+          { value: '', label: 'Any' },
+          { value: 'current', label: 'Current' },
+          { value: 'expiring', label: 'Expiring Soon' },
+        ]}
+        value={filters.vaccinationStatus || ''}
+        onChange={(opt) => onFiltersChange({ ...filters, vaccinationStatus: opt?.value || undefined })}
+        isClearable={false}
+        isSearchable
+      />
     </div>
     <div className="mt-4 flex gap-2">
       <Button variant="outline" size="sm" className="flex-1" onClick={() => onFiltersChange({})}>Reset</Button>
