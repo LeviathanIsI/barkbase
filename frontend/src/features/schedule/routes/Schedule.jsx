@@ -351,25 +351,6 @@ const Schedule = () => {
             </p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setShowKennelsPanel(true)} className="gap-1.5 h-9">
-              <Home className="h-4 w-4" />
-              <span className="hidden sm:inline">Kennels</span>
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowCheckInOutPanel(true)} className="gap-1.5 h-9">
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Check-in/out</span>
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowFilters(true)} className="gap-1.5 h-9">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Filters</span>
-            </Button>
-            <Button size="sm" onClick={() => setShowNewBookingModal(true)} className="gap-1.5 h-9">
-              <Plus className="h-4 w-4" />
-              New Booking
-            </Button>
-          </div>
         </div>
       </div>
 
