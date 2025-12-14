@@ -51,6 +51,7 @@ import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
 import { useTodaysAssignmentsQuery, useSaveRunAssignmentsMutation, useRemovePetFromRunMutation } from '../api';
 import { useRunTemplatesQuery } from '../api-templates';
 import { useBookingsQuery } from '@/features/bookings/api';
@@ -1324,7 +1325,7 @@ const RunAssignment = () => {
       >
         <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
           {/* Left: Run Columns */}
-          <div className="flex gap-4 overflow-x-auto pb-4">
+          <ScrollableTableContainer className="flex gap-4 pb-4">
             {runs?.length > 0 ? (
               runs.map((run) => (
                 <RunColumn
@@ -1353,7 +1354,7 @@ const RunAssignment = () => {
                 </div>
               </div>
             )}
-          </div>
+          </ScrollableTableContainer>
 
           {/* Right: Sidebar */}
           <div className="space-y-6">
