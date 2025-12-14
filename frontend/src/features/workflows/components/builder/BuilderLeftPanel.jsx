@@ -10,6 +10,7 @@ import {
   Clock,
   ChevronRight,
   ChevronDown,
+  ChevronLeft,
   Calendar,
   PawPrint,
   User,
@@ -18,6 +19,7 @@ import {
   FileText,
   Zap,
   Info,
+  Check,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useWorkflowBuilderStore } from '../../stores/builderStore';
@@ -28,7 +30,17 @@ import {
   OBJECT_TYPE_CONFIG,
 } from '../../constants';
 
-// Icon mapping
+// Icon mapping for object types
+const OBJECT_TYPE_ICONS = {
+  pet: PawPrint,
+  booking: Calendar,
+  owner: User,
+  payment: CreditCard,
+  task: CheckSquare,
+  invoice: FileText,
+};
+
+// Icon mapping for categories
 const CATEGORY_ICONS = {
   booking: Calendar,
   pet: PawPrint,
@@ -81,9 +93,53 @@ export default function BuilderLeftPanel({ onAddStep }) {
       expandedCategories={expandedCategories}
       toggleCategory={toggleCategory}
       onAddStep={onAddStep}
-      selectedStepId={selectedStepId}
-      selectStep={selectStep}
     />
+  );
+}
+
+// Progress stepper component
+function ProgressStepper({ currentStep }) {
+  const steps = [
+    { key: 'triggers', label: 'Start triggers' },
+    { key: 'records', label: 'Eligible records' },
+    { key: 'settings', label: 'Settings' },
+  ];
+
+  return (
+    <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--bb-color-border-subtle)]">
+      {steps.map((step, index) => {
+        const isCompleted = steps.findIndex(s => s.key === currentStep) > index;
+        const isCurrent = step.key === currentStep;
+
+        return (
+          <div key={step.key} className="flex items-center gap-2">
+            {index > 0 && (
+              <div className="w-6 h-px bg-[var(--bb-color-border-subtle)]" />
+            )}
+            <div className="flex items-center gap-1.5">
+              <div
+                className={cn(
+                  "w-5 h-5 rounded-full flex items-center justify-center text-xs font-medium",
+                  isCompleted && "bg-[#10B981] text-white",
+                  isCurrent && "bg-[#F59E0B] text-white",
+                  !isCompleted && !isCurrent && "bg-[var(--bb-color-bg-elevated)] text-[var(--bb-color-text-tertiary)]"
+                )}
+              >
+                {isCompleted ? <Check size={12} /> : index + 1}
+              </div>
+              <span
+                className={cn(
+                  "text-xs",
+                  isCurrent ? "text-[var(--bb-color-text-primary)] font-medium" : "text-[var(--bb-color-text-tertiary)]"
+                )}
+              >
+                {step.label}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -97,15 +153,70 @@ function TriggerSelectionPanel({
   setEntryCondition,
   setObjectType,
 }) {
+  // Internal state for the multi-step flow
+  const [flowStep, setFlowStep] = useState('triggers'); // triggers, records, settings
+  const [selectedTriggerType, setSelectedTriggerType] = useState(null);
+  const [selectedObjectType, setSelectedObjectType] = useState(null);
+  const [objectSearchQuery, setObjectSearchQuery] = useState('');
+
+  // Schedule config state
+  const [scheduleConfig, setScheduleConfig] = useState({
+    objectType: 'pet',
+    frequency: 'daily',
+    date: '',
+    time: '09:00',
+    timezone: 'America/New_York',
+  });
+
+  // Handle trigger type selection
   const handleTriggerTypeSelect = (triggerType) => {
+    setSelectedTriggerType(triggerType);
+
+    if (triggerType === 'schedule') {
+      // For schedule, go directly to settings with embedded object type
+      setFlowStep('settings');
+    } else {
+      // For manual and filter, go to object selection first
+      setFlowStep('records');
+    }
+  };
+
+  // Handle object type selection for manual/filter
+  const handleObjectTypeSelect = (objectType) => {
+    setSelectedObjectType(objectType);
+  };
+
+  // Handle save and continue from object selection
+  const handleSaveObjectSelection = () => {
+    if (!selectedObjectType) return;
+
+    setObjectType(selectedObjectType);
     setEntryCondition({
-      ...workflow.entryCondition,
-      triggerType,
+      triggerType: selectedTriggerType,
+      eventType: null,
+      filterConfig: selectedTriggerType === 'filter_criteria' ? { conditions: [] } : null,
+      scheduleConfig: null,
     });
   };
 
+  // Handle save schedule config
+  const handleSaveScheduleConfig = () => {
+    setObjectType(scheduleConfig.objectType);
+    setEntryCondition({
+      triggerType: 'schedule',
+      eventType: null,
+      filterConfig: null,
+      scheduleConfig: {
+        frequency: scheduleConfig.frequency,
+        date: scheduleConfig.date,
+        time: scheduleConfig.time,
+        timezone: scheduleConfig.timezone,
+      },
+    });
+  };
+
+  // Handle event selection (from event categories)
   const handleEventSelect = (categoryKey, event) => {
-    // Set the object type based on the event category
     setObjectType(categoryKey);
     setEntryCondition({
       triggerType: 'event',
@@ -115,6 +226,257 @@ function TriggerSelectionPanel({
     });
   };
 
+  // Handle back button
+  const handleBack = () => {
+    if (flowStep === 'records' || flowStep === 'settings') {
+      setFlowStep('triggers');
+      setSelectedTriggerType(null);
+      setSelectedObjectType(null);
+    }
+  };
+
+  // Render object type selection screen (for manual/filter)
+  if (flowStep === 'records' && (selectedTriggerType === 'manual' || selectedTriggerType === 'filter_criteria')) {
+    const objectTypes = Object.entries(OBJECT_TYPE_CONFIG);
+    const filteredObjectTypes = objectSearchQuery
+      ? objectTypes.filter(([, config]) =>
+          config.label.toLowerCase().includes(objectSearchQuery.toLowerCase())
+        )
+      : objectTypes;
+
+    return (
+      <div className="w-80 h-full border-r border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] flex flex-col">
+        {/* Progress stepper */}
+        <ProgressStepper currentStep="records" />
+
+        {/* Header with back and save */}
+        <div className="px-4 py-3 border-b border-[var(--bb-color-border-subtle)] flex items-center justify-between">
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-1 text-sm text-[var(--bb-color-text-secondary)] hover:text-[var(--bb-color-text-primary)]"
+          >
+            <ChevronLeft size={16} />
+            Back
+          </button>
+          <button
+            onClick={handleSaveObjectSelection}
+            disabled={!selectedObjectType}
+            className={cn(
+              "px-3 py-1.5 rounded text-sm font-medium",
+              selectedObjectType
+                ? "bg-[var(--bb-color-accent)] text-white hover:bg-[var(--bb-color-accent-hover)]"
+                : "bg-[var(--bb-color-bg-elevated)] text-[var(--bb-color-text-tertiary)] cursor-not-allowed"
+            )}
+          >
+            Save and continue
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-auto p-4">
+          <h2 className="text-base font-semibold text-[var(--bb-color-text-primary)] mb-2">
+            Choose a type of record that can enroll
+          </h2>
+          <p className="text-sm text-[var(--bb-color-text-tertiary)] mb-4">
+            You'll be able to choose records to enroll when you turn on the workflow
+          </p>
+
+          {/* Search */}
+          <div className="relative mb-4">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--bb-color-text-tertiary)]"
+            />
+            <input
+              type="text"
+              placeholder="Search record types..."
+              value={objectSearchQuery}
+              onChange={(e) => setObjectSearchQuery(e.target.value)}
+              className={cn(
+                "w-full h-9 pl-9 pr-3 rounded-md",
+                "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+                "text-sm text-[var(--bb-color-text-primary)]",
+                "placeholder:text-[var(--bb-color-text-tertiary)]",
+                "focus:outline-none focus:border-[var(--bb-color-accent)]"
+              )}
+            />
+          </div>
+
+          {/* Object type list */}
+          <div className="space-y-2">
+            {filteredObjectTypes.map(([key, config]) => {
+              const Icon = OBJECT_TYPE_ICONS[key] || FileText;
+              const isSelected = selectedObjectType === key;
+
+              return (
+                <button
+                  key={key}
+                  onClick={() => handleObjectTypeSelect(key)}
+                  className={cn(
+                    "w-full flex items-center gap-3 p-3 rounded-lg text-left",
+                    "border transition-colors",
+                    isSelected
+                      ? "border-[var(--bb-color-accent)] bg-[var(--bb-color-accent-soft)]"
+                      : "border-[var(--bb-color-border-subtle)] hover:border-[var(--bb-color-border-hover)] hover:bg-[var(--bb-color-bg-elevated)]"
+                  )}
+                >
+                  <div
+                    className="w-10 h-10 rounded-lg flex items-center justify-center"
+                    style={{ backgroundColor: `${config.color}20` }}
+                  >
+                    <Icon size={20} style={{ color: config.color }} />
+                  </div>
+                  <div className="flex-1">
+                    <div className={cn(
+                      "text-sm font-medium",
+                      isSelected ? "text-[var(--bb-color-accent)]" : "text-[var(--bb-color-text-primary)]"
+                    )}>
+                      {config.label}
+                    </div>
+                  </div>
+                  {isSelected && (
+                    <div className="w-5 h-5 rounded-full bg-[var(--bb-color-accent)] flex items-center justify-center">
+                      <Check size={12} className="text-white" />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render schedule configuration screen
+  if (flowStep === 'settings' && selectedTriggerType === 'schedule') {
+    return (
+      <div className="w-80 h-full border-r border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] flex flex-col">
+        {/* Progress stepper */}
+        <ProgressStepper currentStep="settings" />
+
+        {/* Header with back and save */}
+        <div className="px-4 py-3 border-b border-[var(--bb-color-border-subtle)] flex items-center justify-between">
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-1 text-sm text-[var(--bb-color-text-secondary)] hover:text-[var(--bb-color-text-primary)]"
+          >
+            <ChevronLeft size={16} />
+            Back
+          </button>
+          <button
+            onClick={handleSaveScheduleConfig}
+            className="px-3 py-1.5 rounded text-sm font-medium bg-[var(--bb-color-accent)] text-white hover:bg-[var(--bb-color-accent-hover)]"
+          >
+            Save and continue
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-auto p-4">
+          <h2 className="text-base font-semibold text-[var(--bb-color-text-primary)] mb-4">
+            Start when this happens
+          </h2>
+
+          {/* Schedule config card */}
+          <div className="bg-[var(--bb-color-bg-body)] rounded-lg border border-[var(--bb-color-border-subtle)] p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock size={16} className="text-[var(--bb-color-accent)]" />
+              <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">
+                On a schedule
+              </span>
+            </div>
+
+            {/* Enroll record type */}
+            <div className="mb-4">
+              <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
+                Enroll
+              </label>
+              <select
+                value={scheduleConfig.objectType}
+                onChange={(e) => setScheduleConfig(prev => ({ ...prev, objectType: e.target.value }))}
+                className={cn(
+                  "w-full h-9 px-3 rounded-md",
+                  "bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]",
+                  "text-sm text-[var(--bb-color-text-primary)]",
+                  "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                )}
+              >
+                {Object.entries(OBJECT_TYPE_CONFIG).map(([key, config]) => (
+                  <option key={key} value={key}>{config.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Frequency */}
+            <div className="mb-4">
+              <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
+                Frequency
+              </label>
+              <select
+                value={scheduleConfig.frequency}
+                onChange={(e) => setScheduleConfig(prev => ({ ...prev, frequency: e.target.value }))}
+                className={cn(
+                  "w-full h-9 px-3 rounded-md",
+                  "bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]",
+                  "text-sm text-[var(--bb-color-text-primary)]",
+                  "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                )}
+              >
+                <option value="once">Once</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+
+            {/* Date */}
+            <div className="mb-4">
+              <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
+                Date
+              </label>
+              <input
+                type="date"
+                value={scheduleConfig.date}
+                onChange={(e) => setScheduleConfig(prev => ({ ...prev, date: e.target.value }))}
+                className={cn(
+                  "w-full h-9 px-3 rounded-md",
+                  "bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]",
+                  "text-sm text-[var(--bb-color-text-primary)]",
+                  "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                )}
+              />
+            </div>
+
+            {/* Time */}
+            <div>
+              <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
+                Time of day
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="time"
+                  value={scheduleConfig.time}
+                  onChange={(e) => setScheduleConfig(prev => ({ ...prev, time: e.target.value }))}
+                  className={cn(
+                    "flex-1 h-9 px-3 rounded-md",
+                    "bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]",
+                    "text-sm text-[var(--bb-color-text-primary)]",
+                    "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                  )}
+                />
+                <span className="text-xs text-[var(--bb-color-text-tertiary)]">
+                  {scheduleConfig.timezone}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Default: Render initial trigger selection
   return (
     <div className="w-80 h-full border-r border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] flex flex-col">
       {/* Header */}
@@ -302,12 +664,6 @@ function ActionSelectionPanel({
           <h2 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">
             Add an action
           </h2>
-          <button
-            onClick={() => selectStep('trigger')}
-            className="text-xs text-[var(--bb-color-accent)] hover:underline"
-          >
-            Edit trigger
-          </button>
         </div>
 
         {/* Search */}
@@ -334,23 +690,22 @@ function ActionSelectionPanel({
 
       {/* Action categories */}
       <div className="flex-1 overflow-auto">
-        {Object.entries(ACTION_CATEGORIES).map(([key, category]) => {
-          const isExpanded = expandedCategories[key] !== false; // Default to expanded
+        {ACTION_CATEGORIES.map((category) => {
+          const isExpanded = expandedCategories[category.key] !== false; // Default expanded
 
           // Filter actions by search query
           const filteredActions = searchQuery
             ? category.actions.filter((a) =>
-                a.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                a.description.toLowerCase().includes(searchQuery.toLowerCase())
+                a.label.toLowerCase().includes(searchQuery.toLowerCase())
               )
             : category.actions;
 
           if (searchQuery && filteredActions.length === 0) return null;
 
           return (
-            <div key={key} className="border-b border-[var(--bb-color-border-subtle)]">
+            <div key={category.key} className="border-b border-[var(--bb-color-border-subtle)]">
               <button
-                onClick={() => toggleCategory(key)}
+                onClick={() => toggleCategory(category.key)}
                 className={cn(
                   "w-full px-4 py-3 flex items-center justify-between text-left",
                   "hover:bg-[var(--bb-color-bg-elevated)]",
@@ -371,24 +726,17 @@ function ActionSelectionPanel({
                 <div className="pb-2">
                   {filteredActions.map((action) => (
                     <button
-                      key={action.type}
+                      key={action.type || action.stepType}
                       onClick={() => handleActionSelect(action)}
                       className={cn(
                         "w-full px-4 py-2 flex items-center gap-3 text-left",
                         "hover:bg-[var(--bb-color-bg-elevated)]"
                       )}
                     >
-                      <div className="w-7 h-7 rounded bg-[var(--bb-color-bg-elevated)] flex items-center justify-center">
-                        <ActionIcon name={action.icon} />
-                      </div>
-                      <div>
-                        <div className="text-sm text-[var(--bb-color-text-primary)]">
-                          {action.label}
-                        </div>
-                        <div className="text-xs text-[var(--bb-color-text-tertiary)]">
-                          {action.description}
-                        </div>
-                      </div>
+                      <ActionIcon name={action.icon} />
+                      <span className="text-sm text-[var(--bb-color-text-secondary)]">
+                        {action.label}
+                      </span>
                     </button>
                   ))}
                 </div>
