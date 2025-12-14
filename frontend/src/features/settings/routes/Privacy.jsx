@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Switch from '@/components/ui/Switch';
 import Modal from '@/components/ui/Modal';
+import StyledSelect from '@/components/ui/StyledSelect';
 import apiClient from '@/lib/apiClient';
 import {
   Database, Download, Trash2, Search, Shield, Eye, EyeOff,
@@ -289,20 +290,23 @@ const Privacy = () => {
           {/* Retention Settings Grid */}
           <div className="grid grid-cols-2 gap-3">
             {retentionItems.map(({ key, label, icon: Icon }) => (
-              <div key={key} className="space-y-1">
-                <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-text-primary">
-                  <Icon className="w-3.5 h-3.5 text-gray-500 dark:text-text-secondary" />
-                  {label}
-                </label>
-                <select
+              <div key={key}>
+                <StyledSelect
+                  label={
+                    <span className="flex items-center gap-1.5">
+                      <Icon className="w-3.5 h-3.5 text-gray-500 dark:text-text-secondary" />
+                      {label}
+                    </span>
+                  }
+                  options={Object.entries(RETENTION_OPTIONS).map(([val, lbl]) => ({
+                    value: val,
+                    label: lbl,
+                  }))}
                   value={retention[key]}
-                  onChange={(e) => updateRetention(key, e.target.value)}
-                  className="w-full px-2 py-1.5 text-sm rounded-md border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  {Object.entries(RETENTION_OPTIONS).map(([val, lbl]) => (
-                    <option key={val} value={val}>{lbl}</option>
-                  ))}
-                </select>
+                  onChange={(opt) => updateRetention(key, opt?.value || '3yr')}
+                  isClearable={false}
+                  isSearchable={false}
+                />
               </div>
             ))}
           </div>
@@ -428,14 +432,18 @@ const Privacy = () => {
                   </div>
                 </div>
                 {type === 'select' ? (
-                  <select
-                    value={communication[key]}
-                    onChange={(e) => updateCommunication(key, e.target.value)}
-                    className="px-2 py-1 text-sm rounded-md border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="opt-in">Opt-in req</option>
-                    <option value="opt-out">Default on</option>
-                  </select>
+                  <div className="min-w-[120px]">
+                    <StyledSelect
+                      options={[
+                        { value: 'opt-in', label: 'Opt-in req' },
+                        { value: 'opt-out', label: 'Default on' },
+                      ]}
+                      value={communication[key]}
+                      onChange={(opt) => updateCommunication(key, opt?.value || 'opt-in')}
+                      isClearable={false}
+                      isSearchable={false}
+                    />
+                  </div>
                 ) : (
                   <Switch
                     checked={communication[key]}

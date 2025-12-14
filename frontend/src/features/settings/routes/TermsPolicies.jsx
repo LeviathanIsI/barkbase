@@ -5,6 +5,7 @@ import Badge from '@/components/ui/Badge';
 import Switch from '@/components/ui/Switch';
 import Modal from '@/components/ui/Modal';
 import SlidePanel from '@/components/ui/SlidePanel';
+import StyledSelect from '@/components/ui/StyledSelect';
 import apiClient from '@/lib/apiClient';
 import {
   FileText, Plus, Edit, Trash2, Eye, Copy, Shield,
@@ -1095,33 +1096,36 @@ const TermsPolicies = () => {
 
           {/* Type */}
           <div>
-            <label className="block text-sm font-medium mb-2">Policy Type</label>
-            <select
+            <StyledSelect
+              label="Policy Type"
+              options={Object.entries(POLICY_TYPES).map(([key, config]) => ({
+                value: key,
+                label: config.label,
+              }))}
               value={editorForm.type}
-              onChange={(e) => setEditorForm({ ...editorForm, type: e.target.value })}
-              className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              {Object.entries(POLICY_TYPES).map(([key, config]) => (
-                <option key={key} value={key}>{config.label}</option>
-              ))}
-            </select>
+              onChange={(opt) => setEditorForm({ ...editorForm, type: opt?.value || 'liability_waiver' })}
+              isClearable={false}
+              isSearchable
+              menuPortalTarget={document.body}
+            />
           </div>
 
           {/* Status */}
           <div>
-            <label className="block text-sm font-medium mb-2">Status</label>
-            <select
+            <StyledSelect
+              label="Status"
+              options={[
+                { value: 'draft', label: 'Draft' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+              ]}
               value={editorForm.status}
-              onChange={(e) => setEditorForm({ ...editorForm, status: e.target.value })}
-              className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="draft">Draft</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-            <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
-              Only active policies will be shown to customers
-            </p>
+              onChange={(opt) => setEditorForm({ ...editorForm, status: opt?.value || 'draft' })}
+              isClearable={false}
+              isSearchable={false}
+              menuPortalTarget={document.body}
+              helpText="Only active policies will be shown to customers"
+            />
           </div>
 
           {/* Options */}

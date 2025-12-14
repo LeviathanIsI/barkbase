@@ -3,6 +3,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Switch from '@/components/ui/Switch';
+import StyledSelect from '@/components/ui/StyledSelect';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import {
   useInvoiceSettingsQuery,
@@ -153,16 +154,14 @@ const Invoicing = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Payment Terms</label>
-              <select
+              <StyledSelect
+                label="Payment Terms"
+                options={PAYMENT_TERMS}
                 value={settings.paymentTerms}
-                onChange={(e) => handleChange('paymentTerms', e.target.value)}
-                className="w-full rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                {PAYMENT_TERMS.map((term) => (
-                  <option key={term.value} value={term.value}>{term.label}</option>
-                ))}
-              </select>
+                onChange={(opt) => handleChange('paymentTerms', opt?.value || 'due_on_receipt')}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
 
             <div>
