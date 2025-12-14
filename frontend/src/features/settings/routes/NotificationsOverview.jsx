@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/apiClient';
 import { useAuthStore } from '@/stores/auth';
@@ -250,29 +251,33 @@ const NotificationsOverview = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs text-muted mb-1">From</label>
-                    <select
+                    <StyledSelect
+                      options={[
+                        { value: '20:00', label: '8:00 PM' },
+                        { value: '21:00', label: '9:00 PM' },
+                        { value: '22:00', label: '10:00 PM' },
+                        { value: '23:00', label: '11:00 PM' },
+                      ]}
                       value={quietHours.start}
-                      onChange={(e) => setQuietHours(p => ({ ...p, start: e.target.value }))}
-                      className="w-full px-2.5 py-1.5 text-sm border border-border rounded-md"
-                    >
-                      <option value="20:00">8:00 PM</option>
-                      <option value="21:00">9:00 PM</option>
-                      <option value="22:00">10:00 PM</option>
-                      <option value="23:00">11:00 PM</option>
-                    </select>
+                      onChange={(opt) => setQuietHours(p => ({ ...p, start: opt?.value || '22:00' }))}
+                      isClearable={false}
+                      isSearchable={false}
+                    />
                   </div>
                   <div>
                     <label className="block text-xs text-muted mb-1">To</label>
-                    <select
+                    <StyledSelect
+                      options={[
+                        { value: '06:00', label: '6:00 AM' },
+                        { value: '07:00', label: '7:00 AM' },
+                        { value: '08:00', label: '8:00 AM' },
+                        { value: '09:00', label: '9:00 AM' },
+                      ]}
                       value={quietHours.end}
-                      onChange={(e) => setQuietHours(p => ({ ...p, end: e.target.value }))}
-                      className="w-full px-2.5 py-1.5 text-sm border border-border rounded-md"
-                    >
-                      <option value="06:00">6:00 AM</option>
-                      <option value="07:00">7:00 AM</option>
-                      <option value="08:00">8:00 AM</option>
-                      <option value="09:00">9:00 AM</option>
-                    </select>
+                      onChange={(opt) => setQuietHours(p => ({ ...p, end: opt?.value || '07:00' }))}
+                      isClearable={false}
+                      isSearchable={false}
+                    />
                   </div>
                 </div>
               )}

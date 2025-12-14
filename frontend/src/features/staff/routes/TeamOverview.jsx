@@ -63,6 +63,7 @@ import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import SlidePanel from '@/components/ui/SlidePanel';
 import Modal from '@/components/ui/Modal';
+import StyledSelect from '@/components/ui/StyledSelect';
 // Unified loader: replaced inline loading with LoadingState
 import LoadingState from '@/components/ui/LoadingState';
 import { useStaffQuery } from '../../settings/api';
@@ -321,26 +322,32 @@ const OverviewTab = ({ staff, stats, onViewProfile, onAddStaff }) => {
       {/* Filter Toolbar */}
       <FilterToolbar searchTerm={searchTerm} onSearchChange={setSearchTerm} filters={
         <>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-            <option value="clocked-in">Clocked In</option>
-          </select>
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-          >
-            <option value="all">All Roles</option>
-            {roles.map(role => (
-              <option key={role} value={role}>{role}</option>
-            ))}
-          </select>
+          <div className="min-w-[130px]">
+            <StyledSelect
+              options={[
+                { value: 'all', label: 'All Status' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' },
+                { value: 'clocked-in', label: 'Clocked In' },
+              ]}
+              value={statusFilter}
+              onChange={(opt) => setStatusFilter(opt?.value || 'all')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
+          <div className="min-w-[130px]">
+            <StyledSelect
+              options={[
+                { value: 'all', label: 'All Roles' },
+                ...roles.map(role => ({ value: role, label: role }))
+              ]}
+              value={roleFilter}
+              onChange={(opt) => setRoleFilter(opt?.value || 'all')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
         </>
       }>
         <span className="text-sm text-muted">{filteredStaff.length} staff</span>
@@ -639,16 +646,18 @@ const TasksTab = ({ staff }) => {
         <div className="lg:col-span-2">
           <div className="bg-white dark:bg-surface-primary border border-border rounded-lg">
             <div className="p-4 border-b border-border flex items-center justify-between">
-              <select
-                value={selectedStaff}
-                onChange={(e) => setSelectedStaff(e.target.value)}
-                className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none"
-              >
-                <option value="all">All Staff</option>
-                {staff.map((s, i) => (
-                  <option key={i} value={s.name || s.email}>{s.name || s.email}</option>
-                ))}
-              </select>
+              <div className="min-w-[160px]">
+                <StyledSelect
+                  options={[
+                    { value: 'all', label: 'All Staff' },
+                    ...staff.map((s, i) => ({ value: s.name || s.email, label: s.name || s.email }))
+                  ]}
+                  value={selectedStaff}
+                  onChange={(opt) => setSelectedStaff(opt?.value || 'all')}
+                  isClearable={false}
+                  isSearchable={true}
+                />
+              </div>
               <Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" />Assign Task</Button>
             </div>
             <div className="divide-y divide-border">
@@ -772,10 +781,18 @@ const TimeClockTab = ({ staff }) => {
         <div className="lg:col-span-2 bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden">
           <div className="p-4 border-b border-border flex items-center justify-between">
             <SectionHeader icon={FileText} title="Weekly Timesheets" />
-            <select className="px-3 py-1.5 text-sm bg-surface border-0 rounded-lg">
-              <option>This Week</option>
-              <option>Last Week</option>
-            </select>
+            <div className="min-w-[120px]">
+              <StyledSelect
+                options={[
+                  { value: 'this-week', label: 'This Week' },
+                  { value: 'last-week', label: 'Last Week' },
+                ]}
+                value="this-week"
+                onChange={() => {}}
+                isClearable={false}
+                isSearchable={false}
+              />
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -1173,28 +1190,36 @@ const AddStaffWizard = ({ isOpen, onClose, onComplete }) => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-text mb-1">Role *</label>
-              <select
+              <StyledSelect
+                options={[
+                  { value: '', label: 'Select a role...' },
+                  { value: 'manager', label: 'Manager' },
+                  { value: 'attendant', label: 'Kennel Attendant' },
+                  { value: 'groomer', label: 'Groomer' },
+                  { value: 'trainer', label: 'Trainer' },
+                  { value: 'receptionist', label: 'Receptionist' },
+                ]}
                 value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-              >
-                <option value="">Select a role...</option>
-                <option value="manager">Manager</option>
-                <option value="attendant">Kennel Attendant</option>
-                <option value="groomer">Groomer</option>
-                <option value="trainer">Trainer</option>
-                <option value="receptionist">Receptionist</option>
-              </select>
+                onChange={(opt) => setFormData({ ...formData, role: opt?.value || '' })}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-text mb-1">Department</label>
-              <select className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-                <option value="">Select department...</option>
-                <option value="operations">Operations</option>
-                <option value="grooming">Grooming</option>
-                <option value="training">Training</option>
-                <option value="admin">Administration</option>
-              </select>
+              <StyledSelect
+                options={[
+                  { value: '', label: 'Select department...' },
+                  { value: 'operations', label: 'Operations' },
+                  { value: 'grooming', label: 'Grooming' },
+                  { value: 'training', label: 'Training' },
+                  { value: 'admin', label: 'Administration' },
+                ]}
+                value=""
+                onChange={() => {}}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
           </div>
         )}
@@ -1232,10 +1257,16 @@ const AddStaffWizard = ({ isOpen, onClose, onComplete }) => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-text mb-1">Pay Type</label>
-              <select className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-                <option value="hourly">Hourly</option>
-                <option value="salary">Salary</option>
-              </select>
+              <StyledSelect
+                options={[
+                  { value: 'hourly', label: 'Hourly' },
+                  { value: 'salary', label: 'Salary' },
+                ]}
+                value="hourly"
+                onChange={() => {}}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-text mb-1">Hourly Rate / Salary</label>

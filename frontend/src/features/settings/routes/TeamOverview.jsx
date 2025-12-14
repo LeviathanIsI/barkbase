@@ -10,6 +10,7 @@ import Avatar from '@/components/ui/Avatar';
 import { Card } from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import StyledSelect from '@/components/ui/StyledSelect';
 import TeamMemberCard from './components/TeamMemberCard';
 import PermissionMatrixModal from './components/PermissionMatrixModal';
 import ShiftCoveragePlanner from './components/ShiftCoveragePlanner';
@@ -213,17 +214,21 @@ const TeamOverview = () => {
                 className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded-md bg-surface-primary"
               />
             </div>
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-border rounded-md bg-surface-primary"
-            >
-              <option value="all">All Roles</option>
-              <option value="OWNER">Owner</option>
-              <option value="ADMIN">Admin</option>
-              <option value="STAFF">Staff</option>
-              <option value="READONLY">Read Only</option>
-            </select>
+            <div className="min-w-[130px]">
+              <StyledSelect
+                options={[
+                  { value: 'all', label: 'All Roles' },
+                  { value: 'OWNER', label: 'Owner' },
+                  { value: 'ADMIN', label: 'Admin' },
+                  { value: 'STAFF', label: 'Staff' },
+                  { value: 'READONLY', label: 'Read Only' },
+                ]}
+                value={roleFilter}
+                onChange={(opt) => setRoleFilter(opt?.value || 'all')}
+                isClearable={false}
+                isSearchable={false}
+              />
+            </div>
           </div>
 
           {/* Bulk Actions */}
@@ -419,16 +424,19 @@ const TeamOverview = () => {
               </div>
               <div>
                 <label className="block text-xs font-medium text-text mb-1">Role</label>
-                <select
+                <StyledSelect
+                  options={[
+                    { value: 'OWNER', label: 'Owner' },
+                    { value: 'ADMIN', label: 'Admin' },
+                    { value: 'STAFF', label: 'Staff' },
+                    { value: 'READONLY', label: 'Read Only' },
+                  ]}
                   value={inviteForm.role}
-                  onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-border rounded-md"
-                >
-                  <option value="OWNER">Owner</option>
-                  <option value="ADMIN">Admin</option>
-                  <option value="STAFF">Staff</option>
-                  <option value="READONLY">Read Only</option>
-                </select>
+                  onChange={(opt) => setInviteForm({ ...inviteForm, role: opt?.value || 'STAFF' })}
+                  isClearable={false}
+                  isSearchable={false}
+                  menuPortalTarget={document.body}
+                />
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-5">
