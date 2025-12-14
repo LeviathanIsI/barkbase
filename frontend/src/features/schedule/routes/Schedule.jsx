@@ -1354,8 +1354,8 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
             'border-gray-400'
           )}
           style={{
-            top: '100%', // Start from bottom of the chip container
-            height: `calc(${100 - cellHeightPercent}% + 8px)`, // Extend to cell bottom
+            top: 'calc(100% - 4px)', // Overlap slightly with chip to avoid dash offset
+            height: `calc(${100 - cellHeightPercent}% + 12px)`, // Extend to cell bottom
             opacity: 0.6,
             left: '12px',
           }}
