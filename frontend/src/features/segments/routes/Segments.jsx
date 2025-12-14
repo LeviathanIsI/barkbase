@@ -26,6 +26,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import LoadingState from '@/components/ui/LoadingState';
 import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
+import ConfirmDeleteModal from '@/components/ui/ConfirmDeleteModal';
 import {
   useSegments,
   useDeleteSegment,
@@ -43,6 +44,8 @@ export default function Segments() {
   const [objectFilter, setObjectFilter] = useState('all');
   const [sortField, setSortField] = useState('updatedAt');
   const [sortDirection, setSortDirection] = useState('desc');
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [segmentToDelete, setSegmentToDelete] = useState(null);
 
   const { data: segments, isLoading } = useSegments();
   const deleteSegment = useDeleteSegment();
@@ -119,10 +122,17 @@ export default function Segments() {
     }
   };
 
-  const handleDelete = async (segment, e) => {
+  const handleDeleteClick = (segment, e) => {
     e?.stopPropagation();
-    if (window.confirm(`Are you sure you want to delete "${segment.name}"?`)) {
-      await deleteSegment.mutateAsync(segment.recordId ?? segment.id);
+    setSegmentToDelete(segment);
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (segmentToDelete) {
+      await deleteSegment.mutateAsync(segmentToDelete.recordId ?? segmentToDelete.id);
+      setDeleteModalOpen(false);
+      setSegmentToDelete(null);
     }
   };
 
@@ -377,7 +387,7 @@ export default function Segments() {
                           onView={() => navigate(`/segments/${segment.recordId ?? segment.id}`)}
                           onEdit={() => navigate(`/segments/${segment.recordId ?? segment.id}/edit`)}
                           onClone={(e) => handleClone(segment, e)}
-                          onDelete={(e) => handleDelete(segment, e)}
+                          onDelete={(e) => handleDeleteClick(segment, e)}
                         />
                       </div>
                     </td>
@@ -388,6 +398,19 @@ export default function Segments() {
           </table>
         </ScrollableTableContainer>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        open={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setSegmentToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        resourceName={segmentToDelete?.name || ''}
+        resourceType="segment"
+        isDeleting={deleteSegment.isPending}
+      />
     </div>
   );
 }

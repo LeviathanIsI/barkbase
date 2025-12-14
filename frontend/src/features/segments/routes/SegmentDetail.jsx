@@ -47,6 +47,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import LoadingState from '@/components/ui/LoadingState';
 import SlideOutDrawer from '@/components/ui/SlideOutDrawer';
+import ConfirmDeleteModal from '@/components/ui/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/apiClient';
 import { useQuery } from '@tanstack/react-query';
@@ -100,6 +101,7 @@ export default function SegmentDetail() {
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showUseInMenu, setShowUseInMenu] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const { data: segment, isLoading, refetch } = useSegment(id);
   const deleteMutation = useDeleteSegment();
@@ -116,14 +118,12 @@ export default function SegmentDetail() {
   const objectType = segment?.object_type || segment?.objectType || 'owners';
 
   const handleDelete = async () => {
-    if (window.confirm(`Are you sure you want to delete "${segment?.name}"?`)) {
-      try {
-        await deleteMutation.mutateAsync(id);
-        toast.success('Segment deleted');
-        navigate('/segments');
-      } catch (error) {
-        toast.error('Failed to delete segment');
-      }
+    try {
+      await deleteMutation.mutateAsync(id);
+      toast.success('Segment deleted');
+      navigate('/segments');
+    } catch (error) {
+      toast.error('Failed to delete segment');
     }
   };
 
@@ -311,7 +311,7 @@ export default function SegmentDetail() {
                         className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
                         onClick={() => {
                           setShowActionsMenu(false);
-                          handleDelete();
+                          setShowDeleteModal(true);
                         }}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -422,6 +422,17 @@ export default function SegmentDetail() {
           isLoading={convertMutation.isPending}
         />
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        resourceName={segment?.name || ''}
+        resourceType="segment"
+        isDeleting={deleteMutation.isPending}
+        warningMessage="All members will be removed and any campaigns using this segment will need to be updated."
+      />
     </div>
   );
 }
