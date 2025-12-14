@@ -11,7 +11,6 @@ import {
   closestCenter,
   MeasuringStrategy,
 } from '@dnd-kit/core';
-import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { 
   SortableContext, 
   useSortable, 
@@ -1383,12 +1382,8 @@ const RunAssignment = () => {
         {createPortal(
           <>
             <DragOverlay
-              dropAnimation={{
-                duration: 200,
-                easing: 'ease',
-              }}
+              dropAnimation={null}
               zIndex={9999}
-              modifiers={[snapCenterToCursor]}
             >
               {activeId && activePet ? (
                 <div style={{ width: 280 }}>
