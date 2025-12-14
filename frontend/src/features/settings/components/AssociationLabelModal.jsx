@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import toast from 'react-hot-toast';
 import {
   useCreateAssociationMutation,
@@ -202,18 +203,15 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
               <label className="block text-sm font-medium text-text mb-1">
                 From Object Type
               </label>
-              <select
+              <StyledSelect
+                options={OBJECT_TYPES}
                 value={formData.fromObjectType}
-                onChange={(e) => handleChange('fromObjectType', e.target.value)}
-                disabled={isEditing}
-                className="w-full rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:bg-gray-100 dark:bg-surface-secondary disabled:cursor-not-allowed"
-              >
-                {OBJECT_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(opt) => handleChange('fromObjectType', opt?.value || 'pet')}
+                isDisabled={isEditing}
+                isClearable={false}
+                isSearchable={false}
+                menuPortalTarget={document.body}
+              />
             </div>
 
             {/* To Object Type */}
@@ -221,18 +219,15 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
               <label className="block text-sm font-medium text-text mb-1">
                 To Object Type
               </label>
-              <select
+              <StyledSelect
+                options={OBJECT_TYPES}
                 value={formData.toObjectType}
-                onChange={(e) => handleChange('toObjectType', e.target.value)}
-                disabled={isEditing}
-                className="w-full rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:bg-gray-100 dark:bg-surface-secondary disabled:cursor-not-allowed"
-              >
-                {OBJECT_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(opt) => handleChange('toObjectType', opt?.value || 'owner')}
+                isDisabled={isEditing}
+                isClearable={false}
+                isSearchable={false}
+                menuPortalTarget={document.body}
+              />
             </div>
 
             {/* Limit Type */}

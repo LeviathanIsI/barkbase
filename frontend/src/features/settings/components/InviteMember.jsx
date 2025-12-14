@@ -2,6 +2,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { useInviteMemberMutation } from '../api';
 
 const roles = [
@@ -53,20 +54,16 @@ const InviteMember = () => {
                   autoFocus
                 />
               </label>
-              <label className="text-sm font-medium text-text">
-                Role
-                <select
+              <div className="text-sm font-medium text-text">
+                <span className="mb-1 block">Role</span>
+                <StyledSelect
+                  options={roles}
                   value={role}
-                  onChange={(event) => setRole(event.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                >
-                  {roles.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  onChange={(opt) => setRole(opt?.value || 'STAFF')}
+                  isClearable={false}
+                  isSearchable={false}
+                />
+              </div>
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={mutation.isPending}>
                   Cancel

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { X, Search } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import Button from './Button';
+import StyledSelect from './StyledSelect';
 
 /**
  * Universal Association Modal Component
@@ -235,22 +236,18 @@ const AssociationModal = ({
 
                             {/* Association label dropdown for selected records */}
                             {isSelected && associationLabels.length > 0 && (
-                              <div className="ml-7 rounded-[var(--bb-radius-md)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] p-[var(--bb-space-3)]">
+                              <div className="ml-7 rounded-[var(--bb-radius-md)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] p-[var(--bb-space-3)]" onClick={(e) => e.stopPropagation()}>
                                 <label className="mb-[var(--bb-space-1)] block text-[var(--bb-font-size-xs)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-muted)]">
                                   Association label
                                 </label>
-                                <select
+                                <StyledSelect
+                                  options={associationLabels}
                                   value={recordLabels[record.id] || associationLabels[0]?.value || ''}
-                                  onChange={(e) => handleLabelChange(record.recordId, e.target.value)}
-                                  className="w-full rounded-[var(--bb-radius-md)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] px-[var(--bb-space-3)] py-[var(--bb-space-2)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)] focus:border-[var(--bb-color-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--bb-color-accent)]"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {associationLabels.map((label) => (
-                                    <option key={label.value} value={label.value}>
-                                      {label.label}
-                                    </option>
-                                  ))}
-                                </select>
+                                  onChange={(opt) => handleLabelChange(record.recordId, opt?.value || '')}
+                                  isClearable={false}
+                                  isSearchable={false}
+                                  menuPortalTarget={document.body}
+                                />
                               </div>
                             )}
                           </div>
