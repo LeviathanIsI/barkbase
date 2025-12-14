@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { AlertCircle, Clock, Home, Plus, RefreshCw, UserCheck, UserX } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import TodayCard from './TodayCard';
@@ -13,8 +12,6 @@ const TodayHeroCard = ({
   onRefresh,
   lastRefreshed,
   onNewBooking,
-  onInFacilityClick,
-  onAttentionClick,
 }) => {
 
   const formatLastRefreshed = () => {
@@ -75,8 +72,6 @@ const TodayHeroCard = ({
             label="Arriving"
             value={stats.arrivals}
             variant="success"
-            tooltip="Click to view today's arrivals list"
-            onClick={() => document.getElementById('arrivals-section')?.scrollIntoView({ behavior: 'smooth' })}
             emptyMessage="No arrivals today"
           />
           <StatCard
@@ -84,8 +79,6 @@ const TodayHeroCard = ({
             label="Departing"
             value={stats.departures}
             variant="warning"
-            tooltip="Click to view today's departures list"
-            onClick={() => document.getElementById('departures-section')?.scrollIntoView({ behavior: 'smooth' })}
             emptyMessage="No departures today"
           />
           <StatCard
@@ -93,8 +86,6 @@ const TodayHeroCard = ({
             label="In Facility"
             value={stats.inFacility}
             variant="primary"
-            tooltip="Click to view all pets currently in facility"
-            onClick={onInFacilityClick}
             emptyMessage="Facility is empty"
           />
           {stats.attentionItems > 0 && (
@@ -103,8 +94,6 @@ const TodayHeroCard = ({
               label="Needs Attention"
               value={stats.attentionItems}
               variant="error"
-              tooltip="Click to view items requiring attention"
-              onClick={onAttentionClick}
             />
           )}
         </div>
@@ -144,28 +133,19 @@ const variantStyles = {
   },
 };
 
-const StatCard = ({ icon: Icon, label, value, variant = 'primary', tooltip, onClick, emptyMessage }) => {
-  const [showTooltip, setShowTooltip] = useState(false);
+const StatCard = ({ icon: Icon, label, value, variant = 'primary', emptyMessage }) => {
   const styles = variantStyles[variant] || variantStyles.primary;
   const isEmpty = value === 0;
 
   return (
-    <button
-      type="button"
+    <div
       data-testid="stat-card"
-      onClick={onClick}
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
       className={cn(
-        'relative flex items-center gap-[var(--bb-space-3,0.75rem)] rounded-xl border p-[var(--bb-space-4,1rem)]',
-        'transition-all duration-200 cursor-pointer',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)] focus-visible:ring-offset-2',
+        'flex items-center gap-[var(--bb-space-3,0.75rem)] rounded-xl border p-[var(--bb-space-4,1rem)]',
         styles.bg,
-        styles.border,
-        styles.hoverBg,
-        'hover:shadow-md hover:-translate-y-0.5'
+        styles.border
       )}
-      aria-label={`${label}: ${value}. ${tooltip}`}
+      aria-label={`${label}: ${value}`}
     >
       {/* Icon container */}
       <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl', styles.iconBg)}>
@@ -187,29 +167,7 @@ const StatCard = ({ icon: Icon, label, value, variant = 'primary', tooltip, onCl
           </p>
         )}
       </div>
-
-      {/* Tooltip */}
-      {showTooltip && tooltip && (
-        <div
-          className="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium shadow-lg z-10"
-          style={{
-            backgroundColor: 'var(--bb-color-bg-elevated)',
-            color: 'var(--bb-color-text-primary)',
-            border: '1px solid var(--bb-color-border-subtle)',
-          }}
-        >
-          {tooltip}
-          <div
-            className="absolute left-1/2 -bottom-1 h-2 w-2 -translate-x-1/2 rotate-45"
-            style={{
-              backgroundColor: 'var(--bb-color-bg-elevated)',
-              borderRight: '1px solid var(--bb-color-border-subtle)',
-              borderBottom: '1px solid var(--bb-color-border-subtle)',
-            }}
-          />
-        </div>
-      )}
-    </button>
+    </div>
   );
 };
 

@@ -171,13 +171,10 @@ const TodayCommandCenter = () => {
             kennelName={kennelName}
             formattedDate={formattedDate}
             stats={stats}
-            isLoading={false}
             isUpdating={isUpdatingSnapshot}
             onRefresh={handleRefresh}
             lastRefreshed={lastRefreshed}
             onNewBooking={() => setShowNewBooking(true)}
-            onInFacilityClick={() => setShowInFacility(true)}
-            onAttentionClick={() => setShowNeedsAttention(true)}
           />
         </div>
 
