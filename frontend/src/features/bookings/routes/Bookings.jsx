@@ -256,11 +256,28 @@ const Bookings = () => {
     });
   }, [processedBookings, searchTerm, serviceFilter, statusFilter]);
 
-  // Sort bookings for list view
+  // Sort bookings for list view - prioritize Check-ins first, Check-outs second, then others
   const sortedBookings = useMemo(() => {
-    if (!sortConfig.key) return filteredBookings;
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // Priority function: 0 = check-in today, 1 = check-out today, 2 = other
+    const getPriority = (booking) => {
+      const checkInStr = booking.checkInDate?.toISOString().split('T')[0];
+      const checkOutStr = booking.checkOutDate?.toISOString().split('T')[0];
+      if (checkInStr === todayStr) return 0;
+      if (checkOutStr === todayStr) return 1;
+      return 2;
+    };
 
     return [...filteredBookings].sort((a, b) => {
+      // First sort by priority (check-ins, then check-outs, then others)
+      const aPriority = getPriority(a);
+      const bPriority = getPriority(b);
+      if (aPriority !== bPriority) return aPriority - bPriority;
+
+      // Then apply user's selected sort
+      if (!sortConfig.key) return 0;
+
       let aVal = a[sortConfig.key];
       let bVal = b[sortConfig.key];
 
@@ -1122,7 +1139,7 @@ const WeeklyCalendarView = ({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Get bookings for a specific date, sorted by check-in date
+  // Get bookings for a specific date, sorted by: Check-ins first, Check-outs second, then others
   const getBookingsForDate = (date) => {
     const dateStr = date.toISOString().split('T')[0];
     return bookings
@@ -1132,7 +1149,27 @@ const WeeklyCalendarView = ({
         const checkOutStr = b.checkOutDate.toISOString().split('T')[0];
         return dateStr >= checkInStr && dateStr <= checkOutStr;
       })
-      .sort((a, b) => a.checkInDate - b.checkInDate);
+      .sort((a, b) => {
+        const aCheckInStr = a.checkInDate.toISOString().split('T')[0];
+        const aCheckOutStr = a.checkOutDate.toISOString().split('T')[0];
+        const bCheckInStr = b.checkInDate.toISOString().split('T')[0];
+        const bCheckOutStr = b.checkOutDate.toISOString().split('T')[0];
+
+        // Priority: 0 = check-in, 1 = check-out, 2 = in-between
+        const getPriority = (checkIn, checkOut) => {
+          if (checkIn === dateStr) return 0; // Check-in today
+          if (checkOut === dateStr) return 1; // Check-out today
+          return 2; // In-between
+        };
+
+        const aPriority = getPriority(aCheckInStr, aCheckOutStr);
+        const bPriority = getPriority(bCheckInStr, bCheckOutStr);
+
+        if (aPriority !== bPriority) return aPriority - bPriority;
+
+        // Within same priority, sort by pet name
+        return (a.petName || '').localeCompare(b.petName || '');
+      });
   };
 
   if (isLoading) {
