@@ -127,8 +127,9 @@ const Schedule = () => {
     const assignments = runAssignmentsData?.assignments || [];
     return assignments.map(assignment => {
       // Use assignedDate from RunAssignment table, fallback to startAt for legacy data
+      // Use string split to avoid timezone conversion issues with date-only strings
       const dateStr = assignment.assignedDate
-        ? format(new Date(assignment.assignedDate), 'yyyy-MM-dd')
+        ? assignment.assignedDate.split('T')[0]
         : assignment.startAt
           ? format(new Date(assignment.startAt), 'yyyy-MM-dd')
           : null;
