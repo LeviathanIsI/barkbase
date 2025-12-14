@@ -2127,7 +2127,7 @@ async function handleGetSegments(tenantId) {
   try {
     await getPoolAsync();
 
-    // Query segments with member counts and enhanced fields
+    // Query segments with member counts and 7-day change calculated on-the-fly from snapshots
     const result = await query(
       `SELECT
          s.id,
@@ -2144,7 +2144,15 @@ async function handleGetSegments(tenantId) {
          s.seven_day_change,
          s.created_at,
          s.updated_at,
-         COALESCE(s.member_count, (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm.segment_id = s.id)) as computed_member_count
+         COALESCE(s.member_count, (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm.segment_id = s.id)) as computed_member_count,
+         (
+           SELECT snapshot.member_count
+           FROM "SegmentSnapshot" snapshot
+           WHERE snapshot.segment_id = s.id
+             AND snapshot.snapshot_date <= CURRENT_DATE - INTERVAL '7 days'
+           ORDER BY snapshot.snapshot_date DESC
+           LIMIT 1
+         ) as snapshot_7d_ago
        FROM "Segment" s
        WHERE s.tenant_id = $1
        ORDER BY s.updated_at DESC NULLS LAST, s.name ASC`,
@@ -2153,36 +2161,44 @@ async function handleGetSegments(tenantId) {
 
     console.log('[Segments][list] query returned:', result.rows.length, 'rows');
 
-    const segments = result.rows.map(row => ({
-      id: row.id,
-      recordId: row.id,
-      name: row.name,
-      description: row.description,
-      criteria: row.criteria || {},
-      filters: row.filters || { groups: [], groupLogic: 'OR' },
-      object_type: row.object_type || 'owners',
-      objectType: row.object_type || 'owners',
-      segment_type: row.segment_type || 'active',
-      segmentType: row.segment_type || 'active',
-      isDynamic: row.is_automatic ?? (row.segment_type === 'active'),
-      isActive: row.is_active ?? true,
-      isAutomatic: row.is_automatic ?? false,
-      _count: {
-        members: parseInt(row.computed_member_count || row.member_count || 0),
-        campaigns: 0,
-      },
-      memberCount: parseInt(row.computed_member_count || row.member_count || 0),
-      member_count: parseInt(row.computed_member_count || row.member_count || 0),
-      percentOfTotal: parseFloat(row.percent_of_total || 0),
-      percent_of_total: parseFloat(row.percent_of_total || 0),
-      change7d: parseInt(row.seven_day_change || 0),
-      sevenDayChange: parseInt(row.seven_day_change || 0),
-      seven_day_change: parseInt(row.seven_day_change || 0),
-      createdAt: row.created_at,
-      created_at: row.created_at,
-      updatedAt: row.updated_at,
-      updated_at: row.updated_at,
-    }));
+    const segments = result.rows.map(row => {
+      const currentCount = parseInt(row.computed_member_count || row.member_count || 0);
+      // Calculate 7-day change: current count minus snapshot from 7+ days ago
+      // If no snapshot exists, change is 0
+      const oldCount = row.snapshot_7d_ago !== null ? parseInt(row.snapshot_7d_ago) : currentCount;
+      const calculatedChange = currentCount - oldCount;
+
+      return {
+        id: row.id,
+        recordId: row.id,
+        name: row.name,
+        description: row.description,
+        criteria: row.criteria || {},
+        filters: row.filters || { groups: [], groupLogic: 'OR' },
+        object_type: row.object_type || 'owners',
+        objectType: row.object_type || 'owners',
+        segment_type: row.segment_type || 'active',
+        segmentType: row.segment_type || 'active',
+        isDynamic: row.is_automatic ?? (row.segment_type === 'active'),
+        isActive: row.is_active ?? true,
+        isAutomatic: row.is_automatic ?? false,
+        _count: {
+          members: currentCount,
+          campaigns: 0,
+        },
+        memberCount: currentCount,
+        member_count: currentCount,
+        percentOfTotal: parseFloat(row.percent_of_total || 0),
+        percent_of_total: parseFloat(row.percent_of_total || 0),
+        change7d: calculatedChange,
+        sevenDayChange: calculatedChange,
+        seven_day_change: calculatedChange,
+        createdAt: row.created_at,
+        created_at: row.created_at,
+        updatedAt: row.updated_at,
+        updated_at: row.updated_at,
+      };
+    });
 
     console.log('[ANALYTICS-SERVICE] Fetched segments:', { tenantId, count: segments.length });
 
@@ -2194,7 +2210,48 @@ async function handleGetSegments(tenantId) {
     });
 
   } catch (error) {
-    // Handle missing table gracefully
+    // Handle missing SegmentSnapshot table - fall back to stored seven_day_change value
+    if (error.message?.includes('SegmentSnapshot') && (error.message?.includes('does not exist') || error.code === '42P01')) {
+      console.log('[ANALYTICS-SERVICE] SegmentSnapshot table not found, using stored seven_day_change');
+      try {
+        const fallbackResult = await query(
+          `SELECT
+             s.id, s.name, s.description, s.criteria, s.filters, s.object_type, s.segment_type,
+             s.is_automatic, s.is_active, s.member_count, s.percent_of_total, s.seven_day_change,
+             s.created_at, s.updated_at,
+             COALESCE(s.member_count, (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm.segment_id = s.id)) as computed_member_count
+           FROM "Segment" s WHERE s.tenant_id = $1
+           ORDER BY s.updated_at DESC NULLS LAST, s.name ASC`,
+          [tenantId]
+        );
+
+        const segments = fallbackResult.rows.map(row => {
+          const currentCount = parseInt(row.computed_member_count || row.member_count || 0);
+          return {
+            id: row.id, recordId: row.id, name: row.name, description: row.description,
+            criteria: row.criteria || {}, filters: row.filters || { groups: [], groupLogic: 'OR' },
+            object_type: row.object_type || 'owners', objectType: row.object_type || 'owners',
+            segment_type: row.segment_type || 'active', segmentType: row.segment_type || 'active',
+            isDynamic: row.is_automatic ?? (row.segment_type === 'active'),
+            isActive: row.is_active ?? true, isAutomatic: row.is_automatic ?? false,
+            _count: { members: currentCount, campaigns: 0 },
+            memberCount: currentCount, member_count: currentCount,
+            percentOfTotal: parseFloat(row.percent_of_total || 0), percent_of_total: parseFloat(row.percent_of_total || 0),
+            change7d: parseInt(row.seven_day_change || 0),
+            sevenDayChange: parseInt(row.seven_day_change || 0),
+            seven_day_change: parseInt(row.seven_day_change || 0),
+            createdAt: row.created_at, created_at: row.created_at,
+            updatedAt: row.updated_at, updated_at: row.updated_at,
+          };
+        });
+
+        return createResponse(200, { data: segments, segments, total: segments.length, message: 'Segments retrieved (no snapshots)' });
+      } catch (fallbackErr) {
+        console.error('[ANALYTICS-SERVICE] Fallback query also failed:', fallbackErr.message);
+      }
+    }
+
+    // Handle missing Segment table gracefully
     if (error.message?.includes('does not exist') || error.code === '42P01') {
       console.log('[ANALYTICS-SERVICE] Segment table not found, returning empty list');
       return createResponse(200, {
