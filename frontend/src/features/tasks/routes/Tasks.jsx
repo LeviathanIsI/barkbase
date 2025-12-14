@@ -41,6 +41,7 @@ import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
 import { useTodaysTasksQuery, useOverdueTasksQuery, useCompleteTaskMutation, useCreateTaskMutation, useTasksQuery } from '../api';
 import { usePetsQuery } from '@/features/pets/api';
 import { useStaffQuery } from '@/features/staff/api';
@@ -969,7 +970,7 @@ const Tasks = () => {
       {/* Two-Column Layout: Task List (left) + Sidebar (right) */}
       <div className="grid gap-6 lg:grid-cols-[1fr_320px] flex-1 min-h-0">
         {/* Left: Task List */}
-        <div className="space-y-4 overflow-y-auto min-h-0">
+        <ScrollableTableContainer className="space-y-4 min-h-0">
           {/* Filter Bar - includes type filters, sort, search */}
           <div
             className="rounded-xl border p-4"
@@ -1290,7 +1291,7 @@ const Tasks = () => {
           </TimeBucket>
         )}
           </div>
-        </div>
+        </ScrollableTableContainer>
 
         {/* Right: Sidebar */}
         <div className="flex flex-col gap-4 min-h-0 overflow-y-auto">
