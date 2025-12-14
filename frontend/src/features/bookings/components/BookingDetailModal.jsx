@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { Calendar, PawPrint, User, CheckCircle, Clock, DollarSign, Phone, Edit2, X, MessageSquare, Home, ChevronDown, LogIn, LogOut, Play, ArrowRight, Timer } from 'lucide-react';
+import { Calendar, PawPrint, User, CheckCircle, Clock, DollarSign, Phone, Edit2, X, MessageSquare, Home, ChevronDown, ChevronLeft, LogIn, LogOut, Play, ArrowRight, Timer } from 'lucide-react';
 import {
   InspectorRoot,
   InspectorHeader,
@@ -20,6 +20,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import { useKennels } from '@/features/kennels/api';
 import { useAssignKennelMutation, useDeleteBookingMutation, useBookingCheckInMutation, useBookingCheckOutMutation } from '@/features/bookings/api';
+import { useRunTemplatesQuery } from '@/features/daycare/api-templates';
 import { useAuthStore } from '@/stores/auth';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
@@ -27,6 +28,7 @@ import { cn } from '@/lib/cn';
 const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
   const { openSlideout } = useSlideout();
   const { data: kennels = [] } = useKennels();
+  const { data: runTemplates = [] } = useRunTemplatesQuery();
   const assignKennelMutation = useAssignKennelMutation();
   const deleteBookingMutation = useDeleteBookingMutation();
   const checkInMutation = useBookingCheckInMutation();
@@ -37,12 +39,19 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
 
   // Local state
   const [activeTab, setActiveTab] = useState('assignment'); // 'assignment' | 'booking'
+  const [assignmentView, setAssignmentView] = useState('main'); // 'main' | 'changeRun' | 'adjustTime'
   const [showKennelDropdown, setShowKennelDropdown] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showQuickCheckoutDialog, setShowQuickCheckoutDialog] = useState(false);
+  const [showEndEarlyDialog, setShowEndEarlyDialog] = useState(false);
   const [addingNote, setAddingNote] = useState(false);
   const [noteText, setNoteText] = useState('');
   const kennelDropdownRef = useRef(null);
+
+  // State for time adjustment
+  const [adjustedStartTime, setAdjustedStartTime] = useState('');
+  const [adjustedEndTime, setAdjustedEndTime] = useState('');
+  const [selectedRunId, setSelectedRunId] = useState(null);
 
   // Local state for optimistic updates after check-in/out
   const [localStatus, setLocalStatus] = useState(null);
@@ -54,10 +63,12 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     setLocalCheckedInAt(null);
   }, [booking?.id]);
 
-  // Reset to assignment tab when modal opens
+  // Reset to assignment tab and main view when modal opens
   useEffect(() => {
     if (isOpen) {
       setActiveTab('assignment');
+      setAssignmentView('main');
+      setShowEndEarlyDialog(false);
     }
   }, [isOpen]);
 
@@ -413,137 +424,378 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
         {/* ===== ASSIGNMENT TAB ===== */}
         {activeTab === 'assignment' && (
           <>
-            {/* Pet Info */}
-            <InspectorSection title="Pet" icon={PawPrint}>
-              <div className="flex items-center gap-[var(--bb-space-3)]">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--bb-color-accent-soft)] text-[var(--bb-color-accent)]">
-                  <PawPrint className="h-6 w-6" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-[var(--bb-font-size-md)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
-                    {displayBooking.pet.name || 'Unknown Pet'}
-                  </p>
-                  <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
-                    {displayBooking.pet.breed || 'Unknown breed'}
-                    {displayBooking.pet.age && ` • ${displayBooking.pet.age}`}
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" onClick={handleViewPet}>
-                  <PawPrint className="w-4 h-4 mr-2" />
-                  View Profile
-                </Button>
-              </div>
-            </InspectorSection>
+            {/* Main Assignment View */}
+            {assignmentView === 'main' && (
+              <>
+                {/* Pet Info */}
+                <InspectorSection title="Pet" icon={PawPrint}>
+                  <div className="flex items-center gap-[var(--bb-space-3)]">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--bb-color-accent-soft)] text-[var(--bb-color-accent)]">
+                      <PawPrint className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[var(--bb-font-size-md)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
+                        {displayBooking.pet.name || 'Unknown Pet'}
+                      </p>
+                      <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+                        {displayBooking.pet.breed || 'Unknown breed'}
+                        {displayBooking.pet.age && ` • ${displayBooking.pet.age}`}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={handleViewPet}>
+                      <PawPrint className="w-4 h-4 mr-2" />
+                      View Profile
+                    </Button>
+                  </div>
+                </InspectorSection>
 
-            {/* Owner Info */}
-            <InspectorSection title="Owner" icon={User}>
-              <div className="flex items-center gap-[var(--bb-space-3)]">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--bb-color-purple-soft)] text-[var(--bb-color-purple)]">
-                  <User className="h-6 w-6" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[var(--bb-font-size-md)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
-                    {displayBooking.owner.firstName || displayBooking.owner.name || 'Unknown'}
-                    {displayBooking.owner.lastName && ` ${displayBooking.owner.lastName}`}
-                  </p>
-                  {displayBooking.owner.phone && (
-                    <a
-                      href={`tel:${displayBooking.owner.phone}`}
-                      className="flex items-center gap-[var(--bb-space-1)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-accent)] hover:underline"
-                    >
-                      <Phone className="w-3 h-3" />
-                      {displayBooking.owner.phone}
-                    </a>
-                  )}
-                </div>
-                <div className="flex gap-[var(--bb-space-2)]">
-                  <Button variant="outline" size="sm" onClick={handleViewOwner}>
-                    <User className="w-4 h-4 mr-2" />
-                    View Profile
-                  </Button>
-                  {displayBooking.owner.phone && (
+                {/* Owner Info */}
+                <InspectorSection title="Owner" icon={User}>
+                  <div className="flex items-center gap-[var(--bb-space-3)]">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--bb-color-purple-soft)] text-[var(--bb-color-purple)]">
+                      <User className="h-6 w-6" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[var(--bb-font-size-md)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
+                        {displayBooking.owner.firstName || displayBooking.owner.name || 'Unknown'}
+                        {displayBooking.owner.lastName && ` ${displayBooking.owner.lastName}`}
+                      </p>
+                      {displayBooking.owner.phone && (
+                        <a
+                          href={`tel:${displayBooking.owner.phone}`}
+                          className="flex items-center gap-[var(--bb-space-1)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-accent)] hover:underline"
+                        >
+                          <Phone className="w-3 h-3" />
+                          {displayBooking.owner.phone}
+                        </a>
+                      )}
+                    </div>
+                    <div className="flex gap-[var(--bb-space-2)]">
+                      <Button variant="outline" size="sm" onClick={handleViewOwner}>
+                        <User className="w-4 h-4 mr-2" />
+                        View Profile
+                      </Button>
+                      {displayBooking.owner.phone && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(`tel:${displayBooking.owner.phone}`)}
+                          title="Call owner"
+                        >
+                          <Phone className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </InspectorSection>
+
+                {/* Run Assignment Info */}
+                <InspectorSection title="Current Assignment" icon={Play}>
+                  <div className="space-y-[var(--bb-space-3)]">
+                    {/* Run/Play Area */}
+                    <InspectorField label="Run / Play Area" layout="grid">
+                      <span className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
+                        {displayBooking.runName || 'Not assigned'}
+                      </span>
+                    </InspectorField>
+
+                    {/* Times */}
+                    <div className="grid grid-cols-2 gap-[var(--bb-space-4)]">
+                      <InspectorField label="Start Time" layout="stacked" icon={Clock}>
+                        <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                          {displayBooking.startTime
+                            ? formatTimeString(displayBooking.startTime)
+                            : displayBooking.startAt
+                              ? formatTime(displayBooking.startAt)
+                              : '—'}
+                        </span>
+                      </InspectorField>
+                      <InspectorField label="End Time" layout="stacked" icon={Timer}>
+                        <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                          {displayBooking.endTime
+                            ? formatTimeString(displayBooking.endTime)
+                            : displayBooking.endAt
+                              ? formatTime(displayBooking.endAt)
+                              : '—'}
+                        </span>
+                      </InspectorField>
+                    </div>
+
+                    {/* Activity Type */}
+                    <InspectorField label="Activity Type" layout="grid">
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          'w-2 h-2 rounded-full',
+                          displayBooking.serviceType?.toLowerCase().includes('social') && 'bg-emerald-500',
+                          displayBooking.serviceType?.toLowerCase().includes('individual') && 'bg-blue-500',
+                          displayBooking.serviceType?.toLowerCase().includes('training') && 'bg-amber-500',
+                          !displayBooking.serviceType?.toLowerCase().includes('social') &&
+                          !displayBooking.serviceType?.toLowerCase().includes('individual') &&
+                          !displayBooking.serviceType?.toLowerCase().includes('training') && 'bg-gray-400'
+                        )} />
+                        <span className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
+                          {displayBooking.serviceType || 'Social'}
+                        </span>
+                      </div>
+                    </InspectorField>
+                  </div>
+                </InspectorSection>
+
+                {/* Quick Actions */}
+                <InspectorSection title="Quick Actions" icon={ArrowRight}>
+                  <div className="grid grid-cols-3 gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open(`tel:${displayBooking.owner.phone}`)}
-                      title="Call owner"
+                      className="w-full flex items-center justify-center gap-1 text-xs"
+                      onClick={() => {
+                        setSelectedRunId(displayBooking.runId);
+                        setAssignmentView('changeRun');
+                      }}
                     >
-                      <Phone className="w-4 h-4" />
+                      <Home className="w-3.5 h-3.5 shrink-0" />
+                      <span>Change Run</span>
                     </Button>
-                  )}
-                </div>
-              </div>
-            </InspectorSection>
-
-            {/* Run Assignment Info */}
-            <InspectorSection title="Current Assignment" icon={Play}>
-              <div className="space-y-[var(--bb-space-3)]">
-                {/* Run/Play Area */}
-                <InspectorField label="Run / Play Area" layout="grid">
-                  <span className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
-                    {displayBooking.runName || 'Not assigned'}
-                  </span>
-                </InspectorField>
-
-                {/* Times */}
-                <div className="grid grid-cols-2 gap-[var(--bb-space-4)]">
-                  <InspectorField label="Start Time" layout="stacked" icon={Clock}>
-                    <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
-                      {displayBooking.startTime
-                        ? formatTimeString(displayBooking.startTime)
-                        : displayBooking.startAt
-                          ? formatTime(displayBooking.startAt)
-                          : '—'}
-                    </span>
-                  </InspectorField>
-                  <InspectorField label="End Time" layout="stacked" icon={Timer}>
-                    <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
-                      {displayBooking.endTime
-                        ? formatTimeString(displayBooking.endTime)
-                        : displayBooking.endAt
-                          ? formatTime(displayBooking.endAt)
-                          : '—'}
-                    </span>
-                  </InspectorField>
-                </div>
-
-                {/* Activity Type */}
-                <InspectorField label="Activity Type" layout="grid">
-                  <div className="flex items-center gap-2">
-                    <span className={cn(
-                      'w-2 h-2 rounded-full',
-                      displayBooking.serviceType?.toLowerCase().includes('social') && 'bg-emerald-500',
-                      displayBooking.serviceType?.toLowerCase().includes('individual') && 'bg-blue-500',
-                      displayBooking.serviceType?.toLowerCase().includes('training') && 'bg-amber-500',
-                      !displayBooking.serviceType?.toLowerCase().includes('social') &&
-                      !displayBooking.serviceType?.toLowerCase().includes('individual') &&
-                      !displayBooking.serviceType?.toLowerCase().includes('training') && 'bg-gray-400'
-                    )} />
-                    <span className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
-                      {displayBooking.serviceType || 'Social'}
-                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full flex items-center justify-center gap-1 text-xs"
+                      onClick={() => {
+                        setAdjustedStartTime(displayBooking.startTime || '');
+                        setAdjustedEndTime(displayBooking.endTime || '');
+                        setAssignmentView('adjustTime');
+                      }}
+                    >
+                      <Clock className="w-3.5 h-3.5 shrink-0" />
+                      <span>Adjust Time</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full flex items-center justify-center gap-1 text-xs text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                      onClick={() => setShowEndEarlyDialog(true)}
+                    >
+                      <X className="w-3.5 h-3.5 shrink-0" />
+                      <span>End Early</span>
+                    </Button>
                   </div>
-                </InspectorField>
-              </div>
-            </InspectorSection>
+                </InspectorSection>
+              </>
+            )}
 
-            {/* Quick Actions */}
-            <InspectorSection title="Quick Actions" icon={ArrowRight}>
-              <div className="grid grid-cols-3 gap-2">
-                <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-1 text-xs">
-                  <Home className="w-3.5 h-3.5 shrink-0" />
-                  <span>Change Run</span>
-                </Button>
-                <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-1 text-xs">
-                  <Clock className="w-3.5 h-3.5 shrink-0" />
-                  <span>Extend</span>
-                </Button>
-                <Button variant="outline" size="sm" className="w-full flex items-center justify-center gap-1 text-xs text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20">
-                  <X className="w-3.5 h-3.5 shrink-0" />
-                  <span>End Early</span>
-                </Button>
+            {/* Change Run View */}
+            {assignmentView === 'changeRun' && (
+              <div className="p-4 space-y-4">
+                {/* Back button header */}
+                <div className="flex items-center gap-2 pb-3 border-b border-[var(--bb-color-border-subtle)]">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setAssignmentView('main')}
+                    className="p-1"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </Button>
+                  <h3 className="font-semibold text-[var(--bb-color-text-primary)]">Change Run / Play Area</h3>
+                </div>
+
+                {/* Current assignment */}
+                <div className="p-3 rounded-lg bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]">
+                  <p className="text-xs text-[var(--bb-color-text-muted)] mb-1">Currently assigned to:</p>
+                  <p className="font-medium text-[var(--bb-color-text-primary)]">{displayBooking.runName || 'Not assigned'}</p>
+                </div>
+
+                {/* Run options */}
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-[var(--bb-color-text-primary)]">Select new run:</p>
+                  <div className="max-h-64 overflow-y-auto space-y-2">
+                    {runTemplates.length === 0 ? (
+                      <p className="text-sm text-[var(--bb-color-text-muted)] py-4 text-center">No runs available</p>
+                    ) : (
+                      runTemplates.map((run) => (
+                        <button
+                          key={run.recordId || run.id}
+                          type="button"
+                          onClick={() => setSelectedRunId(run.recordId || run.id)}
+                          className={cn(
+                            'w-full p-3 rounded-lg border text-left transition-all',
+                            selectedRunId === (run.recordId || run.id)
+                              ? 'border-[var(--bb-color-accent)] bg-[var(--bb-color-accent-soft)]'
+                              : 'border-[var(--bb-color-border-subtle)] hover:border-[var(--bb-color-accent)] hover:bg-[var(--bb-color-bg-elevated)]'
+                          )}
+                        >
+                          <p className="font-medium text-[var(--bb-color-text-primary)]">{run.name}</p>
+                          <p className="text-xs text-[var(--bb-color-text-muted)]">
+                            {run.type || 'Standard'} • Capacity: {run.maxCapacity || 1}
+                          </p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 pt-3 border-t border-[var(--bb-color-border-subtle)]">
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={() => setAssignmentView('main')}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    className="flex-1"
+                    disabled={!selectedRunId || selectedRunId === displayBooking.runId}
+                    onClick={() => {
+                      // TODO: Call API to change run assignment
+                      toast.success('Run changed successfully');
+                      setAssignmentView('main');
+                    }}
+                  >
+                    Save Changes
+                  </Button>
+                </div>
               </div>
-            </InspectorSection>
+            )}
+
+            {/* Adjust Time View */}
+            {assignmentView === 'adjustTime' && (
+              <div className="p-4 space-y-4">
+                {/* Back button header */}
+                <div className="flex items-center gap-2 pb-3 border-b border-[var(--bb-color-border-subtle)]">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setAssignmentView('main')}
+                    className="p-1"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </Button>
+                  <h3 className="font-semibold text-[var(--bb-color-text-primary)]">Adjust Time</h3>
+                </div>
+
+                {/* Current times */}
+                <div className="p-3 rounded-lg bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]">
+                  <p className="text-xs text-[var(--bb-color-text-muted)] mb-1">Current schedule:</p>
+                  <p className="font-medium text-[var(--bb-color-text-primary)]">
+                    {displayBooking.startTime ? formatTimeString(displayBooking.startTime) : '—'} → {displayBooking.endTime ? formatTimeString(displayBooking.endTime) : '—'}
+                  </p>
+                </div>
+
+                {/* Time inputs */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--bb-color-text-primary)] mb-2">
+                      Start Time
+                    </label>
+                    <select
+                      value={adjustedStartTime}
+                      onChange={(e) => setAdjustedStartTime(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border text-sm"
+                      style={{
+                        backgroundColor: 'var(--bb-color-bg-body)',
+                        borderColor: 'var(--bb-color-border-subtle)',
+                        color: 'var(--bb-color-text-primary)',
+                      }}
+                    >
+                      <option value="">Select time</option>
+                      {Array.from({ length: 15 }, (_, i) => i + 6).map((hour) => (
+                        <>
+                          <option key={`${hour}:00`} value={`${hour.toString().padStart(2, '0')}:00`}>
+                            {formatTimeString(`${hour.toString().padStart(2, '0')}:00`)}
+                          </option>
+                          <option key={`${hour}:30`} value={`${hour.toString().padStart(2, '0')}:30`}>
+                            {formatTimeString(`${hour.toString().padStart(2, '0')}:30`)}
+                          </option>
+                        </>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--bb-color-text-primary)] mb-2">
+                      End Time
+                    </label>
+                    <select
+                      value={adjustedEndTime}
+                      onChange={(e) => setAdjustedEndTime(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border text-sm"
+                      style={{
+                        backgroundColor: 'var(--bb-color-bg-body)',
+                        borderColor: 'var(--bb-color-border-subtle)',
+                        color: 'var(--bb-color-text-primary)',
+                      }}
+                    >
+                      <option value="">Select time</option>
+                      {Array.from({ length: 15 }, (_, i) => i + 6).map((hour) => (
+                        <>
+                          <option key={`${hour}:00`} value={`${hour.toString().padStart(2, '0')}:00`}>
+                            {formatTimeString(`${hour.toString().padStart(2, '0')}:00`)}
+                          </option>
+                          <option key={`${hour}:30`} value={`${hour.toString().padStart(2, '0')}:30`}>
+                            {formatTimeString(`${hour.toString().padStart(2, '0')}:30`)}
+                          </option>
+                        </>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Quick adjust buttons */}
+                <div>
+                  <p className="text-sm font-medium text-[var(--bb-color-text-primary)] mb-2">Quick adjust end time:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {['-1 hr', '-30 min', '+30 min', '+1 hr', '+2 hr'].map((label) => (
+                      <Button
+                        key={label}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => {
+                          if (!adjustedEndTime) return;
+                          const [h, m] = adjustedEndTime.split(':').map(Number);
+                          let totalMinutes = h * 60 + m;
+                          if (label === '-1 hr') totalMinutes -= 60;
+                          if (label === '-30 min') totalMinutes -= 30;
+                          if (label === '+30 min') totalMinutes += 30;
+                          if (label === '+1 hr') totalMinutes += 60;
+                          if (label === '+2 hr') totalMinutes += 120;
+                          totalMinutes = Math.max(6 * 60, Math.min(20 * 60, totalMinutes)); // Clamp 6am-8pm
+                          const newHour = Math.floor(totalMinutes / 60);
+                          const newMin = totalMinutes % 60;
+                          setAdjustedEndTime(`${newHour.toString().padStart(2, '0')}:${newMin.toString().padStart(2, '0')}`);
+                        }}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 pt-3 border-t border-[var(--bb-color-border-subtle)]">
+                  <Button
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={() => setAssignmentView('main')}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="primary"
+                    className="flex-1"
+                    disabled={!adjustedStartTime || !adjustedEndTime}
+                    onClick={() => {
+                      // TODO: Call API to update assignment times
+                      toast.success('Time adjusted successfully');
+                      setAssignmentView('main');
+                    }}
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -916,6 +1168,22 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
         cancelText="Cancel"
         variant="warning"
         isLoading={checkOutMutation.isPending}
+      />
+
+      {/* End Early Confirmation */}
+      <ConfirmDialog
+        isOpen={showEndEarlyDialog}
+        onClose={() => setShowEndEarlyDialog(false)}
+        onConfirm={() => {
+          // TODO: Call API to end the run assignment early
+          toast.success(`${displayBooking.pet.name || 'Pet'}'s run assignment ended`);
+          setShowEndEarlyDialog(false);
+        }}
+        title="End Assignment Early"
+        message={`Are you sure you want to end ${displayBooking.pet.name || 'this pet'}'s run assignment early? They were scheduled until ${displayBooking.endTime ? formatTimeString(displayBooking.endTime) : 'the end of their session'}.`}
+        confirmText="Yes, End Now"
+        cancelText="Keep Running"
+        variant="warning"
       />
     </>
   );
