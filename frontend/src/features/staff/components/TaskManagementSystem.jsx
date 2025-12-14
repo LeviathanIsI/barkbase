@@ -1,6 +1,7 @@
 import { Calendar, Plus, AlertTriangle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { useState, useMemo } from 'react';
 import { useTodaysTasksQuery, useOverdueTasksQuery, useCompleteTaskMutation, useCreateTaskMutation } from '@/features/tasks/api';
 
@@ -114,12 +115,20 @@ const TaskManagementSystem = () => {
             <input className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded md:col-span-2" placeholder="Description" value={newTask.description} onChange={(e) => setNewTask({ ...newTask, description: e.target.value })} />
             <div className="flex items-center gap-2 md:col-span-2">
               <input type="datetime-local" className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded" value={new Date(newTask.dueAt).toISOString().slice(0,16)} onChange={(e) => setNewTask({ ...newTask, dueAt: new Date(e.target.value).toISOString() })} />
-              <select className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded bg-white dark:bg-surface-primary" value={newTask.type} onChange={(e) => setNewTask({ ...newTask, type: e.target.value })}>
-                <option value="FEEDING">FEEDING</option>
-                <option value="MEDICATION">MEDICATION</option>
-                <option value="CLEANING">CLEANING</option>
-                <option value="OTHER">OTHER</option>
-              </select>
+              <div className="min-w-[140px]">
+                <StyledSelect
+                  options={[
+                    { value: 'FEEDING', label: 'FEEDING' },
+                    { value: 'MEDICATION', label: 'MEDICATION' },
+                    { value: 'CLEANING', label: 'CLEANING' },
+                    { value: 'OTHER', label: 'OTHER' },
+                  ]}
+                  value={newTask.type}
+                  onChange={(opt) => setNewTask({ ...newTask, type: opt?.value || 'FEEDING' })}
+                  isClearable={false}
+                  isSearchable={false}
+                />
+              </div>
               <div className="ml-auto flex gap-2">
                 <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
                 <Button type="submit">Create</Button>

@@ -5,6 +5,7 @@ import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
 import Switch from '@/components/ui/Switch';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { useTenantStore } from '@/stores/tenant';
 import {
   useEmailSettingsQuery,
@@ -331,10 +332,14 @@ const Email = () => {
       <Card title="Test Email" description="Send a test email to preview how it looks">
         <div className="flex gap-4 items-end flex-wrap">
           <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium mb-1">Template</label>
-            <select value={selectedTestTemplate} onChange={(e) => setSelectedTestTemplate(e.target.value)} className="w-full rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-              {templates.map((t) => <option key={t.type} value={t.type}>{t.name}</option>)}
-            </select>
+            <StyledSelect
+              label="Template"
+              options={templates.map((t) => ({ value: t.type, label: t.name }))}
+              value={selectedTestTemplate}
+              onChange={(opt) => setSelectedTestTemplate(opt?.value || '')}
+              isClearable={false}
+              isSearchable
+            />
           </div>
           <div className="flex-1 min-w-[200px]">
             <label className="block text-sm font-medium mb-1">Send To</label>

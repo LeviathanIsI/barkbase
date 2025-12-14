@@ -4,6 +4,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import StyledSelect from '@/components/ui/StyledSelect';
 import apiClient from '@/lib/apiClient';
 import { useTenantStore } from '@/stores/tenant';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
@@ -1013,10 +1014,12 @@ function TimeSelect({ value, onChange }) {
     }
   }
   return (
-    <select className="rounded-md border border-gray-300 dark:border-surface-border px-3 pr-10 py-2 text-sm w-full bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary" value={value} onChange={(e)=>onChange(e.target.value)}>
-      {times.map(t => (
-        <option key={t.value} value={t.value}>{t.label}</option>
-      ))}
-    </select>
+    <StyledSelect
+      options={times}
+      value={value}
+      onChange={(opt) => onChange(opt?.value || '')}
+      isClearable={false}
+      isSearchable
+    />
   );
 }
