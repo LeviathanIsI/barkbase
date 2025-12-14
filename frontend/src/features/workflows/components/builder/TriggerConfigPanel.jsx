@@ -12,29 +12,29 @@ import {
   Copy,
   Clock,
   Calendar,
-  PawPrint,
-  User,
   CreditCard,
   CheckSquare,
-  FileText,
   ChevronDown,
   ChevronRight,
+  Database,
+  MessageCircle,
+  Zap,
+  Heart,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useWorkflowBuilderStore } from '../../stores/builderStore';
 import {
   TRIGGER_EVENT_CATEGORIES,
-  OBJECT_TYPE_CONFIG,
 } from '../../constants';
 
-// Icon mapping for object types
-const OBJECT_TYPE_ICONS = {
-  pet: PawPrint,
-  booking: Calendar,
-  owner: User,
-  payment: CreditCard,
-  task: CheckSquare,
-  invoice: FileText,
+// Icon mapping for generic event categories
+const CATEGORY_ICONS = {
+  data_values: Database,
+  scheduling: Calendar,
+  communications: MessageCircle,
+  payments: CreditCard,
+  automations: Zap,
+  pet_health: Heart,
 };
 
 export default function TriggerConfigPanel({ onClose, onSave }) {
@@ -449,9 +449,9 @@ export default function TriggerConfigPanel({ onClose, onSave }) {
 
             {/* Event categories */}
             {Object.entries(TRIGGER_EVENT_CATEGORIES).map(([key, category]) => {
-              const Icon = OBJECT_TYPE_ICONS[key] || Calendar;
+              const Icon = CATEGORY_ICONS[key] || Calendar;
               const isExpanded = expandedCategories[key];
-              const color = OBJECT_TYPE_CONFIG[key]?.color || '#6B7280';
+              const color = category.color || '#6B7280';
 
               // Filter events by search
               const filteredEvents = searchQuery

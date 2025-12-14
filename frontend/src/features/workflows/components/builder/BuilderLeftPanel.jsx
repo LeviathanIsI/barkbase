@@ -20,11 +20,13 @@ import {
   Zap,
   Info,
   Check,
+  Database,
+  MessageCircle,
+  Heart,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useWorkflowBuilderStore } from '../../stores/builderStore';
 import {
-  TRIGGER_TYPE_CONFIG,
   TRIGGER_EVENT_CATEGORIES,
   ACTION_CATEGORIES,
   OBJECT_TYPE_CONFIG,
@@ -40,14 +42,14 @@ const OBJECT_TYPE_ICONS = {
   invoice: FileText,
 };
 
-// Icon mapping for categories
+// Icon mapping for generic event categories
 const CATEGORY_ICONS = {
-  booking: Calendar,
-  pet: PawPrint,
-  owner: User,
-  payment: CreditCard,
-  invoice: FileText,
-  task: CheckSquare,
+  data_values: Database,
+  scheduling: Calendar,
+  communications: MessageCircle,
+  payments: CreditCard,
+  automations: Zap,
+  pet_health: Heart,
 };
 
 export default function BuilderLeftPanel({ onAddStep }) {
@@ -536,6 +538,7 @@ function TriggerSelectionPanel({
         {Object.entries(TRIGGER_EVENT_CATEGORIES).map(([key, category]) => {
           const Icon = CATEGORY_ICONS[key] || Zap;
           const isExpanded = expandedCategories[key];
+          const categoryColor = category.color || '#6B7280';
 
           // Filter events by search query
           const filteredEvents = searchQuery
@@ -558,11 +561,11 @@ function TriggerSelectionPanel({
               >
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: `${OBJECT_TYPE_CONFIG[key]?.color}20` }}
+                  style={{ backgroundColor: `${categoryColor}20` }}
                 >
                   <Icon
                     size={18}
-                    style={{ color: OBJECT_TYPE_CONFIG[key]?.color }}
+                    style={{ color: categoryColor }}
                   />
                 </div>
                 <div className="flex-1">
@@ -573,11 +576,7 @@ function TriggerSelectionPanel({
                     {category.description}
                   </div>
                 </div>
-                {isExpanded ? (
-                  <ChevronDown size={18} className="text-[var(--bb-color-text-tertiary)]" />
-                ) : (
-                  <ChevronRight size={18} className="text-[var(--bb-color-text-tertiary)]" />
-                )}
+                <ChevronRight size={18} className="text-[var(--bb-color-text-tertiary)]" />
               </button>
 
               {isExpanded && (

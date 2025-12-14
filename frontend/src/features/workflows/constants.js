@@ -108,12 +108,26 @@ export const TRIGGER_TYPE_CONFIG = {
   },
 };
 
-// Event categories and events by object type
+// Generic event categories (HubSpot-style)
 export const TRIGGER_EVENT_CATEGORIES = {
-  booking: {
-    label: 'Bookings',
-    description: 'When bookings are created, modified, or status changes',
+  data_values: {
+    label: 'Data values',
+    description: 'When data is created, changed or meets conditions',
+    icon: 'database',
+    color: '#3B82F6',
+    events: [
+      { value: 'record.created', label: 'Record created' },
+      { value: 'record.updated', label: 'Record updated' },
+      { value: 'record.deleted', label: 'Record deleted' },
+      { value: 'property.changed', label: 'Property value changed' },
+      { value: 'segment.membership_changed', label: 'Segment membership changed' },
+    ],
+  },
+  scheduling: {
+    label: 'Scheduling & bookings',
+    description: 'When appointments or bookings change',
     icon: 'calendar',
+    color: '#F59E0B',
     events: [
       { value: 'booking.created', label: 'Booking created' },
       { value: 'booking.confirmed', label: 'Booking confirmed' },
@@ -121,56 +135,64 @@ export const TRIGGER_EVENT_CATEGORIES = {
       { value: 'booking.modified', label: 'Booking modified' },
       { value: 'booking.checked_in', label: 'Pet checked in' },
       { value: 'booking.checked_out', label: 'Pet checked out' },
+      { value: 'booking.reminder_due', label: 'Booking reminder due' },
     ],
   },
-  pet: {
-    label: 'Pets',
-    description: 'When pet records are created or updated',
-    icon: 'paw-print',
+  communications: {
+    label: 'Communications',
+    description: 'When messages are sent or received',
+    icon: 'message-circle',
+    color: '#EC4899',
+    events: [
+      { value: 'sms.sent', label: 'SMS sent' },
+      { value: 'sms.delivered', label: 'SMS delivered' },
+      { value: 'sms.failed', label: 'SMS failed' },
+      { value: 'email.sent', label: 'Email sent' },
+      { value: 'email.opened', label: 'Email opened' },
+      { value: 'email.clicked', label: 'Email link clicked' },
+      { value: 'email.bounced', label: 'Email bounced' },
+    ],
+  },
+  payments: {
+    label: 'Payments & billing',
+    description: 'When payment or invoice events occur',
+    icon: 'credit-card',
+    color: '#10B981',
+    events: [
+      { value: 'payment.received', label: 'Payment received' },
+      { value: 'payment.failed', label: 'Payment failed' },
+      { value: 'payment.refunded', label: 'Payment refunded' },
+      { value: 'invoice.created', label: 'Invoice created' },
+      { value: 'invoice.sent', label: 'Invoice sent' },
+      { value: 'invoice.overdue', label: 'Invoice overdue' },
+      { value: 'invoice.paid', label: 'Invoice paid' },
+    ],
+  },
+  automations: {
+    label: 'Automations & tasks',
+    description: 'When automated steps or tasks complete',
+    icon: 'zap',
+    color: '#8B5CF6',
+    events: [
+      { value: 'task.created', label: 'Task created' },
+      { value: 'task.completed', label: 'Task completed' },
+      { value: 'task.overdue', label: 'Task overdue' },
+      { value: 'workflow.enrolled', label: 'Enrolled in workflow' },
+      { value: 'workflow.completed', label: 'Workflow completed' },
+    ],
+  },
+  pet_health: {
+    label: 'Pet health & records',
+    description: 'When pet health events occur',
+    icon: 'heart',
+    color: '#EF4444',
     events: [
       { value: 'pet.created', label: 'Pet created' },
       { value: 'pet.updated', label: 'Pet updated' },
       { value: 'pet.vaccination_expiring', label: 'Vaccination expiring soon' },
       { value: 'pet.vaccination_expired', label: 'Vaccination expired' },
       { value: 'pet.birthday', label: 'Pet birthday' },
-    ],
-  },
-  owner: {
-    label: 'Owners',
-    description: 'When owner records are created or updated',
-    icon: 'user',
-    events: [
-      { value: 'owner.created', label: 'Owner created' },
-      { value: 'owner.updated', label: 'Owner updated' },
-      { value: 'owner.first_booking', label: 'First booking completed' },
-    ],
-  },
-  payment: {
-    label: 'Payments',
-    description: 'When payment events occur',
-    icon: 'credit-card',
-    events: [
-      { value: 'payment.received', label: 'Payment received' },
-      { value: 'payment.failed', label: 'Payment failed' },
-    ],
-  },
-  invoice: {
-    label: 'Invoices',
-    description: 'When invoice events occur',
-    icon: 'file-text',
-    events: [
-      { value: 'invoice.created', label: 'Invoice created' },
-      { value: 'invoice.overdue', label: 'Invoice overdue' },
-    ],
-  },
-  task: {
-    label: 'Tasks',
-    description: 'When task events occur',
-    icon: 'check-square',
-    events: [
-      { value: 'task.created', label: 'Task created' },
-      { value: 'task.completed', label: 'Task completed' },
-      { value: 'task.overdue', label: 'Task overdue' },
+      { value: 'pet.medical_note_added', label: 'Medical note added' },
     ],
   },
 };
