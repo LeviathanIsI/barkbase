@@ -4,10 +4,43 @@ import {
   FileText, Settings, MessageSquare, Phone,
   Check, ChevronDown, Clock, DollarSign
 } from 'lucide-react';
+import Select from 'react-select';
 import Button from '@/components/ui/Button';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
-import StyledSelect from '@/components/ui/StyledSelect';
+
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: state.isFocused ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    minHeight: '40px',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
+  }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    border: '1px solid var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    zIndex: 9999,
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menuList: (base) => ({ ...base, padding: '4px' }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected ? 'var(--bb-color-accent)' : state.isFocused ? 'var(--bb-color-bg-muted)' : 'transparent',
+    color: state.isSelected ? 'white' : 'var(--bb-color-text-primary)',
+    cursor: 'pointer',
+    borderRadius: '0.375rem',
+    padding: '8px 12px',
+  }),
+  singleValue: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  input: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+};
 
 const PermissionMatrixModal = ({ member, onClose, onSave }) => {
   const [formData, setFormData] = useState({
@@ -343,19 +376,26 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Role</label>
-                <StyledSelect
+                <Select
                   options={[
-                    { value: '', label: 'Select Role' },
                     { value: 'Owner', label: 'Owner' },
                     { value: 'Manager', label: 'Manager' },
                     { value: 'Staff', label: 'Staff' },
                     { value: 'Groomer', label: 'Groomer' },
                     { value: 'Trainer', label: 'Trainer' },
                   ]}
-                  value={formData.role}
+                  value={[
+                    { value: 'Owner', label: 'Owner' },
+                    { value: 'Manager', label: 'Manager' },
+                    { value: 'Staff', label: 'Staff' },
+                    { value: 'Groomer', label: 'Groomer' },
+                    { value: 'Trainer', label: 'Trainer' },
+                  ].find(o => o.value === formData.role) || null}
                   onChange={(opt) => setFormData(prev => ({ ...prev, role: opt?.value || '' }))}
+                  placeholder="Select Role"
                   isClearable={false}
-                  isSearchable={false}
+                  isSearchable
+                  styles={selectStyles}
                   menuPortalTarget={document.body}
                 />
               </div>
@@ -481,16 +521,21 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Primary Location</label>
-                <StyledSelect
+                <Select
                   options={[
                     { value: 'Building A', label: 'Building A' },
                     { value: 'Building B', label: 'Building B' },
                     { value: 'Mobile', label: 'Mobile' },
                   ]}
-                  value={formData.primaryLocation}
+                  value={[
+                    { value: 'Building A', label: 'Building A' },
+                    { value: 'Building B', label: 'Building B' },
+                    { value: 'Mobile', label: 'Mobile' },
+                  ].find(o => o.value === formData.primaryLocation) || null}
                   onChange={(opt) => setFormData(prev => ({ ...prev, primaryLocation: opt?.value || 'Building A' }))}
                   isClearable={false}
-                  isSearchable={false}
+                  isSearchable
+                  styles={selectStyles}
                   menuPortalTarget={document.body}
                 />
               </div>

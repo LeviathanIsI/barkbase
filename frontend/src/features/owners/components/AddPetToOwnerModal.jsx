@@ -1,8 +1,41 @@
 import { useState } from 'react';
+import Select from 'react-select';
 import { Modal } from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
-import StyledSelect from '@/components/ui/StyledSelect';
 import { usePetsQuery } from '@/features/pets/api';
+
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: state.isFocused ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    minHeight: '40px',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
+  }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    border: '1px solid var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    zIndex: 9999,
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menuList: (base) => ({ ...base, padding: '4px' }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected ? 'var(--bb-color-accent)' : state.isFocused ? 'var(--bb-color-bg-muted)' : 'transparent',
+    color: state.isSelected ? 'white' : 'var(--bb-color-text-primary)',
+    cursor: 'pointer',
+    borderRadius: '0.375rem',
+    padding: '8px 12px',
+  }),
+  singleValue: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  input: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+};
 
 const AddPetToOwnerModal = ({ open, onClose, onAdd, currentPetIds = [] }) => {
   const [selectedPetId, setSelectedPetId] = useState('');
@@ -61,18 +94,20 @@ const AddPetToOwnerModal = ({ open, onClose, onAdd, currentPetIds = [] }) => {
                   : 'All pets are already associated with this owner.'}
               </p>
             ) : (
-              <StyledSelect
-                options={[
-                  { value: '', label: 'Choose a pet...' },
-                  ...availablePets.map((pet) => ({
-                    value: pet.recordId,
-                    label: `${pet.name}${pet.breed ? ` (${pet.breed})` : ''}`
-                  }))
-                ]}
-                value={selectedPetId}
+              <Select
+                options={availablePets.map((pet) => ({
+                  value: pet.recordId,
+                  label: `${pet.name}${pet.breed ? ` (${pet.breed})` : ''}`
+                }))}
+                value={availablePets.map((pet) => ({
+                  value: pet.recordId,
+                  label: `${pet.name}${pet.breed ? ` (${pet.breed})` : ''}`
+                })).find(o => o.value === selectedPetId) || null}
                 onChange={(opt) => setSelectedPetId(opt?.value || '')}
+                placeholder="Choose a pet..."
                 isClearable={false}
-                isSearchable={true}
+                isSearchable
+                styles={selectStyles}
                 menuPortalTarget={document.body}
               />
             )}

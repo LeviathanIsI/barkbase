@@ -1,8 +1,41 @@
 import { useState, useEffect } from 'react';
+import Select from 'react-select';
 import { Modal } from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
-import StyledSelect from '@/components/ui/StyledSelect';
 import toast from 'react-hot-toast';
+
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: state.isFocused ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    minHeight: '40px',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
+  }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    border: '1px solid var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    zIndex: 9999,
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menuList: (base) => ({ ...base, padding: '4px' }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected ? 'var(--bb-color-accent)' : state.isFocused ? 'var(--bb-color-bg-muted)' : 'transparent',
+    color: state.isSelected ? 'white' : 'var(--bb-color-text-primary)',
+    cursor: 'pointer',
+    borderRadius: '0.375rem',
+    padding: '8px 12px',
+  }),
+  singleValue: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  input: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+};
 import {
   useCreateAssociationMutation,
   useUpdateAssociationMutation,
@@ -203,13 +236,14 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
               <label className="block text-sm font-medium text-text mb-1">
                 From Object Type
               </label>
-              <StyledSelect
+              <Select
                 options={OBJECT_TYPES}
-                value={formData.fromObjectType}
+                value={OBJECT_TYPES.find(o => o.value === formData.fromObjectType) || null}
                 onChange={(opt) => handleChange('fromObjectType', opt?.value || 'pet')}
                 isDisabled={isEditing}
                 isClearable={false}
-                isSearchable={false}
+                isSearchable
+                styles={selectStyles}
                 menuPortalTarget={document.body}
               />
             </div>
@@ -219,13 +253,14 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
               <label className="block text-sm font-medium text-text mb-1">
                 To Object Type
               </label>
-              <StyledSelect
+              <Select
                 options={OBJECT_TYPES}
-                value={formData.toObjectType}
+                value={OBJECT_TYPES.find(o => o.value === formData.toObjectType) || null}
                 onChange={(opt) => handleChange('toObjectType', opt?.value || 'owner')}
                 isDisabled={isEditing}
                 isClearable={false}
-                isSearchable={false}
+                isSearchable
+                styles={selectStyles}
                 menuPortalTarget={document.body}
               />
             </div>

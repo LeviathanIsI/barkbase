@@ -6,9 +6,42 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
+import Select from 'react-select';
 import SlideoutPanel from '@/components/SlideoutPanel';
-import StyledSelect from '@/components/ui/StyledSelect';
 import { useSlideout, SLIDEOUT_TYPES } from './SlideoutProvider';
+
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: state.isFocused ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    minHeight: '40px',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
+  }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    border: '1px solid var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    zIndex: 9999,
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menuList: (base) => ({ ...base, padding: '4px' }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected ? 'var(--bb-color-accent)' : state.isFocused ? 'var(--bb-color-bg-muted)' : 'transparent',
+    color: state.isSelected ? 'white' : 'var(--bb-color-text-primary)',
+    cursor: 'pointer',
+    borderRadius: '0.375rem',
+    padding: '8px 12px',
+  }),
+  singleValue: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  input: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+};
 import { useTenantStore } from '@/stores/tenant';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
@@ -372,25 +405,33 @@ function PetForm({ pet, ownerId, onSuccess, onCancel }) {
           </div>
         </FormGrid>
         <FormGrid cols={2}>
-          <Controller
-            name="species"
-            control={control}
-            render={({ field }) => (
-              <StyledSelect
-                label="Species"
-                options={[
-                  { value: 'Dog', label: 'Dog' },
-                  { value: 'Cat', label: 'Cat' },
-                  { value: 'Other', label: 'Other' },
-                ]}
-                value={field.value}
-                onChange={(opt) => field.onChange(opt?.value || '')}
-                placeholder="Select species"
-                isClearable
-                isSearchable
-              />
-            )}
-          />
+          <div className="space-y-2">
+            <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>Species</label>
+            <Controller
+              name="species"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  options={[
+                    { value: 'Dog', label: 'Dog' },
+                    { value: 'Cat', label: 'Cat' },
+                    { value: 'Other', label: 'Other' },
+                  ]}
+                  value={[
+                    { value: 'Dog', label: 'Dog' },
+                    { value: 'Cat', label: 'Cat' },
+                    { value: 'Other', label: 'Other' },
+                  ].find(o => o.value === field.value) || null}
+                  onChange={(opt) => field.onChange(opt?.value || '')}
+                  placeholder="Select species"
+                  isClearable
+                  isSearchable
+                  styles={selectStyles}
+                  menuPortalTarget={document.body}
+                />
+              )}
+            />
+          </div>
           <div className="space-y-2">
             <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>Weight (lbs)</label>
             <input type="number" step="0.1" {...register('weight')} className={inputClass} style={inputStyles} placeholder="25.5" />

@@ -1,8 +1,41 @@
 import { useState, useMemo } from 'react';
 import { X, Search } from 'lucide-react';
+import Select from 'react-select';
 import { cn } from '@/lib/cn';
 import Button from './Button';
-import StyledSelect from './StyledSelect';
+
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: state.isFocused ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    minHeight: '40px',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
+  }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    border: '1px solid var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    zIndex: 9999,
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menuList: (base) => ({ ...base, padding: '4px' }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected ? 'var(--bb-color-accent)' : state.isFocused ? 'var(--bb-color-bg-muted)' : 'transparent',
+    color: state.isSelected ? 'white' : 'var(--bb-color-text-primary)',
+    cursor: 'pointer',
+    borderRadius: '0.375rem',
+    padding: '8px 12px',
+  }),
+  singleValue: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  input: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+};
 
 /**
  * Universal Association Modal Component
@@ -240,12 +273,13 @@ const AssociationModal = ({
                                 <label className="mb-[var(--bb-space-1)] block text-[var(--bb-font-size-xs)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-muted)]">
                                   Association label
                                 </label>
-                                <StyledSelect
+                                <Select
                                   options={associationLabels}
-                                  value={recordLabels[record.id] || associationLabels[0]?.value || ''}
+                                  value={associationLabels.find(o => o.value === (recordLabels[record.id] || associationLabels[0]?.value)) || null}
                                   onChange={(opt) => handleLabelChange(record.recordId, opt?.value || '')}
                                   isClearable={false}
-                                  isSearchable={false}
+                                  isSearchable
+                                  styles={selectStyles}
                                   menuPortalTarget={document.body}
                                 />
                               </div>

@@ -6,6 +6,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import Select from 'react-select';
 import {
   X, PawPrint, Calendar, Syringe, Bell, ArrowLeft,
   User, Scale, Cake, Check, AlertTriangle,
@@ -14,7 +15,6 @@ import {
 import { format, differenceInYears, differenceInMonths, addDays } from 'date-fns';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 import { usePetQuery } from '@/features/pets/api';
 import { useBookingsQuery, useCreateBookingMutation } from '@/features/bookings/api';
@@ -22,6 +22,39 @@ import { useCreateVaccinationMutation } from '@/features/pets/api';
 import { useSendMessageMutation } from '@/features/messaging/api';
 import { useServicesQuery } from '@/features/services/api';
 import toast from 'react-hot-toast';
+
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: state.isFocused ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    minHeight: '40px',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
+  }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    border: '1px solid var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    zIndex: 9999,
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menuList: (base) => ({ ...base, padding: '4px' }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected ? 'var(--bb-color-accent)' : state.isFocused ? 'var(--bb-color-bg-muted)' : 'transparent',
+    color: state.isSelected ? 'white' : 'var(--bb-color-text-primary)',
+    cursor: 'pointer',
+    borderRadius: '0.375rem',
+    padding: '8px 12px',
+  }),
+  singleValue: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  input: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+};
 
 // Common vaccine types
 const VACCINE_TYPES = [
@@ -408,18 +441,21 @@ const BookingPanel = ({ pet, ownerId, onBack, onSuccess }) => {
         <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
           Service <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
         </label>
-        <StyledSelect
-          options={[
-            { value: '', label: 'Select a service' },
-            ...services.map(service => ({
-              value: service.recordId || service.id,
-              label: `${service.name}${service.priceCents ? ` - $${(service.priceCents / 100).toFixed(2)}/day` : ''}`
-            }))
-          ]}
-          value={watch('serviceId')}
+        <Select
+          options={services.map(service => ({
+            value: service.recordId || service.id,
+            label: `${service.name}${service.priceCents ? ` - $${(service.priceCents / 100).toFixed(2)}/day` : ''}`
+          }))}
+          value={services.map(service => ({
+            value: service.recordId || service.id,
+            label: `${service.name}${service.priceCents ? ` - $${(service.priceCents / 100).toFixed(2)}/day` : ''}`
+          })).find(o => o.value === watch('serviceId')) || null}
           onChange={(opt) => setValue('serviceId', opt?.value || '', { shouldDirty: true })}
+          placeholder="Select a service"
           isClearable={false}
-          isSearchable={true}
+          isSearchable
+          styles={selectStyles}
+          menuPortalTarget={document.body}
         />
         {errors.serviceId && (
           <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>{errors.serviceId.message}</p>
@@ -553,16 +589,18 @@ const VaccinationPanel = ({ pet, petId, species, onBack, onSuccess }) => {
         <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
           Vaccine Type <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
         </label>
-        <StyledSelect
+        <Select
           options={[
-            { value: '', label: 'Select a vaccine' },
             ...vaccineOptions.map(type => ({ value: type, label: type })),
             { value: 'Other', label: 'Other' }
           ]}
-          value={watch('vaccineType')}
+          value={[...vaccineOptions.map(type => ({ value: type, label: type })), { value: 'Other', label: 'Other' }].find(o => o.value === watch('vaccineType')) || null}
           onChange={(opt) => setValue('vaccineType', opt?.value || '', { shouldDirty: true })}
+          placeholder="Select a vaccine"
           isClearable={false}
-          isSearchable={false}
+          isSearchable
+          styles={selectStyles}
+          menuPortalTarget={document.body}
         />
         {errors.vaccineType && (
           <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>{errors.vaccineType.message}</p>

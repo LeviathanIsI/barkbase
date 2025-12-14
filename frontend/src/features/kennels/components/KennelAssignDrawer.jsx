@@ -5,15 +5,48 @@
 
 import { useState, useMemo } from 'react';
 import { Search, PawPrint, Calendar, User, Check, AlertCircle, ArrowRightLeft, Home } from 'lucide-react';
+import Select from 'react-select';
 import SlideOutDrawer from '@/components/ui/SlideOutDrawer';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import StyledSelect from '@/components/ui/StyledSelect';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBookingsQuery, useAssignKennelMutation } from '@/features/bookings/api';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 import { format, addMonths, subDays } from 'date-fns';
+
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: state.isFocused ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    minHeight: '40px',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
+  }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    border: '1px solid var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    zIndex: 9999,
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menuList: (base) => ({ ...base, padding: '4px' }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected ? 'var(--bb-color-accent)' : state.isFocused ? 'var(--bb-color-bg-muted)' : 'transparent',
+    color: state.isSelected ? 'white' : 'var(--bb-color-text-primary)',
+    cursor: 'pointer',
+    borderRadius: '0.375rem',
+    padding: '8px 12px',
+  }),
+  singleValue: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  input: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+};
 
 // Status badge colors
 const STATUS_COLORS = {
@@ -175,17 +208,19 @@ const KennelAssignDrawer = ({ isOpen, onClose, kennel }) => {
             />
           </div>
           <div className="min-w-[130px]">
-            <StyledSelect
+            <Select
               options={[
                 { value: 'ALL', label: 'All Status' },
                 { value: 'PENDING', label: 'Pending' },
                 { value: 'CONFIRMED', label: 'Confirmed' },
                 { value: 'CHECKED_IN', label: 'Checked In' },
               ]}
-              value={statusFilter}
+              value={[{ value: 'ALL', label: 'All Status' }, { value: 'PENDING', label: 'Pending' }, { value: 'CONFIRMED', label: 'Confirmed' }, { value: 'CHECKED_IN', label: 'Checked In' }].find(o => o.value === statusFilter) || null}
               onChange={(opt) => setStatusFilter(opt?.value || 'ALL')}
               isClearable={false}
-              isSearchable={false}
+              isSearchable
+              styles={selectStyles}
+              menuPortalTarget={document.body}
             />
           </div>
         </div>
