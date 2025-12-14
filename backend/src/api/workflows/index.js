@@ -1,0 +1,1293 @@
+/**
+ * Workflows API - Workflow automation management
+ *
+ * Endpoints:
+ * - GET    /workflows                    - List all workflows
+ * - GET    /workflows/:id                - Get workflow with steps
+ * - POST   /workflows                    - Create new workflow
+ * - PUT    /workflows/:id                - Update workflow
+ * - DELETE /workflows/:id                - Delete workflow (soft delete)
+ * - POST   /workflows/:id/clone          - Clone a workflow
+ * - POST   /workflows/:id/activate       - Activate workflow
+ * - POST   /workflows/:id/pause          - Pause workflow
+ *
+ * Steps:
+ * - GET    /workflows/:id/steps          - Get all steps for workflow
+ * - PUT    /workflows/:id/steps          - Update workflow steps (full replacement)
+ *
+ * Executions:
+ * - GET    /workflows/:id/executions     - List executions
+ * - POST   /workflows/:id/enroll         - Manually enroll a record
+ * - DELETE /workflows/:id/enrollments/:enrollmentId - Unenroll
+ * - POST   /workflows/:id/executions/:executionId/cancel - Cancel execution
+ *
+ * Templates:
+ * - GET    /workflows/templates          - List templates
+ * - GET    /workflows/templates/:id      - Get template
+ * - POST   /workflows/templates/:id/use  - Create from template
+ *
+ * Analytics:
+ * - GET    /workflows/:id/analytics      - Performance metrics
+ * - GET    /workflows/:id/history        - Execution logs
+ * - GET    /workflows/stats              - Overall stats
+ *
+ * Folders:
+ * - GET    /workflows/folders            - List folders
+ * - POST   /workflows/folders            - Create folder
+ * - PUT    /workflows/folders/:id        - Update folder
+ * - DELETE /workflows/folders/:id        - Delete folder
+ */
+
+const express = require('express');
+const { getPool } = require('../../lib/db');
+const { ok, fail } = require('../../lib/utils/responses');
+
+const router = express.Router();
+
+// =============================================================================
+// WORKFLOW CRUD
+// =============================================================================
+
+/**
+ * List all workflows
+ */
+router.get('/workflows', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { status, objectType, folderId, search, limit = 50, offset = 0 } = req.query || {};
+
+    let query = `
+      SELECT 
+        id, tenant_id, name, description, object_type, status,
+        entry_condition, settings, folder_id,
+        enrolled_count, completed_count, last_run_at,
+        deleted_at, created_by, created_at, updated_at
+      FROM "Workflow"
+      WHERE tenant_id = $1`;
+    const params = [tenantId];
+    let paramCount = 2;
+
+    // By default, exclude deleted workflows unless specifically querying deleted tab
+    if (!req.query.includeDeleted) {
+      query += ` AND deleted_at IS NULL`;
+    }
+
+    if (status) {
+      query += ` AND status = $${paramCount}`;
+      params.push(status);
+      paramCount += 1;
+    }
+
+    if (objectType) {
+      query += ` AND object_type = $${paramCount}`;
+      params.push(objectType);
+      paramCount += 1;
+    }
+
+    if (folderId) {
+      query += ` AND folder_id = $${paramCount}`;
+      params.push(folderId);
+      paramCount += 1;
+    }
+
+    if (search) {
+      query += ` AND (name ILIKE $${paramCount} OR description ILIKE $${paramCount})`;
+      params.push(`%${search}%`);
+      paramCount += 1;
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    params.push(parseInt(limit, 10), parseInt(offset, 10));
+
+    const { rows } = await pool.query(query, params);
+    return ok(res, { workflows: rows });
+  } catch (error) {
+    console.error('[workflows] listWorkflows failed', error);
+    return fail(res, 500, { message: 'Failed to list workflows' });
+  }
+});
+
+/**
+ * Get workflow by ID with steps
+ */
+router.get('/workflows/:id', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id } = req.params;
+
+    const { rows } = await pool.query(
+      `SELECT * FROM "Workflow" WHERE id = $1 AND tenant_id = $2`,
+      [id, tenantId],
+    );
+
+    if (rows.length === 0) {
+      return fail(res, 404, { message: 'Workflow not found' });
+    }
+
+    return ok(res, rows[0]);
+  } catch (error) {
+    console.error('[workflows] getWorkflow failed', error);
+    return fail(res, 500, { message: 'Failed to load workflow' });
+  }
+});
+
+/**
+ * Create new workflow
+ */
+router.post('/workflows', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const userId = req.userId;
+    const {
+      name,
+      description,
+      object_type,
+      status = 'draft',
+      entry_condition = {},
+      settings = {},
+      folder_id,
+    } = req.body || {};
+
+    if (!name || !object_type) {
+      return fail(res, 400, { message: 'Missing required fields: name, object_type' });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO "Workflow" (
+        id, tenant_id, name, description, object_type, status,
+        entry_condition, settings, folder_id, created_by, created_at, updated_at
+      )
+      VALUES (
+        gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+      )
+      RETURNING *`,
+      [
+        tenantId,
+        name,
+        description || null,
+        object_type,
+        status,
+        JSON.stringify(entry_condition),
+        JSON.stringify(settings),
+        folder_id || null,
+        userId,
+      ],
+    );
+
+    return ok(res, rows[0], 201);
+  } catch (error) {
+    console.error('[workflows] createWorkflow failed', error);
+    return fail(res, 500, { message: 'Failed to create workflow' });
+  }
+});
+
+/**
+ * Update workflow
+ */
+router.put('/workflows/:id', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id } = req.params;
+    const {
+      name,
+      description,
+      object_type,
+      status,
+      entry_condition,
+      settings,
+      folder_id,
+    } = req.body || {};
+
+    // Build dynamic update query
+    const updates = [];
+    const params = [];
+    let paramCount = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramCount}`);
+      params.push(name);
+      paramCount += 1;
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${paramCount}`);
+      params.push(description);
+      paramCount += 1;
+    }
+    if (object_type !== undefined) {
+      updates.push(`object_type = $${paramCount}`);
+      params.push(object_type);
+      paramCount += 1;
+    }
+    if (status !== undefined) {
+      updates.push(`status = $${paramCount}`);
+      params.push(status);
+      paramCount += 1;
+    }
+    if (entry_condition !== undefined) {
+      updates.push(`entry_condition = $${paramCount}`);
+      params.push(JSON.stringify(entry_condition));
+      paramCount += 1;
+    }
+    if (settings !== undefined) {
+      updates.push(`settings = $${paramCount}`);
+      params.push(JSON.stringify(settings));
+      paramCount += 1;
+    }
+    if (folder_id !== undefined) {
+      updates.push(`folder_id = $${paramCount}`);
+      params.push(folder_id);
+      paramCount += 1;
+    }
+
+    if (updates.length === 0) {
+      return fail(res, 400, { message: 'No fields to update' });
+    }
+
+    updates.push('updated_at = NOW()');
+
+    const query = `
+      UPDATE "Workflow"
+      SET ${updates.join(', ')}
+      WHERE id = $${paramCount} AND tenant_id = $${paramCount + 1}
+      RETURNING *`;
+    params.push(id, tenantId);
+
+    const { rows } = await pool.query(query, params);
+
+    if (rows.length === 0) {
+      return fail(res, 404, { message: 'Workflow not found' });
+    }
+
+    return ok(res, rows[0]);
+  } catch (error) {
+    console.error('[workflows] updateWorkflow failed', error);
+    return fail(res, 500, { message: 'Failed to update workflow' });
+  }
+});
+
+/**
+ * Delete workflow (soft delete)
+ */
+router.delete('/workflows/:id', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id } = req.params;
+
+    const { rows } = await pool.query(
+      `UPDATE "Workflow"
+       SET deleted_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING id`,
+      [id, tenantId],
+    );
+
+    if (rows.length === 0) {
+      return fail(res, 404, { message: 'Workflow not found' });
+    }
+
+    return ok(res, null, 204);
+  } catch (error) {
+    console.error('[workflows] deleteWorkflow failed', error);
+    return fail(res, 500, { message: 'Failed to delete workflow' });
+  }
+});
+
+/**
+ * Clone workflow
+ */
+router.post('/workflows/:id/clone', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const userId = req.userId;
+    const { id } = req.params;
+
+    // Get original workflow
+    const { rows: originalRows } = await pool.query(
+      `SELECT * FROM "Workflow" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [id, tenantId],
+    );
+
+    if (originalRows.length === 0) {
+      return fail(res, 404, { message: 'Workflow not found' });
+    }
+
+    const original = originalRows[0];
+
+    // Create cloned workflow
+    const { rows: newRows } = await pool.query(
+      `INSERT INTO "Workflow" (
+        id, tenant_id, name, description, object_type, status,
+        entry_condition, settings, folder_id, created_by, created_at, updated_at
+      )
+      VALUES (
+        gen_random_uuid(), $1, $2, $3, $4, 'draft', $5, $6, $7, $8, NOW(), NOW()
+      )
+      RETURNING *`,
+      [
+        tenantId,
+        `${original.name} (Copy)`,
+        original.description,
+        original.object_type,
+        JSON.stringify(original.entry_condition),
+        JSON.stringify(original.settings),
+        original.folder_id,
+        userId,
+      ],
+    );
+
+    const newWorkflow = newRows[0];
+
+    // Clone steps
+    const { rows: originalSteps } = await pool.query(
+      `SELECT * FROM "WorkflowStep" WHERE workflow_id = $1 ORDER BY position`,
+      [id],
+    );
+
+    // Create mapping of old IDs to new IDs for step references
+    const stepIdMap = {};
+
+    for (const step of originalSteps) {
+      const { rows: newStepRows } = await pool.query(
+        `INSERT INTO "WorkflowStep" (
+          id, workflow_id, parent_step_id, branch_path, position,
+          step_type, action_type, config, created_at, updated_at
+        )
+        VALUES (
+          gen_random_uuid(), $1, NULL, $2, $3, $4, $5, $6, NOW(), NOW()
+        )
+        RETURNING id`,
+        [
+          newWorkflow.id,
+          step.branch_path,
+          step.position,
+          step.step_type,
+          step.action_type,
+          JSON.stringify(step.config),
+        ],
+      );
+      stepIdMap[step.id] = newStepRows[0].id;
+    }
+
+    // Update parent_step_id references for cloned steps
+    for (const step of originalSteps) {
+      if (step.parent_step_id && stepIdMap[step.parent_step_id]) {
+        await pool.query(
+          `UPDATE "WorkflowStep" SET parent_step_id = $1 WHERE id = $2`,
+          [stepIdMap[step.parent_step_id], stepIdMap[step.id]],
+        );
+      }
+    }
+
+    return ok(res, newWorkflow, 201);
+  } catch (error) {
+    console.error('[workflows] cloneWorkflow failed', error);
+    return fail(res, 500, { message: 'Failed to clone workflow' });
+  }
+});
+
+/**
+ * Activate workflow
+ */
+router.post('/workflows/:id/activate', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id } = req.params;
+
+    const { rows } = await pool.query(
+      `UPDATE "Workflow"
+       SET status = 'active', updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      [id, tenantId],
+    );
+
+    if (rows.length === 0) {
+      return fail(res, 404, { message: 'Workflow not found' });
+    }
+
+    return ok(res, rows[0]);
+  } catch (error) {
+    console.error('[workflows] activateWorkflow failed', error);
+    return fail(res, 500, { message: 'Failed to activate workflow' });
+  }
+});
+
+/**
+ * Pause workflow
+ */
+router.post('/workflows/:id/pause', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id } = req.params;
+
+    const { rows } = await pool.query(
+      `UPDATE "Workflow"
+       SET status = 'paused', updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      [id, tenantId],
+    );
+
+    if (rows.length === 0) {
+      return fail(res, 404, { message: 'Workflow not found' });
+    }
+
+    return ok(res, rows[0]);
+  } catch (error) {
+    console.error('[workflows] pauseWorkflow failed', error);
+    return fail(res, 500, { message: 'Failed to pause workflow' });
+  }
+});
+
+// =============================================================================
+// WORKFLOW STEPS
+// =============================================================================
+
+/**
+ * Get workflow steps
+ */
+router.get('/workflows/:id/steps', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id } = req.params;
+
+    // Verify workflow belongs to tenant
+    const { rows: workflowRows } = await pool.query(
+      `SELECT id FROM "Workflow" WHERE id = $1 AND tenant_id = $2`,
+      [id, tenantId],
+    );
+
+    if (workflowRows.length === 0) {
+      return fail(res, 404, { message: 'Workflow not found' });
+    }
+
+    const { rows } = await pool.query(
+      `SELECT * FROM "WorkflowStep" WHERE workflow_id = $1 ORDER BY position`,
+      [id],
+    );
+
+    return ok(res, { steps: rows });
+  } catch (error) {
+    console.error('[workflows] getWorkflowSteps failed', error);
+    return fail(res, 500, { message: 'Failed to load workflow steps' });
+  }
+});
+
+/**
+ * Update workflow steps (full replacement)
+ */
+router.put('/workflows/:id/steps', async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const tenantId = req.tenantId;
+    const { id } = req.params;
+    const { steps = [] } = req.body || {};
+
+    await client.query('BEGIN');
+
+    // Verify workflow belongs to tenant
+    const { rows: workflowRows } = await client.query(
+      `SELECT id FROM "Workflow" WHERE id = $1 AND tenant_id = $2`,
+      [id, tenantId],
+    );
+
+    if (workflowRows.length === 0) {
+      await client.query('ROLLBACK');
+      return fail(res, 404, { message: 'Workflow not found' });
+    }
+
+    // Delete existing steps
+    await client.query(`DELETE FROM "WorkflowStep" WHERE workflow_id = $1`, [id]);
+
+    // Insert new steps
+    const insertedSteps = [];
+    for (let i = 0; i < steps.length; i += 1) {
+      const step = steps[i];
+      const { rows: newStepRows } = await client.query(
+        `INSERT INTO "WorkflowStep" (
+          id, workflow_id, parent_step_id, branch_path, position,
+          step_type, action_type, config, created_at, updated_at
+        )
+        VALUES (
+          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
+        )
+        RETURNING *`,
+        [
+          id,
+          step.parent_step_id || null,
+          step.branch_path || null,
+          i,
+          step.step_type,
+          step.action_type || null,
+          JSON.stringify(step.config || {}),
+        ],
+      );
+      insertedSteps.push(newStepRows[0]);
+    }
+
+    // Update workflow timestamp
+    await client.query(
+      `UPDATE "Workflow" SET updated_at = NOW() WHERE id = $1`,
+      [id],
+    );
+
+    await client.query('COMMIT');
+
+    return ok(res, { steps: insertedSteps });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('[workflows] updateWorkflowSteps failed', error);
+    return fail(res, 500, { message: 'Failed to update workflow steps' });
+  } finally {
+    client.release();
+  }
+});
+
+// =============================================================================
+// EXECUTIONS / ENROLLMENTS
+// =============================================================================
+
+/**
+ * Get workflow executions
+ */
+router.get('/workflows/:id/executions', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id } = req.params;
+    const { status, limit = 50, offset = 0 } = req.query || {};
+
+    // Verify workflow belongs to tenant
+    const { rows: workflowRows } = await pool.query(
+      `SELECT id FROM "Workflow" WHERE id = $1 AND tenant_id = $2`,
+      [id, tenantId],
+    );
+
+    if (workflowRows.length === 0) {
+      return fail(res, 404, { message: 'Workflow not found' });
+    }
+
+    let query = `
+      SELECT * FROM "WorkflowExecution"
+      WHERE workflow_id = $1 AND tenant_id = $2`;
+    const params = [id, tenantId];
+    let paramCount = 3;
+
+    if (status) {
+      query += ` AND status = $${paramCount}`;
+      params.push(status);
+      paramCount += 1;
+    }
+
+    query += ` ORDER BY enrolled_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    params.push(parseInt(limit, 10), parseInt(offset, 10));
+
+    const { rows } = await pool.query(query, params);
+
+    return ok(res, { executions: rows });
+  } catch (error) {
+    console.error('[workflows] getWorkflowExecutions failed', error);
+    return fail(res, 500, { message: 'Failed to load workflow executions' });
+  }
+});
+
+/**
+ * Manually enroll a record
+ */
+router.post('/workflows/:id/enroll', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id } = req.params;
+    const { record_id, record_type } = req.body || {};
+
+    if (!record_id || !record_type) {
+      return fail(res, 400, { message: 'Missing required fields: record_id, record_type' });
+    }
+
+    // Verify workflow belongs to tenant and is active
+    const { rows: workflowRows } = await pool.query(
+      `SELECT id, object_type, status FROM "Workflow" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [id, tenantId],
+    );
+
+    if (workflowRows.length === 0) {
+      return fail(res, 404, { message: 'Workflow not found' });
+    }
+
+    const workflow = workflowRows[0];
+
+    if (workflow.object_type !== record_type) {
+      return fail(res, 400, { message: `Workflow expects ${workflow.object_type} records, got ${record_type}` });
+    }
+
+    // Check if already enrolled
+    const { rows: existingRows } = await pool.query(
+      `SELECT id FROM "WorkflowExecution"
+       WHERE workflow_id = $1 AND record_id = $2 AND status IN ('running', 'paused')`,
+      [id, record_id],
+    );
+
+    if (existingRows.length > 0) {
+      return fail(res, 409, { message: 'Record is already enrolled in this workflow' });
+    }
+
+    // Get first step
+    const { rows: stepRows } = await pool.query(
+      `SELECT id FROM "WorkflowStep" WHERE workflow_id = $1 ORDER BY position LIMIT 1`,
+      [id],
+    );
+
+    const currentStepId = stepRows.length > 0 ? stepRows[0].id : null;
+
+    // Create enrollment
+    const { rows } = await pool.query(
+      `INSERT INTO "WorkflowExecution" (
+        id, workflow_id, tenant_id, record_id, record_type,
+        status, current_step_id, enrolled_at, created_at, updated_at
+      )
+      VALUES (
+        gen_random_uuid(), $1, $2, $3, $4, 'running', $5, NOW(), NOW(), NOW()
+      )
+      RETURNING *`,
+      [id, tenantId, record_id, record_type, currentStepId],
+    );
+
+    // Update workflow enrolled count
+    await pool.query(
+      `UPDATE "Workflow" SET enrolled_count = enrolled_count + 1, last_run_at = NOW() WHERE id = $1`,
+      [id],
+    );
+
+    return ok(res, rows[0], 201);
+  } catch (error) {
+    console.error('[workflows] enrollRecord failed', error);
+    return fail(res, 500, { message: 'Failed to enroll record' });
+  }
+});
+
+/**
+ * Unenroll a record
+ */
+router.delete('/workflows/:id/enrollments/:enrollmentId', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id, enrollmentId } = req.params;
+
+    const { rows } = await pool.query(
+      `UPDATE "WorkflowExecution"
+       SET status = 'cancelled', updated_at = NOW()
+       WHERE id = $1 AND workflow_id = $2 AND tenant_id = $3 AND status IN ('running', 'paused')
+       RETURNING id`,
+      [enrollmentId, id, tenantId],
+    );
+
+    if (rows.length === 0) {
+      return fail(res, 404, { message: 'Enrollment not found or already completed' });
+    }
+
+    return ok(res, null, 204);
+  } catch (error) {
+    console.error('[workflows] unenrollRecord failed', error);
+    return fail(res, 500, { message: 'Failed to unenroll record' });
+  }
+});
+
+/**
+ * Cancel execution
+ */
+router.post('/workflows/:id/executions/:executionId/cancel', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id, executionId } = req.params;
+
+    const { rows } = await pool.query(
+      `UPDATE "WorkflowExecution"
+       SET status = 'cancelled', updated_at = NOW()
+       WHERE id = $1 AND workflow_id = $2 AND tenant_id = $3 AND status IN ('running', 'paused')
+       RETURNING *`,
+      [executionId, id, tenantId],
+    );
+
+    if (rows.length === 0) {
+      return fail(res, 404, { message: 'Execution not found or already completed' });
+    }
+
+    return ok(res, rows[0]);
+  } catch (error) {
+    console.error('[workflows] cancelExecution failed', error);
+    return fail(res, 500, { message: 'Failed to cancel execution' });
+  }
+});
+
+/**
+ * Get execution details with logs
+ */
+router.get('/workflows/:id/executions/:executionId', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id, executionId } = req.params;
+
+    // Get execution
+    const { rows: executionRows } = await pool.query(
+      `SELECT * FROM "WorkflowExecution"
+       WHERE id = $1 AND workflow_id = $2 AND tenant_id = $3`,
+      [executionId, id, tenantId],
+    );
+
+    if (executionRows.length === 0) {
+      return fail(res, 404, { message: 'Execution not found' });
+    }
+
+    // Get logs
+    const { rows: logRows } = await pool.query(
+      `SELECT * FROM "WorkflowExecutionLog"
+       WHERE execution_id = $1
+       ORDER BY started_at`,
+      [executionId],
+    );
+
+    return ok(res, {
+      execution: executionRows[0],
+      logs: logRows,
+    });
+  } catch (error) {
+    console.error('[workflows] getExecutionDetails failed', error);
+    return fail(res, 500, { message: 'Failed to load execution details' });
+  }
+});
+
+// =============================================================================
+// TEMPLATES
+// =============================================================================
+
+/**
+ * List templates
+ */
+router.get('/workflows/templates', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { category, objectType } = req.query || {};
+
+    let query = `
+      SELECT * FROM "WorkflowTemplate"
+      WHERE (is_system = true OR tenant_id = $1)`;
+    const params = [tenantId];
+    let paramCount = 2;
+
+    if (category) {
+      query += ` AND category = $${paramCount}`;
+      params.push(category);
+      paramCount += 1;
+    }
+
+    if (objectType) {
+      query += ` AND object_type = $${paramCount}`;
+      params.push(objectType);
+      paramCount += 1;
+    }
+
+    query += ` ORDER BY is_system DESC, usage_count DESC, name`;
+
+    const { rows } = await pool.query(query, params);
+
+    return ok(res, { templates: rows });
+  } catch (error) {
+    console.error('[workflows] listTemplates failed', error);
+    return fail(res, 500, { message: 'Failed to list templates' });
+  }
+});
+
+/**
+ * Get template by ID
+ */
+router.get('/workflows/templates/:templateId', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { templateId } = req.params;
+
+    const { rows } = await pool.query(
+      `SELECT * FROM "WorkflowTemplate"
+       WHERE id = $1 AND (is_system = true OR tenant_id = $2)`,
+      [templateId, tenantId],
+    );
+
+    if (rows.length === 0) {
+      return fail(res, 404, { message: 'Template not found' });
+    }
+
+    return ok(res, rows[0]);
+  } catch (error) {
+    console.error('[workflows] getTemplate failed', error);
+    return fail(res, 500, { message: 'Failed to load template' });
+  }
+});
+
+/**
+ * Create workflow from template
+ */
+router.post('/workflows/templates/:templateId/use', async (req, res) => {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    const tenantId = req.tenantId;
+    const userId = req.userId;
+    const { templateId } = req.params;
+    const { name } = req.body || {};
+
+    await client.query('BEGIN');
+
+    // Get template
+    const { rows: templateRows } = await client.query(
+      `SELECT * FROM "WorkflowTemplate"
+       WHERE id = $1 AND (is_system = true OR tenant_id = $2)`,
+      [templateId, tenantId],
+    );
+
+    if (templateRows.length === 0) {
+      await client.query('ROLLBACK');
+      return fail(res, 404, { message: 'Template not found' });
+    }
+
+    const template = templateRows[0];
+    const templateConfig = template.template_config || {};
+
+    // Create workflow
+    const workflowName = name || template.name;
+    const { rows: workflowRows } = await client.query(
+      `INSERT INTO "Workflow" (
+        id, tenant_id, name, description, object_type, status,
+        entry_condition, settings, created_by, created_at, updated_at
+      )
+      VALUES (
+        gen_random_uuid(), $1, $2, $3, $4, 'draft', $5, $6, $7, NOW(), NOW()
+      )
+      RETURNING *`,
+      [
+        tenantId,
+        workflowName,
+        template.description,
+        template.object_type,
+        JSON.stringify(templateConfig.entry_condition || {}),
+        JSON.stringify(templateConfig.settings || {}),
+        userId,
+      ],
+    );
+
+    const newWorkflow = workflowRows[0];
+
+    // Create steps from template
+    const templateSteps = templateConfig.steps || [];
+    for (let i = 0; i < templateSteps.length; i += 1) {
+      const step = templateSteps[i];
+      await client.query(
+        `INSERT INTO "WorkflowStep" (
+          id, workflow_id, position, step_type, action_type, config, created_at, updated_at
+        )
+        VALUES (
+          gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW()
+        )`,
+        [
+          newWorkflow.id,
+          i,
+          step.step_type,
+          step.action_type || null,
+          JSON.stringify(step.config || {}),
+        ],
+      );
+    }
+
+    // Increment template usage count
+    await client.query(
+      `UPDATE "WorkflowTemplate" SET usage_count = usage_count + 1 WHERE id = $1`,
+      [templateId],
+    );
+
+    await client.query('COMMIT');
+
+    return ok(res, newWorkflow, 201);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('[workflows] createFromTemplate failed', error);
+    return fail(res, 500, { message: 'Failed to create workflow from template' });
+  } finally {
+    client.release();
+  }
+});
+
+// =============================================================================
+// ANALYTICS & HISTORY
+// =============================================================================
+
+/**
+ * Get workflow analytics
+ */
+router.get('/workflows/:id/analytics', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id } = req.params;
+    const { period = '30d' } = req.query || {};
+
+    // Verify workflow belongs to tenant
+    const { rows: workflowRows } = await pool.query(
+      `SELECT * FROM "Workflow" WHERE id = $1 AND tenant_id = $2`,
+      [id, tenantId],
+    );
+
+    if (workflowRows.length === 0) {
+      return fail(res, 404, { message: 'Workflow not found' });
+    }
+
+    // Calculate date range
+    const days = parseInt(period.replace('d', ''), 10) || 30;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    // Get execution stats
+    const { rows: statsRows } = await pool.query(
+      `SELECT
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE status = 'running') as running,
+        COUNT(*) FILTER (WHERE status = 'completed') as completed,
+        COUNT(*) FILTER (WHERE status = 'failed') as failed,
+        COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled
+       FROM "WorkflowExecution"
+       WHERE workflow_id = $1 AND enrolled_at >= $2`,
+      [id, startDate.toISOString()],
+    );
+
+    // Get daily enrollments
+    const { rows: dailyRows } = await pool.query(
+      `SELECT
+        DATE(enrolled_at) as date,
+        COUNT(*) as enrollments,
+        COUNT(*) FILTER (WHERE status = 'completed') as completions
+       FROM "WorkflowExecution"
+       WHERE workflow_id = $1 AND enrolled_at >= $2
+       GROUP BY DATE(enrolled_at)
+       ORDER BY date`,
+      [id, startDate.toISOString()],
+    );
+
+    // Get step performance
+    const { rows: stepRows } = await pool.query(
+      `SELECT
+        s.id,
+        s.step_type,
+        s.action_type,
+        s.position,
+        COUNT(l.id) as total_executions,
+        COUNT(*) FILTER (WHERE l.status = 'success') as successful,
+        COUNT(*) FILTER (WHERE l.status = 'failed') as failed,
+        COUNT(*) FILTER (WHERE l.status = 'skipped') as skipped
+       FROM "WorkflowStep" s
+       LEFT JOIN "WorkflowExecutionLog" l ON l.step_id = s.id
+       WHERE s.workflow_id = $1
+       GROUP BY s.id, s.step_type, s.action_type, s.position
+       ORDER BY s.position`,
+      [id],
+    );
+
+    return ok(res, {
+      summary: statsRows[0],
+      daily: dailyRows,
+      steps: stepRows,
+      period,
+    });
+  } catch (error) {
+    console.error('[workflows] getWorkflowAnalytics failed', error);
+    return fail(res, 500, { message: 'Failed to load workflow analytics' });
+  }
+});
+
+/**
+ * Get workflow history/logs
+ */
+router.get('/workflows/:id/history', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id } = req.params;
+    const { eventType, stepId, limit = 50, offset = 0 } = req.query || {};
+
+    // Verify workflow belongs to tenant
+    const { rows: workflowRows } = await pool.query(
+      `SELECT id FROM "Workflow" WHERE id = $1 AND tenant_id = $2`,
+      [id, tenantId],
+    );
+
+    if (workflowRows.length === 0) {
+      return fail(res, 404, { message: 'Workflow not found' });
+    }
+
+    let query = `
+      SELECT l.*, e.record_id, e.record_type
+      FROM "WorkflowExecutionLog" l
+      JOIN "WorkflowExecution" e ON e.id = l.execution_id
+      WHERE e.workflow_id = $1`;
+    const params = [id];
+    let paramCount = 2;
+
+    if (stepId) {
+      query += ` AND l.step_id = $${paramCount}`;
+      params.push(stepId);
+      paramCount += 1;
+    }
+
+    if (eventType) {
+      query += ` AND l.status = $${paramCount}`;
+      params.push(eventType);
+      paramCount += 1;
+    }
+
+    query += ` ORDER BY l.started_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    params.push(parseInt(limit, 10), parseInt(offset, 10));
+
+    const { rows } = await pool.query(query, params);
+
+    return ok(res, { logs: rows });
+  } catch (error) {
+    console.error('[workflows] getWorkflowHistory failed', error);
+    return fail(res, 500, { message: 'Failed to load workflow history' });
+  }
+});
+
+/**
+ * Get overall workflow stats
+ */
+router.get('/workflows/stats', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+
+    const { rows } = await pool.query(
+      `SELECT
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE status = 'active') as active,
+        COUNT(*) FILTER (WHERE status = 'paused') as paused,
+        COUNT(*) FILTER (WHERE status = 'draft') as draft,
+        SUM(enrolled_count) as total_enrolled,
+        SUM(completed_count) as total_completed
+       FROM "Workflow"
+       WHERE tenant_id = $1 AND deleted_at IS NULL`,
+      [tenantId],
+    );
+
+    return ok(res, rows[0]);
+  } catch (error) {
+    console.error('[workflows] getWorkflowStats failed', error);
+    return fail(res, 500, { message: 'Failed to load workflow stats' });
+  }
+});
+
+/**
+ * Test workflow with specific record (dry run)
+ */
+router.post('/workflows/:id/test', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id } = req.params;
+    const { record_id, record_type } = req.body || {};
+
+    if (!record_id || !record_type) {
+      return fail(res, 400, { message: 'Missing required fields: record_id, record_type' });
+    }
+
+    // Verify workflow exists
+    const { rows: workflowRows } = await pool.query(
+      `SELECT * FROM "Workflow" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [id, tenantId],
+    );
+
+    if (workflowRows.length === 0) {
+      return fail(res, 404, { message: 'Workflow not found' });
+    }
+
+    const workflow = workflowRows[0];
+
+    // Get steps
+    const { rows: steps } = await pool.query(
+      `SELECT * FROM "WorkflowStep" WHERE workflow_id = $1 ORDER BY position`,
+      [id],
+    );
+
+    // Return test results (simulated)
+    return ok(res, {
+      workflow: {
+        id: workflow.id,
+        name: workflow.name,
+        object_type: workflow.object_type,
+      },
+      record: {
+        id: record_id,
+        type: record_type,
+      },
+      steps: steps.map((step) => ({
+        id: step.id,
+        step_type: step.step_type,
+        action_type: step.action_type,
+        would_execute: true,
+        simulated_result: 'success',
+      })),
+      message: 'Dry run completed. No actions were actually performed.',
+    });
+  } catch (error) {
+    console.error('[workflows] testWorkflow failed', error);
+    return fail(res, 500, { message: 'Failed to test workflow' });
+  }
+});
+
+// =============================================================================
+// FOLDERS
+// =============================================================================
+
+/**
+ * List folders
+ */
+router.get('/workflows/folders', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+
+    const { rows } = await pool.query(
+      `SELECT * FROM "WorkflowFolder" WHERE tenant_id = $1 ORDER BY name`,
+      [tenantId],
+    );
+
+    return ok(res, { folders: rows });
+  } catch (error) {
+    console.error('[workflows] listFolders failed', error);
+    return fail(res, 500, { message: 'Failed to list folders' });
+  }
+});
+
+/**
+ * Create folder
+ */
+router.post('/workflows/folders', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { name, parent_id } = req.body || {};
+
+    if (!name) {
+      return fail(res, 400, { message: 'Missing required field: name' });
+    }
+
+    const { rows } = await pool.query(
+      `INSERT INTO "WorkflowFolder" (id, tenant_id, name, parent_id, created_at, updated_at)
+       VALUES (gen_random_uuid(), $1, $2, $3, NOW(), NOW())
+       RETURNING *`,
+      [tenantId, name, parent_id || null],
+    );
+
+    return ok(res, rows[0], 201);
+  } catch (error) {
+    console.error('[workflows] createFolder failed', error);
+    return fail(res, 500, { message: 'Failed to create folder' });
+  }
+});
+
+/**
+ * Update folder
+ */
+router.put('/workflows/folders/:folderId', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { folderId } = req.params;
+    const { name, parent_id } = req.body || {};
+
+    const updates = [];
+    const params = [];
+    let paramCount = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramCount}`);
+      params.push(name);
+      paramCount += 1;
+    }
+    if (parent_id !== undefined) {
+      updates.push(`parent_id = $${paramCount}`);
+      params.push(parent_id);
+      paramCount += 1;
+    }
+
+    if (updates.length === 0) {
+      return fail(res, 400, { message: 'No fields to update' });
+    }
+
+    updates.push('updated_at = NOW()');
+
+    const query = `
+      UPDATE "WorkflowFolder"
+      SET ${updates.join(', ')}
+      WHERE id = $${paramCount} AND tenant_id = $${paramCount + 1}
+      RETURNING *`;
+    params.push(folderId, tenantId);
+
+    const { rows } = await pool.query(query, params);
+
+    if (rows.length === 0) {
+      return fail(res, 404, { message: 'Folder not found' });
+    }
+
+    return ok(res, rows[0]);
+  } catch (error) {
+    console.error('[workflows] updateFolder failed', error);
+    return fail(res, 500, { message: 'Failed to update folder' });
+  }
+});
+
+/**
+ * Delete folder
+ */
+router.delete('/workflows/folders/:folderId', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { folderId } = req.params;
+
+    // Move workflows out of folder first
+    await pool.query(
+      `UPDATE "Workflow" SET folder_id = NULL WHERE folder_id = $1 AND tenant_id = $2`,
+      [folderId, tenantId],
+    );
+
+    const { rowCount } = await pool.query(
+      `DELETE FROM "WorkflowFolder" WHERE id = $1 AND tenant_id = $2`,
+      [folderId, tenantId],
+    );
+
+    if (rowCount === 0) {
+      return fail(res, 404, { message: 'Folder not found' });
+    }
+
+    return ok(res, null, 204);
+  } catch (error) {
+    console.error('[workflows] deleteFolder failed', error);
+    return fail(res, 500, { message: 'Failed to delete folder' });
+  }
+});
+
+module.exports = router;
+

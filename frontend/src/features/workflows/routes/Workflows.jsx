@@ -108,9 +108,9 @@ const CreateWorkflowDropdown = () => {
             <button
               onClick={() => {
                 setOpen(false);
-                toast.info('Templates coming soon');
+                navigate('/workflows/new?method=template');
               }}
-              className="w-full px-4 py-2 text-left text-sm hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]"
+              className="w-full px-4 py-2 text-left text-sm hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-primary)]"
             >
               From template
             </button>
