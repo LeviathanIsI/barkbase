@@ -2,6 +2,7 @@
  * BuilderCanvas - Main canvas component for the workflow builder
  * Renders the visual workflow with trigger, steps, and connectors
  */
+import { useState } from 'react';
 import { cn } from '@/lib/cn';
 import { useWorkflowBuilderStore } from '../../stores/builderStore';
 import { STEP_TYPES } from '../../constants';
@@ -10,6 +11,7 @@ import TriggerCard from './canvas/TriggerCard';
 import StepCard from './canvas/StepCard';
 import Connector from './canvas/Connector';
 import AddStepButton from './canvas/AddStepButton';
+import TriggerConfigPanel from './TriggerConfigPanel';
 
 export default function BuilderCanvas() {
   const {
@@ -20,6 +22,8 @@ export default function BuilderCanvas() {
     addStep,
     deleteStep,
   } = useWorkflowBuilderStore();
+
+  const [showTriggerConfig, setShowTriggerConfig] = useState(false);
 
   // Get root level steps (not in branches)
   const rootSteps = steps
@@ -46,9 +50,21 @@ export default function BuilderCanvas() {
       {/* Trigger Card */}
       <TriggerCard
         entryCondition={workflow.entryCondition}
+        objectType={workflow.objectType}
         isSelected={selectedStepId === 'trigger'}
-        onClick={() => selectStep('trigger')}
+        onClick={() => {
+          selectStep('trigger');
+          setShowTriggerConfig(true);
+        }}
       />
+
+      {/* Trigger Config Panel */}
+      {showTriggerConfig && (
+        <TriggerConfigPanel
+          onClose={() => setShowTriggerConfig(false)}
+          onSave={() => setShowTriggerConfig(false)}
+        />
+      )}
 
       {/* First connector with add button */}
       <div className="relative flex flex-col items-center">
