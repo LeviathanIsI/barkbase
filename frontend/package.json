@@ -36,7 +36,8 @@
     "test:analytics:insights": "node test-orchestration/analytics.js insights",
     "test:fast": "vitest run src/lib/__tests__ src/stores/__tests__ src/hooks/__tests__",
     "test:components": "vitest run src/components",
-    "test:features": "vitest run src/features src/app"
+    "test:features": "vitest run src/features src/app",
+    "prepare": "husky"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "3.914.0",
@@ -91,12 +92,19 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.4.0",
+    "husky": "^9.1.7",
     "jsdom": "^27.0.0",
+    "lint-staged": "^16.2.7",
     "msw": "^2.12.4",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "vite": "^7.1.7",
     "vite-plugin-pwa": "^1.0.3",
     "vitest": "^3.2.4"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix"
+    ]
   }
 }
