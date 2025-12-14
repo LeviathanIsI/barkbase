@@ -31,6 +31,10 @@ const selectStyles = {
     borderRadius: '0.375rem',
     zIndex: 9999,
   }),
+  menuPortal: (base) => ({
+    ...base,
+    zIndex: 99999,
+  }),
   menuList: (base) => ({
     ...base,
     padding: '4px',
