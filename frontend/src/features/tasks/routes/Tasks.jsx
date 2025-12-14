@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 // Replaced with LoadingState (mascot) for page-level loading
 import LoadingState from '@/components/ui/LoadingState';
@@ -35,6 +35,7 @@ import {
   BarChart3,
   Users,
   Zap,
+  Check,
 } from 'lucide-react';
 import { format, isToday, isTomorrow, isAfter, isBefore, addDays, startOfDay, endOfDay } from 'date-fns';
 import Button from '@/components/ui/Button';
@@ -666,6 +667,12 @@ const Tasks = () => {
   });
   const [completingTaskId, setCompletingTaskId] = useState(null);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [showPageSizeDropdown, setShowPageSizeDropdown] = useState(false);
+  const pageSizeDropdownRef = useRef(null);
+
   const [taskForm, setTaskForm] = useState({
     type: 'FEEDING',
     relatedType: 'PET',
@@ -782,7 +789,57 @@ const Tasks = () => {
     return sorted;
   }, [filteredTasks, sortBy]);
 
-  // Group tasks by time buckets
+  // Pagination calculations
+  const totalPages = Math.ceil(sortedTasks.length / itemsPerPage);
+  const paginatedTasks = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sortedTasks.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedTasks, currentPage, itemsPerPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterType, staffFilter, showDueToday, showOverdueOnly, searchTerm, sortBy]);
+
+  // Close page size dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (pageSizeDropdownRef.current && !pageSizeDropdownRef.current.contains(event.target)) {
+        setShowPageSizeDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Get pagination range for display
+  const getPaginationRange = () => {
+    const range = [];
+    const maxVisible = 7;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) range.push(i);
+    } else {
+      if (currentPage <= 4) {
+        for (let i = 1; i <= 5; i++) range.push(i);
+        range.push('...');
+        range.push(totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        range.push(1);
+        range.push('...');
+        for (let i = totalPages - 4; i <= totalPages; i++) range.push(i);
+      } else {
+        range.push(1);
+        range.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) range.push(i);
+        range.push('...');
+        range.push(totalPages);
+      }
+    }
+    return range;
+  };
+
+  // Group tasks by time buckets (uses paginated data)
   const taskBuckets = useMemo(() => {
     const now = new Date();
     const todayEnd = endOfDay(now);
@@ -797,7 +854,7 @@ const Tasks = () => {
       completed: [],
     };
 
-    sortedTasks.forEach(task => {
+    paginatedTasks.forEach(task => {
       if (task.completedAt) {
         buckets.completed.push(task);
       } else if (task.isOverdue) {
@@ -819,7 +876,7 @@ const Tasks = () => {
     });
 
     return buckets;
-  }, [sortedTasks]);
+  }, [paginatedTasks]);
 
   // Toggle bucket expansion
   const toggleBucket = useCallback((bucket) => {
@@ -1291,6 +1348,125 @@ const Tasks = () => {
           </TimeBucket>
         )}
           </div>
+
+          {/* Pagination */}
+          {sortedTasks.length > 0 && (
+            <div
+              className="flex items-center justify-center gap-[var(--bb-space-1,0.25rem)] border-t px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-4,1rem)] mt-4 rounded-xl"
+              style={{
+                borderColor: 'var(--bb-color-border-subtle)',
+                backgroundColor: 'var(--bb-color-bg-surface)',
+              }}
+            >
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1,0.25rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] hover:underline disabled:no-underline disabled:cursor-not-allowed"
+                style={{
+                  color: currentPage === 1 ? 'var(--bb-color-text-muted)' : 'var(--bb-color-accent)',
+                }}
+              >
+                Prev
+              </button>
+
+              {getPaginationRange().map((page, idx) => (
+                page === '...' ? (
+                  <span
+                    key={`ellipsis-${idx}`}
+                    className="px-[var(--bb-space-2,0.5rem)]"
+                    style={{ color: 'var(--bb-color-text-muted)' }}
+                  >
+                    ...
+                  </span>
+                ) : (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className="min-w-[2rem] rounded px-[var(--bb-space-2,0.5rem)] py-[var(--bb-space-1,0.25rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors"
+                    style={{
+                      backgroundColor: currentPage === page
+                        ? 'var(--bb-color-accent)'
+                        : 'transparent',
+                      color: currentPage === page
+                        ? 'var(--bb-color-text-on-accent)'
+                        : 'var(--bb-color-text-primary)',
+                    }}
+                  >
+                    {page}
+                  </button>
+                )
+              ))}
+
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1,0.25rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] hover:underline disabled:no-underline disabled:cursor-not-allowed"
+                style={{
+                  color: currentPage === totalPages || totalPages === 0 ? 'var(--bb-color-text-muted)' : 'var(--bb-color-accent)',
+                }}
+              >
+                Next
+              </button>
+
+              <div ref={pageSizeDropdownRef} className="relative ml-[var(--bb-space-4,1rem)]">
+                <button
+                  onClick={() => setShowPageSizeDropdown(!showPageSizeDropdown)}
+                  className="flex items-center gap-[var(--bb-space-2,0.5rem)] rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1\\.5,0.375rem)] text-[var(--bb-font-size-sm,0.875rem)] transition-colors"
+                  style={{
+                    borderColor: 'var(--bb-color-border-subtle)',
+                    backgroundColor: 'var(--bb-color-bg-surface)',
+                    color: 'var(--bb-color-text-primary)',
+                  }}
+                >
+                  <span>{itemsPerPage} per page</span>
+                  <ChevronDown
+                    className={cn('h-3 w-3 transition-transform', showPageSizeDropdown && 'rotate-180')}
+                    style={{ color: 'var(--bb-color-text-muted)' }}
+                  />
+                </button>
+
+                {showPageSizeDropdown && (
+                  <div
+                    className="absolute bottom-full left-0 mb-1 w-full rounded-md border shadow-lg"
+                    style={{
+                      borderColor: 'var(--bb-color-border-subtle)',
+                      backgroundColor: 'var(--bb-color-bg-surface)',
+                    }}
+                  >
+                    <div className="py-[var(--bb-space-1,0.25rem)]">
+                      {[25, 50, 100].map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => {
+                            setItemsPerPage(size);
+                            setCurrentPage(1);
+                            setShowPageSizeDropdown(false);
+                          }}
+                          className="flex w-full items-center px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-left text-[var(--bb-font-size-sm,0.875rem)] transition-colors"
+                          style={{
+                            backgroundColor: itemsPerPage === size
+                              ? 'var(--bb-color-accent-soft)'
+                              : 'transparent',
+                            color: itemsPerPage === size
+                              ? 'var(--bb-color-accent)'
+                              : 'var(--bb-color-text-primary)',
+                            fontWeight: itemsPerPage === size ? '500' : '400',
+                          }}
+                        >
+                          {size} per page
+                          {itemsPerPage === size && <Check className="ml-auto h-4 w-4" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <span className="ml-4 text-sm text-[color:var(--bb-color-text-muted)]">
+                {sortedTasks.length} total
+              </span>
+            </div>
+          )}
         </ScrollableTableContainer>
 
         {/* Right: Sidebar */}
