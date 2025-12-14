@@ -690,8 +690,8 @@ function ActionSelectionPanel({
 
       {/* Action categories */}
       <div className="flex-1 overflow-auto">
-        {ACTION_CATEGORIES.map((category) => {
-          const isExpanded = expandedCategories[category.key] !== false; // Default expanded
+        {Object.entries(ACTION_CATEGORIES).map(([key, category]) => {
+          const isExpanded = expandedCategories[key] !== false; // Default expanded
 
           // Filter actions by search query
           const filteredActions = searchQuery
@@ -703,9 +703,9 @@ function ActionSelectionPanel({
           if (searchQuery && filteredActions.length === 0) return null;
 
           return (
-            <div key={category.key} className="border-b border-[var(--bb-color-border-subtle)]">
+            <div key={key} className="border-b border-[var(--bb-color-border-subtle)]">
               <button
-                onClick={() => toggleCategory(category.key)}
+                onClick={() => toggleCategory(key)}
                 className={cn(
                   "w-full px-4 py-3 flex items-center justify-between text-left",
                   "hover:bg-[var(--bb-color-bg-elevated)]",
