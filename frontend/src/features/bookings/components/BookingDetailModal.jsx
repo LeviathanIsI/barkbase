@@ -662,7 +662,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                           date: new Date().toISOString().split('T')[0],
                         });
                         toast.success('Run changed successfully');
-                        setAssignmentView('main');
+                        onClose(); // Close to refresh data
                       } catch (error) {
                         toast.error(error?.message || 'Failed to change run');
                       }
@@ -814,7 +814,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                           date: new Date().toISOString().split('T')[0],
                         });
                         toast.success('Time adjusted successfully');
-                        setAssignmentView('main');
+                        onClose(); // Close to refresh data
                       } catch (error) {
                         toast.error(error?.message || 'Failed to adjust time');
                       }
