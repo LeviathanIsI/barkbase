@@ -6,6 +6,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Edit2, Trash2, ExternalLink } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import AssociationLabelModal from '../components/AssociationLabelModal';
 import { usePageView } from '@/hooks/useTelemetry';
 import {
@@ -190,22 +191,15 @@ const AssociationsSettings = () => {
       {/* Filters */}
       <div className="flex items-center gap-[var(--bb-space-4,1rem)] flex-wrap">
         {/* Object type filter */}
-        <select
-          value={selectedObjectType}
-          onChange={(e) => setSelectedObjectType(e.target.value)}
-          className="rounded-lg border pl-[var(--bb-space-3,0.75rem)] pr-[var(--bb-space-8,2rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
-          style={{
-            borderColor: 'var(--bb-color-border-subtle)',
-            backgroundColor: 'var(--bb-color-bg-elevated)',
-            color: 'var(--bb-color-text-primary)',
-          }}
-        >
-          {OBJECT_TYPES.map((type) => (
-            <option key={type.value} value={type.value}>
-              {type.label}
-            </option>
-          ))}
-        </select>
+        <div className="min-w-[150px]">
+          <StyledSelect
+            options={OBJECT_TYPES}
+            value={selectedObjectType}
+            onChange={(opt) => setSelectedObjectType(opt?.value || 'all')}
+            isClearable={false}
+            isSearchable={false}
+          />
+        </div>
 
         {/* Include archived checkbox */}
         <label

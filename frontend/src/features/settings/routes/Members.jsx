@@ -21,6 +21,7 @@ import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Shield, Settings } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
@@ -158,23 +159,16 @@ const Members = () => {
                       </TableCell>
                       <TableCell>
                         {canManage && !member.isCurrentUser ? (
-                          <select
-                            value={member.role}
-                            onChange={(event) => handleRoleChange(member.id, event.target.value)}
-                            className="rounded-lg border px-[var(--bb-space-2,0.5rem)] py-[var(--bb-space-1,0.25rem)] text-[var(--bb-font-size-sm,0.875rem)]"
-                            style={{
-                              borderColor: 'var(--bb-color-border-subtle)',
-                              backgroundColor: 'var(--bb-color-bg-elevated)',
-                              color: 'var(--bb-color-text-primary)',
-                            }}
-                            disabled={updateRole.isPending}
-                          >
-                            {roleOptions.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="min-w-[120px]">
+                            <StyledSelect
+                              options={roleOptions}
+                              value={member.role}
+                              onChange={(opt) => handleRoleChange(member.id, opt?.value || member.role)}
+                              isDisabled={updateRole.isPending}
+                              isClearable={false}
+                              isSearchable={false}
+                            />
+                          </div>
                         ) : (
                           <Badge variant="neutral">{member.role}</Badge>
                         )}

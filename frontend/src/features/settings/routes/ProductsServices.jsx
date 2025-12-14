@@ -5,6 +5,7 @@ import Input from '@/components/ui/Input';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import Badge from '@/components/ui/Badge';
 import Switch from '@/components/ui/Switch';
+import StyledSelect from '@/components/ui/StyledSelect';
 import {
   usePackageTemplatesQuery,
   useCreatePackageTemplateMutation,
@@ -581,15 +582,13 @@ const ProductsServices = () => {
 
           <div>
             <label className="block text-sm font-medium mb-2">Applies to Service</label>
-            <select
+            <StyledSelect
+              options={SERVICE_TYPES}
               value={packageForm.serviceType}
-              onChange={(e) => setPackageForm((prev) => ({ ...prev, serviceType: e.target.value }))}
-              className="w-full rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              {SERVICE_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>{type.label}</option>
-              ))}
-            </select>
+              onChange={(opt) => setPackageForm((prev) => ({ ...prev, serviceType: opt?.value || '' }))}
+              isClearable={false}
+              isSearchable={false}
+            />
           </div>
 
           <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
@@ -664,15 +663,13 @@ const ProductsServices = () => {
 
             <div>
               <label className="block text-sm font-medium mb-2">Price Type</label>
-              <select
+              <StyledSelect
+                options={PRICE_TYPES}
                 value={addonForm.priceType}
-                onChange={(e) => setAddonForm((prev) => ({ ...prev, priceType: e.target.value }))}
-                className="w-full rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                {PRICE_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>{type.label}</option>
-                ))}
-              </select>
+                onChange={(opt) => setAddonForm((prev) => ({ ...prev, priceType: opt?.value || 'flat' }))}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
           </div>
 
