@@ -3,9 +3,10 @@
  */
 
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { format } from 'date-fns';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
 import { useCreateTaskMutation, useUpdateTaskMutation, useTaskQuery } from '../api';
@@ -35,6 +36,7 @@ const TaskSlideoutForm = ({
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isDirty, isSubmitting },
   } = useForm({
     defaultValues: {
@@ -131,26 +133,40 @@ const TaskSlideoutForm = ({
         </div>
 
         <FormGrid cols={2}>
-          <div className="space-y-2">
-            <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
-              Category
-            </label>
-            <select {...register('category')} className={inputClass} style={inputStyles}>
-              {TASK_CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
-              Priority
-            </label>
-            <select {...register('priority')} className={inputClass} style={inputStyles}>
-              {TASK_PRIORITIES.map(pri => (
-                <option key={pri} value={pri}>{pri.charAt(0).toUpperCase() + pri.slice(1)}</option>
-              ))}
-            </select>
-          </div>
+          <Controller
+            name="category"
+            control={control}
+            render={({ field }) => (
+              <StyledSelect
+                label="Category"
+                options={TASK_CATEGORIES.map(cat => ({
+                  value: cat,
+                  label: cat.charAt(0).toUpperCase() + cat.slice(1)
+                }))}
+                value={field.value}
+                onChange={(opt) => field.onChange(opt?.value || 'general')}
+                isClearable={false}
+                isSearchable
+              />
+            )}
+          />
+          <Controller
+            name="priority"
+            control={control}
+            render={({ field }) => (
+              <StyledSelect
+                label="Priority"
+                options={TASK_PRIORITIES.map(pri => ({
+                  value: pri,
+                  label: pri.charAt(0).toUpperCase() + pri.slice(1)
+                }))}
+                value={field.value}
+                onChange={(opt) => field.onChange(opt?.value || 'medium')}
+                isClearable={false}
+                isSearchable
+              />
+            )}
+          />
         </FormGrid>
       </FormSection>
 

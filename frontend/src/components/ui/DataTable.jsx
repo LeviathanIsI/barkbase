@@ -23,6 +23,7 @@ import {
 import { cn } from '@/lib/cn';
 import Button from './Button';
 import FilterDropdown from './FilterDropdown';
+import StyledSelect from './StyledSelect';
 
 const DataTable = ({
   columns = [],
@@ -1340,28 +1341,14 @@ const DataTable = ({
                             />
                           </div>
 
-                          <div>
-                            <label
-                              className="mb-[var(--bb-space-1,0.25rem)] block text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)]"
-                              style={{ color: 'var(--bb-color-text-primary)' }}
-                            >
-                              Operator
-                            </label>
-                            <select
-                              value={editingFilter.operator}
-                              onChange={(e) => setEditingFilter({...editingFilter, operator: e.target.value})}
-                              className="w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
-                              style={{
-                                borderColor: 'var(--bb-color-border-subtle)',
-                                backgroundColor: 'var(--bb-color-bg-surface)',
-                                color: 'var(--bb-color-text-primary)',
-                              }}
-                            >
-                              {getOperatorsForType(editingFilter.propertyType).map(op => (
-                                <option key={op.value} value={op.value}>{op.label}</option>
-                              ))}
-                            </select>
-                          </div>
+                          <StyledSelect
+                            label="Operator"
+                            options={getOperatorsForType(editingFilter.propertyType)}
+                            value={editingFilter.operator}
+                            onChange={(opt) => setEditingFilter({...editingFilter, operator: opt?.value || ''})}
+                            isClearable={false}
+                            isSearchable={false}
+                          />
 
                           <div>
                             <label

@@ -5,8 +5,9 @@
 
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import SlideoutPanel from '@/components/SlideoutPanel';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { useSlideout, SLIDEOUT_TYPES } from './SlideoutProvider';
 import { useTenantStore } from '@/stores/tenant';
 import toast from 'react-hot-toast';
@@ -303,6 +304,7 @@ function PetForm({ pet, ownerId, onSuccess, onCancel }) {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isDirty, isSubmitting },
   } = useForm({
     defaultValues: {
@@ -370,15 +372,25 @@ function PetForm({ pet, ownerId, onSuccess, onCancel }) {
           </div>
         </FormGrid>
         <FormGrid cols={2}>
-          <div className="space-y-2">
-            <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>Species</label>
-            <select {...register('species')} className={inputClass} style={inputStyles}>
-              <option value="">Select species</option>
-              <option value="Dog">Dog</option>
-              <option value="Cat">Cat</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
+          <Controller
+            name="species"
+            control={control}
+            render={({ field }) => (
+              <StyledSelect
+                label="Species"
+                options={[
+                  { value: 'Dog', label: 'Dog' },
+                  { value: 'Cat', label: 'Cat' },
+                  { value: 'Other', label: 'Other' },
+                ]}
+                value={field.value}
+                onChange={(opt) => field.onChange(opt?.value || '')}
+                placeholder="Select species"
+                isClearable
+                isSearchable
+              />
+            )}
+          />
           <div className="space-y-2">
             <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>Weight (lbs)</label>
             <input type="number" step="0.1" {...register('weight')} className={inputClass} style={inputStyles} placeholder="25.5" />

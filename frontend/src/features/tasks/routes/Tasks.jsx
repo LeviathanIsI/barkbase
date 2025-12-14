@@ -43,6 +43,7 @@ import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { useTodaysTasksQuery, useOverdueTasksQuery, useCompleteTaskMutation, useCreateTaskMutation, useTasksQuery } from '../api';
 import { usePetsQuery } from '@/features/pets/api';
 import { useStaffQuery } from '@/features/staff/api';
@@ -579,38 +580,26 @@ const QuickAddTask = ({ taskTypes, priorityConfig, pets, staff, onCreateTask, is
         </div>
 
         {/* Pet - full width */}
-        <div>
-          <label className="text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-2 block">Pet *</label>
-          <select
-            value={form.petId}
-            onChange={(e) => setForm({ ...form, petId: e.target.value })}
-            className="w-full px-3 py-2.5 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
-            style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-          >
-            <option value="">Select a pet...</option>
-            {petList.map(p => (
-              <option key={p.id || p.recordId} value={p.id || p.recordId}>{p.name}</option>
-            ))}
-          </select>
-        </div>
+        <StyledSelect
+          label="Pet *"
+          options={petList.map(p => ({ value: p.id || p.recordId, label: p.name }))}
+          value={form.petId}
+          onChange={(opt) => setForm({ ...form, petId: opt?.value || '' })}
+          placeholder="Select a pet..."
+          isClearable
+          isSearchable
+        />
 
         {/* Staff - full width */}
-        <div>
-          <label className="text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-2 block">Assign To</label>
-          <select
-            value={form.assignedTo}
-            onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}
-            className="w-full px-3 py-2.5 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
-            style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-          >
-            <option value="">Unassigned</option>
-            {staffList.map(s => (
-              <option key={s.id || s.recordId} value={s.id || s.recordId}>
-                {formatStaffName(s)}
-              </option>
-            ))}
-          </select>
-        </div>
+        <StyledSelect
+          label="Assign To"
+          options={staffList.map(s => ({ value: s.id || s.recordId, label: formatStaffName(s) }))}
+          value={form.assignedTo}
+          onChange={(opt) => setForm({ ...form, assignedTo: opt?.value || '' })}
+          placeholder="Unassigned"
+          isClearable
+          isSearchable
+        />
 
         {/* Date/Time - full width */}
         <div>
@@ -1066,17 +1055,15 @@ const Tasks = () => {
             {/* Sort + Quick Filters + Search */}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-[180px]">
                   <ArrowUpDown className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-                  <select
+                  <StyledSelect
+                    options={SORT_OPTIONS.map(opt => ({ value: opt.value, label: `Sort: ${opt.label}` }))}
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="text-sm bg-transparent border-none focus:outline-none cursor-pointer text-[color:var(--bb-color-text-primary)]"
-                  >
-                    {SORT_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value}>Sort: {opt.label}</option>
-                    ))}
-                  </select>
+                    onChange={(opt) => setSortBy(opt?.value || 'dueTime')}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
                 </div>
 
                 <div className="h-5 w-px" style={{ backgroundColor: 'var(--bb-color-border-subtle)' }} />
@@ -1106,19 +1093,21 @@ const Tasks = () => {
                 </button>
 
                 {staffList.length > 0 && (
-                  <select
-                    value={staffFilter}
-                    onChange={(e) => setStaffFilter(e.target.value)}
-                    className="px-3 py-1.5 text-sm rounded-lg border focus:outline-none"
-                    style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-                  >
-                    <option value="all">All Staff</option>
-                    {staffList.map(s => (
-                      <option key={s.id || s.recordId} value={s.id || s.recordId}>
-                        {s.firstName} {s.lastName}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="min-w-[160px]">
+                    <StyledSelect
+                      options={[
+                        { value: 'all', label: 'All Staff' },
+                        ...staffList.map(s => ({
+                          value: s.id || s.recordId,
+                          label: `${s.firstName} ${s.lastName}`
+                        }))
+                      ]}
+                      value={staffFilter}
+                      onChange={(opt) => setStaffFilter(opt?.value || 'all')}
+                      isClearable={false}
+                      isSearchable
+                    />
+                  </div>
                 )}
               </div>
 
@@ -1565,38 +1554,40 @@ const Tasks = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-text mb-1.5">
-                    Related To <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={taskForm.relatedType}
-                    onChange={(e) => setTaskForm({ ...taskForm, relatedType: e.target.value })}
-                    className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    required
-                  >
-                    <option value="PET">Pet</option>
-                    <option value="BOOKING">Booking</option>
-                  </select>
-                </div>
+                <StyledSelect
+                  label="Related To"
+                  required
+                  options={[
+                    { value: 'PET', label: 'Pet' },
+                    { value: 'BOOKING', label: 'Booking' }
+                  ]}
+                  value={taskForm.relatedType}
+                  onChange={(opt) => setTaskForm({ ...taskForm, relatedType: opt?.value || 'PET' })}
+                  isClearable={false}
+                  isSearchable={false}
+                  menuPortalTarget={document.body}
+                />
 
-                <div>
-                  <label className="block text-sm font-medium text-text mb-1.5">
-                    {taskForm.relatedType === 'PET' ? 'Pet' : 'Booking'} <span className="text-red-500">*</span>
-                  </label>
-                  {taskForm.relatedType === 'PET' && pets?.pets?.length > 0 ? (
-                    <select
-                      value={taskForm.relatedId}
-                      onChange={(e) => setTaskForm({ ...taskForm, relatedId: e.target.value })}
-                      className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                      required
-                    >
-                      <option value="">Select pet...</option>
-                      {pets.pets.map(pet => (
-                        <option key={pet.id || pet.recordId} value={pet.id || pet.recordId}>{pet.name}</option>
-                      ))}
-                    </select>
-                  ) : (
+                {taskForm.relatedType === 'PET' && pets?.pets?.length > 0 ? (
+                  <StyledSelect
+                    label={taskForm.relatedType === 'PET' ? 'Pet' : 'Booking'}
+                    required
+                    options={pets.pets.map(pet => ({
+                      value: pet.id || pet.recordId,
+                      label: pet.name
+                    }))}
+                    value={taskForm.relatedId}
+                    onChange={(opt) => setTaskForm({ ...taskForm, relatedId: opt?.value || '' })}
+                    placeholder="Select pet..."
+                    isClearable
+                    isSearchable
+                    menuPortalTarget={document.body}
+                  />
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-text mb-1.5">
+                      {taskForm.relatedType === 'PET' ? 'Pet' : 'Booking'} <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       value={taskForm.relatedId}
@@ -1605,8 +1596,8 @@ const Tasks = () => {
                       placeholder="Enter ID"
                       required
                     />
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1623,23 +1614,22 @@ const Tasks = () => {
               </div>
 
               {staffList.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-text mb-1.5">
-                    Assign To
-                  </label>
-                  <select
-                    value={taskForm.assignedTo}
-                    onChange={(e) => setTaskForm({ ...taskForm, assignedTo: e.target.value })}
-                    className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  >
-                    <option value="">Unassigned</option>
-                    {staffList.map(s => (
-                      <option key={s.id || s.recordId} value={s.id || s.recordId}>
-                        {s.firstName} {s.lastName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <StyledSelect
+                  label="Assign To"
+                  options={[
+                    { value: '', label: 'Unassigned' },
+                    ...staffList.map(s => ({
+                      value: s.id || s.recordId,
+                      label: `${s.firstName} ${s.lastName}`
+                    }))
+                  ]}
+                  value={taskForm.assignedTo}
+                  onChange={(opt) => setTaskForm({ ...taskForm, assignedTo: opt?.value || '' })}
+                  placeholder="Unassigned"
+                  isClearable
+                  isSearchable
+                  menuPortalTarget={document.body}
+                />
               )}
 
               <div>

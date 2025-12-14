@@ -13,6 +13,7 @@ import { PageHeader } from '@/components/ui/Card';
 // Unified loader: replaced inline loading with LoadingState
 import LoadingState from '@/components/ui/LoadingState';
 import SlidePanel from '@/components/ui/SlidePanel';
+import StyledSelect from '@/components/ui/StyledSelect';
 import NewBookingModal from '@/features/bookings/components/NewBookingModal';
 import BookingDetailModal from '@/features/bookings/components/BookingDetailModal';
 import KennelLayoutView from '@/features/calendar/components/KennelLayoutView';
@@ -797,21 +798,20 @@ const DailyHourlyGrid = ({
       {/* Filter Bar */}
       <div className="flex items-center gap-3 px-4 py-2 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-elevated)' }}>
         {/* Service Filter */}
-        <select
-          value={serviceFilter}
-          onChange={(e) => onServiceFilterChange(e.target.value)}
-          className="h-8 rounded-lg border px-2 text-sm"
-          style={{
-            backgroundColor: 'var(--bb-color-bg-body)',
-            borderColor: 'var(--bb-color-border-subtle)',
-            color: 'var(--bb-color-text-primary)',
-          }}
-        >
-          <option value="all">All Services</option>
-          <option value="boarding">Boarding</option>
-          <option value="daycare">Daycare</option>
-          <option value="grooming">Grooming</option>
-        </select>
+        <div className="min-w-[150px]">
+          <StyledSelect
+            options={[
+              { value: 'all', label: 'All Services' },
+              { value: 'boarding', label: 'Boarding' },
+              { value: 'daycare', label: 'Daycare' },
+              { value: 'grooming', label: 'Grooming' },
+            ]}
+            value={serviceFilter}
+            onChange={(opt) => onServiceFilterChange(opt?.value || 'all')}
+            isClearable={false}
+            isSearchable
+          />
+        </div>
 
         {/* Search */}
         <div className="relative flex-1 max-w-xs">
@@ -1551,40 +1551,22 @@ const PetAssignmentPanel = ({ run, unassignedPets, onAssign, onClose }) => {
 
       {/* Time Selection */}
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1">Start Time</label>
-          <select
-            value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            style={{
-              backgroundColor: 'var(--bb-color-bg-surface)',
-              borderColor: 'var(--bb-color-border-subtle)',
-              color: 'var(--bb-color-text-primary)',
-            }}
-          >
-            {timeOptions.map(time => (
-              <option key={time} value={time}>{time}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1">End Time</label>
-          <select
-            value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            style={{
-              backgroundColor: 'var(--bb-color-bg-surface)',
-              borderColor: 'var(--bb-color-border-subtle)',
-              color: 'var(--bb-color-text-primary)',
-            }}
-          >
-            {timeOptions.map(time => (
-              <option key={time} value={time}>{time}</option>
-            ))}
-          </select>
-        </div>
+        <StyledSelect
+          label="Start Time"
+          options={timeOptions.map(time => ({ value: time, label: time }))}
+          value={startTime}
+          onChange={(opt) => setStartTime(opt?.value || '08:00')}
+          isClearable={false}
+          isSearchable
+        />
+        <StyledSelect
+          label="End Time"
+          options={timeOptions.map(time => ({ value: time, label: time }))}
+          value={endTime}
+          onChange={(opt) => setEndTime(opt?.value || '17:00')}
+          isClearable={false}
+          isSearchable
+        />
       </div>
 
       {/* Unassigned Pets List */}

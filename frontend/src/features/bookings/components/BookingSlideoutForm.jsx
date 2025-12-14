@@ -4,8 +4,9 @@
  */
 
 import { useState, useMemo, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { format, addDays } from 'date-fns';
+import StyledSelect from '@/components/ui/StyledSelect';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -65,6 +66,7 @@ const BookingSlideoutForm = ({
     handleSubmit,
     watch,
     setValue,
+    control,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
@@ -278,26 +280,27 @@ const BookingSlideoutForm = ({
       {/* Step 3: Service & Dates */}
       <FormSection title="3. Service & Dates">
         <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
-              Service <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
-            </label>
-            <select
-              {...register('serviceId', { required: 'Service is required' })}
-              className={inputClass}
-              style={inputStyles}
-            >
-              <option value="">Select a service</option>
-              {services.map(service => (
-                <option key={service.id || service.recordId} value={service.id || service.recordId}>
-                  {service.name} {service.priceInCents ? `- $${(service.priceInCents / 100).toFixed(2)}/day` : ''}
-                </option>
-              ))}
-            </select>
-            {errors.serviceId && (
-              <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>{errors.serviceId.message}</p>
+          <Controller
+            name="serviceId"
+            control={control}
+            rules={{ required: 'Service is required' }}
+            render={({ field }) => (
+              <StyledSelect
+                label="Service"
+                required
+                options={services.map(service => ({
+                  value: service.id || service.recordId,
+                  label: `${service.name}${service.priceInCents ? ` - $${(service.priceInCents / 100).toFixed(2)}/day` : ''}`
+                }))}
+                value={field.value}
+                onChange={(opt) => field.onChange(opt?.value || '')}
+                placeholder="Select a service"
+                error={errors.serviceId?.message}
+                isClearable
+                isSearchable
+              />
             )}
-          </div>
+          />
 
           <FormGrid cols={2}>
             <div className="space-y-2">

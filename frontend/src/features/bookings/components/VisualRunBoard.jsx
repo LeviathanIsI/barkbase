@@ -23,6 +23,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import StyledSelect from '@/components/ui/StyledSelect';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -299,15 +300,19 @@ const VisualRunBoard = () => {
 
         <div className="flex items-center gap-3">
           {/* Filter */}
-          <select
-            value={filterByService}
-            onChange={(e) => setFilterByService(e.target.value)}
-            className="px-3 py-1.5 border border-gray-300 dark:border-surface-border rounded-lg text-sm text-gray-900 dark:text-text-primary bg-white dark:bg-surface-primary"
-          >
-            <option value="all">All Services</option>
-            <option value="boarding">Boarding Only</option>
-            <option value="daycare">Daycare Only</option>
-          </select>
+          <div className="min-w-[150px]">
+            <StyledSelect
+              options={[
+                { value: 'all', label: 'All Services' },
+                { value: 'boarding', label: 'Boarding Only' },
+                { value: 'daycare', label: 'Daycare Only' },
+              ]}
+              value={filterByService}
+              onChange={(opt) => setFilterByService(opt?.value || 'all')}
+              isClearable={false}
+              isSearchable
+            />
+          </div>
 
           {/* Search */}
           <div className="relative">
