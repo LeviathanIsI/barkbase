@@ -664,62 +664,78 @@ const DailyHourlyGrid = ({
     }
   }, [isToday]);
 
-  // Get pets in a kennel/run at a specific hour
+  // Get pets in a kennel/run at a specific hour with position info (start/middle/end)
   const getPetsForCell = (runId, hour) => {
     // First check run assignments for this run/kennel on this date
-    const runAssignments = assignments.filter(a => {
-      if (a.runId !== runId || a.dateStr !== dateStr) return false;
+    const runAssignments = assignments
+      .filter(a => a.runId === runId && a.dateStr === dateStr)
+      .map(a => {
+        // Parse start/end time - could be TIME strings like "08:00" or timestamps
+        let startHour = 0;
+        let startMinute = 0;
+        let endHour = 23;
+        let endMinute = 59;
 
-      // Parse start/end time - could be TIME strings like "08:00" or timestamps
-      let startHour = 0;
-      let startMinute = 0;
-      let endHour = 23;
-      let endMinute = 59;
+        if (a.startTime) {
+          const parts = a.startTime.split(':');
+          startHour = parseInt(parts[0], 10) || 0;
+          startMinute = parseInt(parts[1], 10) || 0;
+        } else if (a.startAt) {
+          const d = new Date(a.startAt);
+          startHour = d.getHours();
+          startMinute = d.getMinutes();
+        }
 
-      if (a.startTime) {
-        // TIME string like "08:00:00" or "08:00"
-        const parts = a.startTime.split(':');
-        startHour = parseInt(parts[0], 10) || 0;
-        startMinute = parseInt(parts[1], 10) || 0;
-      } else if (a.startAt) {
-        const d = new Date(a.startAt);
-        startHour = d.getHours();
-        startMinute = d.getMinutes();
-      }
+        if (a.endTime) {
+          const parts = a.endTime.split(':');
+          endHour = parseInt(parts[0], 10) || 23;
+          endMinute = parseInt(parts[1], 10) || 59;
+        } else if (a.endAt) {
+          const d = new Date(a.endAt);
+          endHour = d.getHours();
+          endMinute = d.getMinutes();
+        }
 
-      if (a.endTime) {
-        const parts = a.endTime.split(':');
-        endHour = parseInt(parts[0], 10) || 23;
-        endMinute = parseInt(parts[1], 10) || 59;
-      } else if (a.endAt) {
-        const d = new Date(a.endAt);
-        endHour = d.getHours();
-        endMinute = d.getMinutes();
-      }
+        return { ...a, _startHour: startHour, _endHour: endHour, _startMinute: startMinute, _endMinute: endMinute };
+      })
+      .filter(a => {
+        // Check if the assignment overlaps this hour slot
+        const slotStart = hour;
+        const slotEnd = hour + 1;
+        const assignStart = a._startHour + a._startMinute / 60;
+        const assignEnd = a._endHour + a._endMinute / 60;
+        return assignStart < slotEnd && assignEnd > slotStart;
+      })
+      .map((a, idx) => {
+        // Determine position: start, middle, or end
+        const isStartHour = hour === a._startHour;
+        const isEndHour = hour === a._endHour || (hour === a._endHour - 1 && a._endMinute === 0);
+        // If assignment spans only 1 hour, it's both start and end
+        const isSingleHour = a._startHour === a._endHour || (a._endHour - a._startHour === 1 && a._endMinute === 0);
 
-      // Check if the assignment overlaps this hour slot (hour to hour+1)
-      // Assignment overlaps if it starts before the hour ends AND ends after the hour starts
-      const slotStart = hour;
-      const slotEnd = hour + 1;
-      const assignStart = startHour + startMinute / 60;
-      const assignEnd = endHour + endMinute / 60;
+        let position = 'middle';
+        if (isSingleHour) {
+          position = 'single'; // Show full chip, no line
+        } else if (isStartHour) {
+          position = 'start';
+        } else if (isEndHour) {
+          position = 'end';
+        }
 
-      return assignStart < slotEnd && assignEnd > slotStart;
-    });
+        return { ...a, position, trackIndex: idx };
+      });
 
     if (runAssignments.length > 0) return runAssignments;
 
-    // Fall back to bookings assigned to this kennel
+    // Fall back to bookings assigned to this kennel (show as single)
     return bookings.filter(b => {
       if (b.runId !== runId) return false;
       if (!b.checkInDate || !b.checkOutDate) return false;
       const checkInStr = b.checkInDate.toISOString().split('T')[0];
       const checkOutStr = b.checkOutDate.toISOString().split('T')[0];
-      // Check if booking spans this date
       if (dateStr < checkInStr || dateStr > checkOutStr) return false;
-      // For simplicity, if booking spans this day, show it all day
       return true;
-    });
+    }).map((b, idx) => ({ ...b, position: 'single', trackIndex: idx }));
   };
 
   // Calculate occupancy for a run (how many hours it's occupied)
@@ -922,23 +938,56 @@ const DailyHourlyGrid = ({
                         onClick={() => hasPets ? onBookingClick(cellPets[0]) : onEmptyCellClick(run, hour)}
                       >
                         {hasPets ? (
-                          <div className="absolute inset-0 p-1 overflow-hidden flex flex-col">
-                            {cellPets.slice(0, 2).map((pet, idx) => (
-                              <PetTimeBar
-                                key={pet.id || idx}
-                                pet={pet}
-                                hour={hour}
-                                dateStr={dateStr}
-                                onBookingClick={onBookingClick}
-                                onCheckIn={handleCheckIn}
-                                onCheckOut={handleCheckOut}
-                                checkInPending={checkInMutation.isPending}
-                                checkOutPending={checkOutMutation.isPending}
-                              />
-                            ))}
-                            {cellPets.length > 2 && (
-                              <p className="text-[9px] text-center text-blue-600 dark:text-blue-300 font-medium">
-                                +{cellPets.length - 2} more
+                          <div className="absolute inset-0 p-1 overflow-hidden">
+                            {cellPets.slice(0, 4).map((pet, idx) => {
+                              const position = pet.position || 'single';
+                              const trackOffset = pet.trackIndex * 28; // Offset for parallel tracks
+
+                              if (position === 'start' || position === 'single') {
+                                return (
+                                  <PetTimeBar
+                                    key={pet.id || idx}
+                                    pet={pet}
+                                    hour={hour}
+                                    dateStr={dateStr}
+                                    onBookingClick={onBookingClick}
+                                    onCheckIn={handleCheckIn}
+                                    onCheckOut={handleCheckOut}
+                                    checkInPending={checkInMutation.isPending}
+                                    checkOutPending={checkOutMutation.isPending}
+                                    trackOffset={trackOffset}
+                                    showEndMarker={position === 'single'}
+                                  />
+                                );
+                              }
+
+                              if (position === 'middle') {
+                                return (
+                                  <TimeSpanLine
+                                    key={pet.id || idx}
+                                    pet={pet}
+                                    trackOffset={trackOffset}
+                                    onBookingClick={onBookingClick}
+                                  />
+                                );
+                              }
+
+                              if (position === 'end') {
+                                return (
+                                  <EndTimeMarker
+                                    key={pet.id || idx}
+                                    pet={pet}
+                                    trackOffset={trackOffset}
+                                    onBookingClick={onBookingClick}
+                                  />
+                                );
+                              }
+
+                              return null;
+                            })}
+                            {cellPets.length > 4 && (
+                              <p className="text-[9px] text-center text-blue-600 dark:text-blue-300 font-medium absolute bottom-0 right-1">
+                                +{cellPets.length - 4}
                               </p>
                             )}
                           </div>
@@ -960,8 +1009,143 @@ const DailyHourlyGrid = ({
   );
 };
 
-// Pet Time Bar - DAFE pattern with hover tooltip, click to open, inline check-in/out
-const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut, checkInPending, checkOutPending }) => {
+// Activity type dot color helper (shared by multiple components)
+const getActivityDotColorStatic = (service) => {
+  const s = (service || '').toLowerCase();
+  if (s.includes('social')) return 'bg-emerald-500';
+  if (s.includes('individual')) return 'bg-blue-500';
+  if (s.includes('training')) return 'bg-amber-500';
+  return 'bg-gray-400';
+};
+
+// Time Span Line - Dashed vertical line for middle hours of an assignment
+const TimeSpanLine = ({ pet, trackOffset = 0, onBookingClick }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  return (
+    <div
+      className="absolute cursor-pointer group"
+      style={{
+        left: `${8 + trackOffset}px`,
+        top: 0,
+        bottom: 0,
+        width: '16px',
+      }}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+      onClick={(e) => {
+        e.stopPropagation();
+        onBookingClick(pet);
+      }}
+    >
+      {/* Dashed vertical line */}
+      <div
+        className={cn(
+          'absolute left-1/2 -translate-x-1/2 w-0.5 h-full',
+          'border-l-2 border-dashed',
+          pet.serviceType?.toLowerCase().includes('social') ? 'border-emerald-400' :
+          pet.serviceType?.toLowerCase().includes('individual') ? 'border-blue-400' :
+          pet.serviceType?.toLowerCase().includes('training') ? 'border-amber-400' :
+          'border-gray-400'
+        )}
+        style={{ opacity: 0.6 }}
+      />
+      {/* Hover highlight */}
+      <div className="absolute inset-0 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--bb-color-accent-soft)]" />
+
+      {/* Tooltip on hover */}
+      {showTooltip && (
+        <div
+          className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 whitespace-nowrap rounded-lg px-2 py-1 text-xs shadow-lg"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            border: '1px solid var(--bb-color-border-subtle)',
+            color: 'var(--bb-color-text-primary)',
+          }}
+        >
+          <span className="font-medium">{pet.petName}</span>
+          <span className="text-[color:var(--bb-color-text-muted)]"> • {pet.serviceType || 'Social'}</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// End Time Marker - Shows end time with connecting line
+const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  // Format end time
+  const formatEndTime = () => {
+    if (pet._endHour !== undefined) {
+      const h = pet._endHour;
+      const m = pet._endMinute || 0;
+      const suffix = h >= 12 ? 'p' : 'a';
+      const hour12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+      return m > 0 ? `${hour12}:${m.toString().padStart(2, '0')}${suffix}` : `${hour12}${suffix}`;
+    }
+    return '';
+  };
+
+  return (
+    <div
+      className="absolute cursor-pointer group"
+      style={{
+        left: `${4 + trackOffset}px`,
+        top: 0,
+        width: '24px',
+        height: '100%',
+      }}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+      onClick={(e) => {
+        e.stopPropagation();
+        onBookingClick(pet);
+      }}
+    >
+      {/* Vertical line connecting from top */}
+      <div
+        className={cn(
+          'absolute left-1/2 -translate-x-1/2 w-0.5 top-0 h-3',
+          'border-l-2 border-dashed',
+          pet.serviceType?.toLowerCase().includes('social') ? 'border-emerald-400' :
+          pet.serviceType?.toLowerCase().includes('individual') ? 'border-blue-400' :
+          pet.serviceType?.toLowerCase().includes('training') ? 'border-amber-400' :
+          'border-gray-400'
+        )}
+        style={{ opacity: 0.6 }}
+      />
+      {/* End time label */}
+      <div
+        className={cn(
+          'absolute left-0 top-3 text-[9px] font-medium px-1 rounded',
+          'text-[color:var(--bb-color-text-muted)]',
+          'group-hover:bg-[var(--bb-color-accent-soft)]'
+        )}
+      >
+        {formatEndTime()}
+      </div>
+
+      {/* Tooltip on hover */}
+      {showTooltip && (
+        <div
+          className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 whitespace-nowrap rounded-lg px-2 py-1 text-xs shadow-lg"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            border: '1px solid var(--bb-color-border-subtle)',
+            color: 'var(--bb-color-text-primary)',
+          }}
+        >
+          <span className="font-medium">{pet.petName}</span>
+          <span className="text-[color:var(--bb-color-text-muted)]"> ends {formatEndTime()}</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Pet Time Bar - Shows at START of assignment with activity dot
+const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut, checkInPending, checkOutPending, trackOffset = 0, showEndMarker = false }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
   // Calculate width percentage based on how much of this hour the assignment covers
@@ -1042,32 +1226,42 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
     return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
 
+  // Check if this assignment spans multiple hours (needs downward line)
+  const spansMultipleHours = pet.position === 'start' && !showEndMarker;
+
   return (
     <div
-      className={cn(
-        'relative rounded border-l-4 px-2 py-1 cursor-pointer transition-all',
-        'hover:shadow-md hover:-translate-y-0.5 hover:ring-1 hover:ring-[var(--bb-color-accent)]',
-        getStatusBorderColor()
-      )}
+      className="absolute"
       style={{
-        backgroundColor: 'var(--bb-color-bg-elevated)',
-        height: `${heightPercent}%`,
-        minHeight: '20px', // Ensure card is always readable
-      }}
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
-      onClick={(e) => {
-        e.stopPropagation();
-        onBookingClick(pet);
+        left: `${4 + trackOffset}px`,
+        right: '4px',
+        top: '4px',
       }}
     >
-      {/* Compact single-row layout - uses horizontal space */}
-      <div className="flex items-center justify-between gap-1.5 h-full">
-        {/* Left: Activity dot + Pet name */}
-        <div className="flex items-center gap-1.5 min-w-0 flex-1">
-          {/* Activity type dot */}
-          <span className={cn('w-2 h-2 rounded-full shrink-0', getActivityDotColor(pet.serviceType))} />
-          <span className="text-[11px] font-semibold text-[color:var(--bb-color-text-primary)] truncate">
+      {/* Main chip */}
+      <div
+        className={cn(
+          'relative rounded border-l-4 px-2 py-1 cursor-pointer transition-all',
+          'hover:shadow-md hover:-translate-y-0.5 hover:ring-1 hover:ring-[var(--bb-color-accent)]',
+          getStatusBorderColor()
+        )}
+        style={{
+          backgroundColor: 'var(--bb-color-bg-elevated)',
+        }}
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onBookingClick(pet);
+        }}
+      >
+        {/* Compact single-row layout */}
+        <div className="flex items-center justify-between gap-1.5">
+          {/* Left: Activity dot + Pet name */}
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            {/* Activity type dot */}
+            <span className={cn('w-2 h-2 rounded-full shrink-0', getActivityDotColor(pet.serviceType))} />
+            <span className="text-[11px] font-semibold text-[color:var(--bb-color-text-primary)] truncate">
             {pet.petName}
           </span>
         </div>
@@ -1166,6 +1360,27 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
             </div>
           </div>
         </div>
+      )}
+      </div>
+
+      {/* Downward dashed line for multi-hour assignments */}
+      {spansMultipleHours && (
+        <div
+          className={cn(
+            'absolute left-1/2 -translate-x-1/2 w-0.5',
+            'border-l-2 border-dashed',
+            pet.serviceType?.toLowerCase().includes('social') ? 'border-emerald-400' :
+            pet.serviceType?.toLowerCase().includes('individual') ? 'border-blue-400' :
+            pet.serviceType?.toLowerCase().includes('training') ? 'border-amber-400' :
+            'border-gray-400'
+          )}
+          style={{
+            top: '32px',
+            bottom: '-4px',
+            opacity: 0.6,
+            left: '12px',
+          }}
+        />
       )}
     </div>
   );
