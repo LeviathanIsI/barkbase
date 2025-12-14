@@ -713,6 +713,8 @@ const DailyHourlyGrid = ({
         const needsEndMarker = hour === a._endHour;
         return isActiveInSlot || needsEndMarker;
       })
+      // Sort by petId for consistent trackIndex across all cells
+      .sort((a, b) => String(a.petId || a.id).localeCompare(String(b.petId || b.id)))
       .map((a, idx) => {
         // Determine position: start, middle, or end
         const isStartHour = hour === a._startHour;
