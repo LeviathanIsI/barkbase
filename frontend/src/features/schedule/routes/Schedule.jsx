@@ -975,9 +975,10 @@ const DailyHourlyGrid = ({
                   </div>
 
                   {/* Kennel/Run Cells */}
-                  {runs.map((run) => {
+                  {runs.map((run, runIndex) => {
                     const cellPets = getPetsForCell(run.id, hour);
                     const hasPets = cellPets.length > 0;
+                    const isNearRightEdge = runIndex >= runs.length - 3;
 
                     return (
                       <div
@@ -1014,6 +1015,7 @@ const DailyHourlyGrid = ({
                                     hour={hour}
                                     onBookingClick={onBookingClick}
                                     trackOffset={trackOffset}
+                                    flipTooltip={isNearRightEdge}
                                   />
                                 ];
                                 /* Render spanning SVG line for multi-hour assignments */
@@ -1041,6 +1043,7 @@ const DailyHourlyGrid = ({
                                     pet={pet}
                                     trackOffset={trackOffset}
                                     onBookingClick={onBookingClick}
+                                    flipTooltip={isNearRightEdge}
                                   />
                                 );
                               }
@@ -1052,6 +1055,7 @@ const DailyHourlyGrid = ({
                                     pet={pet}
                                     trackOffset={trackOffset}
                                     onBookingClick={onBookingClick}
+                                    flipTooltip={isNearRightEdge}
                                   />
                                 );
                               }
@@ -1148,7 +1152,7 @@ const SpanningDashLine = ({ pet, startHourIndex, endHourIndex, hours, trackOffse
 };
 
 // Time Span Line - Hover/click target for middle hours of an assignment (no line - SVG handles it)
-const TimeSpanLine = ({ pet, trackOffset = 0, onBookingClick }) => {
+const TimeSpanLine = ({ pet, trackOffset = 0, onBookingClick, flipTooltip = false }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
   return (
@@ -1173,7 +1177,10 @@ const TimeSpanLine = ({ pet, trackOffset = 0, onBookingClick }) => {
       {/* Tooltip on hover */}
       {showTooltip && (
         <div
-          className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 whitespace-nowrap rounded-lg px-2 py-1 text-xs shadow-lg"
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg px-2 py-1 text-xs shadow-lg",
+            flipTooltip ? "right-full mr-2" : "left-full ml-2"
+          )}
           style={{
             backgroundColor: 'var(--bb-color-bg-surface)',
             border: '1px solid var(--bb-color-border-subtle)',
@@ -1189,7 +1196,7 @@ const TimeSpanLine = ({ pet, trackOffset = 0, onBookingClick }) => {
 };
 
 // End Time Marker - Shows end time label (no line - SVG handles it)
-const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick }) => {
+const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick, flipTooltip = false }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
   // Format end time
@@ -1235,7 +1242,10 @@ const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick }) => {
       {/* Tooltip on hover */}
       {showTooltip && (
         <div
-          className="absolute left-full top-1/2 -translate-y-1/2 ml-2 z-50 whitespace-nowrap rounded-lg px-2 py-1 text-xs shadow-lg"
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2 z-50 whitespace-nowrap rounded-lg px-2 py-1 text-xs shadow-lg",
+            flipTooltip ? "right-full mr-2" : "left-full ml-2"
+          )}
           style={{
             backgroundColor: 'var(--bb-color-bg-surface)',
             border: '1px solid var(--bb-color-border-subtle)',
@@ -1251,7 +1261,7 @@ const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick }) => {
 };
 
 // Pet Time Bar - Shows at START of assignment with activity dot
-const PetTimeBar = ({ pet, hour, onBookingClick, trackOffset = 0 }) => {
+const PetTimeBar = ({ pet, hour, onBookingClick, trackOffset = 0, flipTooltip = false }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
   // Calculate width percentage based on how much of this hour the assignment covers
@@ -1374,7 +1384,10 @@ const PetTimeBar = ({ pet, hour, onBookingClick, trackOffset = 0 }) => {
       {/* Tooltip on hover */}
       {showTooltip && (
         <div
-          className="absolute left-full top-0 ml-2 z-50 w-56 rounded-lg p-3 shadow-xl"
+          className={cn(
+            "absolute top-0 z-50 w-56 rounded-lg p-3 shadow-xl",
+            flipTooltip ? "right-full mr-2" : "left-full ml-2"
+          )}
           style={{
             backgroundColor: 'var(--bb-color-bg-surface)',
             border: '1px solid var(--bb-color-border-subtle)',
