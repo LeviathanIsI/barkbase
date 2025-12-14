@@ -1042,17 +1042,25 @@ const TimeSpanLine = ({ pet, trackOffset = 0, onBookingClick }) => {
         onBookingClick(pet);
       }}
     >
-      {/* Dashed vertical line */}
+      {/* Dashed vertical line using gradient for consistent pattern */}
       <div
-        className={cn(
-          'absolute left-1/2 -translate-x-1/2 w-0.5 h-full',
-          'border-l-2 border-dashed',
-          pet.serviceType?.toLowerCase().includes('social') ? 'border-emerald-400' :
-          pet.serviceType?.toLowerCase().includes('individual') ? 'border-blue-400' :
-          pet.serviceType?.toLowerCase().includes('training') ? 'border-amber-400' :
-          'border-gray-400'
-        )}
-        style={{ opacity: 0.6 }}
+        className="absolute left-1/2 -translate-x-1/2 w-0.5 h-full"
+        style={{
+          background: `repeating-linear-gradient(
+            to bottom,
+            ${pet.serviceType?.toLowerCase().includes('social') ? '#34d399' :
+              pet.serviceType?.toLowerCase().includes('individual') ? '#60a5fa' :
+              pet.serviceType?.toLowerCase().includes('training') ? '#fbbf24' :
+              '#9ca3af'} 0px,
+            ${pet.serviceType?.toLowerCase().includes('social') ? '#34d399' :
+              pet.serviceType?.toLowerCase().includes('individual') ? '#60a5fa' :
+              pet.serviceType?.toLowerCase().includes('training') ? '#fbbf24' :
+              '#9ca3af'} 4px,
+            transparent 4px,
+            transparent 8px
+          )`,
+          opacity: 0.7,
+        }}
       />
       {/* Hover highlight */}
       <div className="absolute inset-0 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--bb-color-accent-soft)]" />
@@ -1107,17 +1115,25 @@ const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick }) => {
         onBookingClick(pet);
       }}
     >
-      {/* Vertical line connecting from top */}
+      {/* Vertical line connecting from top using gradient */}
       <div
-        className={cn(
-          'absolute left-1/2 -translate-x-1/2 w-0.5 top-0 h-3',
-          'border-l-2 border-dashed',
-          pet.serviceType?.toLowerCase().includes('social') ? 'border-emerald-400' :
-          pet.serviceType?.toLowerCase().includes('individual') ? 'border-blue-400' :
-          pet.serviceType?.toLowerCase().includes('training') ? 'border-amber-400' :
-          'border-gray-400'
-        )}
-        style={{ opacity: 0.6 }}
+        className="absolute left-1/2 -translate-x-1/2 w-0.5 top-0 h-3"
+        style={{
+          background: `repeating-linear-gradient(
+            to bottom,
+            ${pet.serviceType?.toLowerCase().includes('social') ? '#34d399' :
+              pet.serviceType?.toLowerCase().includes('individual') ? '#60a5fa' :
+              pet.serviceType?.toLowerCase().includes('training') ? '#fbbf24' :
+              '#9ca3af'} 0px,
+            ${pet.serviceType?.toLowerCase().includes('social') ? '#34d399' :
+              pet.serviceType?.toLowerCase().includes('individual') ? '#60a5fa' :
+              pet.serviceType?.toLowerCase().includes('training') ? '#fbbf24' :
+              '#9ca3af'} 4px,
+            transparent 4px,
+            transparent 8px
+          )`,
+          opacity: 0.7,
+        }}
       />
       {/* End time label */}
       <div
@@ -1345,19 +1361,25 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
       {/* Downward dashed line for multi-hour assignments - extends from chip bottom to cell bottom */}
       {spansMultipleHours && (
         <div
-          className={cn(
-            'absolute w-0.5',
-            'border-l-2 border-dashed',
-            pet.serviceType?.toLowerCase().includes('social') ? 'border-emerald-400' :
-            pet.serviceType?.toLowerCase().includes('individual') ? 'border-blue-400' :
-            pet.serviceType?.toLowerCase().includes('training') ? 'border-amber-400' :
-            'border-gray-400'
-          )}
+          className="absolute w-0.5"
           style={{
-            top: 'calc(100% - 4px)', // Overlap slightly with chip to avoid dash offset
-            height: `calc(${100 - cellHeightPercent}% + 12px)`, // Extend to cell bottom
-            opacity: 0.6,
+            top: '100%',
+            height: `calc(${100 - cellHeightPercent}% + 8px)`,
             left: '12px',
+            background: `repeating-linear-gradient(
+              to bottom,
+              ${pet.serviceType?.toLowerCase().includes('social') ? '#34d399' :
+                pet.serviceType?.toLowerCase().includes('individual') ? '#60a5fa' :
+                pet.serviceType?.toLowerCase().includes('training') ? '#fbbf24' :
+                '#9ca3af'} 0px,
+              ${pet.serviceType?.toLowerCase().includes('social') ? '#34d399' :
+                pet.serviceType?.toLowerCase().includes('individual') ? '#60a5fa' :
+                pet.serviceType?.toLowerCase().includes('training') ? '#fbbf24' :
+                '#9ca3af'} 4px,
+              transparent 4px,
+              transparent 8px
+            )`,
+            opacity: 0.7,
           }}
         />
       )}
