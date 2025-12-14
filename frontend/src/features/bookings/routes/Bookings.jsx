@@ -176,26 +176,15 @@ const Bookings = () => {
         statuses.push('OVERDUE');
         displayStatus = 'OVERDUE';
       }
-      // Checkout Today: checked in and checkout is today
-      if (isCheckedIn && isCheckoutToday) {
-        statuses.push('CHECKOUT_TODAY');
-        if (!statuses.includes('OVERDUE')) displayStatus = 'CHECKOUT_TODAY';
+      // Checked In - keep as CHECKED_IN even if checkout is today
+      if (isCheckedIn && !checkOutPassed) {
+        statuses.push('CHECKED_IN');
+        if (!statuses.includes('OVERDUE')) displayStatus = 'CHECKED_IN';
       }
       // No Show: confirmed/pending but check-in date has passed without checking in
       if ((isConfirmed || isPending) && checkInPassed) {
         statuses.push('NO_SHOW');
         displayStatus = 'NO_SHOW';
-      }
-
-      // Same-day bookings (daycare) always show Checkout Today badge alongside main status
-      // This matches the split border shown in the calendar view
-      const isSameDayBooking = checkIn && checkOut && checkIn.toDateString() === checkOut.toDateString();
-      if (isSameDayBooking && statuses.length > 0 && !statuses.includes('CHECKED_OUT') && !statuses.includes('CANCELLED')) {
-        statuses.push('CHECKOUT_TODAY');
-      }
-      // Checked In (if actually checked in and not overdue)
-      if (isCheckedIn && !checkOutPassed && !isCheckoutToday) {
-        statuses.push('CHECKED_IN');
       }
       // Confirmed (if still confirmed and check-in hasn't passed)
       if (isConfirmed && !checkInPassed) {
@@ -256,7 +245,23 @@ const Bookings = () => {
     });
   }, [processedBookings, searchTerm, serviceFilter, statusFilter]);
 
-  // Sort bookings for list view - prioritize Check-ins first, Check-outs second, then others
+  // Filter bookings for list view - only show bookings checking in or out TODAY
+  const todaysBookings = useMemo(() => {
+    const today = new Date();
+    const isSameDay = (d1, d2) => {
+      if (!d1 || !d2) return false;
+      return d1.getFullYear() === d2.getFullYear() &&
+             d1.getMonth() === d2.getMonth() &&
+             d1.getDate() === d2.getDate();
+    };
+    return filteredBookings.filter(booking => {
+      if (!booking.checkInDate && !booking.checkOutDate) return false;
+      // Only include if check-in OR check-out is today
+      return isSameDay(booking.checkInDate, today) || isSameDay(booking.checkOutDate, today);
+    });
+  }, [filteredBookings]);
+
+  // Sort bookings for list view - prioritize Check-ins first, Check-outs second, Confirmed, then others
   const sortedBookings = useMemo(() => {
     const today = new Date();
 
@@ -268,15 +273,22 @@ const Bookings = () => {
              d1.getDate() === d2.getDate();
     };
 
-    // Priority function: 0 = check-in today, 1 = check-out today, 2 = other
+    // Priority: 0 = check-in today, 1 = check-out today, 2 = confirmed, 3 = checked in, 4 = other
     const getPriority = (booking) => {
-      if (isSameDay(booking.checkInDate, today)) return 0;
-      if (isSameDay(booking.checkOutDate, today)) return 1;
-      return 2;
+      const isCheckInToday = isSameDay(booking.checkInDate, today);
+      const isCheckOutToday = isSameDay(booking.checkOutDate, today);
+
+      if (isCheckInToday) return 0;
+      if (isCheckOutToday) return 1;
+      if (booking.displayStatus === 'CONFIRMED') return 2;
+      if (booking.displayStatus === 'CHECKED_IN') return 3;
+      if (booking.displayStatus === 'CHECKED_OUT') return 5;
+      return 4;
     };
 
-    return [...filteredBookings].sort((a, b) => {
-      // First sort by priority (check-ins, then check-outs, then others)
+    // Use todaysBookings for list view (only today's bookings)
+    return [...todaysBookings].sort((a, b) => {
+      // First sort by priority
       const aPriority = getPriority(a);
       const bPriority = getPriority(b);
       if (aPriority !== bPriority) return aPriority - bPriority;
@@ -303,7 +315,7 @@ const Bookings = () => {
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [filteredBookings, sortConfig]);
+  }, [todaysBookings, sortConfig]);
 
   // Paginate bookings for list view
   const paginatedBookings = useMemo(() => {
@@ -555,44 +567,53 @@ const Bookings = () => {
         }}
       >
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          {/* Left: Period + Date Nav */}
+          {/* Left: Period + Date Nav (only for Calendar view) */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Period Toggles */}
-            <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-              {Object.entries(PERIOD_MODES).map(([key, value]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setPeriodMode(value)}
-                  className={cn(
-                    'px-3 py-1.5 text-sm font-medium transition-colors',
-                    periodMode === value
-                      ? 'bg-[color:var(--bb-color-accent)] text-white'
-                      : 'bg-[color:var(--bb-color-bg-body)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]'
-                  )}
-                >
-                  {key.charAt(0) + key.slice(1).toLowerCase()}
-                </button>
-              ))}
-            </div>
+            {viewMode === VIEW_MODES.CALENDAR ? (
+              <>
+                {/* Period Toggles */}
+                <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+                  {Object.entries(PERIOD_MODES).map(([key, value]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setPeriodMode(value)}
+                      className={cn(
+                        'px-3 py-1.5 text-sm font-medium transition-colors',
+                        periodMode === value
+                          ? 'bg-[color:var(--bb-color-accent)] text-white'
+                          : 'bg-[color:var(--bb-color-bg-body)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]'
+                      )}
+                    >
+                      {key.charAt(0) + key.slice(1).toLowerCase()}
+                    </button>
+                  ))}
+                </div>
 
-            {/* Today Button */}
-            <Button variant="outline" size="sm" onClick={goToToday} className="h-8">
-              Today
-            </Button>
+                {/* Today Button */}
+                <Button variant="outline" size="sm" onClick={goToToday} className="h-8">
+                  Today
+                </Button>
 
-            {/* Date Navigation */}
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={() => navigatePeriod(-1)} className="px-2 h-8">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] min-w-[180px] text-center">
-                {dateRangeDisplay}
+                {/* Date Navigation */}
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => navigatePeriod(-1)} className="px-2 h-8">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] min-w-[180px] text-center">
+                    {dateRangeDisplay}
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => navigatePeriod(1)} className="px-2 h-8">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </>
+            ) : (
+              /* List view: Just show "Today" label */
+              <span className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
+                Today – {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </span>
-              <Button variant="ghost" size="sm" onClick={() => navigatePeriod(1)} className="px-2 h-8">
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            )}
 
             {/* Service Filter */}
             <div className="min-w-[150px]">
@@ -1385,6 +1406,7 @@ const ListView = ({
     { id: 'run', label: 'Run', sortable: false },
     { id: 'service', label: 'Service', sortable: true, sortKey: 'serviceName' },
     { id: 'dates', label: 'Check In / Out', sortable: true, sortKey: 'checkInDate' },
+    { id: 'today', label: 'Today', sortable: false },
     { id: 'duration', label: 'Duration', sortable: false },
     { id: 'status', label: 'Status', sortable: true, sortKey: 'displayStatus' },
     { id: 'actions', label: '', sortable: false, width: 80 },
@@ -1543,6 +1565,17 @@ const BookingRow = ({ booking, isSelected, onSelect, onClick, isEven }) => {
     ? Math.ceil((booking.checkOutDate - booking.checkInDate) / (1000 * 60 * 60 * 24))
     : 0;
 
+  // Check if today is check-in or check-out day
+  const today = new Date();
+  const isCheckInToday = booking.checkInDate &&
+    booking.checkInDate.getFullYear() === today.getFullYear() &&
+    booking.checkInDate.getMonth() === today.getMonth() &&
+    booking.checkInDate.getDate() === today.getDate();
+  const isCheckOutToday = booking.checkOutDate &&
+    booking.checkOutDate.getFullYear() === today.getFullYear() &&
+    booking.checkOutDate.getMonth() === today.getMonth() &&
+    booking.checkOutDate.getDate() === today.getDate();
+
   // Get all status badges to display (from the statuses array)
   const statusBadges = (booking.statuses || [booking.displayStatus]).map(status =>
     STATUS_CONFIG[status] || STATUS_CONFIG.PENDING
@@ -1603,6 +1636,13 @@ const BookingRow = ({ booking, isSelected, onSelect, onClick, isEven }) => {
           {booking.checkInDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           {' → '}
           {booking.checkOutDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+        </div>
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-1">
+          {isCheckInToday && <Badge variant="success" size="sm">Check In</Badge>}
+          {isCheckOutToday && <Badge variant="warning" size="sm">Check Out</Badge>}
+          {!isCheckInToday && !isCheckOutToday && <span className="text-[color:var(--bb-color-text-muted)]">—</span>}
         </div>
       </td>
       <td className="px-4 py-3 text-[color:var(--bb-color-text-muted)]">
