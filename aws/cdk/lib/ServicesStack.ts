@@ -18,6 +18,8 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as dotenv from 'dotenv';
@@ -45,6 +47,14 @@ export class ServicesStack extends cdk.Stack {
   public readonly configServiceFunction: lambda.IFunction;
   public readonly financialServiceFunction: lambda.IFunction;
   public readonly reminderServiceFunction: lambda.IFunction;
+
+  // Workflow Execution Engine
+  public readonly workflowTriggerQueue: sqs.IQueue;
+  public readonly workflowStepQueue: sqs.IQueue;
+  public readonly workflowTriggerProcessorFunction: lambda.IFunction;
+  public readonly workflowStepExecutorFunction: lambda.IFunction;
+  public readonly workflowSchedulerFunction: lambda.IFunction;
+  public readonly workflowSchedulerRole: iam.IRole;
 
   constructor(scope: Construct, id: string, props: ServicesStackProps) {
     super(scope, id, props);
@@ -80,6 +90,54 @@ export class ServicesStack extends cdk.Stack {
     });
 
     // =========================================================================
+    // Workflow Execution Engine - SQS Queues
+    // =========================================================================
+
+    // Dead Letter Queue for workflow triggers
+    const workflowTriggerDlq = new sqs.Queue(this, 'WorkflowTriggerDLQ', {
+      queueName: `${config.stackPrefix}-workflow-triggers-dlq`,
+      retentionPeriod: cdk.Duration.days(14),
+    });
+
+    // Dead Letter Queue for workflow steps
+    const workflowStepDlq = new sqs.Queue(this, 'WorkflowStepDLQ', {
+      queueName: `${config.stackPrefix}-workflow-steps-dlq`,
+      retentionPeriod: cdk.Duration.days(14),
+    });
+
+    // Workflow trigger queue - receives domain events (booking.created, pet.updated, etc.)
+    this.workflowTriggerQueue = new sqs.Queue(this, 'WorkflowTriggerQueue', {
+      queueName: `${config.stackPrefix}-workflow-triggers`,
+      visibilityTimeout: cdk.Duration.seconds(60),
+      retentionPeriod: cdk.Duration.days(14),
+      deadLetterQueue: {
+        queue: workflowTriggerDlq,
+        maxReceiveCount: 3, // Retry 3 times before sending to DLQ
+      },
+    });
+
+    // Workflow step queue - processes individual workflow steps
+    this.workflowStepQueue = new sqs.Queue(this, 'WorkflowStepQueue', {
+      queueName: `${config.stackPrefix}-workflow-steps`,
+      visibilityTimeout: cdk.Duration.seconds(300), // 5 min for step processing
+      retentionPeriod: cdk.Duration.days(14),
+      deadLetterQueue: {
+        queue: workflowStepDlq,
+        maxReceiveCount: 3,
+      },
+    });
+
+    // EventBridge Scheduler role for delayed step execution
+    this.workflowSchedulerRole = new iam.Role(this, 'WorkflowSchedulerRole', {
+      roleName: `${config.stackPrefix}-workflow-scheduler-role`,
+      assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com'),
+      description: 'Role for EventBridge Scheduler to send messages to SQS for delayed workflow steps',
+    });
+
+    // Grant scheduler role permission to send messages to step queue
+    this.workflowStepQueue.grantSendMessages(this.workflowSchedulerRole);
+
+    // =========================================================================
     // IAM Role for Lambda Functions
     // =========================================================================
 
@@ -106,6 +164,10 @@ export class ServicesStack extends cdk.Stack {
       ],
       resources: ['*'], // SES doesn't support resource-level permissions well
     }));
+
+    // Grant SQS permissions for workflow event publishing
+    this.workflowTriggerQueue.grantSendMessages(lambdaRole);
+    this.workflowStepQueue.grantSendMessages(lambdaRole);
 
     // =========================================================================
     // Environment Variables
@@ -138,6 +200,11 @@ export class ServicesStack extends cdk.Stack {
       COGNITO_JWKS_URL: jwksUrl,
       COGNITO_ISSUER_URL: `https://cognito-idp.${config.region}.amazonaws.com/${userPoolId}`,
       DATABASE_URL: envConfig.DATABASE_URL,
+      // Workflow execution engine queue URLs
+      WORKFLOW_TRIGGER_QUEUE_URL: this.workflowTriggerQueue.queueUrl,
+      WORKFLOW_STEP_QUEUE_URL: this.workflowStepQueue.queueUrl,
+      WORKFLOW_STEP_QUEUE_ARN: this.workflowStepQueue.queueArn,
+      WORKFLOW_SCHEDULER_ROLE_ARN: this.workflowSchedulerRole.roleArn,
     };
 
     // Common Lambda configuration
@@ -326,6 +393,31 @@ export class ServicesStack extends cdk.Stack {
       value: this.reminderServiceFunction.functionArn,
       description: 'Reminder Service Lambda ARN',
       exportName: `${config.stackPrefix}-reminder-service-arn`,
+    });
+
+    // Workflow Queue Outputs
+    new cdk.CfnOutput(this, 'WorkflowTriggerQueueUrl', {
+      value: this.workflowTriggerQueue.queueUrl,
+      description: 'Workflow Trigger Queue URL',
+      exportName: `${config.stackPrefix}-workflow-trigger-queue-url`,
+    });
+
+    new cdk.CfnOutput(this, 'WorkflowTriggerQueueArn', {
+      value: this.workflowTriggerQueue.queueArn,
+      description: 'Workflow Trigger Queue ARN',
+      exportName: `${config.stackPrefix}-workflow-trigger-queue-arn`,
+    });
+
+    new cdk.CfnOutput(this, 'WorkflowStepQueueUrl', {
+      value: this.workflowStepQueue.queueUrl,
+      description: 'Workflow Step Queue URL',
+      exportName: `${config.stackPrefix}-workflow-step-queue-url`,
+    });
+
+    new cdk.CfnOutput(this, 'WorkflowStepQueueArn', {
+      value: this.workflowStepQueue.queueArn,
+      description: 'Workflow Step Queue ARN',
+      exportName: `${config.stackPrefix}-workflow-step-queue-arn`,
     });
   }
 }
