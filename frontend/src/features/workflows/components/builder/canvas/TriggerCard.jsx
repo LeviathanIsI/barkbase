@@ -11,12 +11,12 @@ import {
   CONDITION_OPERATORS,
 } from '../../../constants';
 
-// Get property label by name from OBJECT_PROPERTIES
-function getPropertyLabel(objectType, propertyName) {
+// Get property definition by name from OBJECT_PROPERTIES
+function getPropertyDefinition(objectType, propertyName) {
   const properties = OBJECT_PROPERTIES[objectType] || [];
-  const prop = properties.find((p) => p.name === propertyName);
-  return prop?.label || propertyName?.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return properties.find((p) => p.name === propertyName);
 }
+
 
 // Get operator label from CONDITION_OPERATORS
 function getOperatorLabel(operator, propertyType = 'text') {
@@ -35,11 +35,30 @@ function getEventLabel(eventType) {
   return eventType?.replace(/\./g, ' ').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// Format condition value for display
-function formatConditionValue(value) {
+// Format condition value for display - looks up labels from property options
+function formatConditionValue(value, property) {
   if (value === null || value === undefined || value === '') return '';
   if (typeof value === 'boolean') return value ? 'True' : 'False';
-  if (Array.isArray(value)) return value.join(', ');
+
+  // Look up label from property options for enum/select fields
+  if (property?.options && typeof value === 'string') {
+    const option = property.options.find((opt) => opt.value === value);
+    if (option) return option.label;
+  }
+
+  // Handle array values - look up labels for each item
+  if (Array.isArray(value)) {
+    if (property?.options) {
+      return value
+        .map((v) => {
+          const option = property.options.find((opt) => opt.value === v);
+          return option?.label || v;
+        })
+        .join(', ');
+    }
+    return value.join(', ');
+  }
+
   if (typeof value === 'object') {
     if (value.type === 'relative') {
       return `${value.amount} ${value.unit} ${value.direction}`;
@@ -52,9 +71,10 @@ function formatConditionValue(value) {
 
 // Render a single condition row
 function ConditionRow({ condition, objectType }) {
-  const propertyLabel = getPropertyLabel(objectType, condition.field);
-  const operatorLabel = getOperatorLabel(condition.operator);
-  const value = formatConditionValue(condition.value);
+  const property = getPropertyDefinition(objectType, condition.field);
+  const propertyLabel = property?.label || condition.field?.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  const operatorLabel = getOperatorLabel(condition.operator, property?.type);
+  const value = formatConditionValue(condition.value, property);
   const noValueOperators = ['is_known', 'is_unknown', 'is_true', 'is_false'];
   const showValue = !noValueOperators.includes(condition.operator) && value;
 
@@ -117,10 +137,11 @@ function FilterCriteriaSummary({ filterConfig, objectType, objectLabel }) {
 function PropertyChangedSummary({ filterConfig, objectType }) {
   const propertyName = filterConfig?.propertyName;
   const changeType = filterConfig?.changeType;
-  const fromValue = formatConditionValue(filterConfig?.fromValue);
-  const toValue = formatConditionValue(filterConfig?.toValue);
   const propObjectType = filterConfig?.objectType || objectType;
-  const propertyLabel = getPropertyLabel(propObjectType, propertyName);
+  const property = getPropertyDefinition(propObjectType, propertyName);
+  const propertyLabel = property?.label || propertyName?.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  const fromValue = formatConditionValue(filterConfig?.fromValue, property);
+  const toValue = formatConditionValue(filterConfig?.toValue, property);
 
   return (
     <div>
