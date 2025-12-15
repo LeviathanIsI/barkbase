@@ -428,6 +428,44 @@ Properties available for filtering, triggers, and display.
 
 ---
 
+## Object Associations for Filtering
+
+When building filter criteria, users can switch context to filter on associated object properties.
+
+### Pet Associations
+- **Owner** (belongs_to) - Filter on owner properties
+- **Vaccination** (has_many) - Filter on vaccination properties
+
+### Owner Associations
+- **Pet** (has_many) - Filter on pet properties
+- **Booking** (has_many) - Filter on booking properties
+- **Invoice** (has_many) - Filter on invoice properties
+- **Payment** (has_many) - Filter on payment properties
+
+### Booking Associations
+- **Owner** (belongs_to) - Filter on owner properties
+- **Pet** (has_many) - Filter on pet properties (via BookingPet junction)
+- **Service** (belongs_to) - Filter on service properties
+- **Kennel** (belongs_to) - Filter on kennel properties
+- **Invoice** (has_one) - Filter on invoice properties
+- **Task** (has_many) - Filter on task properties
+
+### Invoice Associations
+- **Owner** (belongs_to) - Filter on owner properties
+- **Booking** (belongs_to) - Filter on booking properties
+- **Payment** (has_many) - Filter on payment properties
+
+### Payment Associations
+- **Owner** (belongs_to) - Filter on owner properties
+- **Invoice** (belongs_to) - Filter on invoice properties
+
+### Task Associations
+- **Pet** (belongs_to) - Filter on pet properties
+- **Booking** (belongs_to) - Filter on booking properties
+- **Staff/Assigned To** (belongs_to) - Filter on staff properties
+
+---
+
 ## Status Values and Enums
 
 ### Booking Status
@@ -798,6 +836,10 @@ Use these tokens in SMS/Email templates. They will be replaced with actual value
 - `is_unknown` - is unknown
 - `has_ever_been_any` - has ever been any of
 - `has_never_been_any` - has never been any of
+
+### Image Fields
+- `is_known` - is known (has image)
+- `is_unknown` - is unknown (no image)
 
 ---
 

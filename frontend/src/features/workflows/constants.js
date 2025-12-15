@@ -76,6 +76,43 @@ export const OBJECT_TYPE_CONFIG = {
   },
 };
 
+// Object associations - what associated objects can be filtered on
+// Based on foreign key relationships in the database
+export const OBJECT_ASSOCIATIONS = {
+  pet: [
+    { objectType: 'owner', label: 'Owner', relationship: 'belongs_to' },
+    { objectType: 'vaccination', label: 'Vaccination', relationship: 'has_many' },
+  ],
+  owner: [
+    { objectType: 'pet', label: 'Pet', relationship: 'has_many' },
+    { objectType: 'booking', label: 'Booking', relationship: 'has_many' },
+    { objectType: 'invoice', label: 'Invoice', relationship: 'has_many' },
+    { objectType: 'payment', label: 'Payment', relationship: 'has_many' },
+  ],
+  booking: [
+    { objectType: 'owner', label: 'Owner', relationship: 'belongs_to' },
+    { objectType: 'pet', label: 'Pet', relationship: 'has_many' }, // via BookingPet junction
+    { objectType: 'service', label: 'Service', relationship: 'belongs_to' },
+    { objectType: 'kennel', label: 'Kennel', relationship: 'belongs_to' },
+    { objectType: 'invoice', label: 'Invoice', relationship: 'has_one' },
+    { objectType: 'task', label: 'Task', relationship: 'has_many' },
+  ],
+  invoice: [
+    { objectType: 'owner', label: 'Owner', relationship: 'belongs_to' },
+    { objectType: 'booking', label: 'Booking', relationship: 'belongs_to' },
+    { objectType: 'payment', label: 'Payment', relationship: 'has_many' },
+  ],
+  payment: [
+    { objectType: 'owner', label: 'Owner', relationship: 'belongs_to' },
+    { objectType: 'invoice', label: 'Invoice', relationship: 'belongs_to' },
+  ],
+  task: [
+    { objectType: 'pet', label: 'Pet', relationship: 'belongs_to' },
+    { objectType: 'booking', label: 'Booking', relationship: 'belongs_to' },
+    { objectType: 'staff', label: 'Assigned To', relationship: 'belongs_to' },
+  ],
+};
+
 // Entry condition trigger types
 export const TRIGGER_TYPES = {
   MANUAL: 'manual',
@@ -486,6 +523,10 @@ export const CONDITION_OPERATORS = {
     { value: 'is_unknown', label: 'is unknown' },
     { value: 'has_ever_been_any', label: 'has ever been any of' },
     { value: 'has_never_been_any', label: 'has never been any of' },
+  ],
+  IMAGE: [
+    { value: 'is_known', label: 'is known' },
+    { value: 'is_unknown', label: 'is unknown' },
   ],
 };
 
