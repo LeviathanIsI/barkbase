@@ -12,10 +12,13 @@ import Button from '@/components/ui/Button';
 import LoadingState from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Modal from '@/components/ui/Modal';
 
 import {
   useWorkflows,
   useWorkflowStats,
+  useWorkflowTemplates,
+  useCreateFromTemplate,
   useActivateWorkflow,
   usePauseWorkflow,
   useCloneWorkflow,
@@ -36,6 +39,7 @@ export default function Workflows() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   // Queries
   const { data: workflowsData, isLoading: isLoadingWorkflows } = useWorkflows({
@@ -46,8 +50,10 @@ export default function Workflows() {
   });
 
   const { data: statsData } = useWorkflowStats();
+  const { data: templatesData } = useWorkflowTemplates();
 
   // Mutations
+  const createFromTemplateMutation = useCreateFromTemplate();
   const activateMutation = useActivateWorkflow();
   const pauseMutation = usePauseWorkflow();
   const cloneMutation = useCloneWorkflow();
@@ -65,6 +71,7 @@ export default function Workflows() {
     paused: stats.paused || 0,
     draft: stats.draft || 0,
   };
+  const templates = templatesData?.data?.templates || [];
 
   // Handlers
   const handleActivate = async (workflowId) => {
@@ -118,6 +125,22 @@ export default function Workflows() {
   const handleSearchChange = (query) => {
     setSearchQuery(query);
     setCurrentPage(1);
+  };
+
+  const handleCreateFromTemplate = async (templateId) => {
+    try {
+      const result = await createFromTemplateMutation.mutateAsync({
+        templateId,
+        data: {},
+      });
+      setShowTemplateModal(false);
+      toast.success('Workflow created from template');
+      if (result?.data?.workflow?.id) {
+        navigate(`/workflows/${result.data.workflow.id}`);
+      }
+    } catch {
+      toast.error('Failed to create workflow from template');
+    }
   };
 
   // Loading state
@@ -218,7 +241,40 @@ export default function Workflows() {
         isLoading={deleteMutation.isPending}
       />
 
-      {/* TODO: Template modal for "From template" option */}
+      {/* Template selection modal */}
+      <Modal
+        isOpen={showTemplateModal}
+        onClose={() => setShowTemplateModal(false)}
+        title="Create from template"
+      >
+        <div className="p-4">
+          {templates.length === 0 ? (
+            <p className="text-[var(--bb-color-text-secondary)] text-center py-8">
+              No templates available
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {templates.map((template) => (
+                <button
+                  key={template.id}
+                  onClick={() => handleCreateFromTemplate(template.id)}
+                  disabled={createFromTemplateMutation.isPending}
+                  className="w-full p-4 text-left rounded-lg border border-[var(--bb-color-border-subtle)] hover:border-[var(--bb-color-accent)] hover:bg-[var(--bb-color-bg-surface)] transition-colors"
+                >
+                  <div className="font-medium text-[var(--bb-color-text-primary)]">
+                    {template.name}
+                  </div>
+                  {template.description && (
+                    <div className="text-sm text-[var(--bb-color-text-secondary)] mt-1">
+                      {template.description}
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }
