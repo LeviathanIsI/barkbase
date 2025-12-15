@@ -54,13 +54,9 @@ const CATEGORY_ICONS = {
 
 export default function BuilderLeftPanel({ onAddStep }) {
   const {
-    workflow,
     panelMode,
-    selectedStepId,
     setEntryCondition,
     setObjectType,
-    selectStep,
-    openTriggerConfigPanel,
   } = useWorkflowBuilderStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,14 +73,12 @@ export default function BuilderLeftPanel({ onAddStep }) {
   if (panelMode === 'trigger') {
     return (
       <TriggerSelectionPanel
-        workflow={workflow}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         expandedCategories={expandedCategories}
         toggleCategory={toggleCategory}
         setEntryCondition={setEntryCondition}
         setObjectType={setObjectType}
-        openTriggerConfigPanel={openTriggerConfigPanel}
       />
     );
   }
@@ -147,16 +141,45 @@ function ProgressStepper({ currentStep }) {
   );
 }
 
+// Map event categories to their object types
+const EVENT_TO_OBJECT_TYPE = {
+  // Data values events
+  'property.changed': null, // depends on context
+  // Scheduling events
+  'booking.created': 'booking',
+  'booking.updated': 'booking',
+  'booking.confirmed': 'booking',
+  'booking.cancelled': 'booking',
+  'booking.checked_in': 'booking',
+  'booking.checked_out': 'booking',
+  // Pet health events
+  'pet.vaccination_expiring': 'pet',
+  'pet.vaccination_expired': 'pet',
+  'pet.birthday': 'pet',
+  'pet.created': 'pet',
+  'pet.updated': 'pet',
+  // Owner events
+  'owner.created': 'owner',
+  'owner.updated': 'owner',
+  // Payment events
+  'payment.completed': 'payment',
+  'payment.failed': 'payment',
+  'invoice.created': 'invoice',
+  'invoice.overdue': 'invoice',
+  // Task events
+  'task.created': 'task',
+  'task.completed': 'task',
+  'task.overdue': 'task',
+};
+
 // Trigger selection panel component
 function TriggerSelectionPanel({
-  workflow,
   searchQuery,
   setSearchQuery,
   expandedCategories,
   toggleCategory,
   setEntryCondition,
   setObjectType,
-  openTriggerConfigPanel,
 }) {
   // Internal state for the multi-step flow
   const [flowStep, setFlowStep] = useState('triggers'); // triggers, records, settings
@@ -191,27 +214,64 @@ function TriggerSelectionPanel({
     setSelectedObjectType(objectType);
   };
 
-  // Handle save and continue from object selection
+  // Handle save and continue from object selection (manual or filter_criteria)
   const handleSaveObjectSelection = () => {
     if (!selectedObjectType) return;
 
+    // Set the object type
     setObjectType(selectedObjectType);
-    // Open the TriggerConfigPanel after selecting object type
-    openTriggerConfigPanel();
+
+    // Set the entry condition based on trigger type
+    setEntryCondition({
+      triggerType: selectedTriggerType, // 'manual' or 'filter_criteria'
+      eventType: null,
+      filterConfig: selectedTriggerType === 'filter_criteria'
+        ? { logic: 'and', conditions: [] }
+        : null,
+      scheduleConfig: null,
+    });
+
+    // Panel mode automatically switches to 'actions' via setEntryCondition
   };
 
   // Handle save schedule config
   const handleSaveScheduleConfig = () => {
+    // Set the object type from schedule config
     setObjectType(scheduleConfig.objectType);
-    // Open the TriggerConfigPanel after configuring schedule
-    openTriggerConfigPanel();
+
+    // Set the entry condition with schedule config
+    setEntryCondition({
+      triggerType: 'schedule',
+      eventType: null,
+      filterConfig: null,
+      scheduleConfig: {
+        frequency: scheduleConfig.frequency,
+        date: scheduleConfig.date,
+        time: scheduleConfig.time,
+        timezone: scheduleConfig.timezone,
+      },
+    });
+
+    // Panel mode automatically switches to 'actions' via setEntryCondition
   };
 
   // Handle event selection (from event categories)
   const handleEventSelect = (categoryKey, event) => {
-    // Open the TriggerConfigPanel instead of setting entry condition directly
-    // The user can configure the trigger in the panel
-    openTriggerConfigPanel();
+    // Determine object type from the event
+    const objectType = EVENT_TO_OBJECT_TYPE[event.value] || 'pet';
+
+    // Set the object type
+    setObjectType(objectType);
+
+    // Set the entry condition with the event
+    setEntryCondition({
+      triggerType: 'event',
+      eventType: event.value,
+      filterConfig: null,
+      scheduleConfig: null,
+    });
+
+    // Panel mode automatically switches to 'actions' via setEntryCondition
   };
 
   // Handle back button
