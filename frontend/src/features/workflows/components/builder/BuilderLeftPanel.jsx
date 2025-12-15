@@ -175,8 +175,15 @@ function TriggerSelectionPanel({
 
   // Handle trigger type selection
   const handleTriggerTypeSelect = (triggerType) => {
-    // Open the TriggerConfigPanel for all trigger types
-    openTriggerConfigPanel();
+    setSelectedTriggerType(triggerType);
+
+    if (triggerType === 'schedule') {
+      // For schedule, go directly to settings with embedded object type
+      setFlowStep('settings');
+    } else {
+      // For manual and filter, go to object selection first
+      setFlowStep('records');
+    }
   };
 
   // Handle object type selection for manual/filter
@@ -189,28 +196,15 @@ function TriggerSelectionPanel({
     if (!selectedObjectType) return;
 
     setObjectType(selectedObjectType);
-    setEntryCondition({
-      triggerType: selectedTriggerType,
-      eventType: null,
-      filterConfig: selectedTriggerType === 'filter_criteria' ? { conditions: [] } : null,
-      scheduleConfig: null,
-    });
+    // Open the TriggerConfigPanel after selecting object type
+    openTriggerConfigPanel();
   };
 
   // Handle save schedule config
   const handleSaveScheduleConfig = () => {
     setObjectType(scheduleConfig.objectType);
-    setEntryCondition({
-      triggerType: 'schedule',
-      eventType: null,
-      filterConfig: null,
-      scheduleConfig: {
-        frequency: scheduleConfig.frequency,
-        date: scheduleConfig.date,
-        time: scheduleConfig.time,
-        timezone: scheduleConfig.timezone,
-      },
-    });
+    // Open the TriggerConfigPanel after configuring schedule
+    openTriggerConfigPanel();
   };
 
   // Handle event selection (from event categories)
