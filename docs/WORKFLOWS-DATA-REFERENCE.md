@@ -729,46 +729,75 @@ Use these tokens in SMS/Email templates. They will be replaced with actual value
 
 ## Condition Operators by Field Type
 
+### Number Fields
+- `equals` - is equal to
+- `not_equals` - is not equal to
+- `less_than` - is less than
+- `less_or_equal` - is less than or equal to
+- `greater_than` - is greater than
+- `greater_or_equal` - is greater than or equal to
+- `between` - is between
+- `not_between` - is not between
+- `is_known` - is known (has any value)
+- `is_unknown` - is unknown (is empty/null)
+- `has_ever_been` - has ever been equal to
+- `has_never_been` - has never been equal to
+- `updated_in_last` - updated in last (X days/weeks/months)
+- `not_updated_in_last` - not updated in last
+- `updated_after_property` - was updated after property
+- `updated_before_property` - was updated before property
+
+### Date Fields
+- `is` - is (exact date)
+- `equals` - is equal to
+- `before` - is before
+- `after` - is after
+- `between` - is between
+- `not_between` - is not between
+- `less_than_ago` - is less than (X days/weeks/months ago)
+- `more_than_ago` - is more than (X days/weeks/months ago)
+- `is_known` - is known
+- `is_unknown` - is unknown
+- `after_property` - is after another property
+- `before_property` - is before another property
+- `updated_in_last` - updated in last
+- `not_updated_in_last` - not updated in last
+- `updated_after_property` - was updated after property
+- `updated_before_property` - was updated before property
+
 ### Text Fields
-- `equals` - Exact match
-- `not_equals` - Not exact match
-- `contains` - Contains substring
-- `not_contains` - Does not contain
-- `starts_with` - Starts with
-- `ends_with` - Ends with
-- `is_empty` - Field is empty/null
-- `is_not_empty` - Field has value
-
-### Number/Currency Fields
-- `equals` - Equal to
-- `not_equals` - Not equal to
-- `greater_than` - Greater than
-- `less_than` - Less than
-- `greater_or_equal` - Greater than or equal
-- `less_or_equal` - Less than or equal
-- `between` - Between two values
-- `is_empty` - Field is empty/null
-- `is_not_empty` - Field has value
-
-### Date/DateTime Fields
-- `equals` - Exact date
-- `before` - Before date
-- `after` - After date
-- `between` - Between two dates
-- `in_last` - In the last X days/weeks/months
-- `in_next` - In the next X days/weeks/months
-- `is_empty` - Field is empty/null
-- `is_not_empty` - Field has value
+- `equals_any` - is equal to any of
+- `not_equals_any` - is not equal to any of
+- `contains` - contains exactly
+- `not_contains` - doesn't contain exactly
+- `contains_any` - contains any of
+- `not_contains_any` - doesn't contain any of
+- `starts_with_any` - starts with any of
+- `ends_with_any` - ends with any of
+- `is_known` - is known
+- `is_unknown` - is unknown
+- `has_ever_been_any` - has ever been equal to any of
+- `has_never_been_any` - has never been equal to any of
+- `has_ever_contained` - has ever contained exactly
+- `has_never_contained` - has never contained exactly
+- `updated_in_last` - updated in last
+- `not_updated_in_last` - not updated in last
+- `updated_after_property` - was updated after property
+- `updated_before_property` - was updated before property
 
 ### Boolean Fields
-- `is_true` - Is true/yes
-- `is_false` - Is false/no
+- `is_true` - is true
+- `is_false` - is false
+- `is_known` - is known
+- `is_unknown` - is unknown
 
 ### Enum/Select Fields
-- `equals` - Is any of (multi-select)
-- `not_equals` - Is none of
-- `is_empty` - Field is empty/null
-- `is_not_empty` - Field has value
+- `is_any` - is any of
+- `is_none` - is none of
+- `is_known` - is known
+- `is_unknown` - is unknown
+- `has_ever_been_any` - has ever been any of
+- `has_never_been_any` - has never been any of
 
 ---
 
