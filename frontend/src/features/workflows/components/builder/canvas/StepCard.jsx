@@ -20,15 +20,12 @@ import {
   Zap,
   Trash2,
   MoreHorizontal,
+  AlertCircle,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/cn';
-import {
-  STEP_TYPES,
-  DAYS_OF_WEEK_FULL,
-  OBJECT_PROPERTIES,
-  WAIT_EVENTS_BY_OBJECT_TYPE,
-} from '../../../constants';
+import { STEP_TYPES } from '../../../constants';
+import { formatStepSummary } from '../../../utils/stepSummary';
 
 // Icon mapping for action types
 const ACTION_ICONS = {
@@ -61,105 +58,8 @@ const STEP_COLORS = {
   terminus: '#6B7280',
 };
 
-// Helper: format time to 12h format
-function formatTime(time) {
-  if (!time) return '';
-  const [hours, minutes] = time.split(':').map(Number);
-  const period = hours >= 12 ? 'PM' : 'AM';
-  const hour12 = hours % 12 || 12;
-  return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
-}
-
-// Helper: format date for display
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-  const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-// Helper: get day name
-function getDayName(dayValue) {
-  const day = DAYS_OF_WEEK_FULL.find((d) => d.value === dayValue);
-  return day?.label || dayValue;
-}
-
-// Helper: get property label
-function getPropertyLabel(objectType, propertyName) {
-  const properties = OBJECT_PROPERTIES[objectType] || [];
-  const prop = properties.find((p) => p.name === propertyName);
-  return prop?.label || propertyName;
-}
-
-// Helper: get event label
-function getEventLabel(objectType, eventType) {
-  const events = WAIT_EVENTS_BY_OBJECT_TYPE[objectType] || [];
-  const event = events.find((e) => e.value === eventType);
-  return event?.label || eventType;
-}
-
-// Format wait config for display
-function formatWaitSummary(config, objectType) {
-  const { waitType } = config;
-
-  switch (waitType) {
-    case 'duration': {
-      const { duration, durationUnit } = config;
-      if (duration && durationUnit) {
-        return `Wait ${duration} ${durationUnit}`;
-      }
-      return 'Configure duration';
-    }
-
-    case 'calendar_date': {
-      const { date, time } = config;
-      if (date) {
-        const timeStr = time ? ` at ${formatTime(time)}` : '';
-        return `Wait until ${formatDate(date)}${timeStr}`;
-      }
-      return 'Configure date';
-    }
-
-    case 'date_property': {
-      const { property, timing, offsetAmount, offsetUnit } = config;
-      if (property) {
-        const propLabel = getPropertyLabel(objectType, property);
-        if (timing === 'before') {
-          return `Wait until ${offsetAmount || 1} ${offsetUnit || 'days'} before ${propLabel}`;
-        } else if (timing === 'after') {
-          return `Wait until ${offsetAmount || 1} ${offsetUnit || 'days'} after ${propLabel}`;
-        }
-        return `Wait until ${propLabel}`;
-      }
-      return 'Configure date property';
-    }
-
-    case 'day_of_week': {
-      const { day, time } = config;
-      if (day) {
-        const timeStr = time ? ` at ${formatTime(time)}` : '';
-        return `Wait until ${getDayName(day)}${timeStr}`;
-      }
-      return 'Configure day';
-    }
-
-    case 'event': {
-      const { eventType, maxWaitAmount, maxWaitUnit } = config;
-      if (eventType) {
-        const eventLabel = getEventLabel(objectType, eventType);
-        const maxStr = maxWaitAmount ? ` (max ${maxWaitAmount} ${maxWaitUnit || 'days'})` : '';
-        return `Wait until ${eventLabel}${maxStr}`;
-      }
-      return 'Configure event';
-    }
-
-    default:
-      return 'Configure wait';
-  }
-}
+// Warning color for incomplete steps
+const WARNING_COLOR = '#F59E0B';
 
 export default function StepCard({
   step,
@@ -167,6 +67,7 @@ export default function StepCard({
   onClick,
   onDelete,
   objectType = 'pet',
+  lookups = {},
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
@@ -185,40 +86,30 @@ export default function StepCard({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMenu]);
 
+  // Get configuration summary using utility
+  const { summary, incomplete } = formatStepSummary(step, objectType, lookups);
+
   // Get icon component
   const Icon = step.actionType
     ? ACTION_ICONS[step.actionType] || Zap
     : STEP_ICONS[step.stepType] || Zap;
 
-  // Get step color
-  const color = step.stepType === STEP_TYPES.ACTION
-    ? STEP_COLORS.action
-    : STEP_COLORS[step.stepType] || STEP_COLORS.action;
+  // Get step color (yellow if incomplete)
+  const color = incomplete
+    ? WARNING_COLOR
+    : step.stepType === STEP_TYPES.ACTION
+      ? STEP_COLORS.action
+      : STEP_COLORS[step.stepType] || STEP_COLORS.action;
 
-  // Get configuration summary
-  const getConfigSummary = () => {
-    if (step.stepType === STEP_TYPES.WAIT) {
-      return formatWaitSummary(step.config || {}, objectType);
+  // Get border color based on state
+  const getBorderClass = () => {
+    if (isSelected) {
+      return 'border-[var(--bb-color-accent)] shadow-lg';
     }
-
-    if (step.stepType === STEP_TYPES.DETERMINATOR) {
-      const { conditions } = step.config || {};
-      if (conditions?.length > 0) {
-        return `${conditions.length} condition${conditions.length > 1 ? 's' : ''}`;
-      }
-      return 'Configure conditions';
+    if (incomplete) {
+      return 'border-[#F59E0B] hover:border-[#D97706]';
     }
-
-    if (step.stepType === STEP_TYPES.GATE) {
-      return 'Gate condition';
-    }
-
-    if (step.stepType === STEP_TYPES.TERMINUS) {
-      return 'End of workflow';
-    }
-
-    // Action steps
-    return step.name || 'Configure action';
+    return 'border-[var(--bb-color-border-subtle)] hover:border-[var(--bb-color-border-strong)]';
   };
 
   // Terminus step has different styling
@@ -250,29 +141,35 @@ export default function StepCard({
         "w-72 rounded-lg cursor-pointer group",
         "bg-[var(--bb-color-bg-elevated)] border-2",
         "transition-all duration-150",
-        isSelected
-          ? "border-[var(--bb-color-accent)] shadow-lg"
-          : "border-[var(--bb-color-border-subtle)] hover:border-[var(--bb-color-border-strong)]"
+        getBorderClass()
       )}
     >
       {/* Header */}
       <div className="px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <div
-            className="w-6 h-6 rounded flex items-center justify-center"
+            className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: `${color}20` }}
           >
             <Icon size={14} style={{ color }} />
           </div>
-          <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">
+          <span className="text-sm font-medium text-[var(--bb-color-text-primary)] truncate">
             {step.name}
           </span>
+          {/* Warning icon for incomplete steps */}
+          {incomplete && (
+            <AlertCircle
+              size={14}
+              className="flex-shrink-0"
+              style={{ color: WARNING_COLOR }}
+            />
+          )}
         </div>
 
         {/* Actions menu */}
         <div
           ref={menuRef}
-          className="relative"
+          className="relative flex-shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
           <button
@@ -327,10 +224,17 @@ export default function StepCard({
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content - configuration summary */}
       <div className="px-4 pb-3">
-        <div className="text-xs text-[var(--bb-color-text-tertiary)]">
-          {getConfigSummary()}
+        <div
+          className={cn(
+            "text-xs",
+            incomplete
+              ? "text-[#F59E0B]"
+              : "text-[var(--bb-color-text-tertiary)]"
+          )}
+        >
+          {summary}
         </div>
       </div>
     </div>
