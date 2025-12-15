@@ -451,13 +451,7 @@ export const ACTION_CATEGORIES = {
         description: 'Continue or stop',
         icon: 'shield',
       },
-      {
-        type: 'terminus',
-        stepType: 'terminus',
-        label: 'End workflow',
-        description: 'End this branch',
-        icon: 'square',
-      },
+      // Note: "End workflow" is automatically rendered on the canvas, not manually added
     ],
   },
   external: {

@@ -47,8 +47,9 @@ export const useWorkflowBuilderStore = create((set, get) => ({
 
   // UI state
   selectedStepId: null, // 'trigger' for trigger config, step ID for step config
-  panelMode: 'trigger', // 'trigger' | 'actions' | 'config'
-  showTriggerConfigPanel: false, // Whether the trigger config panel is visible
+  panelMode: 'trigger', // 'trigger' | 'trigger_config' | 'actions' | 'config' | null
+  pendingTriggerType: null, // Trigger type being configured before saving
+  pendingStepContext: null, // { afterStepId, branchPath } for where to insert new step
   isDirty: false,
   isSaving: false,
   isInitialized: false,
@@ -64,7 +65,8 @@ export const useWorkflowBuilderStore = create((set, get) => ({
       steps: [],
       selectedStepId: 'trigger',
       panelMode: 'trigger',
-      showTriggerConfigPanel: false,
+      pendingTriggerType: null,
+      pendingStepContext: null,
       isDirty: false,
       isSaving: false,
       isInitialized: true,
@@ -105,14 +107,14 @@ export const useWorkflowBuilderStore = create((set, get) => ({
 
     // Determine initial panel mode based on workflow state
     const hasTrigger = workflow.entryCondition?.triggerType;
-    const panelMode = hasTrigger ? 'actions' : 'trigger';
 
     set({
       workflow,
       steps,
       selectedStepId: hasTrigger ? null : 'trigger',
-      panelMode,
-      showTriggerConfigPanel: false,
+      panelMode: hasTrigger ? null : 'trigger', // null means left panel shows nothing until + clicked
+      pendingTriggerType: null,
+      pendingStepContext: null,
       isDirty: false,
       isSaving: false,
       isInitialized: true,
@@ -128,7 +130,8 @@ export const useWorkflowBuilderStore = create((set, get) => ({
       steps: [],
       selectedStepId: null,
       panelMode: 'trigger',
-      showTriggerConfigPanel: false,
+      pendingTriggerType: null,
+      pendingStepContext: null,
       isDirty: false,
       isSaving: false,
       isInitialized: false,
@@ -169,13 +172,41 @@ export const useWorkflowBuilderStore = create((set, get) => ({
 
   /**
    * Set entry condition (trigger configuration)
+   * After saving trigger config, panelMode goes to null (canvas view)
    */
   setEntryCondition: (entryCondition) => {
     set((state) => ({
       workflow: { ...state.workflow, entryCondition },
-      panelMode: entryCondition.triggerType ? 'actions' : 'trigger',
+      panelMode: entryCondition.triggerType ? null : 'trigger', // null = show canvas, left panel dormant
+      pendingTriggerType: null, // Clear pending since it's now saved
+      selectedStepId: null, // Deselect trigger
       isDirty: true,
     }));
+  },
+
+  /**
+   * Set pending trigger type (before configuration is saved)
+   * This puts the left panel in trigger_config mode
+   */
+  setPendingTriggerType: (triggerType) => {
+    set({
+      pendingTriggerType: triggerType,
+      panelMode: 'trigger_config',
+      selectedStepId: 'trigger',
+    });
+  },
+
+  /**
+   * Open action selector (when user clicks + button)
+   * @param {string|null} afterStepId - Step ID to insert after (null for end of workflow)
+   * @param {string|null} branchPath - Branch path for determinators ('yes' or 'no')
+   */
+  openActionSelector: (afterStepId = null, branchPath = null) => {
+    set({
+      panelMode: 'actions',
+      selectedStepId: null,
+      pendingStepContext: { afterStepId, branchPath },
+    });
   },
 
   /**
@@ -315,19 +346,36 @@ export const useWorkflowBuilderStore = create((set, get) => ({
    * Select a step for configuration
    */
   selectStep: (stepId) => {
-    set({
-      selectedStepId: stepId,
-      panelMode: stepId ? (stepId === 'trigger' ? 'trigger' : 'config') : 'actions',
-    });
+    const state = get();
+    if (stepId === 'trigger') {
+      // Clicking trigger - show trigger config if not configured, otherwise just select it
+      const hasTrigger = state.workflow.entryCondition?.triggerType;
+      set({
+        selectedStepId: 'trigger',
+        panelMode: hasTrigger ? 'trigger_config' : 'trigger',
+      });
+    } else if (stepId) {
+      // Clicking a step - show step config
+      set({
+        selectedStepId: stepId,
+        panelMode: 'config',
+      });
+    } else {
+      // Deselecting
+      set({
+        selectedStepId: null,
+        panelMode: null,
+      });
+    }
   },
 
   /**
-   * Clear selection
+   * Clear selection (close config panel, return to canvas view)
    */
   clearSelection: () => {
     set({
       selectedStepId: null,
-      panelMode: 'actions',
+      panelMode: null,
     });
   },
 
@@ -336,20 +384,6 @@ export const useWorkflowBuilderStore = create((set, get) => ({
    */
   setPanelMode: (panelMode) => {
     set({ panelMode });
-  },
-
-  /**
-   * Open the trigger config panel
-   */
-  openTriggerConfigPanel: () => {
-    set({ showTriggerConfigPanel: true });
-  },
-
-  /**
-   * Close the trigger config panel
-   */
-  closeTriggerConfigPanel: () => {
-    set({ showTriggerConfigPanel: false });
   },
 
   /**
@@ -463,7 +497,7 @@ function getDefaultStepName(stepType, actionType) {
 /**
  * Get default step config based on type and action
  */
-function getDefaultStepConfig(stepType, _actionType) {
+function getDefaultStepConfig(stepType) {
   if (stepType === STEP_TYPES.WAIT) {
     return {
       waitType: 'duration',

@@ -52,11 +52,17 @@ const CATEGORY_ICONS = {
   pet_health: Heart,
 };
 
-export default function BuilderLeftPanel({ onAddStep }) {
+export default function BuilderLeftPanel() {
   const {
+    workflow,
     panelMode,
+    pendingTriggerType,
+    pendingStepContext,
     setEntryCondition,
     setObjectType,
+    setPendingTriggerType,
+    clearSelection,
+    addStep,
   } = useWorkflowBuilderStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,7 +75,12 @@ export default function BuilderLeftPanel({ onAddStep }) {
     }));
   };
 
-  // Render trigger selection panel
+  // Render nothing when panel is dormant (trigger configured, no action selected)
+  if (panelMode === null) {
+    return null;
+  }
+
+  // Render trigger selection panel (initial state)
   if (panelMode === 'trigger') {
     return (
       <TriggerSelectionPanel
@@ -79,20 +90,40 @@ export default function BuilderLeftPanel({ onAddStep }) {
         toggleCategory={toggleCategory}
         setEntryCondition={setEntryCondition}
         setObjectType={setObjectType}
+        setPendingTriggerType={setPendingTriggerType}
       />
     );
   }
 
-  // Render action selection panel
-  return (
-    <ActionSelectionPanel
-      searchQuery={searchQuery}
-      setSearchQuery={setSearchQuery}
-      expandedCategories={expandedCategories}
-      toggleCategory={toggleCategory}
-      onAddStep={onAddStep}
-    />
-  );
+  // Render trigger configuration panel (after selecting trigger type)
+  if (panelMode === 'trigger_config') {
+    return (
+      <TriggerConfigPanel
+        workflow={workflow}
+        pendingTriggerType={pendingTriggerType}
+        setEntryCondition={setEntryCondition}
+        setObjectType={setObjectType}
+        onCancel={clearSelection}
+      />
+    );
+  }
+
+  // Render action selection panel (when user clicks + button)
+  if (panelMode === 'actions') {
+    return (
+      <ActionSelectionPanel
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        expandedCategories={expandedCategories}
+        toggleCategory={toggleCategory}
+        addStep={addStep}
+        pendingStepContext={pendingStepContext}
+      />
+    );
+  }
+
+  // For 'config' mode, the StepConfigPanel on the right handles it
+  return null;
 }
 
 // Progress stepper component
@@ -180,6 +211,7 @@ function TriggerSelectionPanel({
   toggleCategory,
   setEntryCondition,
   setObjectType,
+  setPendingTriggerType,
 }) {
   // Internal state for the multi-step flow
   const [flowStep, setFlowStep] = useState('triggers'); // triggers, records, settings
@@ -218,20 +250,21 @@ function TriggerSelectionPanel({
   const handleSaveObjectSelection = () => {
     if (!selectedObjectType) return;
 
-    // Set the object type
+    // Set the object type first
     setObjectType(selectedObjectType);
 
-    // Set the entry condition based on trigger type
-    setEntryCondition({
-      triggerType: selectedTriggerType, // 'manual' or 'filter_criteria'
-      eventType: null,
-      filterConfig: selectedTriggerType === 'filter_criteria'
-        ? { logic: 'and', conditions: [] }
-        : null,
-      scheduleConfig: null,
-    });
-
-    // Panel mode automatically switches to 'actions' via setEntryCondition
+    if (selectedTriggerType === 'filter_criteria') {
+      // For filter criteria, go to trigger config panel to build the filter
+      setPendingTriggerType('filter_criteria');
+    } else {
+      // For manual, save directly (no additional config needed)
+      setEntryCondition({
+        triggerType: 'manual',
+        eventType: null,
+        filterConfig: null,
+        scheduleConfig: null,
+      });
+    }
   };
 
   // Handle save schedule config
@@ -239,7 +272,7 @@ function TriggerSelectionPanel({
     // Set the object type from schedule config
     setObjectType(scheduleConfig.objectType);
 
-    // Set the entry condition with schedule config
+    // Set the entry condition with schedule config (schedule is fully configured here)
     setEntryCondition({
       triggerType: 'schedule',
       eventType: null,
@@ -251,8 +284,6 @@ function TriggerSelectionPanel({
         timezone: scheduleConfig.timezone,
       },
     });
-
-    // Panel mode automatically switches to 'actions' via setEntryCondition
   };
 
   // Handle event selection (from event categories)
@@ -263,15 +294,19 @@ function TriggerSelectionPanel({
     // Set the object type
     setObjectType(objectType);
 
-    // Set the entry condition with the event
-    setEntryCondition({
-      triggerType: 'event',
-      eventType: event.value,
-      filterConfig: null,
-      scheduleConfig: null,
-    });
-
-    // Panel mode automatically switches to 'actions' via setEntryCondition
+    // For most events, save directly
+    // For property.changed, go to config panel
+    if (event.value === 'property.changed') {
+      setPendingTriggerType({ type: 'event', eventType: event.value });
+    } else {
+      // Set the entry condition with the event (no additional config needed)
+      setEntryCondition({
+        triggerType: 'event',
+        eventType: event.value,
+        filterConfig: null,
+        scheduleConfig: null,
+      });
+    }
   };
 
   // Handle back button
@@ -687,18 +722,279 @@ function TriggerTypeButton({ icon, label, onClick }) {
   );
 }
 
+// Trigger configuration panel component
+function TriggerConfigPanel({
+  workflow,
+  pendingTriggerType,
+  setEntryCondition,
+  setObjectType,
+  onCancel,
+}) {
+  // State for filter configuration
+  const [filterConditions, setFilterConditions] = useState([
+    { field: '', operator: 'equals', value: '' }
+  ]);
+
+  // State for property change configuration
+  const [propertyConfig, setPropertyConfig] = useState({
+    objectType: workflow?.objectType || 'pet',
+    propertyName: '',
+  });
+
+  // Handle save for filter_criteria
+  const handleSaveFilterConfig = () => {
+    setEntryCondition({
+      triggerType: 'filter_criteria',
+      eventType: null,
+      filterConfig: {
+        conditions: filterConditions,
+        logic: 'and',
+      },
+      scheduleConfig: null,
+    });
+  };
+
+  // Handle save for property.changed event
+  const handleSavePropertyConfig = () => {
+    setObjectType(propertyConfig.objectType);
+    setEntryCondition({
+      triggerType: 'event',
+      eventType: 'property.changed',
+      filterConfig: {
+        objectType: propertyConfig.objectType,
+        propertyName: propertyConfig.propertyName,
+      },
+      scheduleConfig: null,
+    });
+  };
+
+  // Add a condition row
+  const addCondition = () => {
+    setFilterConditions([...filterConditions, { field: '', operator: 'equals', value: '' }]);
+  };
+
+  // Update a condition
+  const updateCondition = (index, updates) => {
+    const newConditions = [...filterConditions];
+    newConditions[index] = { ...newConditions[index], ...updates };
+    setFilterConditions(newConditions);
+  };
+
+  // Remove a condition
+  const removeCondition = (index) => {
+    if (filterConditions.length > 1) {
+      setFilterConditions(filterConditions.filter((_, i) => i !== index));
+    }
+  };
+
+  // Determine which config to show
+  const isPropertyChange = pendingTriggerType?.type === 'event' && pendingTriggerType?.eventType === 'property.changed';
+  const isFilterCriteria = pendingTriggerType === 'filter_criteria';
+
+  // Property fields based on object type
+  const propertyOptions = {
+    pet: ['name', 'breed', 'weight', 'vaccination_status', 'last_visit', 'notes'],
+    booking: ['status', 'check_in_date', 'check_out_date', 'total_price', 'notes'],
+    owner: ['name', 'email', 'phone', 'status', 'created_at'],
+    payment: ['amount', 'status', 'payment_method', 'created_at'],
+    task: ['title', 'status', 'due_date', 'priority', 'assigned_to'],
+    invoice: ['amount', 'status', 'due_date', 'paid_at'],
+  };
+
+  return (
+    <div className="w-80 h-full border-r border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] flex flex-col">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-[var(--bb-color-border-subtle)] flex items-center justify-between">
+        <button
+          onClick={onCancel}
+          className="flex items-center gap-1 text-sm text-[var(--bb-color-text-secondary)] hover:text-[var(--bb-color-text-primary)]"
+        >
+          <ChevronLeft size={16} />
+          Back
+        </button>
+        <button
+          onClick={isPropertyChange ? handleSavePropertyConfig : handleSaveFilterConfig}
+          className="px-3 py-1.5 rounded text-sm font-medium bg-[var(--bb-color-accent)] text-white hover:bg-[var(--bb-color-accent-hover)]"
+        >
+          Save
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-auto p-4">
+        {isPropertyChange ? (
+          // Property change configuration
+          <>
+            <h2 className="text-base font-semibold text-[var(--bb-color-text-primary)] mb-2">
+              Property Changed Trigger
+            </h2>
+            <p className="text-sm text-[var(--bb-color-text-tertiary)] mb-4">
+              Trigger when a specific property value changes on a record
+            </p>
+
+            {/* Object type */}
+            <div className="mb-4">
+              <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
+                Record type
+              </label>
+              <select
+                value={propertyConfig.objectType}
+                onChange={(e) => setPropertyConfig(prev => ({ ...prev, objectType: e.target.value, propertyName: '' }))}
+                className={cn(
+                  "w-full h-9 px-3 rounded-md",
+                  "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+                  "text-sm text-[var(--bb-color-text-primary)]",
+                  "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                )}
+              >
+                {Object.entries(OBJECT_TYPE_CONFIG).map(([key, config]) => (
+                  <option key={key} value={key}>{config.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Property name */}
+            <div className="mb-4">
+              <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
+                Property
+              </label>
+              <select
+                value={propertyConfig.propertyName}
+                onChange={(e) => setPropertyConfig(prev => ({ ...prev, propertyName: e.target.value }))}
+                className={cn(
+                  "w-full h-9 px-3 rounded-md",
+                  "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+                  "text-sm text-[var(--bb-color-text-primary)]",
+                  "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                )}
+              >
+                <option value="">Select a property...</option>
+                {(propertyOptions[propertyConfig.objectType] || []).map((prop) => (
+                  <option key={prop} value={prop}>{prop.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        ) : isFilterCriteria ? (
+          // Filter criteria configuration
+          <>
+            <h2 className="text-base font-semibold text-[var(--bb-color-text-primary)] mb-2">
+              Filter Conditions
+            </h2>
+            <p className="text-sm text-[var(--bb-color-text-tertiary)] mb-4">
+              Define conditions that records must meet to be enrolled
+            </p>
+
+            {/* Condition rows */}
+            <div className="space-y-3">
+              {filterConditions.map((condition, index) => (
+                <div key={index} className="bg-[var(--bb-color-bg-body)] rounded-lg border border-[var(--bb-color-border-subtle)] p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-[var(--bb-color-text-tertiary)]">
+                      {index === 0 ? 'Where' : 'And'}
+                    </span>
+                    {filterConditions.length > 1 && (
+                      <button
+                        onClick={() => removeCondition(index)}
+                        className="ml-auto text-xs text-[var(--bb-color-text-tertiary)] hover:text-red-400"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Field */}
+                  <select
+                    value={condition.field}
+                    onChange={(e) => updateCondition(index, { field: e.target.value })}
+                    className={cn(
+                      "w-full h-8 px-2 rounded mb-2",
+                      "bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]",
+                      "text-sm text-[var(--bb-color-text-primary)]",
+                      "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                    )}
+                  >
+                    <option value="">Select field...</option>
+                    {(propertyOptions[workflow?.objectType] || propertyOptions.pet).map((prop) => (
+                      <option key={prop} value={prop}>{prop.replace(/_/g, ' ')}</option>
+                    ))}
+                  </select>
+
+                  {/* Operator */}
+                  <select
+                    value={condition.operator}
+                    onChange={(e) => updateCondition(index, { operator: e.target.value })}
+                    className={cn(
+                      "w-full h-8 px-2 rounded mb-2",
+                      "bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]",
+                      "text-sm text-[var(--bb-color-text-primary)]",
+                      "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                    )}
+                  >
+                    <option value="equals">equals</option>
+                    <option value="not_equals">does not equal</option>
+                    <option value="contains">contains</option>
+                    <option value="not_contains">does not contain</option>
+                    <option value="is_empty">is empty</option>
+                    <option value="is_not_empty">is not empty</option>
+                    <option value="greater_than">greater than</option>
+                    <option value="less_than">less than</option>
+                  </select>
+
+                  {/* Value (hidden for is_empty/is_not_empty) */}
+                  {!['is_empty', 'is_not_empty'].includes(condition.operator) && (
+                    <input
+                      type="text"
+                      value={condition.value}
+                      onChange={(e) => updateCondition(index, { value: e.target.value })}
+                      placeholder="Enter value..."
+                      className={cn(
+                        "w-full h-8 px-2 rounded",
+                        "bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]",
+                        "text-sm text-[var(--bb-color-text-primary)]",
+                        "placeholder:text-[var(--bb-color-text-tertiary)]",
+                        "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                      )}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Add condition button */}
+            <button
+              onClick={addCondition}
+              className="mt-3 w-full py-2 text-sm text-[var(--bb-color-accent)] hover:underline"
+            >
+              + Add condition
+            </button>
+          </>
+        ) : (
+          // Unknown state
+          <div className="text-sm text-[var(--bb-color-text-tertiary)]">
+            Unknown trigger configuration type
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Action selection panel component
 function ActionSelectionPanel({
   searchQuery,
   setSearchQuery,
   expandedCategories,
   toggleCategory,
-  onAddStep,
+  addStep,
+  pendingStepContext,
 }) {
   const handleActionSelect = (action) => {
     const stepType = action.stepType || 'action';
     const actionType = action.stepType ? null : action.type;
-    onAddStep?.(stepType, actionType);
+    const afterStepId = pendingStepContext?.afterStepId || null;
+    const branchPath = pendingStepContext?.branchPath || null;
+    addStep(stepType, actionType, afterStepId, branchPath);
   };
 
   return (

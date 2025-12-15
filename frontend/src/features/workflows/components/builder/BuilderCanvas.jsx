@@ -17,7 +17,6 @@ export default function BuilderCanvas() {
     steps,
     selectedStepId,
     selectStep,
-    addStep,
     deleteStep,
   } = useWorkflowBuilderStore();
 
@@ -25,11 +24,6 @@ export default function BuilderCanvas() {
   const rootSteps = steps
     .filter((s) => !s.parentStepId)
     .sort((a, b) => a.position - b.position);
-
-  // Handle adding a step
-  const handleAddStep = (stepType, actionType, afterStepId, branchPath) => {
-    addStep(stepType, actionType, afterStepId, branchPath);
-  };
 
   return (
     <div
@@ -56,7 +50,6 @@ export default function BuilderCanvas() {
         <Connector height={40} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
           <AddStepButton
-            onAddStep={handleAddStep}
             afterStepId={null}
             branchPath={null}
           />
@@ -72,7 +65,6 @@ export default function BuilderCanvas() {
           isSelected={selectedStepId === step.id}
           onSelect={() => selectStep(step.id)}
           onDelete={() => deleteStep(step.id)}
-          onAddStep={handleAddStep}
           isLast={index === rootSteps.length - 1}
         />
       ))}
@@ -94,7 +86,6 @@ function StepNode({
   isSelected,
   onSelect,
   onDelete,
-  onAddStep,
   isLast,
 }) {
   // If this is a determinator, render with branches
@@ -106,7 +97,6 @@ function StepNode({
         isSelected={isSelected}
         onSelect={onSelect}
         onDelete={onDelete}
-        onAddStep={onAddStep}
       />
     );
   }
@@ -127,7 +117,6 @@ function StepNode({
           <Connector height={40} />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
             <AddStepButton
-              onAddStep={onAddStep}
               afterStepId={step.id}
               branchPath={null}
             />
@@ -152,7 +141,6 @@ function DeterminatorNode({
   isSelected,
   onSelect,
   onDelete,
-  onAddStep,
 }) {
   // Get steps for each branch
   const yesSteps = allSteps
@@ -194,7 +182,6 @@ function DeterminatorNode({
 
           {/* Add step button for yes branch */}
           <AddStepButton
-            onAddStep={onAddStep}
             afterStepId={step.id}
             branchPath="yes"
             size="small"
@@ -205,7 +192,6 @@ function DeterminatorNode({
             <BranchStepNode
               key={branchStep.id}
               step={branchStep}
-              onAddStep={onAddStep}
               branchPath="yes"
             />
           ))}
@@ -234,7 +220,6 @@ function DeterminatorNode({
 
           {/* Add step button for no branch */}
           <AddStepButton
-            onAddStep={onAddStep}
             afterStepId={step.id}
             branchPath="no"
             size="small"
@@ -245,7 +230,6 @@ function DeterminatorNode({
             <BranchStepNode
               key={branchStep.id}
               step={branchStep}
-              onAddStep={onAddStep}
               branchPath="no"
             />
           ))}
@@ -264,7 +248,6 @@ function DeterminatorNode({
  */
 function BranchStepNode({
   step,
-  onAddStep,
   branchPath,
 }) {
   const { selectedStepId, selectStep, deleteStep } = useWorkflowBuilderStore();
@@ -280,7 +263,6 @@ function BranchStepNode({
       />
       <Connector height={20} />
       <AddStepButton
-        onAddStep={onAddStep}
         afterStepId={step.id}
         branchPath={branchPath}
         size="small"

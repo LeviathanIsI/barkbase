@@ -31,7 +31,6 @@ export default function WorkflowBuilder() {
   // Store
   const {
     workflow,
-    steps,
     selectedStepId,
     panelMode,
     isDirty,
@@ -40,7 +39,6 @@ export default function WorkflowBuilder() {
     initializeNewWorkflow,
     loadWorkflow,
     reset,
-    addStep,
     setSaving,
     markClean,
   } = useWorkflowBuilderStore();
@@ -165,14 +163,6 @@ export default function WorkflowBuilder() {
     }
   }, [workflow.id, isDirty, handleSave, activateWorkflowMutation, navigate]);
 
-  // Handle add step from left panel
-  const handleAddStep = useCallback((stepType, actionType) => {
-    // Find the last step position to add after
-    const rootSteps = steps.filter((s) => !s.parentStepId);
-    const lastStepId = rootSteps.length > 0 ? rootSteps[rootSteps.length - 1].id : null;
-    addStep(stepType, actionType, lastStepId);
-  }, [steps, addStep]);
-
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -211,7 +201,7 @@ export default function WorkflowBuilder() {
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left panel */}
-        <BuilderLeftPanel onAddStep={handleAddStep} />
+        <BuilderLeftPanel />
 
         {/* Center canvas */}
         <div className="flex-1 overflow-auto">
