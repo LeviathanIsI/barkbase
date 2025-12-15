@@ -65,6 +65,7 @@ export default function BuilderCanvas() {
           key={step.id}
           step={step}
           allSteps={steps}
+          objectType={workflow.objectType}
           isSelected={selectedStepId === step.id}
           onSelect={() => selectStep(step.id)}
           onDelete={() => deleteStep(step.id)}
@@ -86,6 +87,7 @@ export default function BuilderCanvas() {
 function StepNode({
   step,
   allSteps,
+  objectType,
   isSelected,
   onSelect,
   onDelete,
@@ -97,6 +99,7 @@ function StepNode({
       <DeterminatorNode
         step={step}
         allSteps={allSteps}
+        objectType={objectType}
         isSelected={isSelected}
         onSelect={onSelect}
         onDelete={onDelete}
@@ -109,6 +112,7 @@ function StepNode({
     <>
       <StepCard
         step={step}
+        objectType={objectType}
         isSelected={isSelected}
         onClick={onSelect}
         onDelete={onDelete}
@@ -141,6 +145,7 @@ function StepNode({
 function DeterminatorNode({
   step,
   allSteps,
+  objectType,
   isSelected,
   onSelect,
   onDelete,
@@ -159,6 +164,7 @@ function DeterminatorNode({
       {/* Determinator card */}
       <StepCard
         step={step}
+        objectType={objectType}
         isSelected={isSelected}
         onClick={onSelect}
         onDelete={onDelete}
@@ -195,6 +201,7 @@ function DeterminatorNode({
             <BranchStepNode
               key={branchStep.id}
               step={branchStep}
+              objectType={objectType}
               branchPath="yes"
             />
           ))}
@@ -233,6 +240,7 @@ function DeterminatorNode({
             <BranchStepNode
               key={branchStep.id}
               step={branchStep}
+              objectType={objectType}
               branchPath="no"
             />
           ))}
@@ -251,6 +259,7 @@ function DeterminatorNode({
  */
 function BranchStepNode({
   step,
+  objectType,
   branchPath,
 }) {
   const { selectedStepId, selectStep, deleteStep } = useWorkflowBuilderStore();
@@ -260,6 +269,7 @@ function BranchStepNode({
       <Connector height={20} />
       <StepCard
         step={step}
+        objectType={objectType}
         isSelected={selectedStepId === step.id}
         onClick={() => selectStep(step.id)}
         onDelete={() => deleteStep(step.id)}

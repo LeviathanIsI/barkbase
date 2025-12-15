@@ -474,28 +474,80 @@ export const ACTION_CATEGORIES = {
 
 export const WAIT_TYPES = {
   duration: { label: 'Set amount of time', icon: 'Clock' },
-  until_date: { label: 'Until date', icon: 'Calendar' },
-  until_time: { label: 'Until time of day', icon: 'Sun' },
-  until_event: { label: 'Until event occurs', icon: 'Zap' },
+  calendar_date: { label: 'Until a calendar date', icon: 'Calendar' },
+  date_property: { label: 'Until a date from record', icon: 'CalendarDays' },
+  day_of_week: { label: 'Until a day of the week', icon: 'CalendarRange' },
+  event: { label: 'Until an event occurs', icon: 'Zap' },
 };
 
 export const WAIT_TYPE_CONFIG = {
   duration: {
-    label: 'For a set amount of time',
-    description: 'Wait for a specific duration',
+    label: 'Set amount of time',
+    description: 'Wait for a specific duration before continuing',
   },
-  until_date: {
-    label: 'Until a date from a field',
-    description: 'Wait until a date stored in a record field',
+  calendar_date: {
+    label: 'Until a calendar date',
+    description: 'Wait until a specific date and time',
   },
-  until_time: {
-    label: 'Until a specific time',
-    description: 'Wait until a specific time of day',
+  date_property: {
+    label: 'Until a date from record',
+    description: 'Wait until a date stored in the record (e.g., check-in date)',
   },
-  until_event: {
-    label: 'Until an event happens',
-    description: 'Wait until a specific event occurs',
+  day_of_week: {
+    label: 'Until a day of the week',
+    description: 'Wait until a specific day of the week',
   },
+  event: {
+    label: 'Until an event occurs',
+    description: 'Wait until a specific event happens or max time elapses',
+  },
+};
+
+// Date timing options for date_property wait type
+export const DATE_TIMING_OPTIONS = [
+  { value: 'on', label: 'On the date' },
+  { value: 'before', label: 'Before the date' },
+  { value: 'after', label: 'After the date' },
+];
+
+// Offset units for before/after date timing
+export const DATE_OFFSET_UNITS = [
+  { value: 'days', label: 'days' },
+  { value: 'weeks', label: 'weeks' },
+  { value: 'months', label: 'months' },
+];
+
+// Events that can be waited for by object type
+export const WAIT_EVENTS_BY_OBJECT_TYPE = {
+  pet: [
+    { value: 'pet.updated', label: 'Pet is updated' },
+    { value: 'pet.vaccination_updated', label: 'Vaccination status changes' },
+    { value: 'booking.created', label: 'Booking is created for pet' },
+  ],
+  booking: [
+    { value: 'booking.confirmed', label: 'Booking is confirmed' },
+    { value: 'booking.checked_in', label: 'Pet is checked in' },
+    { value: 'booking.checked_out', label: 'Pet is checked out' },
+    { value: 'booking.cancelled', label: 'Booking is cancelled' },
+    { value: 'payment.received', label: 'Payment is received' },
+  ],
+  owner: [
+    { value: 'owner.updated', label: 'Owner is updated' },
+    { value: 'booking.created', label: 'Booking is created' },
+    { value: 'payment.received', label: 'Payment is received' },
+  ],
+  payment: [
+    { value: 'payment.completed', label: 'Payment is completed' },
+    { value: 'payment.refunded', label: 'Payment is refunded' },
+  ],
+  task: [
+    { value: 'task.completed', label: 'Task is completed' },
+    { value: 'task.updated', label: 'Task is updated' },
+  ],
+  invoice: [
+    { value: 'invoice.paid', label: 'Invoice is paid' },
+    { value: 'invoice.sent', label: 'Invoice is sent' },
+  ],
 };
 
 export const DURATION_UNITS = [

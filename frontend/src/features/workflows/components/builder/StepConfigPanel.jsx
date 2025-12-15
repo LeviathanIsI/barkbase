@@ -63,6 +63,7 @@ export default function StepConfigPanel() {
         return (
           <WaitConfig
             step={step}
+            objectType={workflow.objectType}
             onChange={handleUpdate}
           />
         );
