@@ -1,0 +1,9 @@
+{
+  "name": "barkbase-workflow-processor",
+  "version": "1.0.0",
+  "description": "BarkBase Workflow Processor Lambda - Trigger processor, step executor, and scheduler",
+  "main": "index.js",
+  "author": "BarkBase",
+  "license": "UNLICENSED",
+  "private": true
+}
