@@ -23,6 +23,7 @@ const usdaForms = require('./usda-forms');
 const vaccinationRules = require('./vaccination-rules');
 const auditUtils = require('./audit-utils');
 const tierEnforcement = require('./tier-enforcement');
+const workflowEvents = require('./workflow-events');
 
 
 /**
@@ -275,4 +276,33 @@ module.exports = {
   createTierErrorResponse: tierEnforcement.createTierErrorResponse,
   withTierEnforcement: tierEnforcement.withTierEnforcement,
   getTenantPlan: tierEnforcement.getTenantPlan,
+
+  // Workflow Events exports
+  workflowEvents,
+  WORKFLOW_EVENT_TYPES: workflowEvents.WORKFLOW_EVENT_TYPES,
+  RECORD_TYPES: workflowEvents.RECORD_TYPES,
+  publishWorkflowEvent: workflowEvents.publishWorkflowEvent,
+  publishWorkflowEventBatch: workflowEvents.publishWorkflowEventBatch,
+  // Booking events
+  publishBookingCreated: workflowEvents.publishBookingCreated,
+  publishBookingConfirmed: workflowEvents.publishBookingConfirmed,
+  publishBookingCheckedIn: workflowEvents.publishBookingCheckedIn,
+  publishBookingCheckedOut: workflowEvents.publishBookingCheckedOut,
+  publishBookingCancelled: workflowEvents.publishBookingCancelled,
+  // Pet events
+  publishPetCreated: workflowEvents.publishPetCreated,
+  publishPetUpdated: workflowEvents.publishPetUpdated,
+  publishPetVaccinationExpiring: workflowEvents.publishPetVaccinationExpiring,
+  publishPetVaccinationExpired: workflowEvents.publishPetVaccinationExpired,
+  publishPetBirthday: workflowEvents.publishPetBirthday,
+  // Owner events
+  publishOwnerCreated: workflowEvents.publishOwnerCreated,
+  // Payment events
+  publishPaymentReceived: workflowEvents.publishPaymentReceived,
+  publishPaymentFailed: workflowEvents.publishPaymentFailed,
+  // Invoice events
+  publishInvoiceOverdue: workflowEvents.publishInvoiceOverdue,
+  // Task events
+  publishTaskCreated: workflowEvents.publishTaskCreated,
+  publishTaskCompleted: workflowEvents.publishTaskCompleted,
 };
