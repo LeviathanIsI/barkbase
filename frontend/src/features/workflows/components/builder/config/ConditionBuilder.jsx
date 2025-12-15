@@ -1,14 +1,17 @@
 /**
  * ConditionBuilder
- * Builds filter conditions with AND/OR logic
- * Used by TriggerConfig (filter_criteria) and DeterminatorConfig
+ * Builds filter conditions with multiple groups
+ * - AND logic within each group
+ * - OR logic between groups
+ * Used by TriggerConfig (filter_criteria), DeterminatorConfig, and GoalConfig
  */
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 import {
   OBJECT_PROPERTIES,
   CONDITION_OPERATORS,
 } from '../../../constants';
 import PropertyValueInput, { PropertyMultiValueInput } from './PropertyValueInput';
+import { normalizeConditionConfig } from './conditionUtils';
 
 // Operators that need multiple values
 const MULTI_VALUE_OPERATORS = [
@@ -36,9 +39,7 @@ function ConditionRow({
   objectType,
   onChange,
   onRemove,
-  isFirst,
-  logicOperator,
-  onLogicChange,
+  canRemove,
 }) {
   const properties = OBJECT_PROPERTIES[objectType] || [];
   const selectedProperty = properties.find(p => p.name === condition.field);
@@ -71,20 +72,6 @@ function ConditionRow({
 
   return (
     <div style={conditionRowStyles}>
-      {/* Logic operator (AND/OR) - shown for non-first rows */}
-      {!isFirst && (
-        <div style={logicSelectorStyles}>
-          <select
-            value={logicOperator}
-            onChange={(e) => onLogicChange(e.target.value)}
-            style={logicSelectStyles}
-          >
-            <option value="and">AND</option>
-            <option value="or">OR</option>
-          </select>
-        </div>
-      )}
-
       <div style={conditionFieldsStyles}>
         {/* Property selector */}
         <div style={fieldGroupStyles}>
@@ -165,42 +152,42 @@ function ConditionRow({
         )}
 
         {/* Remove button */}
-        <button
-          type="button"
-          onClick={onRemove}
-          style={removeButtonStyles}
-          title="Remove condition"
-        >
-          <Trash2 size={16} />
-        </button>
+        {canRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            style={removeButtonStyles}
+            title="Remove condition"
+          >
+            <X size={16} />
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 /**
- * Condition group (for nested AND/OR)
+ * Single condition group (with AND logic within)
  */
-function ConditionGroup({
+function ConditionGroupCard({
   group,
+  groupIndex,
   objectType,
   onChange,
-  depth = 0,
+  onRemove,
+  canRemove,
 }) {
-  const { logic = 'and', conditions = [] } = group;
+  const { conditions = [] } = group;
 
-  const handleLogicChange = (newLogic) => {
-    onChange({ ...group, logic: newLogic });
-  };
-
-  const handleConditionChange = (index, updatedCondition) => {
+  const handleConditionChange = (condIndex, updatedCondition) => {
     const newConditions = [...conditions];
-    newConditions[index] = updatedCondition;
+    newConditions[condIndex] = updatedCondition;
     onChange({ ...group, conditions: newConditions });
   };
 
-  const handleConditionRemove = (index) => {
-    const newConditions = conditions.filter((_, i) => i !== index);
+  const handleConditionRemove = (condIndex) => {
+    const newConditions = conditions.filter((_, i) => i !== condIndex);
     onChange({ ...group, conditions: newConditions });
   };
 
@@ -211,21 +198,52 @@ function ConditionGroup({
     });
   };
 
-  return (
-    <div style={{ ...groupContainerStyles, marginLeft: depth > 0 ? '20px' : 0 }}>
-      {conditions.map((condition, index) => (
-        <ConditionRow
-          key={index}
-          condition={condition}
-          objectType={objectType}
-          onChange={(updated) => handleConditionChange(index, updated)}
-          onRemove={() => handleConditionRemove(index)}
-          isFirst={index === 0}
-          logicOperator={logic}
-          onLogicChange={handleLogicChange}
-        />
-      ))}
+  // Can remove condition if there's more than one condition OR if there's more than one group
+  const canRemoveCondition = conditions.length > 1 || canRemove;
 
+  return (
+    <div style={groupCardStyles}>
+      {/* Group header */}
+      <div style={groupHeaderStyles}>
+        <span style={groupTitleStyles}>
+          Group {groupIndex + 1}
+        </span>
+        {canRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            style={groupRemoveStyles}
+            title="Remove group"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
+      </div>
+
+      {/* Conditions within group */}
+      <div style={groupConditionsStyles}>
+        {conditions.map((condition, condIndex) => (
+          <div key={condIndex}>
+            {/* AND divider within group */}
+            {condIndex > 0 && (
+              <div style={andDividerStyles}>
+                <span style={andTextStyles}>and</span>
+                <div style={andLineStyles} />
+              </div>
+            )}
+
+            <ConditionRow
+              condition={condition}
+              objectType={objectType}
+              onChange={(updated) => handleConditionChange(condIndex, updated)}
+              onRemove={() => handleConditionRemove(condIndex)}
+              canRemove={canRemoveCondition}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Add condition button */}
       <button
         type="button"
         onClick={handleAddCondition}
@@ -243,23 +261,81 @@ function ConditionGroup({
  */
 export default function ConditionBuilder({
   objectType,
-  conditions = { logic: 'and', conditions: [] },
+  conditions,
   onChange,
   label = 'Filter conditions',
 }) {
-  // Initialize with empty condition if none exist
-  const currentConditions = conditions.conditions?.length > 0
-    ? conditions
-    : { logic: 'and', conditions: [{ field: '', operator: '', value: '' }] };
+  // Normalize to new groups format
+  const normalizedConfig = normalizeConditionConfig(conditions);
+  const groups = normalizedConfig.groups;
+
+  // Add a new group
+  const handleAddGroup = () => {
+    const newGroup = {
+      id: `group-${Date.now()}`,
+      logic: 'and',
+      conditions: [{ field: '', operator: '', value: '' }],
+    };
+    onChange({
+      ...normalizedConfig,
+      groups: [...groups, newGroup],
+    });
+  };
+
+  // Remove a group
+  const handleRemoveGroup = (groupId) => {
+    if (groups.length <= 1) return; // Keep at least one group
+    onChange({
+      ...normalizedConfig,
+      groups: groups.filter(g => g.id !== groupId),
+    });
+  };
+
+  // Update a group
+  const handleUpdateGroup = (groupId, updatedGroup) => {
+    onChange({
+      ...normalizedConfig,
+      groups: groups.map(g => g.id === groupId ? updatedGroup : g),
+    });
+  };
 
   return (
     <div style={containerStyles}>
       {label && <label style={labelStyles}>{label}</label>}
-      <ConditionGroup
-        group={currentConditions}
-        objectType={objectType}
-        onChange={onChange}
-      />
+
+      <div style={groupsContainerStyles}>
+        {groups.map((group, groupIndex) => (
+          <div key={group.id}>
+            {/* OR divider between groups */}
+            {groupIndex > 0 && (
+              <div style={orDividerStyles}>
+                <div style={orLineStyles} />
+                <span style={orTextStyles}>OR</span>
+                <div style={orLineStyles} />
+              </div>
+            )}
+
+            <ConditionGroupCard
+              group={group}
+              groupIndex={groupIndex}
+              objectType={objectType}
+              onChange={(updated) => handleUpdateGroup(group.id, updated)}
+              onRemove={() => handleRemoveGroup(group.id)}
+              canRemove={groups.length > 1}
+            />
+          </div>
+        ))}
+
+        {/* Add group button */}
+        <button
+          type="button"
+          onClick={handleAddGroup}
+          style={addGroupButtonStyles}
+        >
+          <Plus size={14} />
+          Add group (OR)
+        </button>
+      </div>
     </div>
   );
 }
@@ -278,7 +354,13 @@ const labelStyles = {
   marginBottom: '4px',
 };
 
-const groupContainerStyles = {
+const groupsContainerStyles = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '0',
+};
+
+const groupCardStyles = {
   display: 'flex',
   flexDirection: 'column',
   gap: '12px',
@@ -288,27 +370,44 @@ const groupContainerStyles = {
   border: '1px solid var(--bb-color-border, #3a3a3a)',
 };
 
-const conditionRowStyles = {
+const groupHeaderStyles = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: '4px',
+};
+
+const groupTitleStyles = {
+  fontSize: '12px',
+  fontWeight: '500',
+  color: 'var(--bb-color-text-secondary, #888)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.5px',
+};
+
+const groupRemoveStyles = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '4px',
+  backgroundColor: 'transparent',
+  border: 'none',
+  borderRadius: '4px',
+  color: 'var(--bb-color-text-muted, #666)',
+  cursor: 'pointer',
+  transition: 'color 0.2s',
+};
+
+const groupConditionsStyles = {
   display: 'flex',
   flexDirection: 'column',
   gap: '8px',
 };
 
-const logicSelectorStyles = {
+const conditionRowStyles = {
   display: 'flex',
-  alignItems: 'center',
-  marginBottom: '4px',
-};
-
-const logicSelectStyles = {
-  padding: '4px 8px',
-  backgroundColor: 'var(--bb-color-primary, #3B82F6)',
-  border: 'none',
-  borderRadius: '4px',
-  color: '#ffffff',
-  fontSize: '12px',
-  fontWeight: '500',
-  cursor: 'pointer',
+  flexDirection: 'column',
+  gap: '8px',
 };
 
 const conditionFieldsStyles = {
@@ -360,4 +459,64 @@ const addConditionButtonStyles = {
   cursor: 'pointer',
   transition: 'all 0.2s',
   alignSelf: 'flex-start',
+};
+
+const andDividerStyles = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  margin: '8px 0',
+};
+
+const andTextStyles = {
+  fontSize: '11px',
+  fontWeight: '500',
+  color: 'var(--bb-color-text-tertiary, #666)',
+  textTransform: 'lowercase',
+};
+
+const andLineStyles = {
+  flex: 1,
+  height: '1px',
+  backgroundColor: 'var(--bb-color-border, #3a3a3a)',
+};
+
+const orDividerStyles = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '12px',
+  margin: '16px 0',
+};
+
+const orLineStyles = {
+  flex: 1,
+  height: '1px',
+  backgroundColor: 'var(--bb-color-border, #3a3a3a)',
+};
+
+const orTextStyles = {
+  fontSize: '12px',
+  fontWeight: '600',
+  color: 'var(--bb-color-warning, #F59E0B)',
+  backgroundColor: 'var(--bb-color-bg-body, #0d0d0d)',
+  padding: '4px 12px',
+  borderRadius: '4px',
+  textTransform: 'uppercase',
+  letterSpacing: '1px',
+};
+
+const addGroupButtonStyles = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '8px',
+  padding: '12px',
+  marginTop: '12px',
+  backgroundColor: 'transparent',
+  border: '1px dashed var(--bb-color-border, #3a3a3a)',
+  borderRadius: '8px',
+  color: 'var(--bb-color-text-secondary, #888)',
+  fontSize: '14px',
+  cursor: 'pointer',
+  transition: 'all 0.2s',
 };

@@ -13,6 +13,7 @@ import {
   MONTHS,
   COMMON_TIMEZONES,
 } from '../../../constants';
+import { normalizeConditionConfig } from '../config/conditionUtils';
 
 // Get property definition by name from OBJECT_PROPERTIES
 function getPropertyDefinition(objectType, propertyName) {
@@ -159,11 +160,52 @@ function ConditionRow({ condition, objectType }) {
   );
 }
 
-// Render filter criteria summary with condition groups
-function FilterCriteriaSummary({ filterConfig, objectType, objectLabel }) {
-  const conditions = filterConfig?.conditions || [];
+// Render a single condition group
+function ConditionGroup({ group, groupIndex, objectType }) {
+  const { conditions = [] } = group;
 
   if (conditions.length === 0) {
+    return (
+      <div className="bg-[var(--bb-color-bg-body)] rounded-lg p-3 border border-[var(--bb-color-border-subtle)]">
+        <div className="text-xs text-[var(--bb-color-text-tertiary)] italic">
+          No conditions in this group
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-[var(--bb-color-bg-body)] rounded-lg p-3 border border-[var(--bb-color-border-subtle)]">
+      <div className="text-xs font-medium text-[var(--bb-color-text-tertiary)] mb-2">
+        Group {groupIndex + 1}
+      </div>
+
+      <div className="space-y-2">
+        {conditions.map((condition, index) => (
+          <div key={index}>
+            {index > 0 && (
+              <div className="text-xs text-[var(--bb-color-text-tertiary)] my-1.5 ml-2">
+                and
+              </div>
+            )}
+            <ConditionRow condition={condition} objectType={objectType} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Render filter criteria summary with condition groups
+function FilterCriteriaSummary({ filterConfig, objectType, objectLabel }) {
+  // Normalize to new groups format (handles backwards compatibility)
+  const normalizedConfig = normalizeConditionConfig(filterConfig);
+  const groups = normalizedConfig.groups || [];
+
+  // Check if we have any conditions at all
+  const hasConditions = groups.some((g) => g.conditions && g.conditions.length > 0);
+
+  if (!hasConditions) {
     return (
       <div className="text-sm text-[var(--bb-color-text-secondary)]">
         Only enroll {objectLabel.toLowerCase()}s that meet conditions
@@ -177,23 +219,27 @@ function FilterCriteriaSummary({ filterConfig, objectType, objectLabel }) {
         Only enroll {objectLabel.toLowerCase()}s that meet these conditions
       </p>
 
-      <div className="bg-[var(--bb-color-bg-body)] rounded-lg p-3 border border-[var(--bb-color-border-subtle)]">
-        <div className="text-xs font-medium text-[var(--bb-color-text-tertiary)] mb-2">
-          Group 1
-        </div>
+      <div className="space-y-0">
+        {groups.map((group, groupIndex) => (
+          <div key={group.id || groupIndex}>
+            {/* OR divider between groups */}
+            {groupIndex > 0 && (
+              <div className="flex items-center gap-3 my-3">
+                <div className="flex-1 h-px bg-[var(--bb-color-border-subtle)]" />
+                <span className="text-xs font-semibold text-[var(--bb-color-warning)] bg-[var(--bb-color-bg-elevated)] px-2 py-1 rounded uppercase tracking-wide">
+                  OR
+                </span>
+                <div className="flex-1 h-px bg-[var(--bb-color-border-subtle)]" />
+              </div>
+            )}
 
-        <div className="space-y-2">
-          {conditions.map((condition, index) => (
-            <div key={index}>
-              {index > 0 && (
-                <div className="text-xs text-[var(--bb-color-text-tertiary)] my-1.5 ml-2">
-                  and
-                </div>
-              )}
-              <ConditionRow condition={condition} objectType={objectType} />
-            </div>
-          ))}
-        </div>
+            <ConditionGroup
+              group={group}
+              groupIndex={groupIndex}
+              objectType={objectType}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );
