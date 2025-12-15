@@ -4,6 +4,18 @@
  * Used by ConditionBuilder, TriggerConfig (property_changed), and ActionConfig (update_field)
  */
 import { useState } from 'react';
+import DateValueInput, { DaysInput, DateRangeInput } from './DateValueInput';
+
+// Operators that need simple days input (number only)
+const DAYS_OPERATORS = [
+  'is_less_than_days_ago',
+  'is_more_than_days_ago',
+  'is_less_than_days_from_now',
+  'is_more_than_days_from_now',
+];
+
+// Operators that need range input
+const DATE_RANGE_OPERATORS = ['is_between'];
 
 export default function PropertyValueInput({
   property,
@@ -11,6 +23,7 @@ export default function PropertyValueInput({
   onChange,
   placeholder = 'Enter value...',
   className = '',
+  operator = '',
 }) {
   const [inputValue, setInputValue] = useState(value ?? '');
 
@@ -63,15 +76,36 @@ export default function PropertyValueInput({
     );
   }
 
-  // Date input
+  // Date input - with operator-specific variations
   if (type === 'date') {
+    // For "X days ago/from now" operators, show simple number input
+    if (DAYS_OPERATORS.includes(operator)) {
+      return (
+        <DaysInput
+          value={value}
+          onChange={onChange}
+          className={className}
+        />
+      );
+    }
+
+    // For "is between" operator, show range input
+    if (DATE_RANGE_OPERATORS.includes(operator)) {
+      return (
+        <DateRangeInput
+          value={value}
+          onChange={onChange}
+          className={className}
+        />
+      );
+    }
+
+    // For other operators, show full date value input (exact/today/relative)
     return (
-      <input
-        type="date"
-        value={inputValue}
-        onChange={(e) => handleChange(e.target.value)}
-        className={`property-value-input property-value-input--date ${className}`}
-        style={inputStyles}
+      <DateValueInput
+        value={value}
+        onChange={onChange}
+        className={className}
       />
     );
   }

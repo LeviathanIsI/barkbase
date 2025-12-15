@@ -657,6 +657,8 @@ export const CONDITION_OPERATORS = {
     { value: 'is_between', label: 'is between' },
     { value: 'is_less_than_days_ago', label: 'is less than X days ago' },
     { value: 'is_more_than_days_ago', label: 'is more than X days ago' },
+    { value: 'is_less_than_days_from_now', label: 'is less than X days from now' },
+    { value: 'is_more_than_days_from_now', label: 'is more than X days from now' },
     { value: 'is_known', label: 'is known' },
     { value: 'is_unknown', label: 'is unknown' },
   ],

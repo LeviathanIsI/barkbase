@@ -39,6 +39,57 @@ function getEventLabel(eventType) {
 }
 
 // Format condition value for display - looks up labels from property options
+// Format a date string for display
+function formatDateString(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+// Format a date value object for display
+function formatDateValue(value) {
+  if (!value) return '';
+
+  // Handle "today" type
+  if (value.type === 'today') {
+    return 'today';
+  }
+
+  // Handle "exact" date type
+  if (value.type === 'exact') {
+    return formatDateString(value.date);
+  }
+
+  // Handle "relative" date type
+  if (value.type === 'relative') {
+    const direction = value.direction === 'ago' ? 'ago' : 'from now';
+    return `${value.amount} ${value.unit} ${direction}`;
+  }
+
+  // Handle legacy string date values
+  if (typeof value === 'string') {
+    return formatDateString(value);
+  }
+
+  // Handle simple number values (for "X days ago" operators)
+  if (typeof value === 'number') {
+    return `${value} days`;
+  }
+
+  // Handle date range (for "is between" operator)
+  if (value.from || value.to) {
+    const fromStr = formatDateValue(value.from);
+    const toStr = formatDateValue(value.to);
+    return `${fromStr} and ${toStr}`;
+  }
+
+  return String(value);
+}
+
 function formatConditionValue(value, property) {
   if (value === null || value === undefined || value === '') return '';
   if (typeof value === 'boolean') return value ? 'True' : 'False';
@@ -62,12 +113,24 @@ function formatConditionValue(value, property) {
     return value.join(', ');
   }
 
+  // Handle date values with special formatting
+  if (property?.type === 'date' && typeof value === 'object') {
+    return formatDateValue(value);
+  }
+
+  // Handle number values for date operators (X days)
+  if (property?.type === 'date' && typeof value === 'number') {
+    return `${value} days`;
+  }
+
   if (typeof value === 'object') {
     if (value.type === 'relative') {
-      return `${value.amount} ${value.unit} ${value.direction}`;
+      const direction = value.direction === 'ago' ? 'ago' : 'from now';
+      return `${value.amount} ${value.unit} ${direction}`;
     }
-    if (value.type === 'today') return 'Today';
-    if (value.date) return value.date;
+    if (value.type === 'today') return 'today';
+    if (value.type === 'exact' && value.date) return formatDateString(value.date);
+    if (value.date) return formatDateString(value.date);
   }
   return String(value);
 }

@@ -128,6 +128,7 @@ function ConditionRow({
               value={condition.value}
               onChange={handleValueChange}
               placeholder="Enter value..."
+              operator={condition.operator}
             />
           </div>
         )}
