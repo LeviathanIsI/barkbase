@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   Pencil,
   Check,
-  X,
   Loader2,
   AlertCircle,
   ChevronDown,
@@ -272,38 +271,21 @@ export default function BuilderHeader({
         {/* Center - Workflow name + Status badge + Save status */}
         <div className="flex items-center gap-3">
           {isEditingName ? (
-            <div className="flex items-center gap-1">
-              <input
-                ref={nameInputRef}
-                type="text"
-                value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
-                onBlur={handleNameSubmit}
-                onKeyDown={handleNameKeyDown}
-                className={cn(
-                  'px-2 py-1 text-lg font-semibold text-center',
-                  'bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-accent)]',
-                  'rounded focus:outline-none',
-                  'text-[var(--bb-color-text-primary)]'
-                )}
-                style={{ width: `${Math.max(editedName.length, 10)}ch` }}
-              />
-              <button
-                onClick={handleNameSubmit}
-                className="p-1 text-[var(--bb-color-status-positive)] hover:bg-[var(--bb-color-bg-elevated)] rounded"
-              >
-                <Check size={16} />
-              </button>
-              <button
-                onClick={() => {
-                  setEditedName(workflow.name);
-                  setIsEditingName(false);
-                }}
-                className="p-1 text-[var(--bb-color-text-tertiary)] hover:bg-[var(--bb-color-bg-elevated)] rounded"
-              >
-                <X size={16} />
-              </button>
-            </div>
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={editedName}
+              onChange={(e) => setEditedName(e.target.value)}
+              onBlur={handleNameSubmit}
+              onKeyDown={handleNameKeyDown}
+              className={cn(
+                'px-2 py-1 text-lg font-semibold text-center',
+                'bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-accent)]',
+                'rounded focus:outline-none',
+                'text-[var(--bb-color-text-primary)]'
+              )}
+              style={{ width: `${Math.max(editedName.length, 10)}ch` }}
+            />
           ) : (
             <button
               onClick={() => setIsEditingName(true)}
