@@ -29,6 +29,10 @@ const {
   sendBookingReminder,
   sendVaccinationReminder,
   createResponse,
+  // Workflow event publishing
+  publishPetVaccinationExpiring,
+  publishPetVaccinationExpired,
+  publishPetBirthday,
 } = sharedLayer;
 
 /**
@@ -212,6 +216,16 @@ async function processVaccinationReminders() {
           templateUsed: 'vaccinationReminder',
         });
 
+        // Publish workflow event for vaccination expiring
+        publishPetVaccinationExpiring(
+          { id: vacc.pet_id, name: vacc.pet_name, owner_id: vacc.owner_id, vaccination_status: 'expiring' },
+          vacc.tenant_id,
+          vacc.days_until_expiry,
+          vacc.expires_at
+        ).catch(err => {
+          console.error('[REMINDER] Failed to publish workflow event:', err.message);
+        });
+
         results.sent++;
         console.log('[REMINDER] Sent vaccination reminder to', vacc.owner_email, 'for', vacc.pet_name);
 
@@ -226,12 +240,93 @@ async function processVaccinationReminders() {
       }
     }
 
+    // Also process already-expired vaccinations
+    await processExpiredVaccinations();
+
   } catch (error) {
     console.error('[REMINDER] Error processing vaccination reminders:', error.message);
     throw error;
   }
 
   return results;
+}
+
+/**
+ * Publish workflow events for expired vaccinations
+ */
+async function processExpiredVaccinations() {
+  console.log('[REMINDER] Processing expired vaccinations for workflow events...');
+
+  try {
+    // Find vaccinations that expired today
+    const expiredResult = await query(
+      `SELECT DISTINCT ON (p.id)
+         p.id as pet_id,
+         p.name as pet_name,
+         p.tenant_id,
+         o.id as owner_id
+       FROM "Vaccination" v
+       JOIN "Pet" p ON v.pet_id = p.id
+       LEFT JOIN "PetOwner" po ON po.pet_id = p.id AND po.is_primary = true
+       LEFT JOIN "Owner" o ON po.owner_id = o.id
+       WHERE DATE(v.expires_at) = CURRENT_DATE
+       ORDER BY p.id, v.expires_at DESC`
+    );
+
+    console.log('[REMINDER] Found', expiredResult.rows.length, 'pets with vaccinations expiring today');
+
+    for (const pet of expiredResult.rows) {
+      publishPetVaccinationExpired(
+        { id: pet.pet_id, name: pet.pet_name, owner_id: pet.owner_id },
+        pet.tenant_id
+      ).catch(err => {
+        console.error('[REMINDER] Failed to publish vaccination expired event:', err.message);
+      });
+    }
+  } catch (error) {
+    console.error('[REMINDER] Error processing expired vaccinations:', error.message);
+  }
+}
+
+/**
+ * Process pet birthdays and publish workflow events
+ */
+async function processPetBirthdays() {
+  console.log('[REMINDER] Processing pet birthdays...');
+
+  try {
+    // Find pets with birthday today
+    const birthdayResult = await query(
+      `SELECT
+         p.id as pet_id,
+         p.name as pet_name,
+         p.tenant_id,
+         p.date_of_birth,
+         o.id as owner_id
+       FROM "Pet" p
+       LEFT JOIN "PetOwner" po ON po.pet_id = p.id AND po.is_primary = true
+       LEFT JOIN "Owner" o ON po.owner_id = o.id
+       WHERE EXTRACT(MONTH FROM p.date_of_birth) = EXTRACT(MONTH FROM CURRENT_DATE)
+         AND EXTRACT(DAY FROM p.date_of_birth) = EXTRACT(DAY FROM CURRENT_DATE)
+         AND p.date_of_birth IS NOT NULL`
+    );
+
+    console.log('[REMINDER] Found', birthdayResult.rows.length, 'pets with birthday today');
+
+    for (const pet of birthdayResult.rows) {
+      publishPetBirthday(
+        { id: pet.pet_id, name: pet.pet_name, owner_id: pet.owner_id, date_of_birth: pet.date_of_birth },
+        pet.tenant_id
+      ).catch(err => {
+        console.error('[REMINDER] Failed to publish pet birthday event:', err.message);
+      });
+    }
+
+    return { found: birthdayResult.rows.length };
+  } catch (error) {
+    console.error('[REMINDER] Error processing pet birthdays:', error.message);
+    return { found: 0, error: error.message };
+  }
 }
 
 /**
@@ -245,6 +340,7 @@ exports.handler = async (event, context) => {
   // Determine which reminders to process
   const processBookings = event.processBookings !== false;
   const processVaccinations = event.processVaccinations !== false;
+  const processBirthdays = event.processBirthdays !== false;
 
   try {
     await getPoolAsync();
@@ -253,6 +349,7 @@ exports.handler = async (event, context) => {
       timestamp: new Date().toISOString(),
       bookings: null,
       vaccinations: null,
+      birthdays: null,
     };
 
     // Process booking reminders
@@ -260,9 +357,14 @@ exports.handler = async (event, context) => {
       results.bookings = await processBookingReminders();
     }
 
-    // Process vaccination reminders
+    // Process vaccination reminders (also publishes workflow events)
     if (processVaccinations) {
       results.vaccinations = await processVaccinationReminders();
+    }
+
+    // Process pet birthdays (publishes workflow events)
+    if (processBirthdays) {
+      results.birthdays = await processPetBirthdays();
     }
 
     console.log('[REMINDER] Completed:', JSON.stringify(results));
