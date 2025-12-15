@@ -1,0 +1,596 @@
+/**
+ * =============================================================================
+ * BarkBase Workflow Scheduled Processor Lambda
+ * =============================================================================
+ *
+ * Handles scheduled workflow operations:
+ * 1. Schedule-triggered workflows (cron-based)
+ * 2. Resuming paused executions (wait steps that have reached their resume time)
+ * 3. Filter-criteria workflows (periodic check for matching records)
+ *
+ * Called by EventBridge rules on a schedule (e.g., every 5 minutes)
+ *
+ * =============================================================================
+ */
+
+// Import from layers (mounted at /opt/nodejs in Lambda)
+let dbLayer, sharedLayer;
+
+try {
+  dbLayer = require('/opt/nodejs/db');
+  sharedLayer = require('/opt/nodejs/index');
+} catch (e) {
+  // Local development fallback
+  dbLayer = require('../../layers/db-layer/nodejs/db');
+  sharedLayer = require('../../layers/shared-layer/nodejs/index');
+}
+
+const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+
+const { getPoolAsync, query } = dbLayer;
+
+// Initialize SQS client
+const sqs = new SQSClient({
+  region: process.env.AWS_REGION_DEPLOY || process.env.AWS_REGION || 'us-east-2',
+});
+
+// Queue URLs from environment
+const STEP_QUEUE_URL = process.env.WORKFLOW_STEP_QUEUE_URL;
+const TRIGGER_QUEUE_URL = process.env.WORKFLOW_TRIGGER_QUEUE_URL;
+
+/**
+ * Main handler for scheduled invocation
+ */
+exports.handler = async (event) => {
+  console.log('[ScheduledProcessor] Starting scheduled run');
+
+  // Ensure database pool is initialized
+  await getPoolAsync();
+
+  const results = {
+    resumedExecutions: 0,
+    scheduleWorkflowsTriggered: 0,
+    filterWorkflowsProcessed: 0,
+    errors: [],
+  };
+
+  try {
+    // 1. Resume paused executions whose wait time has passed
+    const resumed = await resumePausedExecutions();
+    results.resumedExecutions = resumed;
+
+    // 2. Process schedule-triggered workflows
+    const scheduled = await processScheduleWorkflows();
+    results.scheduleWorkflowsTriggered = scheduled;
+
+    // 3. Process filter-criteria workflows (check for matching records)
+    const filtered = await processFilterWorkflows();
+    results.filterWorkflowsProcessed = filtered;
+
+  } catch (error) {
+    console.error('[ScheduledProcessor] Error:', error);
+    results.errors.push(error.message);
+  }
+
+  console.log('[ScheduledProcessor] Results:', results);
+  return results;
+};
+
+/**
+ * Resume paused executions whose wait time has passed
+ */
+async function resumePausedExecutions() {
+  console.log('[ScheduledProcessor] Checking for paused executions to resume...');
+
+  // Find all paused executions where resume_at has passed
+  const pausedResult = await query(
+    `SELECT we.id as execution_id, we.workflow_id, we.tenant_id, we.current_step_id,
+            w.name as workflow_name
+     FROM "WorkflowExecution" we
+     JOIN "Workflow" w ON we.workflow_id = w.id
+     WHERE we.status = 'paused'
+       AND we.resume_at IS NOT NULL
+       AND we.resume_at <= NOW()
+     ORDER BY we.resume_at ASC
+     LIMIT 100`
+  );
+
+  console.log('[ScheduledProcessor] Found', pausedResult.rows.length, 'executions to resume');
+
+  let resumed = 0;
+
+  for (const execution of pausedResult.rows) {
+    try {
+      // Update execution status back to running
+      await query(
+        `UPDATE "WorkflowExecution"
+         SET status = 'running', resume_at = NULL, updated_at = NOW()
+         WHERE id = $1`,
+        [execution.execution_id]
+      );
+
+      // Get next step after the wait
+      const currentStepResult = await query(
+        `SELECT ws.workflow_id, ws.id, ws.parent_step_id, ws.branch_path, ws.position
+         FROM "WorkflowStep" ws
+         WHERE ws.id = $1`,
+        [execution.current_step_id]
+      );
+
+      if (currentStepResult.rows.length > 0) {
+        const currentStep = currentStepResult.rows[0];
+
+        // Find next step after the wait
+        const nextStepId = await findNextStep(
+          currentStep.workflow_id,
+          currentStep.id,
+          currentStep.parent_step_id,
+          currentStep.branch_path,
+          currentStep.position
+        );
+
+        if (nextStepId) {
+          // Update current step and queue for execution
+          await query(
+            `UPDATE "WorkflowExecution"
+             SET current_step_id = $1
+             WHERE id = $2`,
+            [nextStepId, execution.execution_id]
+          );
+
+          await queueStepExecution(execution.execution_id, execution.workflow_id, execution.tenant_id);
+          resumed++;
+
+          console.log('[ScheduledProcessor] Resumed execution:', execution.execution_id);
+        } else {
+          // No more steps - complete the workflow
+          await query(
+            `UPDATE "WorkflowExecution"
+             SET status = 'completed', completed_at = NOW()
+             WHERE id = $1`,
+            [execution.execution_id]
+          );
+
+          await query(
+            `UPDATE "Workflow"
+             SET completed_count = completed_count + 1
+             WHERE id = $1`,
+            [execution.workflow_id]
+          );
+
+          console.log('[ScheduledProcessor] Completed execution (no more steps):', execution.execution_id);
+          resumed++;
+        }
+      }
+    } catch (error) {
+      console.error('[ScheduledProcessor] Error resuming execution:', execution.execution_id, error);
+    }
+  }
+
+  return resumed;
+}
+
+/**
+ * Process schedule-triggered workflows
+ */
+async function processScheduleWorkflows() {
+  console.log('[ScheduledProcessor] Checking for schedule-triggered workflows...');
+
+  // Get current time info for cron matching
+  const now = new Date();
+  const currentHour = now.getUTCHours();
+  const currentMinute = now.getUTCMinutes();
+  const currentDay = now.getUTCDay(); // 0 = Sunday
+  const currentDate = now.getUTCDate();
+
+  // Find active workflows with schedule trigger
+  const workflowsResult = await query(
+    `SELECT w.id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings, w.last_run_at
+     FROM "Workflow" w
+     WHERE w.status = 'active'
+       AND w.deleted_at IS NULL
+       AND w.entry_condition->>'trigger_type' = 'schedule'`
+  );
+
+  console.log('[ScheduledProcessor] Found', workflowsResult.rows.length, 'schedule workflows');
+
+  let triggered = 0;
+
+  for (const workflow of workflowsResult.rows) {
+    try {
+      const entryCondition = workflow.entry_condition || {};
+      const schedule = entryCondition.schedule || {};
+
+      // Check if this workflow should run now based on schedule
+      if (shouldRunNow(schedule, workflow.last_run_at, currentHour, currentMinute, currentDay, currentDate)) {
+        console.log('[ScheduledProcessor] Triggering schedule workflow:', workflow.name);
+
+        // Get records to enroll based on object type
+        const records = await getRecordsForScheduleWorkflow(workflow);
+
+        for (const record of records) {
+          // Queue trigger event for each record
+          await queueTriggerEvent(
+            'schedule.triggered',
+            record.id,
+            workflow.object_type,
+            workflow.tenant_id,
+            { workflowId: workflow.id, scheduled: true }
+          );
+        }
+
+        // Update last run time
+        await query(
+          `UPDATE "Workflow" SET last_run_at = NOW() WHERE id = $1`,
+          [workflow.id]
+        );
+
+        triggered++;
+      }
+    } catch (error) {
+      console.error('[ScheduledProcessor] Error processing schedule workflow:', workflow.id, error);
+    }
+  }
+
+  return triggered;
+}
+
+/**
+ * Check if a schedule workflow should run now
+ */
+function shouldRunNow(schedule, lastRunAt, hour, minute, day, date) {
+  // Schedule types: daily, weekly, monthly, custom
+  const scheduleType = schedule.type || 'daily';
+  const scheduleTime = schedule.time || '09:00';
+  const [scheduleHour, scheduleMinute] = scheduleTime.split(':').map(Number);
+
+  // Check if we're within the right minute window (allow 5 minute window for Lambda timing)
+  const minuteMatch = Math.abs(minute - scheduleMinute) <= 2 ||
+                      Math.abs(minute - scheduleMinute) >= 58;
+  const hourMatch = hour === scheduleHour ||
+                    (minute > 57 && hour === (scheduleHour + 1) % 24);
+
+  if (!hourMatch || !minuteMatch) {
+    return false;
+  }
+
+  // Check if already ran today
+  if (lastRunAt) {
+    const lastRun = new Date(lastRunAt);
+    const now = new Date();
+    const sameDay = lastRun.toDateString() === now.toDateString();
+    if (sameDay) {
+      return false;
+    }
+  }
+
+  switch (scheduleType) {
+    case 'daily':
+      return true;
+
+    case 'weekly':
+      const scheduleDays = schedule.days || [1, 2, 3, 4, 5]; // Default Mon-Fri
+      return scheduleDays.includes(day);
+
+    case 'monthly':
+      const scheduleDates = schedule.dates || [1]; // Default 1st of month
+      return scheduleDates.includes(date);
+
+    case 'custom':
+      // Custom cron expression - simplified parsing
+      // Format: "minute hour dayOfMonth month dayOfWeek"
+      const cron = schedule.cron || '0 9 * * *';
+      return matchesCron(cron, minute, hour, date, now.getUTCMonth() + 1, day);
+
+    default:
+      return true;
+  }
+}
+
+/**
+ * Simple cron expression matcher
+ */
+function matchesCron(cron, minute, hour, dayOfMonth, month, dayOfWeek) {
+  const parts = cron.split(' ');
+  if (parts.length !== 5) return false;
+
+  const [cronMin, cronHour, cronDom, cronMonth, cronDow] = parts;
+
+  return matchesCronPart(cronMin, minute) &&
+         matchesCronPart(cronHour, hour) &&
+         matchesCronPart(cronDom, dayOfMonth) &&
+         matchesCronPart(cronMonth, month) &&
+         matchesCronPart(cronDow, dayOfWeek);
+}
+
+/**
+ * Match a single cron part
+ */
+function matchesCronPart(cronPart, value) {
+  if (cronPart === '*') return true;
+
+  // Handle lists (1,2,3)
+  if (cronPart.includes(',')) {
+    return cronPart.split(',').map(Number).includes(value);
+  }
+
+  // Handle ranges (1-5)
+  if (cronPart.includes('-')) {
+    const [start, end] = cronPart.split('-').map(Number);
+    return value >= start && value <= end;
+  }
+
+  // Handle step values (*/5)
+  if (cronPart.includes('/')) {
+    const step = parseInt(cronPart.split('/')[1]);
+    return value % step === 0;
+  }
+
+  // Direct match
+  return parseInt(cronPart) === value;
+}
+
+/**
+ * Get records for a schedule workflow (typically all or filtered)
+ */
+async function getRecordsForScheduleWorkflow(workflow) {
+  const { object_type: objectType, tenant_id: tenantId, entry_condition: entryCondition } = workflow;
+
+  const tableName = getTableName(objectType);
+  if (!tableName) {
+    return [];
+  }
+
+  // Get filter criteria if specified
+  const filter = entryCondition?.filter || {};
+
+  // For now, just get records not already in a running execution of this workflow
+  // TODO: Add proper filter condition parsing
+  const result = await query(
+    `SELECT r.id FROM "${tableName}" r
+     WHERE r.tenant_id = $1
+       AND NOT EXISTS (
+         SELECT 1 FROM "WorkflowExecution" we
+         WHERE we.workflow_id = $2
+           AND we.record_id = r.id
+           AND we.status IN ('running', 'paused')
+       )
+     LIMIT 100`,
+    [tenantId, workflow.id]
+  );
+
+  return result.rows;
+}
+
+/**
+ * Process filter-criteria workflows
+ */
+async function processFilterWorkflows() {
+  console.log('[ScheduledProcessor] Checking for filter-criteria workflows...');
+
+  // Find active workflows with filter_criteria trigger
+  const workflowsResult = await query(
+    `SELECT w.id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings
+     FROM "Workflow" w
+     WHERE w.status = 'active'
+       AND w.deleted_at IS NULL
+       AND w.entry_condition->>'trigger_type' = 'filter_criteria'`
+  );
+
+  console.log('[ScheduledProcessor] Found', workflowsResult.rows.length, 'filter workflows');
+
+  let processed = 0;
+
+  for (const workflow of workflowsResult.rows) {
+    try {
+      const enrolled = await processFilterWorkflow(workflow);
+      if (enrolled > 0) {
+        processed++;
+        console.log('[ScheduledProcessor] Enrolled', enrolled, 'records in filter workflow:', workflow.name);
+      }
+    } catch (error) {
+      console.error('[ScheduledProcessor] Error processing filter workflow:', workflow.id, error);
+    }
+  }
+
+  return processed;
+}
+
+/**
+ * Process a single filter-criteria workflow
+ */
+async function processFilterWorkflow(workflow) {
+  const { id: workflowId, tenant_id: tenantId, object_type: objectType, entry_condition: entryCondition, settings } = workflow;
+  const filter = entryCondition?.filter || {};
+
+  const tableName = getTableName(objectType);
+  if (!tableName) {
+    return 0;
+  }
+
+  // Build WHERE clause from filter criteria
+  // TODO: Implement proper filter parsing when filter builder is finalized
+  // For now, use simple property checks if specified
+
+  let whereClause = `r.tenant_id = $1`;
+  const params = [tenantId];
+  let paramIndex = 2;
+
+  // Add filter conditions if present
+  if (filter.conditions && filter.conditions.length > 0) {
+    for (const condition of filter.conditions) {
+      const columnName = sanitizeColumnName(condition.field);
+      if (!columnName) continue;
+
+      switch (condition.operator) {
+        case 'equals':
+          whereClause += ` AND r."${columnName}" = $${paramIndex}`;
+          params.push(condition.value);
+          paramIndex++;
+          break;
+        case 'not_equals':
+          whereClause += ` AND r."${columnName}" != $${paramIndex}`;
+          params.push(condition.value);
+          paramIndex++;
+          break;
+        case 'is_empty':
+          whereClause += ` AND (r."${columnName}" IS NULL OR r."${columnName}" = '')`;
+          break;
+        case 'is_not_empty':
+          whereClause += ` AND r."${columnName}" IS NOT NULL AND r."${columnName}" != ''`;
+          break;
+        // Add more operators as needed
+      }
+    }
+  }
+
+  // Exclude records already enrolled in running executions
+  whereClause += ` AND NOT EXISTS (
+    SELECT 1 FROM "WorkflowExecution" we
+    WHERE we.workflow_id = $${paramIndex}
+      AND we.record_id = r.id
+      AND we.status IN ('running', 'paused')
+  )`;
+  params.push(workflowId);
+
+  // Get matching records
+  const recordsResult = await query(
+    `SELECT r.id FROM "${tableName}" r WHERE ${whereClause} LIMIT 100`,
+    params
+  );
+
+  let enrolled = 0;
+
+  for (const record of recordsResult.rows) {
+    try {
+      await queueTriggerEvent(
+        'filter_criteria.matched',
+        record.id,
+        objectType,
+        tenantId,
+        { workflowId, filterMatch: true }
+      );
+      enrolled++;
+    } catch (error) {
+      console.error('[ScheduledProcessor] Error queueing record:', record.id, error);
+    }
+  }
+
+  return enrolled;
+}
+
+/**
+ * Sanitize column name to prevent SQL injection
+ */
+function sanitizeColumnName(name) {
+  if (!name || typeof name !== 'string') return null;
+  // Only allow alphanumeric and underscore
+  const sanitized = name.replace(/[^a-zA-Z0-9_]/g, '');
+  return sanitized.length > 0 ? sanitized : null;
+}
+
+/**
+ * Find the next step after a given step
+ */
+async function findNextStep(workflowId, currentStepId, parentStepId, branchPath, currentPosition) {
+  // Find next sibling at same level
+  const nextSiblingResult = await query(
+    `SELECT id FROM "WorkflowStep"
+     WHERE workflow_id = $1
+       AND COALESCE(parent_step_id::text, '') = $2
+       AND COALESCE(branch_path, '') = $3
+       AND position > $4
+     ORDER BY position ASC
+     LIMIT 1`,
+    [
+      workflowId,
+      parentStepId || '',
+      branchPath || '',
+      currentPosition
+    ]
+  );
+
+  if (nextSiblingResult.rows.length > 0) {
+    return nextSiblingResult.rows[0].id;
+  }
+
+  // No more siblings - if we're in a branch, go to parent's next sibling
+  if (parentStepId) {
+    const parentResult = await query(
+      `SELECT parent_step_id, branch_path, position FROM "WorkflowStep" WHERE id = $1`,
+      [parentStepId]
+    );
+
+    if (parentResult.rows.length > 0) {
+      const parent = parentResult.rows[0];
+      return findNextStep(
+        workflowId,
+        parentStepId,
+        parent.parent_step_id,
+        parent.branch_path,
+        parent.position
+      );
+    }
+  }
+
+  // No more steps
+  return null;
+}
+
+/**
+ * Get table name for object type
+ */
+function getTableName(objectType) {
+  const tables = {
+    pet: 'Pet',
+    booking: 'Booking',
+    owner: 'Owner',
+    payment: 'Payment',
+    invoice: 'Invoice',
+    task: 'Task',
+  };
+  return tables[objectType] || null;
+}
+
+/**
+ * Queue a step for execution
+ */
+async function queueStepExecution(executionId, workflowId, tenantId) {
+  if (!STEP_QUEUE_URL) {
+    console.warn('[ScheduledProcessor] WORKFLOW_STEP_QUEUE_URL not set');
+    return;
+  }
+
+  await sqs.send(new SendMessageCommand({
+    QueueUrl: STEP_QUEUE_URL,
+    MessageBody: JSON.stringify({
+      executionId,
+      workflowId,
+      tenantId,
+      action: 'execute_next',
+      timestamp: new Date().toISOString(),
+    }),
+  }));
+}
+
+/**
+ * Queue a trigger event
+ */
+async function queueTriggerEvent(eventType, recordId, recordType, tenantId, eventData = {}) {
+  if (!TRIGGER_QUEUE_URL) {
+    console.warn('[ScheduledProcessor] WORKFLOW_TRIGGER_QUEUE_URL not set');
+    return;
+  }
+
+  await sqs.send(new SendMessageCommand({
+    QueueUrl: TRIGGER_QUEUE_URL,
+    MessageBody: JSON.stringify({
+      eventType,
+      recordId,
+      recordType,
+      tenantId,
+      eventData,
+      timestamp: new Date().toISOString(),
+    }),
+  }));
+}
