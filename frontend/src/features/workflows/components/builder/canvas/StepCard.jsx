@@ -21,6 +21,7 @@ import {
   Trash2,
   MoreHorizontal,
   AlertCircle,
+  GripVertical,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/cn';
@@ -68,6 +69,7 @@ export default function StepCard({
   onDelete,
   objectType = 'pet',
   lookups = {},
+  showDragHandle = true,
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
@@ -141,12 +143,25 @@ export default function StepCard({
         "w-72 rounded-lg cursor-pointer group",
         "bg-[var(--bb-color-bg-elevated)] border-2",
         "transition-all duration-150",
+        "hover:shadow-md hover:-translate-y-0.5",
         getBorderClass()
       )}
     >
       {/* Header */}
       <div className="px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 flex-1 min-w-0">
+          {/* Drag handle - shown on hover */}
+          {showDragHandle && (
+            <div
+              className={cn(
+                "flex-shrink-0 opacity-0 group-hover:opacity-100",
+                "text-[var(--bb-color-text-tertiary)]",
+                "transition-opacity cursor-grab active:cursor-grabbing"
+              )}
+            >
+              <GripVertical size={14} />
+            </div>
+          )}
           <div
             className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: `${color}20` }}

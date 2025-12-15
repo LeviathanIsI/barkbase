@@ -1,7 +1,10 @@
 /**
  * BuilderCanvas - Main canvas component for the workflow builder
  * Renders the visual workflow with trigger, steps, and connectors
+ * Supports pan, zoom, and drag-to-reorder functionality
  */
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useWorkflowBuilderStore } from '../../stores/builderStore';
 import { STEP_TYPES } from '../../constants';
@@ -10,6 +13,12 @@ import TriggerCard from './canvas/TriggerCard';
 import StepCard from './canvas/StepCard';
 import Connector from './canvas/Connector';
 import AddStepButton from './canvas/AddStepButton';
+import DraggableStep from './canvas/DraggableStep';
+
+// Zoom constants
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 1.5;
+const ZOOM_STEP = 0.1;
 
 export default function BuilderCanvas() {
   const {
@@ -18,65 +27,223 @@ export default function BuilderCanvas() {
     selectedStepId,
     selectStep,
     deleteStep,
+    moveStep,
     openSettings,
   } = useWorkflowBuilderStore();
+
+  // Pan and zoom state
+  const canvasRef = useRef(null);
+  const contentRef = useRef(null);
+  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
 
   // Get root level steps (not in branches)
   const rootSteps = steps
     .filter((s) => !s.parentStepId)
     .sort((a, b) => a.position - b.position);
 
-  return (
-    <div
-      className={cn(
-        "min-h-full w-full p-8",
-        "flex flex-col items-center",
-        "bg-[var(--bb-color-bg-body)]"
-      )}
-      style={{
-        backgroundImage: `radial-gradient(circle, var(--bb-color-border-subtle) 1px, transparent 1px)`,
-        backgroundSize: '20px 20px',
-      }}
-    >
-      {/* Trigger Card */}
-      <TriggerCard
-        entryCondition={workflow.entryCondition}
-        objectType={workflow.objectType}
-        settings={workflow.settings}
-        isSelected={selectedStepId === 'trigger'}
-        onClick={() => selectStep('trigger')}
-        onSettingsClick={openSettings}
-      />
+  // Zoom controls
+  const handleZoomIn = () => {
+    setTransform((prev) => ({
+      ...prev,
+      scale: Math.min(MAX_SCALE, prev.scale + ZOOM_STEP),
+    }));
+  };
 
-      {/* First connector with add button */}
-      <div className="relative flex flex-col items-center">
-        <Connector height={40} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <AddStepButton
-            afterStepId={null}
-            branchPath={null}
-          />
-        </div>
+  const handleZoomOut = () => {
+    setTransform((prev) => ({
+      ...prev,
+      scale: Math.max(MIN_SCALE, prev.scale - ZOOM_STEP),
+    }));
+  };
+
+  const handleResetView = () => {
+    setTransform({ x: 0, y: 0, scale: 1 });
+  };
+
+  // Mouse wheel zoom (Ctrl/Cmd + scroll)
+  const handleWheel = useCallback((e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+      setTransform((prev) => ({
+        ...prev,
+        scale: Math.max(MIN_SCALE, Math.min(MAX_SCALE, prev.scale + delta)),
+      }));
+    }
+  }, []);
+
+  // Pan with mouse drag (middle mouse or click on background)
+  const handleMouseDown = (e) => {
+    // Check if clicking on canvas background (not on a step or button)
+    const isBackground = e.target === canvasRef.current || e.target === contentRef.current;
+    if (e.button === 1 || (e.button === 0 && isBackground)) {
+      e.preventDefault();
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
+    }
+  };
+
+  const handleMouseMove = useCallback(
+    (e) => {
+      if (isPanning) {
+        setTransform((prev) => ({
+          ...prev,
+          x: e.clientX - panStart.x,
+          y: e.clientY - panStart.y,
+        }));
+      }
+    },
+    [isPanning, panStart]
+  );
+
+  const handleMouseUp = () => {
+    setIsPanning(false);
+  };
+
+  // Add wheel listener with passive: false for preventDefault
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.addEventListener('wheel', handleWheel, { passive: false });
+      return () => canvas.removeEventListener('wheel', handleWheel);
+    }
+  }, [handleWheel]);
+
+  // Handle step reorder via drag and drop
+  const handleReorder = (draggedStepId, targetIndex) => {
+    // Find the current position of the dragged step
+    const currentIndex = rootSteps.findIndex((s) => s.id === draggedStepId);
+    if (currentIndex !== -1 && currentIndex !== targetIndex) {
+      moveStep(draggedStepId, targetIndex);
+    }
+  };
+
+  return (
+    <div className="relative flex-1 overflow-hidden bg-[var(--bb-color-bg-body)]">
+      {/* Zoom Controls */}
+      <div
+        className={cn(
+          'absolute top-4 right-4 z-20',
+          'flex items-center gap-1',
+          'bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]',
+          'rounded-lg p-1 shadow-lg'
+        )}
+      >
+        <button
+          onClick={handleZoomOut}
+          disabled={transform.scale <= MIN_SCALE}
+          className={cn(
+            'p-2 rounded',
+            'text-[var(--bb-color-text-secondary)]',
+            'hover:bg-[var(--bb-color-bg-surface)] hover:text-[var(--bb-color-text-primary)]',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
+            'transition-colors'
+          )}
+          title="Zoom out (Ctrl + Scroll)"
+        >
+          <ZoomOut size={16} />
+        </button>
+        <span className="px-2 text-sm text-[var(--bb-color-text-tertiary)] min-w-[50px] text-center">
+          {Math.round(transform.scale * 100)}%
+        </span>
+        <button
+          onClick={handleZoomIn}
+          disabled={transform.scale >= MAX_SCALE}
+          className={cn(
+            'p-2 rounded',
+            'text-[var(--bb-color-text-secondary)]',
+            'hover:bg-[var(--bb-color-bg-surface)] hover:text-[var(--bb-color-text-primary)]',
+            'disabled:opacity-50 disabled:cursor-not-allowed',
+            'transition-colors'
+          )}
+          title="Zoom in (Ctrl + Scroll)"
+        >
+          <ZoomIn size={16} />
+        </button>
+        <div className="w-px h-6 bg-[var(--bb-color-border-subtle)] mx-1" />
+        <button
+          onClick={handleResetView}
+          className={cn(
+            'p-2 rounded',
+            'text-[var(--bb-color-text-secondary)]',
+            'hover:bg-[var(--bb-color-bg-surface)] hover:text-[var(--bb-color-text-primary)]',
+            'transition-colors'
+          )}
+          title="Reset view"
+        >
+          <Maximize2 size={16} />
+        </button>
       </div>
 
-      {/* Steps */}
-      {rootSteps.map((step, index) => (
-        <StepNode
-          key={step.id}
-          step={step}
-          allSteps={steps}
-          objectType={workflow.objectType}
-          isSelected={selectedStepId === step.id}
-          onSelect={() => selectStep(step.id)}
-          onDelete={() => deleteStep(step.id)}
-          isLast={index === rootSteps.length - 1}
-        />
-      ))}
+      {/* Canvas Area */}
+      <div
+        ref={canvasRef}
+        className={cn(
+          'w-full h-full overflow-hidden',
+          isPanning ? 'cursor-grabbing' : 'cursor-default'
+        )}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        {/* Transformable content */}
+        <div
+          ref={contentRef}
+          className="min-h-full flex flex-col items-center py-8"
+          style={{
+            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+            transformOrigin: 'center top',
+            transition: isPanning ? 'none' : 'transform 0.1s ease-out',
+            backgroundImage: `radial-gradient(circle, var(--bb-color-border-subtle) 1px, transparent 1px)`,
+            backgroundSize: '20px 20px',
+          }}
+        >
+          {/* Trigger Card */}
+          <TriggerCard
+            entryCondition={workflow.entryCondition}
+            objectType={workflow.objectType}
+            settings={workflow.settings}
+            isSelected={selectedStepId === 'trigger'}
+            onClick={() => selectStep('trigger')}
+            onSettingsClick={openSettings}
+          />
 
-      {/* End node if no steps or no terminus */}
-      {rootSteps.length === 0 && (
-        <EndNode />
-      )}
+          {/* First connector with add button */}
+          <div className="relative flex flex-col items-center">
+            <Connector height={40} />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+              <AddStepButton afterStepId={null} branchPath={null} />
+            </div>
+          </div>
+
+          {/* Steps */}
+          {rootSteps.map((step, index) => (
+            <DraggableStep
+              key={step.id}
+              step={step}
+              index={index}
+              onReorder={handleReorder}
+              isDraggable={step.stepType !== STEP_TYPES.DETERMINATOR}
+            >
+              <StepNode
+                step={step}
+                allSteps={steps}
+                objectType={workflow.objectType}
+                isSelected={selectedStepId === step.id}
+                onSelect={() => selectStep(step.id)}
+                onDelete={() => deleteStep(step.id)}
+                isLast={index === rootSteps.length - 1}
+              />
+            </DraggableStep>
+          ))}
+
+          {/* End node if no steps or no terminus */}
+          {rootSteps.length === 0 && <EndNode />}
+        </div>
+      </div>
     </div>
   );
 }
@@ -123,18 +290,13 @@ function StepNode({
         <div className="relative flex flex-col items-center">
           <Connector height={40} />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-            <AddStepButton
-              afterStepId={step.id}
-              branchPath={null}
-            />
+            <AddStepButton afterStepId={step.id} branchPath={null} />
           </div>
         </div>
       )}
 
       {/* End node after last non-terminus step */}
-      {isLast && step.stepType !== STEP_TYPES.TERMINUS && (
-        <EndNode />
-      )}
+      {isLast && step.stepType !== STEP_TYPES.TERMINUS && <EndNode />}
     </>
   );
 }
@@ -190,11 +352,7 @@ function DeterminatorNode({
           </div>
 
           {/* Add step button for yes branch */}
-          <AddStepButton
-            afterStepId={step.id}
-            branchPath="yes"
-            size="small"
-          />
+          <AddStepButton afterStepId={step.id} branchPath="yes" size="small" />
 
           {/* Yes branch steps */}
           {yesSteps.map((branchStep) => (
@@ -229,11 +387,7 @@ function DeterminatorNode({
           </div>
 
           {/* Add step button for no branch */}
-          <AddStepButton
-            afterStepId={step.id}
-            branchPath="no"
-            size="small"
-          />
+          <AddStepButton afterStepId={step.id} branchPath="no" size="small" />
 
           {/* No branch steps */}
           {noSteps.map((branchStep) => (
@@ -257,11 +411,7 @@ function DeterminatorNode({
 /**
  * BranchStepNode - Step node inside a branch
  */
-function BranchStepNode({
-  step,
-  objectType,
-  branchPath,
-}) {
+function BranchStepNode({ step, objectType, branchPath }) {
   const { selectedStepId, selectStep, deleteStep } = useWorkflowBuilderStore();
 
   return (
@@ -275,11 +425,7 @@ function BranchStepNode({
         onDelete={() => deleteStep(step.id)}
       />
       <Connector height={20} />
-      <AddStepButton
-        afterStepId={step.id}
-        branchPath={branchPath}
-        size="small"
-      />
+      <AddStepButton afterStepId={step.id} branchPath={branchPath} size="small" />
     </>
   );
 }
@@ -291,11 +437,11 @@ function EndNode({ small = false }) {
   return (
     <div
       className={cn(
-        "rounded-lg border border-[var(--bb-color-border-subtle)]",
-        "bg-[var(--bb-color-bg-elevated)]",
-        "flex items-center justify-center",
-        "text-[var(--bb-color-text-tertiary)]",
-        small ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"
+        'rounded-lg border border-[var(--bb-color-border-subtle)]',
+        'bg-[var(--bb-color-bg-elevated)]',
+        'flex items-center justify-center',
+        'text-[var(--bb-color-text-tertiary)]',
+        small ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'
       )}
     >
       End
