@@ -32,6 +32,7 @@ import {
   OBJECT_TYPE_CONFIG,
   OBJECT_PROPERTIES,
   CONDITION_OPERATORS,
+  PROPERTY_CHANGE_TYPES,
 } from '../../constants';
 import PropertyValueInput from './PropertyValueInput';
 
@@ -746,6 +747,9 @@ function TriggerConfigPanel({
   const [propertyConfig, setPropertyConfig] = useState({
     objectType: objectType,
     propertyName: '',
+    changeType: 'any_change', // 'any_change', 'changed_to', 'changed_from', 'changed_from_to'
+    fromValue: '',
+    toValue: '',
   });
 
   // Get property definition by name
@@ -777,13 +781,28 @@ function TriggerConfigPanel({
   // Handle save for property.changed event
   const handleSavePropertyConfig = () => {
     setObjectType(propertyConfig.objectType);
+
+    // Build filter config based on change type
+    const filterConfig = {
+      objectType: propertyConfig.objectType,
+      propertyName: propertyConfig.propertyName,
+      changeType: propertyConfig.changeType,
+    };
+
+    // Add value(s) based on change type
+    if (propertyConfig.changeType === 'changed_to') {
+      filterConfig.toValue = propertyConfig.toValue;
+    } else if (propertyConfig.changeType === 'changed_from') {
+      filterConfig.fromValue = propertyConfig.fromValue;
+    } else if (propertyConfig.changeType === 'changed_from_to') {
+      filterConfig.fromValue = propertyConfig.fromValue;
+      filterConfig.toValue = propertyConfig.toValue;
+    }
+
     setEntryCondition({
       triggerType: 'event',
       eventType: 'property.changed',
-      filterConfig: {
-        objectType: propertyConfig.objectType,
-        propertyName: propertyConfig.propertyName,
-      },
+      filterConfig,
       scheduleConfig: null,
     });
   };
@@ -878,7 +897,13 @@ function TriggerConfigPanel({
               </label>
               <select
                 value={propertyConfig.propertyName}
-                onChange={(e) => setPropertyConfig(prev => ({ ...prev, propertyName: e.target.value }))}
+                onChange={(e) => setPropertyConfig(prev => ({
+                  ...prev,
+                  propertyName: e.target.value,
+                  changeType: 'any_change',
+                  fromValue: '',
+                  toValue: '',
+                }))}
                 className={cn(
                   "w-full h-9 px-3 rounded-md",
                   "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
@@ -892,6 +917,86 @@ function TriggerConfigPanel({
                 ))}
               </select>
             </div>
+
+            {/* Change Type - only show if property is selected */}
+            {propertyConfig.propertyName && (
+              <div className="mb-4">
+                <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
+                  Change type
+                </label>
+                <select
+                  value={propertyConfig.changeType}
+                  onChange={(e) => setPropertyConfig(prev => ({
+                    ...prev,
+                    changeType: e.target.value,
+                    fromValue: '',
+                    toValue: '',
+                  }))}
+                  className={cn(
+                    "w-full h-9 px-3 rounded-md",
+                    "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+                    "text-sm text-[var(--bb-color-text-primary)]",
+                    "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                  )}
+                >
+                  {PROPERTY_CHANGE_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Dynamic value inputs based on change type */}
+            {propertyConfig.propertyName && propertyConfig.changeType === 'changed_to' && (
+              <div className="mb-4">
+                <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
+                  New value
+                </label>
+                <PropertyValueInput
+                  property={getPropertyByName(propertyConfig.propertyName, propertyConfig.objectType)}
+                  value={propertyConfig.toValue}
+                  onChange={(val) => setPropertyConfig(prev => ({ ...prev, toValue: val }))}
+                />
+              </div>
+            )}
+
+            {propertyConfig.propertyName && propertyConfig.changeType === 'changed_from' && (
+              <div className="mb-4">
+                <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
+                  Previous value
+                </label>
+                <PropertyValueInput
+                  property={getPropertyByName(propertyConfig.propertyName, propertyConfig.objectType)}
+                  value={propertyConfig.fromValue}
+                  onChange={(val) => setPropertyConfig(prev => ({ ...prev, fromValue: val }))}
+                />
+              </div>
+            )}
+
+            {propertyConfig.propertyName && propertyConfig.changeType === 'changed_from_to' && (
+              <>
+                <div className="mb-4">
+                  <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
+                    Changed from
+                  </label>
+                  <PropertyValueInput
+                    property={getPropertyByName(propertyConfig.propertyName, propertyConfig.objectType)}
+                    value={propertyConfig.fromValue}
+                    onChange={(val) => setPropertyConfig(prev => ({ ...prev, fromValue: val }))}
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
+                    Changed to
+                  </label>
+                  <PropertyValueInput
+                    property={getPropertyByName(propertyConfig.propertyName, propertyConfig.objectType)}
+                    value={propertyConfig.toValue}
+                    onChange={(val) => setPropertyConfig(prev => ({ ...prev, toValue: val }))}
+                  />
+                </div>
+              </>
+            )}
           </>
         ) : isFilterCriteria ? (
           // Filter criteria configuration
