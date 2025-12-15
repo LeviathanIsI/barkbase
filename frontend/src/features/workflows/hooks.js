@@ -3,6 +3,7 @@
  * Custom hooks wrapping the workflows API with React Query
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/apiClient';
 import * as api from './api';
 
 // Query keys for cache management
@@ -389,5 +390,42 @@ export function useCreateFromTemplate() {
 export function useTestWorkflow() {
   return useMutation({
     mutationFn: ({ workflowId, data }) => api.testWorkflow(workflowId, data),
+  });
+}
+
+// ===== DROPDOWN DATA =====
+
+/**
+ * Fetch segments for dropdown (filtered by object type)
+ */
+export function useSegmentsForDropdown(objectType) {
+  return useQuery({
+    queryKey: ['segments-dropdown', objectType],
+    queryFn: async () => {
+      const params = objectType ? { object_type: objectType } : {};
+      const response = await apiClient.get('/api/v1/segments', { params });
+      // Backend returns { data: [...], segments: [...], total: N }
+      const data = response?.data || response?.segments || response || [];
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+/**
+ * Fetch workflows for dropdown (exclude current workflow, only active)
+ */
+export function useWorkflowsForDropdown(objectType, excludeId) {
+  return useQuery({
+    queryKey: ['workflows-dropdown', objectType, excludeId],
+    queryFn: async () => {
+      const params = { status: 'active' };
+      if (objectType) params.objectType = objectType;
+
+      const response = await api.getWorkflows(params);
+      // Filter out current workflow
+      return (response || []).filter((w) => w.id !== excludeId);
+    },
+    staleTime: 5 * 60 * 1000,
   });
 }

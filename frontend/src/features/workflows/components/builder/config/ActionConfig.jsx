@@ -10,6 +10,8 @@ import {
   OBJECT_PROPERTIES,
 } from '../../../constants';
 import PropertyValueInput from './PropertyValueInput';
+import SegmentSelect from './SegmentSelect';
+import WorkflowSelect from './WorkflowSelect';
 
 // SMS character limits
 const SMS_CHAR_LIMIT = 160;
@@ -102,16 +104,16 @@ function renderActionConfig(step, objectType, onChange) {
       return <WebhookConfig config={step.config} objectType={objectType} onChange={onChange} />;
 
     case 'add_to_segment':
-      return <SegmentConfig config={step.config} onChange={onChange} action="add" />;
+      return <SegmentConfig config={step.config} objectType={objectType} onChange={onChange} action="add" />;
 
     case 'remove_from_segment':
-      return <SegmentConfig config={step.config} onChange={onChange} action="remove" />;
+      return <SegmentConfig config={step.config} objectType={objectType} onChange={onChange} action="remove" />;
 
     case 'enroll_in_workflow':
-      return <WorkflowEnrollConfig config={step.config} onChange={onChange} action="enroll" />;
+      return <WorkflowEnrollConfig config={step.config} objectType={objectType} onChange={onChange} action="enroll" />;
 
     case 'unenroll_from_workflow':
-      return <WorkflowEnrollConfig config={step.config} onChange={onChange} action="unenroll" />;
+      return <WorkflowEnrollConfig config={step.config} objectType={objectType} onChange={onChange} action="unenroll" />;
 
     default:
       return (
@@ -843,26 +845,19 @@ function WebhookConfig({ config, objectType, onChange }) {
 // =============================================================================
 // Segment Config
 // =============================================================================
-function SegmentConfig({ config, onChange, action }) {
+function SegmentConfig({ config, objectType, onChange, action }) {
   return (
     <div className="space-y-4">
       <div>
         <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
           Segment
         </label>
-        <select
-          value={config?.segmentId || ''}
-          onChange={(e) => onChange('segmentId', e.target.value)}
-          className={cn(
-            "w-full px-3 py-2 rounded-md",
-            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
-            "text-sm text-[var(--bb-color-text-primary)]",
-            "focus:outline-none focus:border-[var(--bb-color-accent)]"
-          )}
-        >
-          <option value="">Select segment...</option>
-          {/* Segments would be loaded from API */}
-        </select>
+        <SegmentSelect
+          objectType={objectType}
+          value={config?.segmentId}
+          onChange={(segmentId) => onChange('segmentId', segmentId)}
+          placeholder={action === 'add' ? 'Select segment to add record to...' : 'Select segment to remove record from...'}
+        />
         <div className="mt-2 text-xs text-[var(--bb-color-text-tertiary)]">
           {action === 'add'
             ? 'The enrolled record will be added to this segment'
@@ -876,31 +871,76 @@ function SegmentConfig({ config, onChange, action }) {
 // =============================================================================
 // Workflow Enroll Config
 // =============================================================================
-function WorkflowEnrollConfig({ config, onChange, action }) {
+function WorkflowEnrollConfig({ config, objectType, onChange, action }) {
+  // For enroll action
+  if (action === 'enroll') {
+    return (
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+            Workflow
+          </label>
+          <WorkflowSelect
+            objectType={objectType}
+            value={config?.workflowId}
+            onChange={(workflowId) => onChange('workflowId', workflowId)}
+            placeholder="Select workflow to enroll record in..."
+          />
+        </div>
+
+        <div className={cn(
+          'p-3 rounded-lg text-sm',
+          'bg-[var(--bb-color-accent-soft)] border border-[var(--bb-color-accent)]'
+        )}>
+          <p className="text-[var(--bb-color-accent)]">
+            The record will be enrolled in the selected workflow. It will continue through this workflow as well.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // For unenroll action
   return (
     <div className="space-y-4">
       <div>
         <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
-          Workflow
+          Unenroll From
         </label>
         <select
-          value={config?.workflowId || ''}
-          onChange={(e) => onChange('workflowId', e.target.value)}
+          value={config?.unenrollType || 'specific'}
+          onChange={(e) => onChange('unenrollType', e.target.value)}
           className={cn(
-            "w-full px-3 py-2 rounded-md",
-            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
-            "text-sm text-[var(--bb-color-text-primary)]",
-            "focus:outline-none focus:border-[var(--bb-color-accent)]"
+            'w-full px-3 py-2 rounded-md',
+            'bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]',
+            'text-sm text-[var(--bb-color-text-primary)]',
+            'focus:outline-none focus:border-[var(--bb-color-accent)]'
           )}
         >
-          <option value="">Select workflow...</option>
-          {/* Workflows would be loaded from API */}
+          <option value="specific">Specific workflow(s)</option>
+          <option value="all">All other workflows</option>
         </select>
-        <div className="mt-2 text-xs text-[var(--bb-color-text-tertiary)]">
-          {action === 'enroll'
-            ? 'The enrolled record will be added to this workflow'
-            : 'The enrolled record will be removed from this workflow'}
+      </div>
+
+      {config?.unenrollType !== 'all' && (
+        <div>
+          <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+            Workflow(s)
+          </label>
+          <WorkflowSelect
+            objectType={objectType}
+            value={config?.workflowIds || []}
+            onChange={(workflowIds) => onChange('workflowIds', workflowIds)}
+            isMulti={true}
+            placeholder="Select workflows to unenroll from..."
+          />
         </div>
+      )}
+
+      <div className="text-xs text-[var(--bb-color-text-tertiary)]">
+        {config?.unenrollType === 'all'
+          ? 'The record will be unenrolled from all other active workflows.'
+          : 'The record will be unenrolled from the selected workflow(s).'}
       </div>
     </div>
   );
