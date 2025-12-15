@@ -53,6 +53,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
   isDirty: false,
   isSaving: false,
   isInitialized: false,
+  saveStatus: 'idle', // 'idle' | 'saving' | 'saved' | 'error'
 
   // ===== INITIALIZATION =====
 
@@ -70,6 +71,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
       isDirty: false,
       isSaving: false,
       isInitialized: true,
+      saveStatus: 'idle',
     });
   },
 
@@ -118,6 +120,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
       isDirty: false,
       isSaving: false,
       isInitialized: true,
+      saveStatus: 'idle',
     });
   },
 
@@ -130,6 +133,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
       steps: [],
       selectedStepId: null,
       panelMode: 'trigger',
+      saveStatus: 'idle',
       pendingTriggerType: null,
       pendingStepContext: null,
       isDirty: false,
@@ -422,7 +426,23 @@ export const useWorkflowBuilderStore = create((set, get) => ({
    * Mark workflow as clean (saved)
    */
   markClean: () => {
-    set({ isDirty: false, isSaving: false });
+    set({ isDirty: false, isSaving: false, saveStatus: 'saved' });
+  },
+
+  /**
+   * Set save status indicator
+   */
+  setSaveStatus: (saveStatus) => {
+    set({ saveStatus });
+  },
+
+  /**
+   * Set workflow ID (after creation)
+   */
+  setWorkflowId: (id) => {
+    set((state) => ({
+      workflow: { ...state.workflow, id },
+    }));
   },
 
   // ===== SERIALIZATION =====

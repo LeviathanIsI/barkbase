@@ -56,7 +56,7 @@ const CATEGORY_ICONS = {
   pet_health: Heart,
 };
 
-export default function BuilderLeftPanel() {
+export default function BuilderLeftPanel({ onCreateWorkflow }) {
   const {
     workflow,
     panelMode,
@@ -88,6 +88,7 @@ export default function BuilderLeftPanel() {
   if (panelMode === 'trigger') {
     return (
       <TriggerSelectionPanel
+        workflow={workflow}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         expandedCategories={expandedCategories}
@@ -95,6 +96,7 @@ export default function BuilderLeftPanel() {
         setEntryCondition={setEntryCondition}
         setObjectType={setObjectType}
         setPendingTriggerType={setPendingTriggerType}
+        onCreateWorkflow={onCreateWorkflow}
       />
     );
   }
@@ -108,6 +110,7 @@ export default function BuilderLeftPanel() {
         setEntryCondition={setEntryCondition}
         setObjectType={setObjectType}
         onCancel={clearSelection}
+        onCreateWorkflow={onCreateWorkflow}
       />
     );
   }
@@ -209,6 +212,7 @@ const EVENT_TO_OBJECT_TYPE = {
 
 // Trigger selection panel component
 function TriggerSelectionPanel({
+  workflow,
   searchQuery,
   setSearchQuery,
   expandedCategories,
@@ -216,6 +220,7 @@ function TriggerSelectionPanel({
   setEntryCondition,
   setObjectType,
   setPendingTriggerType,
+  onCreateWorkflow,
 }) {
   // Internal state for the multi-step flow
   const [flowStep, setFlowStep] = useState('triggers'); // triggers, records, settings
@@ -251,7 +256,7 @@ function TriggerSelectionPanel({
   };
 
   // Handle save and continue from object selection (manual or filter_criteria)
-  const handleSaveObjectSelection = () => {
+  const handleSaveObjectSelection = async () => {
     if (!selectedObjectType) return;
 
     // Set the object type first
@@ -261,24 +266,38 @@ function TriggerSelectionPanel({
       // For filter criteria, go to trigger config panel to build the filter
       setPendingTriggerType('filter_criteria');
     } else {
-      // For manual, save directly (no additional config needed)
-      setEntryCondition({
+      // For manual trigger - create workflow if new, or just set entry condition
+      const triggerConfig = {
         triggerType: 'manual',
+        objectType: selectedObjectType,
         eventType: null,
         filterConfig: null,
         scheduleConfig: null,
-      });
+      };
+
+      if (!workflow.id && onCreateWorkflow) {
+        // New workflow - create it with this trigger
+        await onCreateWorkflow(triggerConfig);
+      } else {
+        // Existing workflow - just update entry condition (auto-save will handle it)
+        setEntryCondition({
+          triggerType: 'manual',
+          eventType: null,
+          filterConfig: null,
+          scheduleConfig: null,
+        });
+      }
     }
   };
 
   // Handle save schedule config
-  const handleSaveScheduleConfig = () => {
+  const handleSaveScheduleConfig = async () => {
     // Set the object type from schedule config
     setObjectType(scheduleConfig.objectType);
 
-    // Set the entry condition with schedule config (schedule is fully configured here)
-    setEntryCondition({
+    const triggerConfig = {
       triggerType: 'schedule',
+      objectType: scheduleConfig.objectType,
       eventType: null,
       filterConfig: null,
       scheduleConfig: {
@@ -287,29 +306,55 @@ function TriggerSelectionPanel({
         time: scheduleConfig.time,
         timezone: scheduleConfig.timezone,
       },
-    });
+    };
+
+    if (!workflow.id && onCreateWorkflow) {
+      // New workflow - create it with this trigger
+      await onCreateWorkflow(triggerConfig);
+    } else {
+      // Existing workflow - just update entry condition
+      setEntryCondition({
+        triggerType: 'schedule',
+        eventType: null,
+        filterConfig: null,
+        scheduleConfig: triggerConfig.scheduleConfig,
+      });
+    }
   };
 
   // Handle event selection (from event categories)
-  const handleEventSelect = (categoryKey, event) => {
+  const handleEventSelect = async (categoryKey, event) => {
     // Determine object type from the event
     const objectType = EVENT_TO_OBJECT_TYPE[event.value] || 'pet';
 
     // Set the object type
     setObjectType(objectType);
 
-    // For most events, save directly
     // For property.changed, go to config panel
     if (event.value === 'property.changed') {
       setPendingTriggerType({ type: 'event', eventType: event.value });
     } else {
-      // Set the entry condition with the event (no additional config needed)
-      setEntryCondition({
+      // For other events - create workflow if new, or just set entry condition
+      const triggerConfig = {
         triggerType: 'event',
+        objectType: objectType,
         eventType: event.value,
         filterConfig: null,
         scheduleConfig: null,
-      });
+      };
+
+      if (!workflow.id && onCreateWorkflow) {
+        // New workflow - create it with this trigger
+        await onCreateWorkflow(triggerConfig);
+      } else {
+        // Existing workflow - just update entry condition
+        setEntryCondition({
+          triggerType: 'event',
+          eventType: event.value,
+          filterConfig: null,
+          scheduleConfig: null,
+        });
+      }
     }
   };
 
@@ -319,6 +364,28 @@ function TriggerSelectionPanel({
       setFlowStep('triggers');
       setSelectedTriggerType(null);
       setSelectedObjectType(null);
+    }
+  };
+
+  // Handle skip trigger (creates manual workflow)
+  const handleSkipTrigger = async () => {
+    const triggerConfig = {
+      triggerType: 'manual',
+      objectType: workflow.objectType || 'pet',
+      eventType: null,
+      filterConfig: null,
+      scheduleConfig: null,
+    };
+
+    if (!workflow.id && onCreateWorkflow) {
+      await onCreateWorkflow(triggerConfig);
+    } else {
+      setEntryCondition({
+        triggerType: 'manual',
+        eventType: null,
+        filterConfig: null,
+        scheduleConfig: null,
+      });
     }
   };
 
@@ -689,14 +756,7 @@ function TriggerSelectionPanel({
       {/* Skip trigger link */}
       <div className="p-4 border-t border-[var(--bb-color-border-subtle)]">
         <button
-          onClick={() => {
-            setEntryCondition({
-              triggerType: 'manual',
-              eventType: null,
-              filterConfig: null,
-              scheduleConfig: null,
-            });
-          }}
+          onClick={handleSkipTrigger}
           className="text-sm text-[var(--bb-color-accent)] hover:underline"
         >
           Skip trigger and choose eligible records
@@ -733,6 +793,7 @@ function TriggerConfigPanel({
   setEntryCondition,
   setObjectType,
   onCancel,
+  onCreateWorkflow,
 }) {
   // Get saved entry condition for pre-populating forms
   const savedEntryCondition = workflow?.entryCondition;
@@ -784,20 +845,34 @@ function TriggerConfigPanel({
   };
 
   // Handle save for filter_criteria
-  const handleSaveFilterConfig = () => {
-    setEntryCondition({
+  const handleSaveFilterConfig = async () => {
+    const triggerConfig = {
       triggerType: 'filter_criteria',
+      objectType: objectType,
       eventType: null,
       filterConfig: {
         conditions: filterConditions,
         logic: 'and',
       },
       scheduleConfig: null,
-    });
+    };
+
+    if (!workflow.id && onCreateWorkflow) {
+      // New workflow - create it with this trigger
+      await onCreateWorkflow(triggerConfig);
+    } else {
+      // Existing workflow - just update entry condition
+      setEntryCondition({
+        triggerType: 'filter_criteria',
+        eventType: null,
+        filterConfig: triggerConfig.filterConfig,
+        scheduleConfig: null,
+      });
+    }
   };
 
   // Handle save for property.changed event
-  const handleSavePropertyConfig = () => {
+  const handleSavePropertyConfig = async () => {
     setObjectType(propertyConfig.objectType);
 
     // Build filter config based on change type
@@ -817,12 +892,26 @@ function TriggerConfigPanel({
       filterConfig.toValue = propertyConfig.toValue;
     }
 
-    setEntryCondition({
+    const triggerConfig = {
       triggerType: 'event',
+      objectType: propertyConfig.objectType,
       eventType: 'property.changed',
       filterConfig,
       scheduleConfig: null,
-    });
+    };
+
+    if (!workflow.id && onCreateWorkflow) {
+      // New workflow - create it with this trigger
+      await onCreateWorkflow(triggerConfig);
+    } else {
+      // Existing workflow - just update entry condition
+      setEntryCondition({
+        triggerType: 'event',
+        eventType: 'property.changed',
+        filterConfig,
+        scheduleConfig: null,
+      });
+    }
   };
 
   // Add a condition row
@@ -880,10 +969,12 @@ function TriggerConfigPanel({
   });
 
   // Handle save for schedule
-  const handleSaveScheduleConfigEdit = () => {
+  const handleSaveScheduleConfigEdit = async () => {
     setObjectType(scheduleConfigState.objectType);
-    setEntryCondition({
+
+    const triggerConfig = {
       triggerType: 'schedule',
+      objectType: scheduleConfigState.objectType,
       eventType: null,
       filterConfig: null,
       scheduleConfig: {
@@ -892,7 +983,20 @@ function TriggerConfigPanel({
         time: scheduleConfigState.time,
         timezone: scheduleConfigState.timezone,
       },
-    });
+    };
+
+    if (!workflow.id && onCreateWorkflow) {
+      // New workflow - create it with this trigger
+      await onCreateWorkflow(triggerConfig);
+    } else {
+      // Existing workflow - just update entry condition
+      setEntryCondition({
+        triggerType: 'schedule',
+        eventType: null,
+        filterConfig: null,
+        scheduleConfig: triggerConfig.scheduleConfig,
+      });
+    }
   };
 
   // Get event label for display

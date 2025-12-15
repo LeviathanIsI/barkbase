@@ -1,12 +1,11 @@
 /**
  * BuilderHeader - Header component for the workflow builder
- * Includes back button, editable workflow name, menu bar, and primary CTA
+ * Includes back button, editable workflow name, save status indicator, and primary CTA
  */
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  ChevronDown,
   Save,
   Undo,
   Redo,
@@ -16,20 +15,51 @@ import {
   Pencil,
   Check,
   X,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import Button from '@/components/ui/Button';
 import { useWorkflowBuilderStore } from '../../stores/builderStore';
 
+/**
+ * Save status indicator component
+ */
+function SaveStatusIndicator({ status }) {
+  switch (status) {
+    case 'saving':
+      return (
+        <div className="flex items-center gap-2 text-[var(--bb-color-text-tertiary)]">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span className="text-xs">Saving...</span>
+        </div>
+      );
+    case 'saved':
+      return (
+        <div className="flex items-center gap-2 text-[var(--bb-color-status-positive)]">
+          <Check className="w-4 h-4" />
+          <span className="text-xs">Saved</span>
+        </div>
+      );
+    case 'error':
+      return (
+        <div className="flex items-center gap-2 text-[var(--bb-color-status-negative)]">
+          <AlertCircle className="w-4 h-4" />
+          <span className="text-xs">Save failed</span>
+        </div>
+      );
+    default:
+      return null;
+  }
+}
+
 export default function BuilderHeader({
-  onSave,
   onActivate,
-  isSaving = false,
 }) {
   const navigate = useNavigate();
   const {
     workflow,
-    isDirty,
+    saveStatus,
     setWorkflowName,
     hasTrigger,
   } = useWorkflowBuilderStore();
@@ -70,8 +100,10 @@ export default function BuilderHeader({
   };
 
   const handleBack = () => {
-    if (isDirty) {
-      if (window.confirm('You have unsaved changes. Are you sure you want to leave?')) {
+    // Auto-save handles persistence, so we can navigate directly
+    // Only warn if currently saving to avoid data loss
+    if (saveStatus === 'saving') {
+      if (window.confirm('Changes are being saved. Are you sure you want to leave?')) {
         navigate('/workflows');
       }
     } else {
@@ -99,8 +131,8 @@ export default function BuilderHeader({
           Back
         </button>
 
-        {/* Center - Workflow name */}
-        <div className="flex items-center gap-2">
+        {/* Center - Workflow name + Save status */}
+        <div className="flex items-center gap-3">
           {isEditingName ? (
             <div className="flex items-center gap-1">
               <input
@@ -153,31 +185,17 @@ export default function BuilderHeader({
             </button>
           )}
 
-          {isDirty && (
-            <span className="text-xs text-[var(--bb-color-text-tertiary)]">
-              Unsaved changes
-            </span>
-          )}
+          {/* Save status indicator */}
+          <SaveStatusIndicator status={saveStatus} />
         </div>
 
         {/* Right side - Actions */}
         <div className="flex items-center gap-2">
           <Button
-            variant="secondary"
-            size="sm"
-            onClick={onSave}
-            loading={isSaving}
-            disabled={!isDirty}
-            leftIcon={<Save size={16} />}
-          >
-            Save
-          </Button>
-
-          <Button
             variant="primary"
             size="sm"
             onClick={onActivate}
-            disabled={!canActivate}
+            disabled={!canActivate || saveStatus === 'saving'}
           >
             Review and turn on
           </Button>
@@ -187,7 +205,7 @@ export default function BuilderHeader({
       {/* Menu bar row */}
       <div className="flex items-center gap-1 px-4 h-9 border-t border-[var(--bb-color-border-subtle)]">
         <MenuDropdown label="File">
-          <MenuItem icon={<Save size={14} />} label="Save" shortcut="Ctrl+S" onClick={onSave} />
+          <MenuItem icon={<Save size={14} />} label="Save" shortcut="Ctrl+S" disabled />
           <MenuDivider />
           <MenuItem label="Exit" onClick={handleBack} />
         </MenuDropdown>

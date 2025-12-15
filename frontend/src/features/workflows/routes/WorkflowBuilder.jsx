@@ -1,10 +1,12 @@
 /**
  * WorkflowBuilder - Main workflow builder page
  * Handles both creating new workflows and editing existing ones
+ * Implements auto-persist: Create on first trigger save, auto-save subsequent changes
  */
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { useDebouncedCallback } from 'use-debounce';
 
 import LoadingState from '@/components/ui/LoadingState';
 
@@ -27,19 +29,22 @@ export default function WorkflowBuilder() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = !id || id === 'new';
+  const isCreatingRef = useRef(false);
 
   // Store
   const {
     workflow,
+    steps,
     selectedStepId,
     panelMode,
     isDirty,
-    isSaving,
+    saveStatus,
     isInitialized,
     initializeNewWorkflow,
     loadWorkflow,
     reset,
-    setSaving,
+    setSaveStatus,
+    setWorkflowId,
     markClean,
   } = useWorkflowBuilderStore();
 
@@ -74,83 +79,133 @@ export default function WorkflowBuilder() {
     };
   }, [isNew, workflowData, stepsData, isInitialized, initializeNewWorkflow, loadWorkflow, reset]);
 
-  // Handle save
-  const handleSave = useCallback(async () => {
-    if (isSaving) return;
+  /**
+   * Create workflow in database (called on first trigger save)
+   * Returns the new workflow ID
+   */
+  const createWorkflow = useCallback(async (triggerConfig) => {
+    if (isCreatingRef.current) return null;
+    isCreatingRef.current = true;
 
-    setSaving(true);
+    setSaveStatus('saving');
 
     try {
-      const { workflow: workflowPayload, steps: stepsPayload } = useWorkflowBuilderStore.getState().toAPIFormat();
+      const workflowPayload = {
+        name: workflow.name || 'Untitled workflow',
+        description: workflow.description || '',
+        object_type: triggerConfig.objectType || workflow.objectType,
+        status: 'draft',
+        entry_condition: {
+          triggerType: triggerConfig.triggerType,
+          eventType: triggerConfig.eventType || null,
+          filterConfig: triggerConfig.filterConfig || null,
+          scheduleConfig: triggerConfig.scheduleConfig || null,
+        },
+        settings: workflow.settings,
+      };
 
-      if (isNew || !workflow.id) {
-        // Create new workflow
-        const result = await createWorkflowMutation.mutateAsync(workflowPayload);
-        const newWorkflowId = result?.data?.workflow?.id;
+      const result = await createWorkflowMutation.mutateAsync(workflowPayload);
+      const newWorkflowId = result?.data?.workflow?.id;
 
-        if (newWorkflowId) {
-          // Save steps
-          if (stepsPayload.length > 0) {
-            await updateStepsMutation.mutateAsync({
-              workflowId: newWorkflowId,
-              steps: stepsPayload,
-            });
-          }
+      if (newWorkflowId) {
+        // Update store with new ID
+        setWorkflowId(newWorkflowId);
 
-          // Update store with new ID
-          useWorkflowBuilderStore.setState((state) => ({
-            workflow: { ...state.workflow, id: newWorkflowId },
-          }));
+        // Navigate to the new workflow URL (replace history)
+        navigate(`/workflows/${newWorkflowId}`, { replace: true });
 
-          // Navigate to the new workflow URL
-          navigate(`/workflows/${newWorkflowId}`, { replace: true });
-          toast.success('Workflow created');
-        }
-      } else {
-        // Update existing workflow
-        await updateWorkflowMutation.mutateAsync({
-          workflowId: workflow.id,
-          data: workflowPayload,
-        });
-
-        // Update steps
-        await updateStepsMutation.mutateAsync({
-          workflowId: workflow.id,
-          steps: stepsPayload,
-        });
-
-        toast.success('Workflow saved');
+        setSaveStatus('saved');
+        return newWorkflowId;
       }
+
+      setSaveStatus('error');
+      return null;
+    } catch (error) {
+      console.error('Failed to create workflow:', error);
+      setSaveStatus('error');
+      toast.error('Failed to create workflow');
+      return null;
+    } finally {
+      isCreatingRef.current = false;
+    }
+  }, [workflow, createWorkflowMutation, navigate, setSaveStatus, setWorkflowId]);
+
+  /**
+   * Auto-save workflow changes (debounced)
+   */
+  const autoSave = useCallback(async () => {
+    const state = useWorkflowBuilderStore.getState();
+
+    // Skip if no workflow ID (shouldn't happen after trigger save)
+    if (!state.workflow.id) {
+      console.warn('Auto-save skipped: No workflow ID');
+      return;
+    }
+
+    setSaveStatus('saving');
+
+    try {
+      const { workflow: workflowPayload, steps: stepsPayload } = state.toAPIFormat();
+
+      // Update workflow
+      await updateWorkflowMutation.mutateAsync({
+        workflowId: state.workflow.id,
+        data: workflowPayload,
+      });
+
+      // Update steps
+      await updateStepsMutation.mutateAsync({
+        workflowId: state.workflow.id,
+        steps: stepsPayload,
+      });
 
       markClean();
     } catch (error) {
-      console.error('Failed to save workflow:', error);
-      toast.error('Failed to save workflow');
-    } finally {
-      setSaving(false);
+      console.error('Auto-save failed:', error);
+      setSaveStatus('error');
     }
-  }, [
-    isNew,
-    workflow.id,
-    isSaving,
-    createWorkflowMutation,
-    updateWorkflowMutation,
-    updateStepsMutation,
-    navigate,
-    setSaving,
-    markClean,
-  ]);
+  }, [updateWorkflowMutation, updateStepsMutation, setSaveStatus, markClean]);
 
-  // Handle activate
+  // Debounced auto-save (1 second delay)
+  const debouncedAutoSave = useDebouncedCallback(autoSave, 1000);
+
+  /**
+   * Trigger auto-save when workflow has ID and is dirty
+   */
+  useEffect(() => {
+    // Only auto-save if:
+    // 1. Workflow has an ID (was created)
+    // 2. Has unsaved changes
+    // 3. Not currently in 'saving' status
+    if (workflow.id && isDirty && saveStatus !== 'saving') {
+      debouncedAutoSave();
+    }
+  }, [workflow.id, isDirty, saveStatus, debouncedAutoSave, workflow, steps]);
+
+  /**
+   * Handle activate (turn on workflow)
+   */
   const handleActivate = useCallback(async () => {
-    // Save first if dirty
-    if (isDirty) {
-      await handleSave();
+    // If no workflow ID, can't activate
+    if (!workflow.id) {
+      toast.error('Please configure a trigger first');
+      return;
     }
 
-    if (!workflow.id) {
-      toast.error('Please save the workflow first');
-      return;
+    // Wait for any pending saves
+    if (saveStatus === 'saving') {
+      toast('Waiting for save to complete...');
+      // Wait a bit and check again
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      if (useWorkflowBuilderStore.getState().saveStatus === 'saving') {
+        toast.error('Save still in progress. Please try again.');
+        return;
+      }
+    }
+
+    // Force save if dirty
+    if (isDirty) {
+      await autoSave();
     }
 
     try {
@@ -161,7 +216,25 @@ export default function WorkflowBuilder() {
       console.error('Failed to activate workflow:', error);
       toast.error('Failed to activate workflow');
     }
-  }, [workflow.id, isDirty, handleSave, activateWorkflowMutation, navigate]);
+  }, [workflow.id, isDirty, saveStatus, autoSave, activateWorkflowMutation, navigate]);
+
+  /**
+   * Manual save (Ctrl+S)
+   */
+  const handleManualSave = useCallback(async () => {
+    if (!workflow.id) {
+      toast('Configure a trigger to create the workflow');
+      return;
+    }
+
+    if (!isDirty) {
+      toast('No changes to save');
+      return;
+    }
+
+    await autoSave();
+    toast.success('Saved');
+  }, [workflow.id, isDirty, autoSave]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -169,13 +242,13 @@ export default function WorkflowBuilder() {
       // Ctrl+S or Cmd+S to save
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        handleSave();
+        handleManualSave();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSave]);
+  }, [handleManualSave]);
 
   // Loading state
   if (!isNew && (isLoadingWorkflow || isLoadingSteps || !isInitialized)) {
@@ -193,15 +266,13 @@ export default function WorkflowBuilder() {
     <div className="h-screen flex flex-col bg-[var(--bb-color-bg-body)]">
       {/* Header */}
       <BuilderHeader
-        onSave={handleSave}
         onActivate={handleActivate}
-        isSaving={isSaving}
       />
 
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left panel */}
-        <BuilderLeftPanel />
+        {/* Left panel - pass createWorkflow for first trigger save */}
+        <BuilderLeftPanel onCreateWorkflow={createWorkflow} />
 
         {/* Center canvas */}
         <div className="flex-1 overflow-auto">
