@@ -15,12 +15,11 @@ import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 
 import Button from '@/components/ui/Button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import LoadingState from '@/components/ui/LoadingState';
 
 import {
   useWorkflow,
-  useWorkflowAnalytics,
   useActivateWorkflow,
   usePauseWorkflow,
 } from '../hooks';
@@ -38,14 +37,12 @@ export default function WorkflowDetails() {
 
   // Queries
   const { data: workflowData, isLoading: isLoadingWorkflow } = useWorkflow(id);
-  const { data: analyticsData } = useWorkflowAnalytics(id);
 
   // Mutations
   const activateMutation = useActivateWorkflow();
   const pauseMutation = usePauseWorkflow();
 
   const workflow = workflowData?.data;
-  const analytics = analyticsData?.data;
 
   // Handlers
   const handleActivate = async () => {
@@ -193,7 +190,7 @@ export default function WorkflowDetails() {
       {/* Tab content */}
       <div className="flex-1 overflow-auto p-6">
         {activeTab === 'performance' && (
-          <PerformanceTab analytics={analytics} />
+          <PerformanceTab workflowId={id} />
         )}
         {activeTab === 'enrollment' && (
           <EnrollmentHistoryTab workflowId={id} />
