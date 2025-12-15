@@ -30,7 +30,10 @@ import {
   TRIGGER_EVENT_CATEGORIES,
   ACTION_CATEGORIES,
   OBJECT_TYPE_CONFIG,
+  OBJECT_PROPERTIES,
+  CONDITION_OPERATORS,
 } from '../../constants';
+import PropertyValueInput from './PropertyValueInput';
 
 // Icon mapping for object types
 const OBJECT_TYPE_ICONS = {
@@ -730,16 +733,33 @@ function TriggerConfigPanel({
   setObjectType,
   onCancel,
 }) {
+  // Get properties for the current object type
+  const objectType = workflow?.objectType || 'pet';
+  const properties = OBJECT_PROPERTIES[objectType] || [];
+
   // State for filter configuration
   const [filterConditions, setFilterConditions] = useState([
-    { field: '', operator: 'equals', value: '' }
+    { field: '', operator: '', value: '' }
   ]);
 
   // State for property change configuration
   const [propertyConfig, setPropertyConfig] = useState({
-    objectType: workflow?.objectType || 'pet',
+    objectType: objectType,
     propertyName: '',
   });
+
+  // Get property definition by name
+  const getPropertyByName = (propName, objType = objectType) => {
+    const props = OBJECT_PROPERTIES[objType] || [];
+    return props.find(p => p.name === propName);
+  };
+
+  // Get operators for a property type
+  const getOperatorsForProperty = (property) => {
+    if (!property) return [];
+    const type = property.type || 'text';
+    return CONDITION_OPERATORS[type] || CONDITION_OPERATORS.text || [];
+  };
 
   // Handle save for filter_criteria
   const handleSaveFilterConfig = () => {
@@ -770,13 +790,18 @@ function TriggerConfigPanel({
 
   // Add a condition row
   const addCondition = () => {
-    setFilterConditions([...filterConditions, { field: '', operator: 'equals', value: '' }]);
+    setFilterConditions([...filterConditions, { field: '', operator: '', value: '' }]);
   };
 
   // Update a condition
   const updateCondition = (index, updates) => {
     const newConditions = [...filterConditions];
-    newConditions[index] = { ...newConditions[index], ...updates };
+    // If field changed, reset operator and value
+    if (updates.field !== undefined && updates.field !== newConditions[index].field) {
+      newConditions[index] = { field: updates.field, operator: '', value: '' };
+    } else {
+      newConditions[index] = { ...newConditions[index], ...updates };
+    }
     setFilterConditions(newConditions);
   };
 
@@ -791,15 +816,8 @@ function TriggerConfigPanel({
   const isPropertyChange = pendingTriggerType?.type === 'event' && pendingTriggerType?.eventType === 'property.changed';
   const isFilterCriteria = pendingTriggerType === 'filter_criteria';
 
-  // Property fields based on object type
-  const propertyOptions = {
-    pet: ['name', 'breed', 'weight', 'vaccination_status', 'last_visit', 'notes'],
-    booking: ['status', 'check_in_date', 'check_out_date', 'total_price', 'notes'],
-    owner: ['name', 'email', 'phone', 'status', 'created_at'],
-    payment: ['amount', 'status', 'payment_method', 'created_at'],
-    task: ['title', 'status', 'due_date', 'priority', 'assigned_to'],
-    invoice: ['amount', 'status', 'due_date', 'paid_at'],
-  };
+  // Properties for property change config
+  const propertyChangeProperties = OBJECT_PROPERTIES[propertyConfig.objectType] || [];
 
   return (
     <div className="w-80 h-full border-r border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] flex flex-col">
@@ -869,8 +887,8 @@ function TriggerConfigPanel({
                 )}
               >
                 <option value="">Select a property...</option>
-                {(propertyOptions[propertyConfig.objectType] || []).map((prop) => (
-                  <option key={prop} value={prop}>{prop.replace(/_/g, ' ')}</option>
+                {propertyChangeProperties.map((prop) => (
+                  <option key={prop.name} value={prop.name}>{prop.label}</option>
                 ))}
               </select>
             </div>
@@ -887,78 +905,76 @@ function TriggerConfigPanel({
 
             {/* Condition rows */}
             <div className="space-y-3">
-              {filterConditions.map((condition, index) => (
-                <div key={index} className="bg-[var(--bb-color-bg-body)] rounded-lg border border-[var(--bb-color-border-subtle)] p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs text-[var(--bb-color-text-tertiary)]">
-                      {index === 0 ? 'Where' : 'And'}
-                    </span>
-                    {filterConditions.length > 1 && (
-                      <button
-                        onClick={() => removeCondition(index)}
-                        className="ml-auto text-xs text-[var(--bb-color-text-tertiary)] hover:text-red-400"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
+              {filterConditions.map((condition, index) => {
+                const selectedProperty = getPropertyByName(condition.field);
+                const operators = getOperatorsForProperty(selectedProperty);
+                const noValueOperators = ['is_known', 'is_unknown', 'is_true', 'is_false'];
+                const showValueInput = condition.operator && !noValueOperators.includes(condition.operator);
 
-                  {/* Field */}
-                  <select
-                    value={condition.field}
-                    onChange={(e) => updateCondition(index, { field: e.target.value })}
-                    className={cn(
-                      "w-full h-8 px-2 rounded mb-2",
-                      "bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]",
-                      "text-sm text-[var(--bb-color-text-primary)]",
-                      "focus:outline-none focus:border-[var(--bb-color-accent)]"
-                    )}
-                  >
-                    <option value="">Select field...</option>
-                    {(propertyOptions[workflow?.objectType] || propertyOptions.pet).map((prop) => (
-                      <option key={prop} value={prop}>{prop.replace(/_/g, ' ')}</option>
-                    ))}
-                  </select>
+                return (
+                  <div key={index} className="bg-[var(--bb-color-bg-body)] rounded-lg border border-[var(--bb-color-border-subtle)] p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs text-[var(--bb-color-text-tertiary)]">
+                        {index === 0 ? 'Where' : 'And'}
+                      </span>
+                      {filterConditions.length > 1 && (
+                        <button
+                          onClick={() => removeCondition(index)}
+                          className="ml-auto text-xs text-[var(--bb-color-text-tertiary)] hover:text-red-400"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
 
-                  {/* Operator */}
-                  <select
-                    value={condition.operator}
-                    onChange={(e) => updateCondition(index, { operator: e.target.value })}
-                    className={cn(
-                      "w-full h-8 px-2 rounded mb-2",
-                      "bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]",
-                      "text-sm text-[var(--bb-color-text-primary)]",
-                      "focus:outline-none focus:border-[var(--bb-color-accent)]"
-                    )}
-                  >
-                    <option value="equals">equals</option>
-                    <option value="not_equals">does not equal</option>
-                    <option value="contains">contains</option>
-                    <option value="not_contains">does not contain</option>
-                    <option value="is_empty">is empty</option>
-                    <option value="is_not_empty">is not empty</option>
-                    <option value="greater_than">greater than</option>
-                    <option value="less_than">less than</option>
-                  </select>
-
-                  {/* Value (hidden for is_empty/is_not_empty) */}
-                  {!['is_empty', 'is_not_empty'].includes(condition.operator) && (
-                    <input
-                      type="text"
-                      value={condition.value}
-                      onChange={(e) => updateCondition(index, { value: e.target.value })}
-                      placeholder="Enter value..."
+                    {/* Field */}
+                    <select
+                      value={condition.field}
+                      onChange={(e) => updateCondition(index, { field: e.target.value })}
                       className={cn(
-                        "w-full h-8 px-2 rounded",
+                        "w-full h-8 px-2 rounded mb-2",
                         "bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]",
                         "text-sm text-[var(--bb-color-text-primary)]",
-                        "placeholder:text-[var(--bb-color-text-tertiary)]",
                         "focus:outline-none focus:border-[var(--bb-color-accent)]"
                       )}
-                    />
-                  )}
-                </div>
-              ))}
+                    >
+                      <option value="">Select field...</option>
+                      {properties.map((prop) => (
+                        <option key={prop.name} value={prop.name}>{prop.label}</option>
+                      ))}
+                    </select>
+
+                    {/* Operator - only show if field is selected */}
+                    {condition.field && (
+                      <select
+                        value={condition.operator}
+                        onChange={(e) => updateCondition(index, { operator: e.target.value, value: '' })}
+                        className={cn(
+                          "w-full h-8 px-2 rounded mb-2",
+                          "bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]",
+                          "text-sm text-[var(--bb-color-text-primary)]",
+                          "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                        )}
+                      >
+                        <option value="">Select operator...</option>
+                        {operators.map((op) => (
+                          <option key={op.value} value={op.value}>{op.label}</option>
+                        ))}
+                      </select>
+                    )}
+
+                    {/* Value - dynamic based on property type */}
+                    {showValueInput && (
+                      <PropertyValueInput
+                        property={selectedProperty}
+                        value={condition.value}
+                        onChange={(val) => updateCondition(index, { value: val })}
+                        operator={condition.operator}
+                      />
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {/* Add condition button */}
