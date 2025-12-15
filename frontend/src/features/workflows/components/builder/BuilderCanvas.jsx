@@ -10,7 +10,6 @@ import TriggerCard from './canvas/TriggerCard';
 import StepCard from './canvas/StepCard';
 import Connector from './canvas/Connector';
 import AddStepButton from './canvas/AddStepButton';
-import TriggerConfigPanel from './TriggerConfigPanel';
 
 export default function BuilderCanvas() {
   const {
@@ -20,9 +19,6 @@ export default function BuilderCanvas() {
     selectStep,
     addStep,
     deleteStep,
-    showTriggerConfigPanel,
-    openTriggerConfigPanel,
-    closeTriggerConfigPanel,
   } = useWorkflowBuilderStore();
 
   // Get root level steps (not in branches)
@@ -52,19 +48,8 @@ export default function BuilderCanvas() {
         entryCondition={workflow.entryCondition}
         objectType={workflow.objectType}
         isSelected={selectedStepId === 'trigger'}
-        onClick={() => {
-          selectStep('trigger');
-          openTriggerConfigPanel();
-        }}
+        onClick={() => selectStep('trigger')}
       />
-
-      {/* Trigger Config Panel */}
-      {showTriggerConfigPanel && (
-        <TriggerConfigPanel
-          onClose={closeTriggerConfigPanel}
-          onSave={closeTriggerConfigPanel}
-        />
-      )}
 
       {/* First connector with add button */}
       <div className="relative flex flex-col items-center">
