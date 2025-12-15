@@ -42,6 +42,11 @@ const {
   enforceLimit,
   getTenantPlan,
   createTierErrorResponse,
+  // Workflow event publishing
+  publishBookingCreated,
+  publishBookingCheckedIn,
+  publishBookingCheckedOut,
+  publishBookingCancelled,
 } = sharedLayer;
 
 // =============================================================================
@@ -1436,6 +1441,11 @@ async function handleCreateBooking(tenantId, user, body) {
       });
     }
 
+    // Publish workflow event
+    publishBookingCreated(booking, tenantId).catch(err => {
+      console.error('[Bookings][create] Failed to publish workflow event:', err.message);
+    });
+
     return createResponse(201, {
       success: true,
       booking: {
@@ -1955,9 +1965,16 @@ async function handleCancelBooking(tenantId, bookingId) {
       });
     }
 
+    const booking = result.rows[0];
+
     // Send cancellation email asynchronously
     sendBookingCancellationEmail(tenantId, bookingId).catch(err => {
       console.error('[Bookings][cancel] Failed to send cancellation email:', err.message);
+    });
+
+    // Publish workflow event
+    publishBookingCancelled(booking, tenantId).catch(err => {
+      console.error('[Bookings][cancel] Failed to publish workflow event:', err.message);
     });
 
     return createResponse(200, {
@@ -2080,6 +2097,12 @@ async function handleCheckIn(tenantId, bookingId, body) {
     }
 
     const booking = result.rows[0];
+
+    // Publish workflow event
+    publishBookingCheckedIn(booking, tenantId).catch(err => {
+      console.error('[Bookings][checkin] Failed to publish workflow event:', err.message);
+    });
+
     return createResponse(200, {
       success: true,
       message: 'Check-in successful',
@@ -2200,6 +2223,11 @@ async function handleCheckOut(tenantId, bookingId, body) {
         console.error('[Bookings][checkout] Failed to send confirmation email:', err.message);
       });
     }
+
+    // Publish workflow event
+    publishBookingCheckedOut(booking, tenantId).catch(err => {
+      console.error('[Bookings][checkout] Failed to publish workflow event:', err.message);
+    });
 
     return createResponse(200, {
       success: true,
