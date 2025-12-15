@@ -39,10 +39,52 @@
  */
 
 const express = require('express');
+const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
 const { getPool } = require('../../lib/db');
 const { ok, fail } = require('../../lib/utils/responses');
 
 const router = express.Router();
+
+// Initialize SQS client for workflow execution
+const sqs = new SQSClient({
+  region: process.env.AWS_REGION_DEPLOY || process.env.AWS_REGION || 'us-east-2',
+});
+
+const WORKFLOW_STEP_QUEUE_URL = process.env.WORKFLOW_STEP_QUEUE_URL;
+
+/**
+ * Queue a workflow step for execution
+ */
+async function queueStepExecution(executionId, workflowId, tenantId) {
+  if (!WORKFLOW_STEP_QUEUE_URL) {
+    console.warn('[workflows] WORKFLOW_STEP_QUEUE_URL not set, skipping step queue');
+    return null;
+  }
+
+  try {
+    const result = await sqs.send(new SendMessageCommand({
+      QueueUrl: WORKFLOW_STEP_QUEUE_URL,
+      MessageBody: JSON.stringify({
+        executionId,
+        workflowId,
+        tenantId,
+        action: 'execute_next',
+        timestamp: new Date().toISOString(),
+      }),
+      MessageAttributes: {
+        executionId: {
+          DataType: 'String',
+          StringValue: executionId,
+        },
+      },
+    }));
+    console.log('[workflows] Queued step execution:', executionId, result.MessageId);
+    return result.MessageId;
+  } catch (error) {
+    console.error('[workflows] Failed to queue step execution:', error);
+    return null;
+  }
+}
 
 // =============================================================================
 // WORKFLOW CRUD
@@ -784,6 +826,11 @@ router.post('/workflows/:id/enroll', async (req, res) => {
        WHERE id = $1`,
       [id],
     );
+
+    // Queue first step for execution
+    if (currentStepId) {
+      await queueStepExecution(rows[0].id, id, tenantId);
+    }
 
     return ok(res, rows[0], 201);
   } catch (error) {
