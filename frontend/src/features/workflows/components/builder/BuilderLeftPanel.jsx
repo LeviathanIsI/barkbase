@@ -734,22 +734,40 @@ function TriggerConfigPanel({
   setObjectType,
   onCancel,
 }) {
+  // Get saved entry condition for pre-populating forms
+  const savedEntryCondition = workflow?.entryCondition;
+  const savedFilterConfig = savedEntryCondition?.filterConfig || {};
+
   // Get properties for the current object type
   const objectType = workflow?.objectType || 'pet';
   const properties = OBJECT_PROPERTIES[objectType] || [];
 
-  // State for filter configuration
-  const [filterConditions, setFilterConditions] = useState([
-    { field: '', operator: '', value: '' }
-  ]);
+  // State for filter configuration - pre-populate from saved
+  const [filterConditions, setFilterConditions] = useState(() => {
+    if (savedEntryCondition?.triggerType === 'filter_criteria' && savedFilterConfig.conditions?.length > 0) {
+      return savedFilterConfig.conditions;
+    }
+    return [{ field: '', operator: '', value: '' }];
+  });
 
-  // State for property change configuration
-  const [propertyConfig, setPropertyConfig] = useState({
-    objectType: objectType,
-    propertyName: '',
-    changeType: 'any_change', // 'any_change', 'changed_to', 'changed_from', 'changed_from_to'
-    fromValue: '',
-    toValue: '',
+  // State for property change configuration - pre-populate from saved
+  const [propertyConfig, setPropertyConfig] = useState(() => {
+    if (savedEntryCondition?.triggerType === 'event' && savedEntryCondition?.eventType === 'property.changed') {
+      return {
+        objectType: savedFilterConfig.objectType || objectType,
+        propertyName: savedFilterConfig.propertyName || '',
+        changeType: savedFilterConfig.changeType || 'any_change',
+        fromValue: savedFilterConfig.fromValue || '',
+        toValue: savedFilterConfig.toValue || '',
+      };
+    }
+    return {
+      objectType: objectType,
+      propertyName: '',
+      changeType: 'any_change',
+      fromValue: '',
+      toValue: '',
+    };
   });
 
   // Get property definition by name
@@ -834,9 +852,87 @@ function TriggerConfigPanel({
   // Determine which config to show
   const isPropertyChange = pendingTriggerType?.type === 'event' && pendingTriggerType?.eventType === 'property.changed';
   const isFilterCriteria = pendingTriggerType === 'filter_criteria';
+  const isManual = pendingTriggerType === 'manual';
+  const isSchedule = pendingTriggerType === 'schedule';
+  const isOtherEvent = pendingTriggerType?.type === 'event' && pendingTriggerType?.eventType !== 'property.changed';
 
   // Properties for property change config
   const propertyChangeProperties = OBJECT_PROPERTIES[propertyConfig.objectType] || [];
+
+  // Schedule config state - pre-populate from saved
+  const [scheduleConfigState, setScheduleConfigState] = useState(() => {
+    if (savedEntryCondition?.triggerType === 'schedule' && savedEntryCondition?.scheduleConfig) {
+      return {
+        objectType: workflow?.objectType || 'pet',
+        frequency: savedEntryCondition.scheduleConfig.frequency || 'daily',
+        date: savedEntryCondition.scheduleConfig.date || '',
+        time: savedEntryCondition.scheduleConfig.time || '09:00',
+        timezone: savedEntryCondition.scheduleConfig.timezone || 'America/New_York',
+      };
+    }
+    return {
+      objectType: workflow?.objectType || 'pet',
+      frequency: 'daily',
+      date: '',
+      time: '09:00',
+      timezone: 'America/New_York',
+    };
+  });
+
+  // Handle save for schedule
+  const handleSaveScheduleConfigEdit = () => {
+    setObjectType(scheduleConfigState.objectType);
+    setEntryCondition({
+      triggerType: 'schedule',
+      eventType: null,
+      filterConfig: null,
+      scheduleConfig: {
+        frequency: scheduleConfigState.frequency,
+        date: scheduleConfigState.date,
+        time: scheduleConfigState.time,
+        timezone: scheduleConfigState.timezone,
+      },
+    });
+  };
+
+  // Get event label for display
+  const getEventLabel = (eventType) => {
+    const eventLabels = {
+      'property.changed': 'Property Changed',
+      'booking.created': 'Booking Created',
+      'booking.updated': 'Booking Updated',
+      'booking.confirmed': 'Booking Confirmed',
+      'booking.cancelled': 'Booking Cancelled',
+      'booking.checked_in': 'Booking Checked In',
+      'booking.checked_out': 'Booking Checked Out',
+      'pet.vaccination_expiring': 'Pet Vaccination Expiring',
+      'pet.vaccination_expired': 'Pet Vaccination Expired',
+      'pet.birthday': 'Pet Birthday',
+      'pet.created': 'Pet Created',
+      'pet.updated': 'Pet Updated',
+      'owner.created': 'Owner Created',
+      'owner.updated': 'Owner Updated',
+      'payment.completed': 'Payment Completed',
+      'payment.failed': 'Payment Failed',
+      'invoice.created': 'Invoice Created',
+      'invoice.overdue': 'Invoice Overdue',
+      'task.created': 'Task Created',
+      'task.completed': 'Task Completed',
+      'task.overdue': 'Task Overdue',
+    };
+    return eventLabels[eventType] || eventType;
+  };
+
+  // Get the correct save handler based on trigger type
+  const getSaveHandler = () => {
+    if (isPropertyChange) return handleSavePropertyConfig;
+    if (isFilterCriteria) return handleSaveFilterConfig;
+    if (isSchedule) return handleSaveScheduleConfigEdit;
+    return onCancel;
+  };
+
+  // Check if we need a save button
+  const needsSaveButton = isPropertyChange || isFilterCriteria || isSchedule;
 
   return (
     <div className="w-80 h-full border-r border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] flex flex-col">
@@ -849,12 +945,14 @@ function TriggerConfigPanel({
           <ChevronLeft size={16} />
           Back
         </button>
-        <button
-          onClick={isPropertyChange ? handleSavePropertyConfig : handleSaveFilterConfig}
-          className="px-3 py-1.5 rounded text-sm font-medium bg-[var(--bb-color-accent)] text-white hover:bg-[var(--bb-color-accent-hover)]"
-        >
-          Save
-        </button>
+        {needsSaveButton && (
+          <button
+            onClick={getSaveHandler()}
+            className="px-3 py-1.5 rounded text-sm font-medium bg-[var(--bb-color-accent)] text-white hover:bg-[var(--bb-color-accent-hover)]"
+          >
+            Save
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -1090,10 +1188,134 @@ function TriggerConfigPanel({
               + Add condition
             </button>
           </>
+        ) : isManual ? (
+          // Manual trigger - just show summary
+          <>
+            <h2 className="text-base font-semibold text-[var(--bb-color-text-primary)] mb-2">
+              Manual Trigger
+            </h2>
+            <p className="text-sm text-[var(--bb-color-text-tertiary)] mb-4">
+              Records will be enrolled manually when you choose to run this workflow.
+            </p>
+            <div className="bg-[var(--bb-color-bg-body)] rounded-lg border border-[var(--bb-color-border-subtle)] p-4">
+              <div className="flex items-center gap-2">
+                <Hand size={16} className="text-[var(--bb-color-accent)]" />
+                <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">
+                  Trigger manually
+                </span>
+              </div>
+              <p className="text-xs text-[var(--bb-color-text-tertiary)] mt-2">
+                Select records to enroll when activating the workflow
+              </p>
+            </div>
+          </>
+        ) : isSchedule ? (
+          // Schedule trigger - show editable schedule config
+          <>
+            <h2 className="text-base font-semibold text-[var(--bb-color-text-primary)] mb-2">
+              Schedule Trigger
+            </h2>
+            <p className="text-sm text-[var(--bb-color-text-tertiary)] mb-4">
+              Records will be enrolled on a recurring schedule
+            </p>
+
+            <div className="bg-[var(--bb-color-bg-body)] rounded-lg border border-[var(--bb-color-border-subtle)] p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Clock size={16} className="text-[var(--bb-color-accent)]" />
+                <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">
+                  On a schedule
+                </span>
+              </div>
+
+              {/* Frequency */}
+              <div className="mb-4">
+                <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
+                  Frequency
+                </label>
+                <select
+                  value={scheduleConfigState.frequency}
+                  onChange={(e) => setScheduleConfigState(prev => ({ ...prev, frequency: e.target.value }))}
+                  className={cn(
+                    "w-full h-9 px-3 rounded-md",
+                    "bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]",
+                    "text-sm text-[var(--bb-color-text-primary)]",
+                    "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                  )}
+                >
+                  <option value="once">Once</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+
+              {/* Date */}
+              <div className="mb-4">
+                <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={scheduleConfigState.date}
+                  onChange={(e) => setScheduleConfigState(prev => ({ ...prev, date: e.target.value }))}
+                  className={cn(
+                    "w-full h-9 px-3 rounded-md",
+                    "bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]",
+                    "text-sm text-[var(--bb-color-text-primary)]",
+                    "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                  )}
+                />
+              </div>
+
+              {/* Time */}
+              <div>
+                <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
+                  Time of day
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    value={scheduleConfigState.time}
+                    onChange={(e) => setScheduleConfigState(prev => ({ ...prev, time: e.target.value }))}
+                    className={cn(
+                      "flex-1 h-9 px-3 rounded-md",
+                      "bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]",
+                      "text-sm text-[var(--bb-color-text-primary)]",
+                      "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                    )}
+                  />
+                  <span className="text-xs text-[var(--bb-color-text-tertiary)]">
+                    {scheduleConfigState.timezone}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : isOtherEvent ? (
+          // Other event triggers - show summary
+          <>
+            <h2 className="text-base font-semibold text-[var(--bb-color-text-primary)] mb-2">
+              Event Trigger
+            </h2>
+            <p className="text-sm text-[var(--bb-color-text-tertiary)] mb-4">
+              Records will be enrolled when this event occurs
+            </p>
+            <div className="bg-[var(--bb-color-bg-body)] rounded-lg border border-[var(--bb-color-border-subtle)] p-4">
+              <div className="flex items-center gap-2">
+                <Zap size={16} className="text-[var(--bb-color-accent)]" />
+                <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">
+                  {getEventLabel(pendingTriggerType?.eventType)}
+                </span>
+              </div>
+              <p className="text-xs text-[var(--bb-color-text-tertiary)] mt-2">
+                No additional configuration required
+              </p>
+            </div>
+          </>
         ) : (
           // Unknown state
           <div className="text-sm text-[var(--bb-color-text-tertiary)]">
-            Unknown trigger configuration type
+            Unknown trigger configuration type: {JSON.stringify(pendingTriggerType)}
           </div>
         )}
       </div>

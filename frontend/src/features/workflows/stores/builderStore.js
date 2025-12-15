@@ -348,12 +348,37 @@ export const useWorkflowBuilderStore = create((set, get) => ({
   selectStep: (stepId) => {
     const state = get();
     if (stepId === 'trigger') {
-      // Clicking trigger - show trigger config if not configured, otherwise just select it
-      const hasTrigger = state.workflow.entryCondition?.triggerType;
-      set({
-        selectedStepId: 'trigger',
-        panelMode: hasTrigger ? 'trigger_config' : 'trigger',
-      });
+      // Clicking trigger - show trigger config if configured, trigger selection if not
+      const entryCondition = state.workflow.entryCondition;
+      const hasTrigger = entryCondition?.triggerType;
+
+      if (hasTrigger) {
+        // Derive pendingTriggerType from saved entryCondition for the config panel
+        let pendingTriggerType = null;
+        if (entryCondition.triggerType === 'event' && entryCondition.eventType === 'property.changed') {
+          pendingTriggerType = { type: 'event', eventType: 'property.changed' };
+        } else if (entryCondition.triggerType === 'filter_criteria') {
+          pendingTriggerType = 'filter_criteria';
+        } else if (entryCondition.triggerType === 'schedule') {
+          pendingTriggerType = 'schedule';
+        } else if (entryCondition.triggerType === 'manual') {
+          pendingTriggerType = 'manual';
+        } else if (entryCondition.triggerType === 'event') {
+          pendingTriggerType = { type: 'event', eventType: entryCondition.eventType };
+        }
+
+        set({
+          selectedStepId: 'trigger',
+          panelMode: 'trigger_config',
+          pendingTriggerType,
+        });
+      } else {
+        set({
+          selectedStepId: 'trigger',
+          panelMode: 'trigger',
+          pendingTriggerType: null,
+        });
+      }
     } else if (stepId) {
       // Clicking a step - show step config
       set({
