@@ -54,6 +54,7 @@ export default function StepConfigPanel() {
         return (
           <ActionConfig
             step={step}
+            objectType={workflow.objectType}
             onChange={handleUpdate}
           />
         );
