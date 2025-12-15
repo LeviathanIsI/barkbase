@@ -345,7 +345,6 @@ export class ServicesStack extends cdk.Stack {
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/workflow-processor')),
       timeout: cdk.Duration.seconds(30),
-      reservedConcurrentExecutions: 10,
     });
 
     // Workflow Step Executor - Executes individual workflow steps
@@ -356,7 +355,6 @@ export class ServicesStack extends cdk.Stack {
       handler: 'step-executor.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/workflow-processor')),
       timeout: cdk.Duration.minutes(1),
-      reservedConcurrentExecutions: 20,
       environment: {
         ...commonEnvironment,
         WORKFLOW_STEP_EXECUTOR_ARN: '', // Will be updated after creation
