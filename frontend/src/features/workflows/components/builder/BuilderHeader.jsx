@@ -1,51 +1,60 @@
 /**
  * BuilderHeader - Header component for the workflow builder
- * Includes back button, editable workflow name, save status indicator, and primary CTA
+ * Includes back button, editable workflow name, save status indicator, menu bar, and publish CTA
  */
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  Save,
-  Undo,
-  Redo,
-  Settings,
-  Eye,
-  HelpCircle,
   Pencil,
   Check,
   X,
   Loader2,
   AlertCircle,
+  ChevronDown,
+  Play,
+  Pause,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import Button from '@/components/ui/Button';
 import { useWorkflowBuilderStore } from '../../stores/builderStore';
+import { WORKFLOW_STATUS_CONFIG } from '../../constants';
+import MenuBar from './MenuBar';
 
 /**
- * Save status indicator component
+ * Save status indicator component with improved styling
  */
-function SaveStatusIndicator({ status }) {
+function SaveStatusIndicator({ status, isDirty }) {
+  // Show unsaved indicator if dirty and not currently saving
+  if (isDirty && status !== 'saving') {
+    return (
+      <div className="flex items-center gap-1.5 text-[#F59E0B] text-sm">
+        <span className="w-2 h-2 rounded-full bg-[#F59E0B] animate-pulse" />
+        <span>Unsaved changes</span>
+      </div>
+    );
+  }
+
   switch (status) {
     case 'saving':
       return (
-        <div className="flex items-center gap-2 text-[var(--bb-color-text-tertiary)]">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span className="text-xs">Saving...</span>
+        <div className="flex items-center gap-1.5 text-[var(--bb-color-text-tertiary)] text-sm">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          <span>Saving...</span>
         </div>
       );
     case 'saved':
       return (
-        <div className="flex items-center gap-2 text-[var(--bb-color-status-positive)]">
-          <Check className="w-4 h-4" />
-          <span className="text-xs">Saved</span>
+        <div className="flex items-center gap-1.5 text-[#10B981] text-sm">
+          <Check className="w-3.5 h-3.5" />
+          <span>Saved</span>
         </div>
       );
     case 'error':
       return (
-        <div className="flex items-center gap-2 text-[var(--bb-color-status-negative)]">
-          <AlertCircle className="w-4 h-4" />
-          <span className="text-xs">Save failed</span>
+        <div className="flex items-center gap-1.5 text-[#EF4444] text-sm">
+          <AlertCircle className="w-3.5 h-3.5" />
+          <span>Save failed</span>
         </div>
       );
     default:
@@ -53,12 +62,141 @@ function SaveStatusIndicator({ status }) {
   }
 }
 
+/**
+ * Workflow status badge component
+ */
+function WorkflowStatusBadge({ status }) {
+  const config = WORKFLOW_STATUS_CONFIG[status] || WORKFLOW_STATUS_CONFIG.draft;
+
+  return (
+    <span
+      className="px-2 py-0.5 text-xs rounded-full font-medium"
+      style={{
+        backgroundColor: config.bgColor,
+        color: config.color,
+      }}
+    >
+      {config.label}
+    </span>
+  );
+}
+
+/**
+ * Publish button component with dropdown for active workflows
+ */
+function PublishButton({ workflow, canPublish, onPublish, onPause, onResume, isLoading }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  if (workflow.status === 'active') {
+    return (
+      <div ref={dropdownRef} className="relative">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            'flex items-center gap-1 px-3 py-1.5 rounded text-sm font-medium',
+            'bg-[#10B981] hover:bg-[#059669] text-white',
+            'transition-colors'
+          )}
+        >
+          <Play size={14} />
+          <span>Active</span>
+          <ChevronDown size={14} />
+        </button>
+
+        {isOpen && (
+          <div
+            className={cn(
+              'absolute top-full right-0 mt-1 w-48 z-50',
+              'bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]',
+              'rounded-lg shadow-xl py-1'
+            )}
+          >
+            <button
+              onClick={() => {
+                onPause?.();
+                setIsOpen(false);
+              }}
+              className={cn(
+                'w-full px-3 py-1.5 text-left text-sm flex items-center gap-2',
+                'text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-surface)]'
+              )}
+            >
+              <Pause size={14} />
+              Pause workflow
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (workflow.status === 'paused') {
+    return (
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={onResume}
+        loading={isLoading}
+        leftIcon={<Play size={14} />}
+        className="bg-[#10B981] hover:bg-[#059669]"
+      >
+        Resume
+      </Button>
+    );
+  }
+
+  // Draft status - show Review and publish button
+  return (
+    <Button
+      variant="primary"
+      size="sm"
+      onClick={onPublish}
+      disabled={!canPublish}
+      loading={isLoading}
+    >
+      Review and publish
+    </Button>
+  );
+}
+
 export default function BuilderHeader({
   onActivate,
+  onPause,
+  onResume,
+  onOpenPublishModal,
+  onSave,
+  onDuplicate,
+  onDelete,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
+  onOpenSettings,
+  onToggleLeftPanel,
+  showLeftPanel,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
+  onShowShortcuts,
+  isPublishing,
 }) {
   const navigate = useNavigate();
   const {
     workflow,
+    isDirty,
     saveStatus,
     setWorkflowName,
     hasTrigger,
@@ -111,7 +249,7 @@ export default function BuilderHeader({
     }
   };
 
-  const canActivate = hasTrigger();
+  const canPublish = hasTrigger() && workflow.id;
 
   return (
     <div className="flex flex-col border-b border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)]">
@@ -121,17 +259,17 @@ export default function BuilderHeader({
         <button
           onClick={handleBack}
           className={cn(
-            "flex items-center gap-2 px-3 py-1.5 rounded",
-            "text-sm font-medium text-[var(--bb-color-text-primary)]",
-            "hover:bg-[var(--bb-color-bg-elevated)]",
-            "transition-colors"
+            'flex items-center gap-2 px-3 py-1.5 rounded',
+            'text-sm font-medium text-[var(--bb-color-text-primary)]',
+            'hover:bg-[var(--bb-color-bg-elevated)]',
+            'transition-colors'
           )}
         >
           <ArrowLeft size={18} />
           Back
         </button>
 
-        {/* Center - Workflow name + Save status */}
+        {/* Center - Workflow name + Status badge + Save status */}
         <div className="flex items-center gap-3">
           {isEditingName ? (
             <div className="flex items-center gap-1">
@@ -143,10 +281,10 @@ export default function BuilderHeader({
                 onBlur={handleNameSubmit}
                 onKeyDown={handleNameKeyDown}
                 className={cn(
-                  "px-2 py-1 text-lg font-semibold text-center",
-                  "bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-accent)]",
-                  "rounded focus:outline-none",
-                  "text-[var(--bb-color-text-primary)]"
+                  'px-2 py-1 text-lg font-semibold text-center',
+                  'bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-accent)]',
+                  'rounded focus:outline-none',
+                  'text-[var(--bb-color-text-primary)]'
                 )}
                 style={{ width: `${Math.max(editedName.length, 10)}ch` }}
               />
@@ -170,9 +308,9 @@ export default function BuilderHeader({
             <button
               onClick={() => setIsEditingName(true)}
               className={cn(
-                "flex items-center gap-2 px-2 py-1 rounded",
-                "hover:bg-[var(--bb-color-bg-elevated)]",
-                "transition-colors group"
+                'flex items-center gap-2 px-2 py-1 rounded',
+                'hover:bg-[var(--bb-color-bg-elevated)]',
+                'transition-colors group'
               )}
             >
               <span className="text-lg font-semibold text-[var(--bb-color-text-primary)]">
@@ -185,125 +323,45 @@ export default function BuilderHeader({
             </button>
           )}
 
+          {/* Workflow status badge */}
+          <WorkflowStatusBadge status={workflow.status} />
+
           {/* Save status indicator */}
-          <SaveStatusIndicator status={saveStatus} />
+          <SaveStatusIndicator status={saveStatus} isDirty={isDirty} />
         </div>
 
         {/* Right side - Actions */}
         <div className="flex items-center gap-2">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onActivate}
-            disabled={!canActivate || saveStatus === 'saving'}
-          >
-            Review and turn on
-          </Button>
+          <PublishButton
+            workflow={workflow}
+            canPublish={canPublish}
+            onPublish={onOpenPublishModal || onActivate}
+            onPause={onPause}
+            onResume={onResume}
+            isLoading={isPublishing}
+          />
         </div>
       </div>
 
       {/* Menu bar row */}
-      <div className="flex items-center gap-1 px-4 h-9 border-t border-[var(--bb-color-border-subtle)]">
-        <MenuDropdown label="File">
-          <MenuItem icon={<Save size={14} />} label="Save" shortcut="Ctrl+S" disabled />
-          <MenuDivider />
-          <MenuItem label="Exit" onClick={handleBack} />
-        </MenuDropdown>
-
-        <MenuDropdown label="Edit">
-          <MenuItem icon={<Undo size={14} />} label="Undo" shortcut="Ctrl+Z" disabled />
-          <MenuItem icon={<Redo size={14} />} label="Redo" shortcut="Ctrl+Y" disabled />
-        </MenuDropdown>
-
-        <MenuDropdown label="Settings">
-          <MenuItem icon={<Settings size={14} />} label="Workflow settings" disabled />
-        </MenuDropdown>
-
-        <MenuDropdown label="View">
-          <MenuItem icon={<Eye size={14} />} label="Zoom to fit" disabled />
-        </MenuDropdown>
-
-        <MenuDropdown label="Help">
-          <MenuItem icon={<HelpCircle size={14} />} label="Documentation" disabled />
-        </MenuDropdown>
-      </div>
+      <MenuBar
+        workflow={workflow}
+        onSave={onSave}
+        onDuplicate={onDuplicate}
+        onDelete={onDelete}
+        onUndo={onUndo}
+        onRedo={onRedo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onOpenSettings={onOpenSettings}
+        onToggleLeftPanel={onToggleLeftPanel}
+        showLeftPanel={showLeftPanel}
+        onZoomIn={onZoomIn}
+        onZoomOut={onZoomOut}
+        onResetZoom={onResetZoom}
+        onExit={handleBack}
+        onShowShortcuts={onShowShortcuts}
+      />
     </div>
   );
-}
-
-// Menu dropdown component
-function MenuDropdown({ label, children }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          "px-3 py-1 text-sm text-[var(--bb-color-text-secondary)] rounded",
-          "hover:bg-[var(--bb-color-bg-elevated)] hover:text-[var(--bb-color-text-primary)]",
-          isOpen && "bg-[var(--bb-color-bg-elevated)] text-[var(--bb-color-text-primary)]"
-        )}
-      >
-        {label}
-      </button>
-
-      {isOpen && (
-        <div className={cn(
-          "absolute left-0 mt-1 w-48 z-50",
-          "bg-[var(--bb-color-bg-elevated)] rounded-md",
-          "border border-[var(--bb-color-border-subtle)]",
-          "shadow-lg py-1"
-        )}>
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Menu item component
-function MenuItem({ icon, label, shortcut, onClick, disabled }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "w-full px-3 py-1.5 flex items-center justify-between",
-        "text-sm text-left",
-        disabled
-          ? "text-[var(--bb-color-text-tertiary)] cursor-not-allowed"
-          : "text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-surface)]"
-      )}
-    >
-      <span className="flex items-center gap-2">
-        {icon}
-        {label}
-      </span>
-      {shortcut && (
-        <span className="text-xs text-[var(--bb-color-text-tertiary)]">
-          {shortcut}
-        </span>
-      )}
-    </button>
-  );
-}
-
-// Menu divider component
-function MenuDivider() {
-  return <div className="border-t border-[var(--bb-color-border-subtle)] my-1" />;
 }

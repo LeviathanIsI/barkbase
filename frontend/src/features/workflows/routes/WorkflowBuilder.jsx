@@ -3,7 +3,7 @@
  * Handles both creating new workflows and editing existing ones
  * Implements auto-persist: Create on first trigger save, auto-save subsequent changes
  */
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { useDebouncedCallback } from 'use-debounce';
@@ -17,6 +17,9 @@ import {
   useUpdateWorkflow,
   useUpdateWorkflowSteps,
   useActivateWorkflow,
+  usePauseWorkflow,
+  useDeleteWorkflow,
+  useCloneWorkflow,
 } from '../hooks';
 import { useWorkflowBuilderStore } from '../stores/builderStore';
 
@@ -24,12 +27,18 @@ import BuilderHeader from '../components/builder/BuilderHeader';
 import BuilderLeftPanel from '../components/builder/BuilderLeftPanel';
 import BuilderCanvas from '../components/builder/BuilderCanvas';
 import StepConfigPanel from '../components/builder/StepConfigPanel';
+import PublishModal from '../components/builder/PublishModal';
 
 export default function WorkflowBuilder() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isNew = !id || id === 'new';
   const isCreatingRef = useRef(false);
+
+  // UI state
+  const [showLeftPanel, setShowLeftPanel] = useState(true);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   // Store
   const {
@@ -49,21 +58,18 @@ export default function WorkflowBuilder() {
   } = useWorkflowBuilderStore();
 
   // Queries (only for existing workflows)
-  const {
-    data: workflowData,
-    isLoading: isLoadingWorkflow,
-  } = useWorkflow(isNew ? null : id);
+  const { data: workflowData, isLoading: isLoadingWorkflow } = useWorkflow(isNew ? null : id);
 
-  const {
-    data: stepsData,
-    isLoading: isLoadingSteps,
-  } = useWorkflowSteps(isNew ? null : id);
+  const { data: stepsData, isLoading: isLoadingSteps } = useWorkflowSteps(isNew ? null : id);
 
   // Mutations
   const createWorkflowMutation = useCreateWorkflow();
   const updateWorkflowMutation = useUpdateWorkflow();
   const updateStepsMutation = useUpdateWorkflowSteps();
   const activateWorkflowMutation = useActivateWorkflow();
+  const pauseWorkflowMutation = usePauseWorkflow();
+  const deleteWorkflowMutation = useDeleteWorkflow();
+  const cloneWorkflowMutation = useCloneWorkflow();
 
   // Initialize store
   useEffect(() => {
@@ -83,52 +89,55 @@ export default function WorkflowBuilder() {
    * Create workflow in database (called on first trigger save)
    * Returns the new workflow ID
    */
-  const createWorkflow = useCallback(async (triggerConfig) => {
-    if (isCreatingRef.current) return null;
-    isCreatingRef.current = true;
+  const createWorkflow = useCallback(
+    async (triggerConfig) => {
+      if (isCreatingRef.current) return null;
+      isCreatingRef.current = true;
 
-    setSaveStatus('saving');
+      setSaveStatus('saving');
 
-    try {
-      const workflowPayload = {
-        name: workflow.name || 'Untitled workflow',
-        description: workflow.description || '',
-        object_type: triggerConfig.objectType || workflow.objectType,
-        status: 'draft',
-        entry_condition: {
-          triggerType: triggerConfig.triggerType,
-          eventType: triggerConfig.eventType || null,
-          filterConfig: triggerConfig.filterConfig || null,
-          scheduleConfig: triggerConfig.scheduleConfig || null,
-        },
-        settings: workflow.settings,
-      };
+      try {
+        const workflowPayload = {
+          name: workflow.name || 'Untitled workflow',
+          description: workflow.description || '',
+          object_type: triggerConfig.objectType || workflow.objectType,
+          status: 'draft',
+          entry_condition: {
+            triggerType: triggerConfig.triggerType,
+            eventType: triggerConfig.eventType || null,
+            filterConfig: triggerConfig.filterConfig || null,
+            scheduleConfig: triggerConfig.scheduleConfig || null,
+          },
+          settings: workflow.settings,
+        };
 
-      const result = await createWorkflowMutation.mutateAsync(workflowPayload);
-      const newWorkflowId = result?.data?.workflow?.id;
+        const result = await createWorkflowMutation.mutateAsync(workflowPayload);
+        const newWorkflowId = result?.data?.workflow?.id;
 
-      if (newWorkflowId) {
-        // Update store with new ID
-        setWorkflowId(newWorkflowId);
+        if (newWorkflowId) {
+          // Update store with new ID
+          setWorkflowId(newWorkflowId);
 
-        // Navigate to the new workflow URL (replace history)
-        navigate(`/workflows/${newWorkflowId}`, { replace: true });
+          // Navigate to the new workflow URL (replace history)
+          navigate(`/workflows/${newWorkflowId}`, { replace: true });
 
-        setSaveStatus('saved');
-        return newWorkflowId;
+          setSaveStatus('saved');
+          return newWorkflowId;
+        }
+
+        setSaveStatus('error');
+        return null;
+      } catch (error) {
+        console.error('Failed to create workflow:', error);
+        setSaveStatus('error');
+        toast.error('Failed to create workflow');
+        return null;
+      } finally {
+        isCreatingRef.current = false;
       }
-
-      setSaveStatus('error');
-      return null;
-    } catch (error) {
-      console.error('Failed to create workflow:', error);
-      setSaveStatus('error');
-      toast.error('Failed to create workflow');
-      return null;
-    } finally {
-      isCreatingRef.current = false;
-    }
-  }, [workflow, createWorkflowMutation, navigate, setSaveStatus, setWorkflowId]);
+    },
+    [workflow, createWorkflowMutation, navigate, setSaveStatus, setWorkflowId]
+  );
 
   /**
    * Auto-save workflow changes (debounced)
@@ -183,42 +192,6 @@ export default function WorkflowBuilder() {
   }, [workflow.id, isDirty, saveStatus, debouncedAutoSave, workflow, steps]);
 
   /**
-   * Handle activate (turn on workflow)
-   */
-  const handleActivate = useCallback(async () => {
-    // If no workflow ID, can't activate
-    if (!workflow.id) {
-      toast.error('Please configure a trigger first');
-      return;
-    }
-
-    // Wait for any pending saves
-    if (saveStatus === 'saving') {
-      toast('Waiting for save to complete...');
-      // Wait a bit and check again
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      if (useWorkflowBuilderStore.getState().saveStatus === 'saving') {
-        toast.error('Save still in progress. Please try again.');
-        return;
-      }
-    }
-
-    // Force save if dirty
-    if (isDirty) {
-      await autoSave();
-    }
-
-    try {
-      await activateWorkflowMutation.mutateAsync(workflow.id);
-      toast.success('Workflow activated');
-      navigate('/workflows');
-    } catch (error) {
-      console.error('Failed to activate workflow:', error);
-      toast.error('Failed to activate workflow');
-    }
-  }, [workflow.id, isDirty, saveStatus, autoSave, activateWorkflowMutation, navigate]);
-
-  /**
    * Manual save (Ctrl+S)
    */
   const handleManualSave = useCallback(async () => {
@@ -236,19 +209,193 @@ export default function WorkflowBuilder() {
     toast.success('Saved');
   }, [workflow.id, isDirty, autoSave]);
 
+  /**
+   * Handle publish (turn on workflow)
+   */
+  const handlePublish = useCallback(
+    async (options = {}) => {
+      // enrollExisting option could be used in future to enroll existing records
+      const { enrollExisting: _enrollExisting } = options;
+
+      // If no workflow ID, can't publish
+      if (!workflow.id) {
+        toast.error('Please configure a trigger first');
+        return;
+      }
+
+      setIsPublishing(true);
+
+      // Wait for any pending saves
+      if (saveStatus === 'saving') {
+        toast('Waiting for save to complete...');
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        if (useWorkflowBuilderStore.getState().saveStatus === 'saving') {
+          toast.error('Save still in progress. Please try again.');
+          setIsPublishing(false);
+          return;
+        }
+      }
+
+      // Force save if dirty
+      if (isDirty) {
+        await autoSave();
+      }
+
+      try {
+        await activateWorkflowMutation.mutateAsync(workflow.id);
+        toast.success('Workflow published and activated');
+        navigate('/workflows');
+      } catch (error) {
+        console.error('Failed to publish workflow:', error);
+        toast.error('Failed to publish workflow');
+      } finally {
+        setIsPublishing(false);
+      }
+    },
+    [workflow.id, isDirty, saveStatus, autoSave, activateWorkflowMutation, navigate]
+  );
+
+  /**
+   * Handle pause workflow
+   */
+  const handlePause = useCallback(async () => {
+    if (!workflow.id) return;
+
+    try {
+      await pauseWorkflowMutation.mutateAsync(workflow.id);
+      toast.success('Workflow paused');
+    } catch (error) {
+      console.error('Failed to pause workflow:', error);
+      toast.error('Failed to pause workflow');
+    }
+  }, [workflow.id, pauseWorkflowMutation]);
+
+  /**
+   * Handle resume workflow
+   */
+  const handleResume = useCallback(async () => {
+    if (!workflow.id) return;
+
+    try {
+      await activateWorkflowMutation.mutateAsync(workflow.id);
+      toast.success('Workflow resumed');
+    } catch (error) {
+      console.error('Failed to resume workflow:', error);
+      toast.error('Failed to resume workflow');
+    }
+  }, [workflow.id, activateWorkflowMutation]);
+
+  /**
+   * Handle duplicate workflow
+   */
+  const handleDuplicate = useCallback(async () => {
+    if (!workflow.id) {
+      toast.error('Save the workflow first before duplicating');
+      return;
+    }
+
+    try {
+      const result = await cloneWorkflowMutation.mutateAsync(workflow.id);
+      const newId = result?.data?.workflow?.id;
+      if (newId) {
+        toast.success('Workflow duplicated');
+        navigate(`/workflows/${newId}`);
+      }
+    } catch (error) {
+      console.error('Failed to duplicate workflow:', error);
+      toast.error('Failed to duplicate workflow');
+    }
+  }, [workflow.id, cloneWorkflowMutation, navigate]);
+
+  /**
+   * Handle delete workflow
+   */
+  const handleDelete = useCallback(async () => {
+    if (!workflow.id) {
+      navigate('/workflows');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this workflow? This cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await deleteWorkflowMutation.mutateAsync(workflow.id);
+      toast.success('Workflow deleted');
+      navigate('/workflows');
+    } catch (error) {
+      console.error('Failed to delete workflow:', error);
+      toast.error('Failed to delete workflow');
+    }
+  }, [workflow.id, deleteWorkflowMutation, navigate]);
+
+  /**
+   * Handle open settings
+   */
+  const handleOpenSettings = useCallback((section) => {
+    console.log('Open settings section:', section);
+    // TODO: Implement settings panel
+  }, []);
+
+  /**
+   * Handle show keyboard shortcuts
+   */
+  const handleShowShortcuts = useCallback(() => {
+    // TODO: Implement shortcuts modal
+    toast('Keyboard shortcuts:\n\nCtrl+S - Save\nCtrl+Z - Undo\nCtrl+Shift+Z - Redo\nCtrl+\\ - Toggle left panel');
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ctrl+S or Cmd+S to save
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        handleManualSave();
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const modifier = isMac ? e.metaKey : e.ctrlKey;
+
+      if (modifier) {
+        switch (e.key.toLowerCase()) {
+          case 's':
+            e.preventDefault();
+            handleManualSave();
+            break;
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              // Redo - TODO: implement undo/redo
+              console.log('Redo');
+            } else {
+              // Undo - TODO: implement undo/redo
+              console.log('Undo');
+            }
+            break;
+          case '\\':
+            e.preventDefault();
+            setShowLeftPanel((prev) => !prev);
+            break;
+          case '=':
+          case '+':
+            e.preventDefault();
+            // Zoom in handled by canvas
+            break;
+          case '-':
+            e.preventDefault();
+            // Zoom out handled by canvas
+            break;
+          case '0':
+            e.preventDefault();
+            // Reset zoom handled by canvas
+            break;
+          case '/':
+            e.preventDefault();
+            handleShowShortcuts();
+            break;
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleManualSave]);
+  }, [handleManualSave, handleShowShortcuts]);
 
   // Loading state
   if (!isNew && (isLoadingWorkflow || isLoadingSteps || !isInitialized)) {
@@ -266,13 +413,26 @@ export default function WorkflowBuilder() {
     <div className="h-screen flex flex-col bg-[var(--bb-color-bg-body)]">
       {/* Header */}
       <BuilderHeader
-        onActivate={handleActivate}
+        onActivate={() => setShowPublishModal(true)}
+        onOpenPublishModal={() => setShowPublishModal(true)}
+        onPause={handlePause}
+        onResume={handleResume}
+        onSave={handleManualSave}
+        onDuplicate={handleDuplicate}
+        onDelete={handleDelete}
+        onOpenSettings={handleOpenSettings}
+        onToggleLeftPanel={() => setShowLeftPanel((prev) => !prev)}
+        showLeftPanel={showLeftPanel}
+        onShowShortcuts={handleShowShortcuts}
+        isPublishing={isPublishing}
+        canUndo={false}
+        canRedo={false}
       />
 
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left panel - pass createWorkflow for first trigger save */}
-        <BuilderLeftPanel onCreateWorkflow={createWorkflow} />
+        {showLeftPanel && <BuilderLeftPanel onCreateWorkflow={createWorkflow} />}
 
         {/* Center canvas */}
         <div className="flex-1 overflow-auto">
@@ -280,10 +440,18 @@ export default function WorkflowBuilder() {
         </div>
 
         {/* Right config panel (when step selected) */}
-        {showConfigPanel && (
-          <StepConfigPanel />
-        )}
+        {showConfigPanel && <StepConfigPanel />}
       </div>
+
+      {/* Publish modal */}
+      {showPublishModal && (
+        <PublishModal
+          workflow={workflow}
+          steps={steps}
+          onClose={() => setShowPublishModal(false)}
+          onPublish={handlePublish}
+        />
+      )}
     </div>
   );
 }
