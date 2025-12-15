@@ -78,12 +78,14 @@ export default function WorkflowBuilder() {
     } else if (workflowData?.data && stepsData?.data && !isInitialized) {
       loadWorkflow(workflowData.data, stepsData.data.steps || []);
     }
+  }, [isNew, id, workflowData, stepsData, isInitialized, initializeNewWorkflow, loadWorkflow]);
 
-    // Cleanup on unmount
+  // Cleanup only on unmount (leaving the builder entirely)
+  useEffect(() => {
     return () => {
       reset();
     };
-  }, [isNew, workflowData, stepsData, isInitialized, initializeNewWorkflow, loadWorkflow, reset]);
+  }, [reset]);
 
   /**
    * Create workflow in database (called on first trigger save)
@@ -112,7 +114,8 @@ export default function WorkflowBuilder() {
         };
 
         const result = await createWorkflowMutation.mutateAsync(workflowPayload);
-        const newWorkflowId = result?.data?.workflow?.id;
+        // Backend returns workflow directly in data, not nested under data.workflow
+        const newWorkflowId = result?.data?.id;
 
         if (newWorkflowId) {
           // Update store with new ID
@@ -122,7 +125,7 @@ export default function WorkflowBuilder() {
           navigate(`/workflows/${newWorkflowId}`, { replace: true });
 
           setSaveStatus('saved');
-          markClean(); // Reset dirty flag after successful save
+          markClean();
           return newWorkflowId;
         }
 
@@ -148,7 +151,6 @@ export default function WorkflowBuilder() {
 
     // Skip if no workflow ID (shouldn't happen after trigger save)
     if (!state.workflow.id) {
-      console.warn('Auto-save skipped: No workflow ID');
       return;
     }
 
@@ -297,7 +299,7 @@ export default function WorkflowBuilder() {
 
     try {
       const result = await cloneWorkflowMutation.mutateAsync(workflow.id);
-      const newId = result?.data?.workflow?.id;
+      const newId = result?.data?.id;
       if (newId) {
         toast.success('Workflow duplicated');
         navigate(`/workflows/${newId}`);
