@@ -71,6 +71,7 @@ export default function StepConfigPanel() {
         return (
           <DeterminatorConfig
             step={step}
+            objectType={workflow.objectType}
             onChange={handleUpdate}
           />
         );
@@ -79,6 +80,7 @@ export default function StepConfigPanel() {
         return (
           <GateConfig
             step={step}
+            objectType={workflow.objectType}
             onChange={handleUpdate}
           />
         );
