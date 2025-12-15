@@ -332,6 +332,93 @@ export class ServicesStack extends cdk.Stack {
     }));
 
     // =========================================================================
+    // Workflow Execution Engine Lambda Functions
+    // =========================================================================
+    // These functions power the workflow automation system.
+    // They are invoked via SQS and EventBridge, NOT exposed via API Gateway.
+
+    // Workflow Trigger Processor - Receives domain events and enrolls records
+    this.workflowTriggerProcessorFunction = new lambda.Function(this, 'WorkflowTriggerProcessorFunction', {
+      ...commonLambdaConfig,
+      functionName: `${config.stackPrefix}-workflow-trigger-processor`,
+      description: 'BarkBase Workflow Trigger Processor - Processes domain events and enrolls records in workflows',
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/workflow-processor')),
+      timeout: cdk.Duration.seconds(30),
+      reservedConcurrentExecutions: 10,
+    });
+
+    // Workflow Step Executor - Executes individual workflow steps
+    this.workflowStepExecutorFunction = new lambda.Function(this, 'WorkflowStepExecutorFunction', {
+      ...commonLambdaConfig,
+      functionName: `${config.stackPrefix}-workflow-step-executor`,
+      description: 'BarkBase Workflow Step Executor - Executes workflow steps (actions, waits, determinators)',
+      handler: 'step-executor.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/workflow-processor')),
+      timeout: cdk.Duration.minutes(1),
+      reservedConcurrentExecutions: 20,
+      environment: {
+        ...commonEnvironment,
+        WORKFLOW_STEP_EXECUTOR_ARN: '', // Will be updated after creation
+      },
+    });
+
+    // Workflow Scheduled Processor - Handles scheduled triggers and resuming paused executions
+    this.workflowSchedulerFunction = new lambda.Function(this, 'WorkflowSchedulerFunction', {
+      ...commonLambdaConfig,
+      functionName: `${config.stackPrefix}-workflow-scheduler`,
+      description: 'BarkBase Workflow Scheduler - Scheduled triggers and resuming paused workflow executions',
+      handler: 'scheduled-processor.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/workflow-processor')),
+      timeout: cdk.Duration.minutes(5),
+    });
+
+    // Wire SQS queues to Lambda functions with event source mappings
+    this.workflowTriggerProcessorFunction.addEventSource(
+      new lambdaEventSources.SqsEventSource(this.workflowTriggerQueue as sqs.Queue, {
+        batchSize: 10,
+        maxBatchingWindow: cdk.Duration.seconds(5),
+        reportBatchItemFailures: true,
+      })
+    );
+
+    this.workflowStepExecutorFunction.addEventSource(
+      new lambdaEventSources.SqsEventSource(this.workflowStepQueue as sqs.Queue, {
+        batchSize: 5,
+        maxBatchingWindow: cdk.Duration.seconds(2),
+        reportBatchItemFailures: true,
+      })
+    );
+
+    // Grant additional permissions for step executor (EventBridge Scheduler)
+    this.workflowStepExecutorFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['scheduler:CreateSchedule', 'scheduler:DeleteSchedule', 'scheduler:GetSchedule'],
+      resources: ['*'],
+    }));
+
+    // Grant scheduler role to pass itself
+    this.workflowSchedulerRole.grantPassRole(this.workflowStepExecutorFunction.role!);
+
+    // EventBridge rule to run scheduled processor every 5 minutes
+    const workflowScheduleRule = new events.Rule(this, 'WorkflowScheduleRule', {
+      ruleName: `${config.stackPrefix}-workflow-scheduler`,
+      description: 'Triggers workflow scheduler every 5 minutes for scheduled triggers and resuming paused executions',
+      schedule: events.Schedule.rate(cdk.Duration.minutes(5)),
+    });
+
+    workflowScheduleRule.addTarget(new targets.LambdaFunction(this.workflowSchedulerFunction, {
+      retryAttempts: 2,
+    }));
+
+    // Create EventBridge Scheduler group for workflow wait schedules
+    new cdk.CfnResource(this, 'WorkflowSchedulerGroup', {
+      type: 'AWS::Scheduler::ScheduleGroup',
+      properties: {
+        Name: 'workflow-schedules',
+      },
+    });
+
+    // =========================================================================
     // Stack Outputs
     // =========================================================================
 
@@ -418,6 +505,24 @@ export class ServicesStack extends cdk.Stack {
       value: this.workflowStepQueue.queueArn,
       description: 'Workflow Step Queue ARN',
       exportName: `${config.stackPrefix}-workflow-step-queue-arn`,
+    });
+
+    new cdk.CfnOutput(this, 'WorkflowTriggerProcessorArn', {
+      value: this.workflowTriggerProcessorFunction.functionArn,
+      description: 'Workflow Trigger Processor Lambda ARN',
+      exportName: `${config.stackPrefix}-workflow-trigger-processor-arn`,
+    });
+
+    new cdk.CfnOutput(this, 'WorkflowStepExecutorArn', {
+      value: this.workflowStepExecutorFunction.functionArn,
+      description: 'Workflow Step Executor Lambda ARN',
+      exportName: `${config.stackPrefix}-workflow-step-executor-arn`,
+    });
+
+    new cdk.CfnOutput(this, 'WorkflowSchedulerArn', {
+      value: this.workflowSchedulerFunction.functionArn,
+      description: 'Workflow Scheduler Lambda ARN',
+      exportName: `${config.stackPrefix}-workflow-scheduler-arn`,
     });
   }
 }
