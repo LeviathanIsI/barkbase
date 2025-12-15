@@ -342,6 +342,8 @@ export class ApiCoreStack extends cdk.Stack {
     createRoute('ShiftsProxyRoute', 'ANY /api/v1/shifts/{proxy+}', operationsIntegration.ref, true);
     createRoute('RecurringBaseRoute', 'ANY /api/v1/recurring', operationsIntegration.ref, true);
     createRoute('RecurringProxyRoute', 'ANY /api/v1/recurring/{proxy+}', operationsIntegration.ref, true);
+    createRoute('WorkflowsBaseRoute', 'ANY /api/v1/workflows', operationsIntegration.ref, true);
+    createRoute('WorkflowsProxyRoute', 'ANY /api/v1/workflows/{proxy+}', operationsIntegration.ref, true);
 
     // -------------------------------------------------------------------------
     // CONFIG SERVICE - Protected routes
@@ -428,6 +430,8 @@ export class ApiCoreStack extends cdk.Stack {
     createAdminRoute('AdminCalendarProxyRoute', 'ANY /admin/v1/calendar/{proxy+}', operationsIntegration.ref);
     createAdminRoute('AdminStaffBaseRoute', 'ANY /admin/v1/staff', operationsIntegration.ref);
     createAdminRoute('AdminStaffProxyRoute', 'ANY /admin/v1/staff/{proxy+}', operationsIntegration.ref);
+    createAdminRoute('AdminWorkflowsBaseRoute', 'ANY /admin/v1/workflows', operationsIntegration.ref);
+    createAdminRoute('AdminWorkflowsProxyRoute', 'ANY /admin/v1/workflows/{proxy+}', operationsIntegration.ref);
 
     // Admin Config Routes
     createAdminRoute('AdminConfigProxyRoute', 'ANY /admin/v1/config/{proxy+}', configIntegration.ref);
