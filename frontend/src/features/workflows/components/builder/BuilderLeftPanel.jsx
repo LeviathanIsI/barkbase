@@ -1443,8 +1443,8 @@ function ActionSelectionPanel({
   pendingStepContext,
 }) {
   const handleActionSelect = (action) => {
-    const stepType = action.stepType || 'action';
-    const actionType = action.stepType ? null : action.type;
+    // action.stepType and action.actionType are always defined in ACTION_CATEGORIES
+    const { stepType, actionType } = action;
     const afterStepId = pendingStepContext?.afterStepId || null;
     const branchPath = pendingStepContext?.branchPath || null;
     addStep(stepType, actionType, afterStepId, branchPath);
@@ -1520,7 +1520,7 @@ function ActionSelectionPanel({
                 <div className="pb-2">
                   {filteredActions.map((action) => (
                     <button
-                      key={action.type || action.stepType}
+                      key={action.actionType || action.stepType}
                       onClick={() => handleActionSelect(action)}
                       className={cn(
                         "w-full px-4 py-2 flex items-center gap-3 text-left",

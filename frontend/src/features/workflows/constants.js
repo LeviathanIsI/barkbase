@@ -353,25 +353,29 @@ export const ACTION_TYPE_ICONS = {
 };
 
 // Action categories for left panel
+// ALL actions must have both stepType and actionType for consistency
 export const ACTION_CATEGORIES = {
   communication: {
     label: 'Communication',
     icon: 'message-square',
     actions: [
       {
-        type: 'send_sms',
+        stepType: 'action',
+        actionType: 'send_sms',
         label: 'Send SMS',
         description: 'Send a text message',
         icon: 'smartphone',
       },
       {
-        type: 'send_email',
+        stepType: 'action',
+        actionType: 'send_email',
         label: 'Send email',
         description: 'Send an email message',
         icon: 'mail',
       },
       {
-        type: 'send_notification',
+        stepType: 'action',
+        actionType: 'send_notification',
         label: 'Send notification',
         description: 'Send an in-app notification',
         icon: 'bell',
@@ -383,25 +387,29 @@ export const ACTION_CATEGORIES = {
     icon: 'database',
     actions: [
       {
-        type: 'create_task',
+        stepType: 'action',
+        actionType: 'create_task',
         label: 'Create task',
         description: 'Create a new task',
         icon: 'check-square',
       },
       {
-        type: 'update_field',
+        stepType: 'action',
+        actionType: 'update_field',
         label: 'Update field',
         description: 'Update a field value',
         icon: 'edit-3',
       },
       {
-        type: 'add_to_segment',
+        stepType: 'action',
+        actionType: 'add_to_segment',
         label: 'Add to segment',
         description: 'Add record to a segment',
         icon: 'user-plus',
       },
       {
-        type: 'remove_from_segment',
+        stepType: 'action',
+        actionType: 'remove_from_segment',
         label: 'Remove from segment',
         description: 'Remove record from a segment',
         icon: 'user-minus',
@@ -413,13 +421,15 @@ export const ACTION_CATEGORIES = {
     icon: 'git-branch',
     actions: [
       {
-        type: 'enroll_in_workflow',
+        stepType: 'action',
+        actionType: 'enroll_in_workflow',
         label: 'Enroll in workflow',
         description: 'Enroll in another workflow',
         icon: 'log-in',
       },
       {
-        type: 'unenroll_from_workflow',
+        stepType: 'action',
+        actionType: 'unenroll_from_workflow',
         label: 'Unenroll from workflow',
         description: 'Remove from other workflows',
         icon: 'log-out',
@@ -431,27 +441,26 @@ export const ACTION_CATEGORIES = {
     icon: 'shuffle',
     actions: [
       {
-        type: 'wait',
         stepType: 'wait',
+        actionType: null,
         label: 'Wait',
         description: 'Add a delay',
         icon: 'clock',
       },
       {
-        type: 'determinator',
         stepType: 'determinator',
+        actionType: null,
         label: 'Determinator',
         description: 'If/then branch',
         icon: 'git-branch',
       },
       {
-        type: 'gate',
         stepType: 'gate',
+        actionType: null,
         label: 'Gate',
         description: 'Continue or stop',
         icon: 'shield',
       },
-      // Note: "End workflow" is automatically rendered on the canvas, not manually added
     ],
   },
   external: {
@@ -459,7 +468,8 @@ export const ACTION_CATEGORIES = {
     icon: 'globe',
     actions: [
       {
-        type: 'webhook',
+        stepType: 'action',
+        actionType: 'webhook',
         label: 'Webhook',
         description: 'Call external URL',
         icon: 'send',

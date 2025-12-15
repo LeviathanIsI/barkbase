@@ -1,7 +1,7 @@
 /**
  * BuilderCanvas - Main canvas component for the workflow builder
  * Renders the visual workflow with trigger, steps, and connectors
- * Supports pan, zoom, and drag-to-reorder functionality
+ * Supports pan and zoom functionality
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
@@ -13,7 +13,6 @@ import TriggerCard from './canvas/TriggerCard';
 import StepCard from './canvas/StepCard';
 import Connector from './canvas/Connector';
 import AddStepButton from './canvas/AddStepButton';
-import DraggableStep from './canvas/DraggableStep';
 
 // Zoom constants
 const MIN_SCALE = 0.5;
@@ -27,7 +26,6 @@ export default function BuilderCanvas() {
     selectedStepId,
     selectStep,
     deleteStep,
-    moveStep,
     openSettings,
   } = useWorkflowBuilderStore();
 
@@ -110,15 +108,6 @@ export default function BuilderCanvas() {
       return () => canvas.removeEventListener('wheel', handleWheel);
     }
   }, [handleWheel]);
-
-  // Handle step reorder via drag and drop
-  const handleReorder = (draggedStepId, targetIndex) => {
-    // Find the current position of the dragged step
-    const currentIndex = rootSteps.findIndex((s) => s.id === draggedStepId);
-    if (currentIndex !== -1 && currentIndex !== targetIndex) {
-      moveStep(draggedStepId, targetIndex);
-    }
-  };
 
   return (
     <div className="relative flex-1 overflow-hidden bg-[var(--bb-color-bg-body)]">
@@ -221,23 +210,16 @@ export default function BuilderCanvas() {
 
           {/* Steps */}
           {rootSteps.map((step, index) => (
-            <DraggableStep
+            <StepNode
               key={step.id}
               step={step}
-              index={index}
-              onReorder={handleReorder}
-              isDraggable={step.stepType !== STEP_TYPES.DETERMINATOR}
-            >
-              <StepNode
-                step={step}
-                allSteps={steps}
-                objectType={workflow.objectType}
-                isSelected={selectedStepId === step.id}
-                onSelect={() => selectStep(step.id)}
-                onDelete={() => deleteStep(step.id)}
-                isLast={index === rootSteps.length - 1}
-              />
-            </DraggableStep>
+              allSteps={steps}
+              objectType={workflow.objectType}
+              isSelected={selectedStepId === step.id}
+              onSelect={() => selectStep(step.id)}
+              onDelete={() => deleteStep(step.id)}
+              isLast={index === rootSteps.length - 1}
+            />
           ))}
 
           {/* End node if no steps or no terminus */}
