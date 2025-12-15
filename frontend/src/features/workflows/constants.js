@@ -695,3 +695,171 @@ export const DEFAULT_WORKFLOW_SETTINGS = {
   executionWindow: null,
   timezone: 'America/New_York',
 };
+
+// =============================================================================
+// OBJECT PROPERTIES (for filters, conditions, and property-based triggers)
+// =============================================================================
+
+export const OBJECT_PROPERTIES = {
+  pet: [
+    { name: 'name', label: 'Name', type: 'text' },
+    { name: 'species', label: 'Species', type: 'enum', options: [
+      { value: 'dog', label: 'Dog' },
+      { value: 'cat', label: 'Cat' },
+      { value: 'bird', label: 'Bird' },
+      { value: 'rabbit', label: 'Rabbit' },
+      { value: 'other', label: 'Other' },
+    ]},
+    { name: 'breed', label: 'Breed', type: 'text' },
+    { name: 'date_of_birth', label: 'Date of Birth', type: 'date' },
+    { name: 'weight', label: 'Weight (lbs)', type: 'number' },
+    { name: 'sex', label: 'Sex', type: 'enum', options: [
+      { value: 'male', label: 'Male' },
+      { value: 'female', label: 'Female' },
+      { value: 'unknown', label: 'Unknown' },
+    ]},
+    { name: 'is_neutered', label: 'Is Neutered/Spayed', type: 'boolean' },
+    { name: 'vaccination_status', label: 'Vaccination Status', type: 'enum', options: [
+      { value: 'current', label: 'Current' },
+      { value: 'expiring', label: 'Expiring Soon' },
+      { value: 'expired', label: 'Expired' },
+      { value: 'unknown', label: 'Unknown' },
+    ]},
+    { name: 'medical_notes', label: 'Medical Notes', type: 'text' },
+    { name: 'behavioral_notes', label: 'Behavioral Notes', type: 'text' },
+    { name: 'feeding_instructions', label: 'Feeding Instructions', type: 'text' },
+    { name: 'is_active', label: 'Is Active', type: 'boolean' },
+    { name: 'created_at', label: 'Created Date', type: 'date' },
+    { name: 'updated_at', label: 'Last Updated', type: 'date' },
+  ],
+
+  booking: [
+    { name: 'status', label: 'Status', type: 'enum', options: [
+      { value: 'PENDING', label: 'Pending' },
+      { value: 'CONFIRMED', label: 'Confirmed' },
+      { value: 'CHECKED_IN', label: 'Checked In' },
+      { value: 'CHECKED_OUT', label: 'Checked Out' },
+      { value: 'CANCELLED', label: 'Cancelled' },
+      { value: 'NO_SHOW', label: 'No Show' },
+    ]},
+    { name: 'service_type', label: 'Service Type', type: 'enum', options: [
+      { value: 'BOARDING', label: 'Boarding' },
+      { value: 'DAYCARE', label: 'Daycare' },
+      { value: 'GROOMING', label: 'Grooming' },
+      { value: 'TRAINING', label: 'Training' },
+    ]},
+    { name: 'check_in', label: 'Check-in Date', type: 'date' },
+    { name: 'check_out', label: 'Check-out Date', type: 'date' },
+    { name: 'total_price', label: 'Total Price', type: 'number' },
+    { name: 'deposit_amount', label: 'Deposit Amount', type: 'number' },
+    { name: 'is_recurring', label: 'Is Recurring', type: 'boolean' },
+    { name: 'special_requests', label: 'Special Requests', type: 'text' },
+    { name: 'internal_notes', label: 'Internal Notes', type: 'text' },
+    { name: 'created_at', label: 'Created Date', type: 'date' },
+    { name: 'updated_at', label: 'Last Updated', type: 'date' },
+  ],
+
+  owner: [
+    { name: 'first_name', label: 'First Name', type: 'text' },
+    { name: 'last_name', label: 'Last Name', type: 'text' },
+    { name: 'email', label: 'Email', type: 'text' },
+    { name: 'phone', label: 'Phone', type: 'text' },
+    { name: 'address', label: 'Address', type: 'text' },
+    { name: 'city', label: 'City', type: 'text' },
+    { name: 'state', label: 'State', type: 'text' },
+    { name: 'zip', label: 'ZIP Code', type: 'text' },
+    { name: 'status', label: 'Status', type: 'enum', options: [
+      { value: 'active', label: 'Active' },
+      { value: 'inactive', label: 'Inactive' },
+      { value: 'blocked', label: 'Blocked' },
+    ]},
+    { name: 'sms_consent', label: 'SMS Consent', type: 'boolean' },
+    { name: 'email_consent', label: 'Email Consent', type: 'boolean' },
+    { name: 'total_spent', label: 'Total Spent', type: 'number' },
+    { name: 'booking_count', label: 'Total Bookings', type: 'number' },
+    { name: 'notes', label: 'Notes', type: 'text' },
+    { name: 'created_at', label: 'Created Date', type: 'date' },
+    { name: 'updated_at', label: 'Last Updated', type: 'date' },
+  ],
+
+  payment: [
+    { name: 'amount', label: 'Amount', type: 'number' },
+    { name: 'status', label: 'Status', type: 'enum', options: [
+      { value: 'pending', label: 'Pending' },
+      { value: 'completed', label: 'Completed' },
+      { value: 'failed', label: 'Failed' },
+      { value: 'refunded', label: 'Refunded' },
+    ]},
+    { name: 'payment_method', label: 'Payment Method', type: 'enum', options: [
+      { value: 'card', label: 'Credit Card' },
+      { value: 'cash', label: 'Cash' },
+      { value: 'check', label: 'Check' },
+      { value: 'ach', label: 'ACH Transfer' },
+    ]},
+    { name: 'payment_date', label: 'Payment Date', type: 'date' },
+    { name: 'notes', label: 'Notes', type: 'text' },
+    { name: 'created_at', label: 'Created Date', type: 'date' },
+  ],
+
+  task: [
+    { name: 'title', label: 'Title', type: 'text' },
+    { name: 'description', label: 'Description', type: 'text' },
+    { name: 'status', label: 'Status', type: 'enum', options: [
+      { value: 'pending', label: 'Pending' },
+      { value: 'in_progress', label: 'In Progress' },
+      { value: 'completed', label: 'Completed' },
+      { value: 'cancelled', label: 'Cancelled' },
+    ]},
+    { name: 'priority', label: 'Priority', type: 'enum', options: [
+      { value: 'low', label: 'Low' },
+      { value: 'medium', label: 'Medium' },
+      { value: 'high', label: 'High' },
+      { value: 'urgent', label: 'Urgent' },
+    ]},
+    { name: 'task_type', label: 'Task Type', type: 'enum', options: [
+      { value: 'general', label: 'General' },
+      { value: 'feeding', label: 'Feeding' },
+      { value: 'medication', label: 'Medication' },
+      { value: 'grooming', label: 'Grooming' },
+      { value: 'exercise', label: 'Exercise' },
+      { value: 'cleaning', label: 'Cleaning' },
+      { value: 'follow_up', label: 'Follow-up' },
+    ]},
+    { name: 'due_date', label: 'Due Date', type: 'date' },
+    { name: 'completed_at', label: 'Completed Date', type: 'date' },
+    { name: 'created_at', label: 'Created Date', type: 'date' },
+  ],
+
+  invoice: [
+    { name: 'invoice_number', label: 'Invoice Number', type: 'text' },
+    { name: 'status', label: 'Status', type: 'enum', options: [
+      { value: 'draft', label: 'Draft' },
+      { value: 'sent', label: 'Sent' },
+      { value: 'paid', label: 'Paid' },
+      { value: 'overdue', label: 'Overdue' },
+      { value: 'void', label: 'Void' },
+    ]},
+    { name: 'subtotal', label: 'Subtotal', type: 'number' },
+    { name: 'tax', label: 'Tax', type: 'number' },
+    { name: 'total', label: 'Total', type: 'number' },
+    { name: 'amount_paid', label: 'Amount Paid', type: 'number' },
+    { name: 'amount_due', label: 'Amount Due', type: 'number' },
+    { name: 'due_date', label: 'Due Date', type: 'date' },
+    { name: 'notes', label: 'Notes', type: 'text' },
+    { name: 'created_at', label: 'Created Date', type: 'date' },
+  ],
+};
+
+// Property change types for property_changed trigger
+export const PROPERTY_CHANGE_TYPES = [
+  { value: 'any_change', label: 'Any change' },
+  { value: 'changed_to', label: 'Changed to specific value' },
+  { value: 'changed_from', label: 'Changed from specific value' },
+  { value: 'changed_from_to', label: 'Changed from X to Y' },
+];
+
+// Helper to get property by name for an object type
+export function getPropertyConfig(objectType, propertyName) {
+  const properties = OBJECT_PROPERTIES[objectType] || [];
+  return properties.find(p => p.name === propertyName);
+}

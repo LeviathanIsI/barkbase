@@ -1,8 +1,19 @@
 /**
  * ActionConfig - Configuration panel for action steps
+ * Full configurations for: SMS, Email, Task, Update Field, Webhook, Segments
  */
+import { useState } from 'react';
 import { cn } from '@/lib/cn';
-import { ACTION_CATEGORIES } from '../../../constants';
+import { Info } from 'lucide-react';
+import {
+  ACTION_CATEGORIES,
+  OBJECT_PROPERTIES,
+} from '../../../constants';
+import PropertyValueInput from './PropertyValueInput';
+
+// SMS character limits
+const SMS_CHAR_LIMIT = 160;
+const SMS_WARN_THRESHOLD = 140;
 
 // Get action metadata
 const getActionMeta = (actionType) => {
@@ -13,7 +24,7 @@ const getActionMeta = (actionType) => {
   return null;
 };
 
-export default function ActionConfig({ step, onChange }) {
+export default function ActionConfig({ step, objectType, onChange }) {
   const actionMeta = getActionMeta(step.actionType);
 
   // Handle config field change
@@ -64,31 +75,43 @@ export default function ActionConfig({ step, onChange }) {
       )}
 
       {/* Action-specific configuration */}
-      {renderActionConfig(step, handleConfigChange)}
+      {renderActionConfig(step, objectType, handleConfigChange)}
     </div>
   );
 }
 
 // Render action-specific config fields
-function renderActionConfig(step, onChange) {
+function renderActionConfig(step, objectType, onChange) {
   switch (step.actionType) {
     case 'send_sms':
-      return <SendSmsConfig config={step.config} onChange={onChange} />;
+      return <SendSmsConfig config={step.config} objectType={objectType} onChange={onChange} />;
 
     case 'send_email':
-      return <SendEmailConfig config={step.config} onChange={onChange} />;
+      return <SendEmailConfig config={step.config} objectType={objectType} onChange={onChange} />;
 
     case 'send_notification':
       return <SendNotificationConfig config={step.config} onChange={onChange} />;
 
     case 'create_task':
-      return <CreateTaskConfig config={step.config} onChange={onChange} />;
+      return <CreateTaskConfig config={step.config} objectType={objectType} onChange={onChange} />;
 
     case 'update_field':
-      return <UpdateFieldConfig config={step.config} onChange={onChange} />;
+      return <UpdateFieldConfig config={step.config} objectType={objectType} onChange={onChange} />;
 
     case 'webhook':
-      return <WebhookConfig config={step.config} onChange={onChange} />;
+      return <WebhookConfig config={step.config} objectType={objectType} onChange={onChange} />;
+
+    case 'add_to_segment':
+      return <SegmentConfig config={step.config} onChange={onChange} action="add" />;
+
+    case 'remove_from_segment':
+      return <SegmentConfig config={step.config} onChange={onChange} action="remove" />;
+
+    case 'enroll_in_workflow':
+      return <WorkflowEnrollConfig config={step.config} onChange={onChange} action="enroll" />;
+
+    case 'unenroll_from_workflow':
+      return <WorkflowEnrollConfig config={step.config} onChange={onChange} action="unenroll" />;
 
     default:
       return (
@@ -99,16 +122,67 @@ function renderActionConfig(step, onChange) {
   }
 }
 
-// Send SMS config
-function SendSmsConfig({ config, onChange }) {
+// =============================================================================
+// Send SMS Config
+// =============================================================================
+function SendSmsConfig({ config, objectType, onChange }) {
+  const message = config?.message || '';
+  const charCount = message.length;
+  const isOverLimit = charCount > SMS_CHAR_LIMIT;
+  const isNearLimit = charCount > SMS_WARN_THRESHOLD;
+  const segmentCount = Math.ceil(charCount / SMS_CHAR_LIMIT) || 1;
+
   return (
     <div className="space-y-4">
+      {/* Recipient selector */}
+      <div>
+        <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+          Send To
+        </label>
+        <select
+          value={config?.recipientType || 'record_phone'}
+          onChange={(e) => onChange('recipientType', e.target.value)}
+          className={cn(
+            "w-full px-3 py-2 rounded-md",
+            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+            "text-sm text-[var(--bb-color-text-primary)]",
+            "focus:outline-none focus:border-[var(--bb-color-accent)]"
+          )}
+        >
+          <option value="record_phone">Record&apos;s phone number</option>
+          <option value="owner_phone">Associated owner&apos;s phone</option>
+          <option value="specific">Specific phone number</option>
+        </select>
+      </div>
+
+      {config?.recipientType === 'specific' && (
+        <div>
+          <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+            Phone Number
+          </label>
+          <input
+            type="tel"
+            value={config?.recipientPhone || ''}
+            onChange={(e) => onChange('recipientPhone', e.target.value)}
+            placeholder="+1 (555) 123-4567"
+            className={cn(
+              "w-full px-3 py-2 rounded-md",
+              "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+              "text-sm text-[var(--bb-color-text-primary)]",
+              "placeholder:text-[var(--bb-color-text-tertiary)]",
+              "focus:outline-none focus:border-[var(--bb-color-accent)]"
+            )}
+          />
+        </div>
+      )}
+
+      {/* Message */}
       <div>
         <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
           Message
         </label>
         <textarea
-          value={config?.message || ''}
+          value={message}
           onChange={(e) => onChange('message', e.target.value)}
           rows={4}
           placeholder="Enter your SMS message..."
@@ -117,21 +191,120 @@ function SendSmsConfig({ config, onChange }) {
             "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
             "text-sm text-[var(--bb-color-text-primary)]",
             "placeholder:text-[var(--bb-color-text-tertiary)]",
-            "focus:outline-none focus:border-[var(--bb-color-accent)]"
+            "focus:outline-none focus:border-[var(--bb-color-accent)]",
+            isOverLimit && "border-red-500"
           )}
         />
-        <div className="mt-1 text-xs text-[var(--bb-color-text-tertiary)]">
-          Use {'{{field_name}}'} to insert record values
+
+        {/* Character count */}
+        <div className="mt-1 flex justify-between items-center">
+          <div className="text-xs text-[var(--bb-color-text-tertiary)]">
+            Use {'{{field_name}}'} to insert values
+          </div>
+          <div className={cn(
+            "text-xs",
+            isOverLimit ? "text-red-500" : isNearLimit ? "text-yellow-500" : "text-[var(--bb-color-text-tertiary)]"
+          )}>
+            {charCount}/{SMS_CHAR_LIMIT} ({segmentCount} segment{segmentCount > 1 ? 's' : ''})
+          </div>
         </div>
       </div>
+
+      {/* Token insertion helper */}
+      <TokenInsertHelper objectType={objectType} onInsert={(token) => onChange('message', message + token)} />
     </div>
   );
 }
 
-// Send Email config
-function SendEmailConfig({ config, onChange }) {
+// =============================================================================
+// Send Email Config
+// =============================================================================
+function SendEmailConfig({ config, objectType, onChange }) {
   return (
     <div className="space-y-4">
+      {/* Recipient selector */}
+      <div>
+        <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+          To
+        </label>
+        <select
+          value={config?.recipientType || 'record_email'}
+          onChange={(e) => onChange('recipientType', e.target.value)}
+          className={cn(
+            "w-full px-3 py-2 rounded-md",
+            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+            "text-sm text-[var(--bb-color-text-primary)]",
+            "focus:outline-none focus:border-[var(--bb-color-accent)]"
+          )}
+        >
+          <option value="record_email">Record&apos;s email address</option>
+          <option value="owner_email">Associated owner&apos;s email</option>
+          <option value="specific">Specific email address</option>
+        </select>
+      </div>
+
+      {config?.recipientType === 'specific' && (
+        <div>
+          <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+            Email Address
+          </label>
+          <input
+            type="email"
+            value={config?.recipientEmail || ''}
+            onChange={(e) => onChange('recipientEmail', e.target.value)}
+            placeholder="email@example.com"
+            className={cn(
+              "w-full px-3 py-2 rounded-md",
+              "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+              "text-sm text-[var(--bb-color-text-primary)]",
+              "placeholder:text-[var(--bb-color-text-tertiary)]",
+              "focus:outline-none focus:border-[var(--bb-color-accent)]"
+            )}
+          />
+        </div>
+      )}
+
+      {/* CC */}
+      <div>
+        <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+          CC (Optional)
+        </label>
+        <input
+          type="text"
+          value={config?.cc || ''}
+          onChange={(e) => onChange('cc', e.target.value)}
+          placeholder="Comma-separated emails..."
+          className={cn(
+            "w-full px-3 py-2 rounded-md",
+            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+            "text-sm text-[var(--bb-color-text-primary)]",
+            "placeholder:text-[var(--bb-color-text-tertiary)]",
+            "focus:outline-none focus:border-[var(--bb-color-accent)]"
+          )}
+        />
+      </div>
+
+      {/* From Name */}
+      <div>
+        <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+          From Name
+        </label>
+        <input
+          type="text"
+          value={config?.fromName || ''}
+          onChange={(e) => onChange('fromName', e.target.value)}
+          placeholder="Your Business Name"
+          className={cn(
+            "w-full px-3 py-2 rounded-md",
+            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+            "text-sm text-[var(--bb-color-text-primary)]",
+            "placeholder:text-[var(--bb-color-text-tertiary)]",
+            "focus:outline-none focus:border-[var(--bb-color-accent)]"
+          )}
+        />
+      </div>
+
+      {/* Subject */}
       <div>
         <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
           Subject
@@ -149,8 +322,12 @@ function SendEmailConfig({ config, onChange }) {
             "focus:outline-none focus:border-[var(--bb-color-accent)]"
           )}
         />
+        <div className="mt-1 text-xs text-[var(--bb-color-text-tertiary)]">
+          Use {'{{field_name}}'} to personalize
+        </div>
       </div>
 
+      {/* Body */}
       <div>
         <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
           Body
@@ -158,8 +335,8 @@ function SendEmailConfig({ config, onChange }) {
         <textarea
           value={config?.body || ''}
           onChange={(e) => onChange('body', e.target.value)}
-          rows={6}
-          placeholder="Email body..."
+          rows={8}
+          placeholder="Email body (supports HTML)..."
           className={cn(
             "w-full px-3 py-2 rounded-md resize-none",
             "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
@@ -169,14 +346,43 @@ function SendEmailConfig({ config, onChange }) {
           )}
         />
       </div>
+
+      {/* Token insertion helper */}
+      <TokenInsertHelper
+        objectType={objectType}
+        onInsert={(token) => onChange('body', (config?.body || '') + token)}
+      />
     </div>
   );
 }
 
-// Send Notification config
+// =============================================================================
+// Send Notification Config
+// =============================================================================
 function SendNotificationConfig({ config, onChange }) {
   return (
     <div className="space-y-4">
+      {/* Recipient */}
+      <div>
+        <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+          Send To
+        </label>
+        <select
+          value={config?.recipientType || 'all_staff'}
+          onChange={(e) => onChange('recipientType', e.target.value)}
+          className={cn(
+            "w-full px-3 py-2 rounded-md",
+            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+            "text-sm text-[var(--bb-color-text-primary)]",
+            "focus:outline-none focus:border-[var(--bb-color-accent)]"
+          )}
+        >
+          <option value="all_staff">All staff</option>
+          <option value="assigned_staff">Assigned staff only</option>
+          <option value="admins">Admins only</option>
+        </select>
+      </div>
+
       <div>
         <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
           Title
@@ -214,14 +420,63 @@ function SendNotificationConfig({ config, onChange }) {
           )}
         />
       </div>
+
+      {/* Priority */}
+      <div>
+        <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+          Priority
+        </label>
+        <select
+          value={config?.priority || 'normal'}
+          onChange={(e) => onChange('priority', e.target.value)}
+          className={cn(
+            "w-full px-3 py-2 rounded-md",
+            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+            "text-sm text-[var(--bb-color-text-primary)]",
+            "focus:outline-none focus:border-[var(--bb-color-accent)]"
+          )}
+        >
+          <option value="low">Low</option>
+          <option value="normal">Normal</option>
+          <option value="high">High</option>
+        </select>
+      </div>
     </div>
   );
 }
 
-// Create Task config
+// =============================================================================
+// Create Task Config
+// =============================================================================
 function CreateTaskConfig({ config, onChange }) {
   return (
     <div className="space-y-4">
+      {/* Task Type */}
+      <div>
+        <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+          Task Type
+        </label>
+        <select
+          value={config?.taskType || 'general'}
+          onChange={(e) => onChange('taskType', e.target.value)}
+          className={cn(
+            "w-full px-3 py-2 rounded-md",
+            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+            "text-sm text-[var(--bb-color-text-primary)]",
+            "focus:outline-none focus:border-[var(--bb-color-accent)]"
+          )}
+        >
+          <option value="general">General</option>
+          <option value="follow_up">Follow-up</option>
+          <option value="feeding">Feeding</option>
+          <option value="medication">Medication</option>
+          <option value="grooming">Grooming</option>
+          <option value="exercise">Exercise</option>
+          <option value="cleaning">Cleaning</option>
+        </select>
+      </div>
+
+      {/* Task Title */}
       <div>
         <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
           Task Title
@@ -239,8 +494,12 @@ function CreateTaskConfig({ config, onChange }) {
             "focus:outline-none focus:border-[var(--bb-color-accent)]"
           )}
         />
+        <div className="mt-1 text-xs text-[var(--bb-color-text-tertiary)]">
+          Use {'{{field_name}}'} for dynamic titles
+        </div>
       </div>
 
+      {/* Description */}
       <div>
         <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
           Description
@@ -260,6 +519,84 @@ function CreateTaskConfig({ config, onChange }) {
         />
       </div>
 
+      {/* Assign To */}
+      <div>
+        <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+          Assign To
+        </label>
+        <select
+          value={config?.assignTo || 'unassigned'}
+          onChange={(e) => onChange('assignTo', e.target.value)}
+          className={cn(
+            "w-full px-3 py-2 rounded-md",
+            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+            "text-sm text-[var(--bb-color-text-primary)]",
+            "focus:outline-none focus:border-[var(--bb-color-accent)]"
+          )}
+        >
+          <option value="unassigned">Leave unassigned</option>
+          <option value="record_owner">Record owner</option>
+          <option value="booking_staff">Booking assigned staff</option>
+          <option value="workflow_owner">Workflow owner</option>
+          <option value="round_robin">Round robin</option>
+        </select>
+      </div>
+
+      {/* Due Date */}
+      <div>
+        <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+          Due Date
+        </label>
+        <div className="flex gap-2">
+          <select
+            value={config?.dueDateType || 'relative'}
+            onChange={(e) => onChange('dueDateType', e.target.value)}
+            className={cn(
+              "flex-1 px-3 py-2 rounded-md",
+              "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+              "text-sm text-[var(--bb-color-text-primary)]",
+              "focus:outline-none focus:border-[var(--bb-color-accent)]"
+            )}
+          >
+            <option value="relative">Relative to now</option>
+            <option value="from_field">From record field</option>
+            <option value="specific">Specific date</option>
+          </select>
+        </div>
+      </div>
+
+      {config?.dueDateType === 'relative' && (
+        <div className="flex gap-2 items-center">
+          <input
+            type="number"
+            min="0"
+            value={config?.dueDateOffset || 1}
+            onChange={(e) => onChange('dueDateOffset', parseInt(e.target.value))}
+            className={cn(
+              "w-20 px-3 py-2 rounded-md",
+              "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+              "text-sm text-[var(--bb-color-text-primary)]",
+              "focus:outline-none focus:border-[var(--bb-color-accent)]"
+            )}
+          />
+          <select
+            value={config?.dueDateUnit || 'days'}
+            onChange={(e) => onChange('dueDateUnit', e.target.value)}
+            className={cn(
+              "flex-1 px-3 py-2 rounded-md",
+              "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+              "text-sm text-[var(--bb-color-text-primary)]",
+              "focus:outline-none focus:border-[var(--bb-color-accent)]"
+            )}
+          >
+            <option value="hours">Hours from now</option>
+            <option value="days">Days from now</option>
+            <option value="weeks">Weeks from now</option>
+          </select>
+        </div>
+      )}
+
+      {/* Priority */}
       <div>
         <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
           Priority
@@ -284,64 +621,105 @@ function CreateTaskConfig({ config, onChange }) {
   );
 }
 
-// Update Field config
-function UpdateFieldConfig({ config, onChange }) {
+// =============================================================================
+// Update Field Config
+// =============================================================================
+function UpdateFieldConfig({ config, objectType, onChange }) {
+  const properties = OBJECT_PROPERTIES[objectType] || [];
+  const selectedProperty = properties.find(p => p.name === config?.fieldName);
+
   return (
     <div className="space-y-4">
+      {/* Property selector */}
       <div>
         <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
-          Field Name
+          Field to Update
         </label>
-        <input
-          type="text"
+        <select
           value={config?.fieldName || ''}
           onChange={(e) => onChange('fieldName', e.target.value)}
-          placeholder="Field to update..."
           className={cn(
             "w-full px-3 py-2 rounded-md",
             "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
             "text-sm text-[var(--bb-color-text-primary)]",
-            "placeholder:text-[var(--bb-color-text-tertiary)]",
             "focus:outline-none focus:border-[var(--bb-color-accent)]"
           )}
-        />
+        >
+          <option value="">Select field...</option>
+          {properties.map((prop) => (
+            <option key={prop.name} value={prop.name}>
+              {prop.label}
+            </option>
+          ))}
+        </select>
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
-          New Value
-        </label>
-        <input
-          type="text"
-          value={config?.value || ''}
-          onChange={(e) => onChange('value', e.target.value)}
-          placeholder="New value..."
-          className={cn(
-            "w-full px-3 py-2 rounded-md",
-            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
-            "text-sm text-[var(--bb-color-text-primary)]",
-            "placeholder:text-[var(--bb-color-text-tertiary)]",
-            "focus:outline-none focus:border-[var(--bb-color-accent)]"
-          )}
-        />
-      </div>
+      {/* Value input with appropriate type */}
+      {config?.fieldName && (
+        <div>
+          <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+            New Value
+          </label>
+          <PropertyValueInput
+            property={selectedProperty}
+            value={config?.value || ''}
+            onChange={(val) => onChange('value', val)}
+            placeholder="Enter new value..."
+          />
+        </div>
+      )}
+
+      {/* Clear option */}
+      {config?.fieldName && (
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="clearValue"
+            checked={config?.clearValue || false}
+            onChange={(e) => onChange('clearValue', e.target.checked)}
+            className="rounded border-[var(--bb-color-border-subtle)]"
+          />
+          <label htmlFor="clearValue" className="text-xs text-[var(--bb-color-text-secondary)]">
+            Clear the field value instead
+          </label>
+        </div>
+      )}
     </div>
   );
 }
 
-// Webhook config
-function WebhookConfig({ config, onChange }) {
+// =============================================================================
+// Webhook Config
+// =============================================================================
+function WebhookConfig({ config, objectType, onChange }) {
+  const [headersValid, setHeadersValid] = useState(true);
+  const [payloadValid, setPayloadValid] = useState(true);
+
+  const validateJson = (value, setter) => {
+    if (!value || value.trim() === '') {
+      setter(true);
+      return;
+    }
+    try {
+      JSON.parse(value);
+      setter(true);
+    } catch {
+      setter(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {/* URL */}
       <div>
         <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
-          URL
+          Webhook URL
         </label>
         <input
           type="url"
           value={config?.url || ''}
           onChange={(e) => onChange('url', e.target.value)}
-          placeholder="https://..."
+          placeholder="https://api.example.com/webhook"
           className={cn(
             "w-full px-3 py-2 rounded-md",
             "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
@@ -352,6 +730,7 @@ function WebhookConfig({ config, onChange }) {
         />
       </div>
 
+      {/* Method */}
       <div>
         <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
           Method
@@ -374,24 +753,206 @@ function WebhookConfig({ config, onChange }) {
         </select>
       </div>
 
+      {/* Headers */}
       <div>
         <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
           Headers (JSON)
         </label>
         <textarea
-          value={config?.headers || '{}'}
-          onChange={(e) => onChange('headers', e.target.value)}
+          value={config?.headers || '{\n  "Content-Type": "application/json"\n}'}
+          onChange={(e) => {
+            onChange('headers', e.target.value);
+            validateJson(e.target.value, setHeadersValid);
+          }}
           rows={3}
-          placeholder='{"Content-Type": "application/json"}'
           className={cn(
             "w-full px-3 py-2 rounded-md resize-none font-mono text-xs",
-            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+            "bg-[var(--bb-color-bg-body)] border",
+            headersValid ? "border-[var(--bb-color-border-subtle)]" : "border-red-500",
             "text-[var(--bb-color-text-primary)]",
             "placeholder:text-[var(--bb-color-text-tertiary)]",
             "focus:outline-none focus:border-[var(--bb-color-accent)]"
           )}
         />
+        {!headersValid && (
+          <div className="mt-1 text-xs text-red-500">Invalid JSON format</div>
+        )}
       </div>
+
+      {/* Payload Template */}
+      {config?.method !== 'GET' && (
+        <div>
+          <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+            Payload Template (JSON)
+          </label>
+          <textarea
+            value={config?.payload || '{\n  "record_id": "{{id}}",\n  "event": "workflow_action"\n}'}
+            onChange={(e) => {
+              onChange('payload', e.target.value);
+              validateJson(e.target.value, setPayloadValid);
+            }}
+            rows={6}
+            placeholder='{"key": "value", "dynamic": "{{field_name}}"}'
+            className={cn(
+              "w-full px-3 py-2 rounded-md resize-none font-mono text-xs",
+              "bg-[var(--bb-color-bg-body)] border",
+              payloadValid ? "border-[var(--bb-color-border-subtle)]" : "border-red-500",
+              "text-[var(--bb-color-text-primary)]",
+              "placeholder:text-[var(--bb-color-text-tertiary)]",
+              "focus:outline-none focus:border-[var(--bb-color-accent)]"
+            )}
+          />
+          {!payloadValid && (
+            <div className="mt-1 text-xs text-red-500">Invalid JSON format</div>
+          )}
+          <div className="mt-1 text-xs text-[var(--bb-color-text-tertiary)]">
+            Use {'{{field_name}}'} to include record data
+          </div>
+        </div>
+      )}
+
+      {/* Token insertion helper */}
+      <TokenInsertHelper
+        objectType={objectType}
+        onInsert={(token) => onChange('payload', (config?.payload || '') + token)}
+      />
+
+      {/* Timeout */}
+      <div>
+        <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+          Timeout (seconds)
+        </label>
+        <input
+          type="number"
+          min="1"
+          max="30"
+          value={config?.timeout || 10}
+          onChange={(e) => onChange('timeout', parseInt(e.target.value))}
+          className={cn(
+            "w-24 px-3 py-2 rounded-md",
+            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+            "text-sm text-[var(--bb-color-text-primary)]",
+            "focus:outline-none focus:border-[var(--bb-color-accent)]"
+          )}
+        />
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Segment Config
+// =============================================================================
+function SegmentConfig({ config, onChange, action }) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+          Segment
+        </label>
+        <select
+          value={config?.segmentId || ''}
+          onChange={(e) => onChange('segmentId', e.target.value)}
+          className={cn(
+            "w-full px-3 py-2 rounded-md",
+            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+            "text-sm text-[var(--bb-color-text-primary)]",
+            "focus:outline-none focus:border-[var(--bb-color-accent)]"
+          )}
+        >
+          <option value="">Select segment...</option>
+          {/* Segments would be loaded from API */}
+        </select>
+        <div className="mt-2 text-xs text-[var(--bb-color-text-tertiary)]">
+          {action === 'add'
+            ? 'The enrolled record will be added to this segment'
+            : 'The enrolled record will be removed from this segment'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Workflow Enroll Config
+// =============================================================================
+function WorkflowEnrollConfig({ config, onChange, action }) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+          Workflow
+        </label>
+        <select
+          value={config?.workflowId || ''}
+          onChange={(e) => onChange('workflowId', e.target.value)}
+          className={cn(
+            "w-full px-3 py-2 rounded-md",
+            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+            "text-sm text-[var(--bb-color-text-primary)]",
+            "focus:outline-none focus:border-[var(--bb-color-accent)]"
+          )}
+        >
+          <option value="">Select workflow...</option>
+          {/* Workflows would be loaded from API */}
+        </select>
+        <div className="mt-2 text-xs text-[var(--bb-color-text-tertiary)]">
+          {action === 'enroll'
+            ? 'The enrolled record will be added to this workflow'
+            : 'The enrolled record will be removed from this workflow'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// Token Insertion Helper
+// =============================================================================
+function TokenInsertHelper({ objectType, onInsert }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const properties = OBJECT_PROPERTIES[objectType] || [];
+
+  if (properties.length === 0) return null;
+
+  return (
+    <div className="border-t border-[var(--bb-color-border-subtle)] pt-3">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="text-xs text-[var(--bb-color-primary)] hover:underline flex items-center gap-1"
+      >
+        <Info size={12} />
+        Insert field token
+      </button>
+
+      {isOpen && (
+        <div className="mt-2 p-2 rounded-md bg-[var(--bb-color-bg-subtle)] border border-[var(--bb-color-border-subtle)]">
+          <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-2">
+            Click to insert:
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {properties.slice(0, 10).map((prop) => (
+              <button
+                key={prop.name}
+                type="button"
+                onClick={() => {
+                  onInsert(`{{${prop.name}}}`);
+                  setIsOpen(false);
+                }}
+                className={cn(
+                  "px-2 py-1 rounded text-xs",
+                  "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+                  "text-[var(--bb-color-text-secondary)]",
+                  "hover:border-[var(--bb-color-accent)] hover:text-[var(--bb-color-text-primary)]"
+                )}
+              >
+                {prop.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
