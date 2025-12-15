@@ -18,6 +18,7 @@ export default function BuilderCanvas() {
     selectedStepId,
     selectStep,
     deleteStep,
+    openSettings,
   } = useWorkflowBuilderStore();
 
   // Get root level steps (not in branches)
@@ -41,8 +42,10 @@ export default function BuilderCanvas() {
       <TriggerCard
         entryCondition={workflow.entryCondition}
         objectType={workflow.objectType}
+        settings={workflow.settings}
         isSelected={selectedStepId === 'trigger'}
         onClick={() => selectStep('trigger')}
+        onSettingsClick={openSettings}
       />
 
       {/* First connector with add button */}

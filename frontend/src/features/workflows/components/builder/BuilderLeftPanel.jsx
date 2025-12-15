@@ -35,6 +35,7 @@ import {
   PROPERTY_CHANGE_TYPES,
 } from '../../constants';
 import PropertyValueInput from './PropertyValueInput';
+import WorkflowSettings from './WorkflowSettings';
 
 // Icon mapping for object types
 const OBJECT_TYPE_ICONS = {
@@ -127,6 +128,11 @@ export default function BuilderLeftPanel({ onCreateWorkflow }) {
         pendingStepContext={pendingStepContext}
       />
     );
+  }
+
+  // Render settings panel
+  if (panelMode === 'settings') {
+    return <WorkflowSettings />;
   }
 
   // For 'config' mode, the StepConfigPanel on the right handles it

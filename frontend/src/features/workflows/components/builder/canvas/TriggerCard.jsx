@@ -300,12 +300,15 @@ function getTriggerIcon(triggerType) {
 export default function TriggerCard({
   entryCondition,
   objectType,
+  settings,
   isSelected,
   onClick,
+  onSettingsClick,
 }) {
   const hasTrigger = entryCondition?.triggerType;
   const objectLabel = OBJECT_TYPE_CONFIG[objectType]?.label || 'Records';
   const TriggerIcon = getTriggerIcon(entryCondition?.triggerType);
+  const allowReenrollment = settings?.allowReenrollment || false;
 
   // Render the appropriate trigger summary based on trigger type
   const renderTriggerContent = () => {
@@ -379,17 +382,30 @@ export default function TriggerCard({
       <div className="px-4 py-2 border-t border-[var(--bb-color-border-subtle)] flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-xs text-[var(--bb-color-text-tertiary)]">
           <RefreshCw size={12} />
-          Re-enroll off
+          Re-enroll {allowReenrollment ? 'on' : 'off'}
         </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick?.();
-          }}
-          className="text-xs text-[var(--bb-color-accent)] hover:underline"
-        >
-          Details
-        </button>
+        <div className="flex items-center gap-3">
+          {onSettingsClick && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSettingsClick?.();
+              }}
+              className="text-xs text-[var(--bb-color-text-secondary)] hover:text-[var(--bb-color-accent)]"
+            >
+              Settings
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick?.();
+            }}
+            className="text-xs text-[var(--bb-color-accent)] hover:underline"
+          >
+            Details
+          </button>
+        </div>
       </div>
     </div>
   );

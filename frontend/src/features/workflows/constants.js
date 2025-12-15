@@ -683,12 +683,63 @@ export const OBJECT_ASSOCIATIONS = {
 // =============================================================================
 
 export const DEFAULT_WORKFLOW_SETTINGS = {
+  // Re-enrollment
   allowReenrollment: false,
   reenrollmentDelayDays: 30,
-  suppressionSegments: [],
-  executionWindow: null,
-  timezone: 'America/New_York',
+
+  // Suppression
+  suppressionSegmentIds: [],
+
+  // Goal (auto-unenrollment)
+  goalConfig: {
+    enabled: false,
+    conditions: { logic: 'and', conditions: [] },
+  },
+
+  // Execution timing
+  timingConfig: {
+    enabled: false,
+    days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+    startTime: '09:00',
+    endTime: '17:00',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
+    pauseDates: [],
+    pauseAnnually: false,
+  },
+
+  // Unenrollment triggers
+  unenrollOnCriteriaChange: false,
+  unenrollmentTriggers: {
+    enabled: false,
+    conditions: { logic: 'and', conditions: [] },
+  },
 };
+
+// Common timezones for the timezone dropdown
+export const COMMON_TIMEZONES = [
+  { value: 'America/New_York', label: 'Eastern Time (ET)' },
+  { value: 'America/Chicago', label: 'Central Time (CT)' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+  { value: 'America/Anchorage', label: 'Alaska Time (AKT)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii Time (HT)' },
+  { value: 'UTC', label: 'UTC' },
+  { value: 'Europe/London', label: 'London (GMT/BST)' },
+  { value: 'Europe/Paris', label: 'Paris (CET/CEST)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AEST/AEDT)' },
+];
+
+// Days of the week for execution timing
+export const DAYS_OF_WEEK = [
+  { value: 'monday', label: 'Mon' },
+  { value: 'tuesday', label: 'Tue' },
+  { value: 'wednesday', label: 'Wed' },
+  { value: 'thursday', label: 'Thu' },
+  { value: 'friday', label: 'Fri' },
+  { value: 'saturday', label: 'Sat' },
+  { value: 'sunday', label: 'Sun' },
+];
 
 // =============================================================================
 // OBJECT PROPERTIES (for filters, conditions, and property-based triggers)
