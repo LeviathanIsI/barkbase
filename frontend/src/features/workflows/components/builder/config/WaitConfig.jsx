@@ -112,7 +112,7 @@ export default function WaitConfig({ step, onChange }) {
       )}
 
       {/* Time of day config */}
-      {waitType === 'time_of_day' && (
+      {waitType === 'until_time' && (
         <div className="pt-4 border-t border-[var(--bb-color-border-subtle)]">
           <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-2">
             Wait Until
@@ -132,7 +132,7 @@ export default function WaitConfig({ step, onChange }) {
       )}
 
       {/* Date field config */}
-      {waitType === 'date_field' && (
+      {waitType === 'until_date' && (
         <div className="pt-4 border-t border-[var(--bb-color-border-subtle)]">
           <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-2">
             Date Field
@@ -157,7 +157,7 @@ export default function WaitConfig({ step, onChange }) {
       )}
 
       {/* Event config */}
-      {waitType === 'event' && (
+      {waitType === 'until_event' && (
         <div className="pt-4 border-t border-[var(--bb-color-border-subtle)]">
           <div className="text-sm text-[var(--bb-color-text-tertiary)]">
             Event-based waiting coming soon.

@@ -156,7 +156,7 @@ export default function DeterminatorConfig({ step, onChange }) {
 
 // Condition row component
 function ConditionRow({ condition, onUpdate, onRemove, showLogic, logic }) {
-  const operators = CONDITION_OPERATORS[condition.type?.toUpperCase()] || CONDITION_OPERATORS.TEXT;
+  const operators = CONDITION_OPERATORS[condition.type] || CONDITION_OPERATORS.text;
 
   return (
     <div className="space-y-2">
