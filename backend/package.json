@@ -16,6 +16,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-sqs": "^3.952.0",
     "@faker-js/faker": "^9.3.0",
     "bcryptjs": "^3.0.3",
     "dotenv": "^16.4.7",
