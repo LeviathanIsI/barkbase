@@ -221,6 +221,7 @@ function DeterminatorNode({
               key={branchStep.id}
               step={branchStep}
               onAddStep={onAddStep}
+              branchPath="yes"
             />
           ))}
 
@@ -260,6 +261,7 @@ function DeterminatorNode({
               key={branchStep.id}
               step={branchStep}
               onAddStep={onAddStep}
+              branchPath="no"
             />
           ))}
 
@@ -278,6 +280,7 @@ function DeterminatorNode({
 function BranchStepNode({
   step,
   onAddStep,
+  branchPath,
 }) {
   const { selectedStepId, selectStep, deleteStep } = useWorkflowBuilderStore();
 

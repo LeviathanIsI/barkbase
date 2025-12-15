@@ -287,7 +287,17 @@ export const TRIGGER_EVENT_CATEGORIES = {
 // STEP TYPES
 // =============================================================================
 
+// Step type string constants for comparisons
 export const STEP_TYPES = {
+  ACTION: 'action',
+  WAIT: 'wait',
+  DETERMINATOR: 'determinator',
+  GATE: 'gate',
+  TERMINUS: 'terminus',
+};
+
+// Step type configuration for display
+export const STEP_TYPE_CONFIG = {
   action: { label: 'Action', icon: 'Play' },
   wait: { label: 'Wait', icon: 'Clock' },
   determinator: { label: 'Determinator', icon: 'GitBranch' },
