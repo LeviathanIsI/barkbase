@@ -122,6 +122,7 @@ export default function WorkflowBuilder() {
           navigate(`/workflows/${newWorkflowId}`, { replace: true });
 
           setSaveStatus('saved');
+          markClean(); // Reset dirty flag after successful save
           return newWorkflowId;
         }
 
@@ -136,7 +137,7 @@ export default function WorkflowBuilder() {
         isCreatingRef.current = false;
       }
     },
-    [workflow, createWorkflowMutation, navigate, setSaveStatus, setWorkflowId]
+    [workflow, createWorkflowMutation, navigate, setSaveStatus, setWorkflowId, markClean]
   );
 
   /**
