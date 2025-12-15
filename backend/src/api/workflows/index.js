@@ -200,6 +200,10 @@ router.put('/workflows/:id', async (req, res) => {
       entry_condition,
       settings,
       folder_id,
+      goal_config,
+      suppression_segment_ids,
+      timing_config,
+      start_step_id,
     } = req.body || {};
 
     // Build dynamic update query
@@ -242,11 +246,33 @@ router.put('/workflows/:id', async (req, res) => {
       params.push(folder_id);
       paramCount += 1;
     }
+    if (goal_config !== undefined) {
+      updates.push(`goal_config = $${paramCount}`);
+      params.push(JSON.stringify(goal_config));
+      paramCount += 1;
+    }
+    if (suppression_segment_ids !== undefined) {
+      updates.push(`suppression_segment_ids = $${paramCount}`);
+      params.push(suppression_segment_ids);
+      paramCount += 1;
+    }
+    if (timing_config !== undefined) {
+      updates.push(`timing_config = $${paramCount}`);
+      params.push(JSON.stringify(timing_config));
+      paramCount += 1;
+    }
+    if (start_step_id !== undefined) {
+      updates.push(`start_step_id = $${paramCount}`);
+      params.push(start_step_id);
+      paramCount += 1;
+    }
 
     if (updates.length === 0) {
       return fail(res, 400, { message: 'No fields to update' });
     }
 
+    // Always increment revision and update timestamp
+    updates.push('revision = revision + 1');
     updates.push('updated_at = NOW()');
 
     const query = `
@@ -484,6 +510,7 @@ router.get('/workflows/:id/steps', async (req, res) => {
 
 /**
  * Update workflow steps (full replacement)
+ * Supports HubSpot-style step flow connections
  */
 router.put('/workflows/:id/steps', async (req, res) => {
   const pool = getPool();
@@ -498,7 +525,7 @@ router.put('/workflows/:id/steps', async (req, res) => {
 
     // Verify workflow belongs to tenant
     const { rows: workflowRows } = await client.query(
-      `SELECT id FROM "Workflow" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT id, revision FROM "Workflow" WHERE id = $1 AND tenant_id = $2`,
       [id, tenantId],
     );
 
@@ -510,41 +537,113 @@ router.put('/workflows/:id/steps', async (req, res) => {
     // Delete existing steps
     await client.query(`DELETE FROM "WorkflowStep" WHERE workflow_id = $1`, [id]);
 
-    // Insert new steps
+    // First pass: Insert all steps with temporary IDs to get real UUIDs
     const insertedSteps = [];
+    const tempIdToRealId = {}; // Map client temp IDs to database UUIDs
+
     for (let i = 0; i < steps.length; i += 1) {
       const step = steps[i];
       const { rows: newStepRows } = await client.query(
         `INSERT INTO "WorkflowStep" (
           id, workflow_id, parent_step_id, branch_path, position,
-          step_type, action_type, config, created_at, updated_at
+          step_type, action_type, name, config, created_at, updated_at
         )
         VALUES (
-          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
+          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
         )
         RETURNING *`,
         [
           id,
-          step.parent_step_id || null,
+          null, // Will update parent_step_id in second pass
           step.branch_path || null,
           i,
           step.step_type,
           step.action_type || null,
+          step.name || null,
           JSON.stringify(step.config || {}),
         ],
       );
-      insertedSteps.push(newStepRows[0]);
+      const newStep = newStepRows[0];
+      insertedSteps.push(newStep);
+
+      // Track temp ID mapping if provided
+      if (step.id || step.temp_id) {
+        tempIdToRealId[step.id || step.temp_id] = newStep.id;
+      }
+      // Also map by index as fallback
+      tempIdToRealId[`idx_${i}`] = newStep.id;
     }
 
-    // Update workflow timestamp
+    // Second pass: Update flow connections and parent references
+    for (let i = 0; i < steps.length; i += 1) {
+      const step = steps[i];
+      const realStepId = insertedSteps[i].id;
+      const updates = [];
+      const params = [];
+      let paramCount = 1;
+
+      // Resolve parent_step_id
+      if (step.parent_step_id) {
+        const resolvedParentId = tempIdToRealId[step.parent_step_id] || step.parent_step_id;
+        updates.push(`parent_step_id = $${paramCount}`);
+        params.push(resolvedParentId);
+        paramCount += 1;
+      }
+
+      // Resolve next_step_id
+      if (step.next_step_id) {
+        const resolvedNextId = tempIdToRealId[step.next_step_id] || step.next_step_id;
+        updates.push(`next_step_id = $${paramCount}`);
+        params.push(resolvedNextId);
+        paramCount += 1;
+      }
+
+      // Resolve yes_step_id (for determinators)
+      if (step.yes_step_id) {
+        const resolvedYesId = tempIdToRealId[step.yes_step_id] || step.yes_step_id;
+        updates.push(`yes_step_id = $${paramCount}`);
+        params.push(resolvedYesId);
+        paramCount += 1;
+      }
+
+      // Resolve no_step_id (for determinators)
+      if (step.no_step_id) {
+        const resolvedNoId = tempIdToRealId[step.no_step_id] || step.no_step_id;
+        updates.push(`no_step_id = $${paramCount}`);
+        params.push(resolvedNoId);
+        paramCount += 1;
+      }
+
+      // Only update if there are changes
+      if (updates.length > 0) {
+        params.push(realStepId);
+        await client.query(
+          `UPDATE "WorkflowStep" SET ${updates.join(', ')} WHERE id = $${paramCount}`,
+          params,
+        );
+      }
+    }
+
+    // Update workflow: increment revision, set start_step_id, update timestamp
+    const startStepId = insertedSteps.length > 0 ? insertedSteps[0].id : null;
     await client.query(
-      `UPDATE "Workflow" SET updated_at = NOW() WHERE id = $1`,
+      `UPDATE "Workflow" SET
+        revision = revision + 1,
+        start_step_id = $1,
+        updated_at = NOW()
+      WHERE id = $2`,
+      [startStepId, id],
+    );
+
+    // Fetch final steps with resolved IDs
+    const { rows: finalSteps } = await client.query(
+      `SELECT * FROM "WorkflowStep" WHERE workflow_id = $1 ORDER BY position`,
       [id],
     );
 
     await client.query('COMMIT');
 
-    return ok(res, { steps: insertedSteps });
+    return ok(res, { steps: finalSteps });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('[workflows] updateWorkflowSteps failed', error);
@@ -616,9 +715,10 @@ router.post('/workflows/:id/enroll', async (req, res) => {
       return fail(res, 400, { message: 'Missing required fields: record_id, record_type' });
     }
 
-    // Verify workflow belongs to tenant and is active
+    // Verify workflow belongs to tenant and get current revision
     const { rows: workflowRows } = await pool.query(
-      `SELECT id, object_type, status FROM "Workflow" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT id, object_type, status, revision, start_step_id FROM "Workflow"
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [id, tenantId],
     );
 
@@ -634,7 +734,7 @@ router.post('/workflows/:id/enroll', async (req, res) => {
 
     // Check if already enrolled
     const { rows: existingRows } = await pool.query(
-      `SELECT id FROM "WorkflowExecution"
+      `SELECT id, enrollment_count FROM "WorkflowExecution"
        WHERE workflow_id = $1 AND record_id = $2 AND status IN ('running', 'paused')`,
       [id, record_id],
     );
@@ -643,30 +743,45 @@ router.post('/workflows/:id/enroll', async (req, res) => {
       return fail(res, 409, { message: 'Record is already enrolled in this workflow' });
     }
 
-    // Get first step
-    const { rows: stepRows } = await pool.query(
-      `SELECT id FROM "WorkflowStep" WHERE workflow_id = $1 ORDER BY position LIMIT 1`,
-      [id],
+    // Get first step (use start_step_id or fallback to first by position)
+    let currentStepId = workflow.start_step_id;
+    if (!currentStepId) {
+      const { rows: stepRows } = await pool.query(
+        `SELECT id FROM "WorkflowStep" WHERE workflow_id = $1 ORDER BY position LIMIT 1`,
+        [id],
+      );
+      currentStepId = stepRows.length > 0 ? stepRows[0].id : null;
+    }
+
+    // Check for re-enrollment count
+    const { rows: previousEnrollments } = await pool.query(
+      `SELECT MAX(enrollment_count) as max_count FROM "WorkflowExecution"
+       WHERE workflow_id = $1 AND record_id = $2`,
+      [id, record_id],
     );
+    const enrollmentCount = (previousEnrollments[0]?.max_count || 0) + 1;
 
-    const currentStepId = stepRows.length > 0 ? stepRows[0].id : null;
-
-    // Create enrollment
+    // Create enrollment with workflow revision tracking
     const { rows } = await pool.query(
       `INSERT INTO "WorkflowExecution" (
         id, workflow_id, tenant_id, record_id, record_type,
-        status, current_step_id, enrolled_at, created_at, updated_at
+        status, current_step_id, workflow_revision, enrollment_count,
+        enrolled_at, created_at, updated_at
       )
       VALUES (
-        gen_random_uuid(), $1, $2, $3, $4, 'running', $5, NOW(), NOW(), NOW()
+        gen_random_uuid(), $1, $2, $3, $4, 'running', $5, $6, $7, NOW(), NOW(), NOW()
       )
       RETURNING *`,
-      [id, tenantId, record_id, record_type, currentStepId],
+      [id, tenantId, record_id, record_type, currentStepId, workflow.revision, enrollmentCount],
     );
 
-    // Update workflow enrolled count
+    // Update workflow counts
     await pool.query(
-      `UPDATE "Workflow" SET enrolled_count = enrolled_count + 1, last_run_at = NOW() WHERE id = $1`,
+      `UPDATE "Workflow" SET
+        enrolled_count = enrolled_count + 1,
+        active_count = active_count + 1,
+        last_run_at = NOW()
+       WHERE id = $1`,
       [id],
     );
 
@@ -685,18 +800,28 @@ router.delete('/workflows/:id/enrollments/:enrollmentId', async (req, res) => {
     const pool = getPool();
     const tenantId = req.tenantId;
     const { id, enrollmentId } = req.params;
+    const { reason = 'manual' } = req.query || {};
 
     const { rows } = await pool.query(
       `UPDATE "WorkflowExecution"
-       SET status = 'cancelled', updated_at = NOW()
+       SET status = 'cancelled',
+           unenrolled_at = NOW(),
+           unenrollment_reason = $4,
+           updated_at = NOW()
        WHERE id = $1 AND workflow_id = $2 AND tenant_id = $3 AND status IN ('running', 'paused')
        RETURNING id`,
-      [enrollmentId, id, tenantId],
+      [enrollmentId, id, tenantId, reason],
     );
 
     if (rows.length === 0) {
       return fail(res, 404, { message: 'Enrollment not found or already completed' });
     }
+
+    // Decrement active count
+    await pool.query(
+      `UPDATE "Workflow" SET active_count = GREATEST(active_count - 1, 0) WHERE id = $1`,
+      [id],
+    );
 
     return ok(res, null, 204);
   } catch (error) {
@@ -1084,8 +1209,10 @@ router.get('/workflows/stats', async (req, res) => {
         COUNT(*) FILTER (WHERE status = 'active') as active,
         COUNT(*) FILTER (WHERE status = 'paused') as paused,
         COUNT(*) FILTER (WHERE status = 'draft') as draft,
-        SUM(enrolled_count) as total_enrolled,
-        SUM(completed_count) as total_completed
+        COALESCE(SUM(enrolled_count), 0) as total_enrolled,
+        COALESCE(SUM(completed_count), 0) as total_completed,
+        COALESCE(SUM(active_count), 0) as total_active,
+        COALESCE(SUM(failed_count), 0) as total_failed
        FROM "Workflow"
        WHERE tenant_id = $1 AND deleted_at IS NULL`,
       [tenantId],
