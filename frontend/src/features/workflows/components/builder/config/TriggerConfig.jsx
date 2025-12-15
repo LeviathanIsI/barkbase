@@ -10,6 +10,10 @@ import {
   OBJECT_PROPERTIES,
   PROPERTY_CHANGE_TYPES,
   SCHEDULE_FREQUENCIES,
+  DAYS_OF_WEEK_FULL,
+  MONTHS,
+  DAYS_OF_MONTH,
+  COMMON_TIMEZONES,
   getPropertyConfig,
 } from '../../../constants';
 import ConditionBuilder from './ConditionBuilder';
@@ -147,6 +151,7 @@ export default function TriggerConfig({
       {/* Schedule config */}
       {triggerType === 'schedule' && (
         <div className="space-y-4">
+          {/* Frequency selector */}
           <div>
             <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-2">
               Frequency
@@ -170,6 +175,27 @@ export default function TriggerConfig({
             </select>
           </div>
 
+          {/* Once: Date picker */}
+          {entryCondition?.scheduleConfig?.frequency === 'once' && (
+            <div>
+              <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-2">
+                Date
+              </label>
+              <input
+                type="date"
+                value={entryCondition?.scheduleConfig?.date || ''}
+                onChange={(e) => handleScheduleConfigChange('date', e.target.value)}
+                className={cn(
+                  "w-full px-3 py-2 rounded-md",
+                  "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+                  "text-sm text-[var(--bb-color-text-primary)]",
+                  "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                )}
+              />
+            </div>
+          )}
+
+          {/* Weekly: Day of week */}
           {entryCondition?.scheduleConfig?.frequency === 'weekly' && (
             <div>
               <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-2">
@@ -186,17 +212,16 @@ export default function TriggerConfig({
                 )}
               >
                 <option value="">Select day...</option>
-                <option value="0">Sunday</option>
-                <option value="1">Monday</option>
-                <option value="2">Tuesday</option>
-                <option value="3">Wednesday</option>
-                <option value="4">Thursday</option>
-                <option value="5">Friday</option>
-                <option value="6">Saturday</option>
+                {DAYS_OF_WEEK_FULL.map((day) => (
+                  <option key={day.value} value={day.value}>
+                    {day.label}
+                  </option>
+                ))}
               </select>
             </div>
           )}
 
+          {/* Monthly: Day of month */}
           {entryCondition?.scheduleConfig?.frequency === 'monthly' && (
             <div>
               <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-2">
@@ -213,47 +238,127 @@ export default function TriggerConfig({
                 )}
               >
                 <option value="">Select day...</option>
-                {[...Array(31)].map((_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {i + 1}
+                {DAYS_OF_MONTH.map((day) => (
+                  <option key={day.value} value={day.value}>
+                    {day.label}
                   </option>
                 ))}
               </select>
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-2">
-              Time
-            </label>
-            <input
-              type="time"
-              value={entryCondition?.scheduleConfig?.time || '09:00'}
-              onChange={(e) => handleScheduleConfigChange('time', e.target.value)}
-              className={cn(
-                "w-full px-3 py-2 rounded-md",
-                "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
-                "text-sm text-[var(--bb-color-text-primary)]",
-                "focus:outline-none focus:border-[var(--bb-color-accent)]"
-              )}
-            />
-          </div>
+          {/* Annually: Month and day */}
+          {entryCondition?.scheduleConfig?.frequency === 'annually' && (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-2">
+                  Month
+                </label>
+                <select
+                  value={entryCondition?.scheduleConfig?.month || ''}
+                  onChange={(e) => handleScheduleConfigChange('month', parseInt(e.target.value) || '')}
+                  className={cn(
+                    "w-full px-3 py-2 rounded-md",
+                    "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+                    "text-sm text-[var(--bb-color-text-primary)]",
+                    "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                  )}
+                >
+                  <option value="">Select month...</option>
+                  {MONTHS.map((month) => (
+                    <option key={month.value} value={month.value}>
+                      {month.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-2">
+                  Day of Month
+                </label>
+                <select
+                  value={entryCondition?.scheduleConfig?.dayOfMonth || ''}
+                  onChange={(e) => handleScheduleConfigChange('dayOfMonth', e.target.value === 'last' ? 'last' : parseInt(e.target.value) || '')}
+                  className={cn(
+                    "w-full px-3 py-2 rounded-md",
+                    "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+                    "text-sm text-[var(--bb-color-text-primary)]",
+                    "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                  )}
+                >
+                  <option value="">Select day...</option>
+                  {DAYS_OF_MONTH.map((day) => (
+                    <option key={day.value} value={day.value}>
+                      {day.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+
+          {/* Time picker (for all frequencies) */}
+          {entryCondition?.scheduleConfig?.frequency && (
+            <div>
+              <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-2">
+                Time
+              </label>
+              <input
+                type="time"
+                value={entryCondition?.scheduleConfig?.time || '09:00'}
+                onChange={(e) => handleScheduleConfigChange('time', e.target.value)}
+                className={cn(
+                  "w-full px-3 py-2 rounded-md",
+                  "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+                  "text-sm text-[var(--bb-color-text-primary)]",
+                  "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                )}
+              />
+            </div>
+          )}
+
+          {/* Timezone selector */}
+          {entryCondition?.scheduleConfig?.frequency && (
+            <div>
+              <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-2">
+                Timezone
+              </label>
+              <select
+                value={entryCondition?.scheduleConfig?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York'}
+                onChange={(e) => handleScheduleConfigChange('timezone', e.target.value)}
+                className={cn(
+                  "w-full px-3 py-2 rounded-md",
+                  "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+                  "text-sm text-[var(--bb-color-text-primary)]",
+                  "focus:outline-none focus:border-[var(--bb-color-accent)]"
+                )}
+              >
+                {COMMON_TIMEZONES.map((tz) => (
+                  <option key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Optional filter for schedule */}
-          <div className="pt-4 border-t border-[var(--bb-color-border-subtle)]">
-            <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-2">
-              Filter Records (Optional)
-            </label>
-            <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-3">
-              Only enroll records that match these conditions
+          {entryCondition?.scheduleConfig?.frequency && (
+            <div className="pt-4 border-t border-[var(--bb-color-border-subtle)]">
+              <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-2">
+                Filter Records (Optional)
+              </label>
+              <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-3">
+                Only enroll records that match these conditions
+              </div>
+              <ConditionBuilder
+                objectType={objectType}
+                conditions={entryCondition?.scheduleConfig?.filter || { logic: 'and', conditions: [] }}
+                onChange={(filter) => handleScheduleConfigChange('filter', filter)}
+                label={null}
+              />
             </div>
-            <ConditionBuilder
-              objectType={objectType}
-              conditions={entryCondition?.scheduleConfig?.filter || { logic: 'and', conditions: [] }}
-              onChange={(filter) => handleScheduleConfigChange('filter', filter)}
-              label={null}
-            />
-          </div>
+          )}
         </div>
       )}
 

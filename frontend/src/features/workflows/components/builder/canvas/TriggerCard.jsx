@@ -9,6 +9,9 @@ import {
   OBJECT_TYPE_CONFIG,
   OBJECT_PROPERTIES,
   CONDITION_OPERATORS,
+  DAYS_OF_WEEK_FULL,
+  MONTHS,
+  COMMON_TIMEZONES,
 } from '../../../constants';
 
 // Get property definition by name from OBJECT_PROPERTIES
@@ -203,23 +206,100 @@ function PropertyChangedSummary({ filterConfig, objectType }) {
   );
 }
 
+// Format time from 24h to 12h format
+function formatTime(time) {
+  if (!time) return '';
+  const [hours, minutes] = time.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hour12 = hours % 12 || 12;
+  return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
+}
+
+// Get ordinal suffix for day of month
+function getOrdinalSuffix(day) {
+  if (day === 'last') return '';
+  const n = Number(day);
+  if (n >= 11 && n <= 13) return 'th';
+  switch (n % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
+}
+
+// Format day of month with ordinal
+function formatDayOfMonth(day) {
+  if (day === 'last') return 'the last day';
+  return `the ${day}${getOrdinalSuffix(day)}`;
+}
+
+// Get timezone abbreviation from timezone string
+function getTimezoneAbbr(timezone) {
+  if (!timezone) return '';
+  const tz = COMMON_TIMEZONES.find((t) => t.value === timezone);
+  if (tz) {
+    // Extract abbreviation from label like "Eastern Time (ET)" -> "ET"
+    const match = tz.label.match(/\(([^)]+)\)/);
+    return match ? match[1] : timezone;
+  }
+  return timezone;
+}
+
+// Get day name from value
+function getDayName(dayValue) {
+  const day = DAYS_OF_WEEK_FULL.find((d) => d.value === dayValue);
+  return day?.label || dayValue;
+}
+
+// Get month name from value
+function getMonthName(monthValue) {
+  const month = MONTHS.find((m) => m.value === monthValue);
+  return month?.label || monthValue;
+}
+
+// Format date for display
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
 // Render schedule trigger summary
 function ScheduleSummary({ scheduleConfig, objectLabel }) {
-  const { frequency, date, time, timezone } = scheduleConfig || {};
+  const { frequency, date, time, timezone, dayOfWeek, dayOfMonth, month } = scheduleConfig || {};
+
+  const timeStr = formatTime(time);
+  const tzAbbr = getTimezoneAbbr(timezone);
 
   let scheduleText = '';
   switch (frequency) {
     case 'once':
-      scheduleText = `Once${date ? ` on ${date}` : ''}${time ? ` at ${time}` : ''}`;
+      scheduleText = date
+        ? `Once on ${formatDate(date)}${timeStr ? ` at ${timeStr}` : ''}`
+        : 'Once (date not set)';
       break;
     case 'daily':
-      scheduleText = `Daily${time ? ` at ${time}` : ''}`;
+      scheduleText = timeStr ? `Daily at ${timeStr}` : 'Daily';
       break;
     case 'weekly':
-      scheduleText = `Weekly${time ? ` at ${time}` : ''}`;
+      scheduleText = dayOfWeek
+        ? `Every ${getDayName(dayOfWeek)}${timeStr ? ` at ${timeStr}` : ''}`
+        : 'Weekly (day not set)';
       break;
     case 'monthly':
-      scheduleText = `Monthly${time ? ` at ${time}` : ''}`;
+      scheduleText = dayOfMonth
+        ? `Monthly on ${formatDayOfMonth(dayOfMonth)}${timeStr ? ` at ${timeStr}` : ''}`
+        : 'Monthly (day not set)';
+      break;
+    case 'annually':
+      scheduleText = month && dayOfMonth
+        ? `Annually on ${getMonthName(month)} ${dayOfMonth === 'last' ? '(last day)' : dayOfMonth}${timeStr ? ` at ${timeStr}` : ''}`
+        : 'Annually (date not set)';
       break;
     default:
       scheduleText = 'On a schedule';
@@ -234,9 +314,9 @@ function ScheduleSummary({ scheduleConfig, objectLabel }) {
       <div className="bg-[var(--bb-color-bg-body)] rounded-lg p-3 border border-[var(--bb-color-border-subtle)]">
         <div className="bg-[var(--bb-color-bg-surface)] rounded-md px-3 py-2 text-sm">
           <span className="text-[var(--bb-color-accent)]">{scheduleText}</span>
-          {timezone && (
-            <span className="text-[var(--bb-color-text-tertiary)] ml-2 text-xs">
-              ({timezone})
+          {tzAbbr && (
+            <span className="text-[var(--bb-color-text-tertiary)] ml-2">
+              {tzAbbr}
             </span>
           )}
         </div>

@@ -517,6 +517,42 @@ export const SCHEDULE_FREQUENCIES = [
   { value: 'annually', label: 'Annually' },
 ];
 
+// Full day of week names for schedule config
+export const DAYS_OF_WEEK_FULL = [
+  { value: 'sunday', label: 'Sunday' },
+  { value: 'monday', label: 'Monday' },
+  { value: 'tuesday', label: 'Tuesday' },
+  { value: 'wednesday', label: 'Wednesday' },
+  { value: 'thursday', label: 'Thursday' },
+  { value: 'friday', label: 'Friday' },
+  { value: 'saturday', label: 'Saturday' },
+];
+
+// Months for annually schedule
+export const MONTHS = [
+  { value: 1, label: 'January' },
+  { value: 2, label: 'February' },
+  { value: 3, label: 'March' },
+  { value: 4, label: 'April' },
+  { value: 5, label: 'May' },
+  { value: 6, label: 'June' },
+  { value: 7, label: 'July' },
+  { value: 8, label: 'August' },
+  { value: 9, label: 'September' },
+  { value: 10, label: 'October' },
+  { value: 11, label: 'November' },
+  { value: 12, label: 'December' },
+];
+
+// Day of month options (1-31 + Last day)
+export const DAYS_OF_MONTH = [
+  ...Array.from({ length: 31 }, (_, i) => ({
+    value: i + 1,
+    label: `${i + 1}`,
+  })),
+  { value: 'last', label: 'Last day of month' },
+];
+
 // =============================================================================
 // WORKFLOW STATUSES
 // =============================================================================
