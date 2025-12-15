@@ -12,6 +12,8 @@ import {
 import PropertyValueInput from './PropertyValueInput';
 import SegmentSelect from './SegmentSelect';
 import WorkflowSelect from './WorkflowSelect';
+import MessagePreview from './MessagePreview';
+import UserSelect from './UserSelect';
 
 // SMS character limits
 const SMS_CHAR_LIMIT = 160;
@@ -214,6 +216,9 @@ function SendSmsConfig({ config, objectType, onChange }) {
 
       {/* Token insertion helper */}
       <TokenInsertHelper objectType={objectType} onInsert={(token) => onChange('message', message + token)} />
+
+      {/* Message Preview */}
+      <MessagePreview type="sms" content={message} objectType={objectType} />
     </div>
   );
 }
@@ -354,6 +359,15 @@ function SendEmailConfig({ config, objectType, onChange }) {
         objectType={objectType}
         onInsert={(token) => onChange('body', (config?.body || '') + token)}
       />
+
+      {/* Message Preview */}
+      <MessagePreview
+        type="email"
+        content={config?.body}
+        subject={config?.subject}
+        fromName={config?.fromName}
+        objectType={objectType}
+      />
     </div>
   );
 }
@@ -382,8 +396,24 @@ function SendNotificationConfig({ config, onChange }) {
           <option value="all_staff">All staff</option>
           <option value="assigned_staff">Assigned staff only</option>
           <option value="admins">Admins only</option>
+          <option value="specific_users">Specific users</option>
         </select>
       </div>
+
+      {/* Specific user selector */}
+      {config?.recipientType === 'specific_users' && (
+        <div>
+          <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+            Select Users
+          </label>
+          <UserSelect
+            value={config?.recipientUserIds || []}
+            onChange={(userIds) => onChange('recipientUserIds', userIds)}
+            placeholder="Select users to notify..."
+            isMulti={true}
+          />
+        </div>
+      )}
 
       <div>
         <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
@@ -541,8 +571,23 @@ function CreateTaskConfig({ config, onChange }) {
           <option value="booking_staff">Booking assigned staff</option>
           <option value="workflow_owner">Workflow owner</option>
           <option value="round_robin">Round robin</option>
+          <option value="specific_user">Specific user</option>
         </select>
       </div>
+
+      {/* Specific user selector */}
+      {config?.assignTo === 'specific_user' && (
+        <div>
+          <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+            Select User
+          </label>
+          <UserSelect
+            value={config?.assignedUserId}
+            onChange={(userId) => onChange('assignedUserId', userId)}
+            placeholder="Select user to assign task to..."
+          />
+        </div>
+      )}
 
       {/* Due Date */}
       <div>
@@ -754,6 +799,134 @@ function WebhookConfig({ config, objectType, onChange }) {
           <option value="DELETE">DELETE</option>
         </select>
       </div>
+
+      {/* Authentication */}
+      <div>
+        <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+          Authentication
+        </label>
+        <select
+          value={config?.authType || 'none'}
+          onChange={(e) => onChange('authType', e.target.value)}
+          className={cn(
+            "w-full px-3 py-2 rounded-md",
+            "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+            "text-sm text-[var(--bb-color-text-primary)]",
+            "focus:outline-none focus:border-[var(--bb-color-accent)]"
+          )}
+        >
+          <option value="none">No authentication</option>
+          <option value="api_key">API Key</option>
+          <option value="bearer">Bearer Token</option>
+          <option value="basic">Basic Auth</option>
+        </select>
+      </div>
+
+      {/* API Key auth fields */}
+      {config?.authType === 'api_key' && (
+        <div className="space-y-3 pl-3 border-l-2 border-[var(--bb-color-border-subtle)]">
+          <div>
+            <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+              Header Name
+            </label>
+            <input
+              type="text"
+              value={config?.apiKeyHeader || 'X-API-Key'}
+              onChange={(e) => onChange('apiKeyHeader', e.target.value)}
+              placeholder="X-API-Key"
+              className={cn(
+                "w-full px-3 py-2 rounded-md",
+                "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+                "text-sm text-[var(--bb-color-text-primary)]",
+                "placeholder:text-[var(--bb-color-text-tertiary)]",
+                "focus:outline-none focus:border-[var(--bb-color-accent)]"
+              )}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+              API Key
+            </label>
+            <input
+              type="password"
+              value={config?.apiKey || ''}
+              onChange={(e) => onChange('apiKey', e.target.value)}
+              placeholder="Enter API key..."
+              className={cn(
+                "w-full px-3 py-2 rounded-md",
+                "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+                "text-sm text-[var(--bb-color-text-primary)]",
+                "placeholder:text-[var(--bb-color-text-tertiary)]",
+                "focus:outline-none focus:border-[var(--bb-color-accent)]"
+              )}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Bearer token auth fields */}
+      {config?.authType === 'bearer' && (
+        <div className="pl-3 border-l-2 border-[var(--bb-color-border-subtle)]">
+          <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+            Bearer Token
+          </label>
+          <input
+            type="password"
+            value={config?.bearerToken || ''}
+            onChange={(e) => onChange('bearerToken', e.target.value)}
+            placeholder="Enter bearer token..."
+            className={cn(
+              "w-full px-3 py-2 rounded-md",
+              "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+              "text-sm text-[var(--bb-color-text-primary)]",
+              "placeholder:text-[var(--bb-color-text-tertiary)]",
+              "focus:outline-none focus:border-[var(--bb-color-accent)]"
+            )}
+          />
+        </div>
+      )}
+
+      {/* Basic auth fields */}
+      {config?.authType === 'basic' && (
+        <div className="space-y-3 pl-3 border-l-2 border-[var(--bb-color-border-subtle)]">
+          <div>
+            <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+              Username
+            </label>
+            <input
+              type="text"
+              value={config?.basicUsername || ''}
+              onChange={(e) => onChange('basicUsername', e.target.value)}
+              placeholder="Username"
+              className={cn(
+                "w-full px-3 py-2 rounded-md",
+                "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+                "text-sm text-[var(--bb-color-text-primary)]",
+                "placeholder:text-[var(--bb-color-text-tertiary)]",
+                "focus:outline-none focus:border-[var(--bb-color-accent)]"
+              )}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-[var(--bb-color-text-secondary)] mb-1">
+              Password
+            </label>
+            <input
+              type="password"
+              value={config?.basicPassword || ''}
+              onChange={(e) => onChange('basicPassword', e.target.value)}
+              placeholder="Password"
+              className={cn(
+                "w-full px-3 py-2 rounded-md",
+                "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
+                "text-sm text-[var(--bb-color-text-primary)]",
+                "placeholder:text-[var(--bb-color-text-tertiary)]",
+                "focus:outline-none focus:border-[var(--bb-color-accent)]"
+              )}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Headers */}
       <div>

@@ -429,3 +429,19 @@ export function useWorkflowsForDropdown(objectType, excludeId) {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+/**
+ * Fetch staff users for assignment dropdowns
+ */
+export function useStaffUsers() {
+  return useQuery({
+    queryKey: ['staff-users'],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/v1/users', {
+        params: { role: 'staff,admin,manager' },
+      });
+      return response?.data || response || [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
