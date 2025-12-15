@@ -60,6 +60,7 @@ export default function BuilderLeftPanel({ onAddStep }) {
     setEntryCondition,
     setObjectType,
     selectStep,
+    openTriggerConfigPanel,
   } = useWorkflowBuilderStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,6 +84,7 @@ export default function BuilderLeftPanel({ onAddStep }) {
         toggleCategory={toggleCategory}
         setEntryCondition={setEntryCondition}
         setObjectType={setObjectType}
+        openTriggerConfigPanel={openTriggerConfigPanel}
       />
     );
   }
@@ -154,6 +156,7 @@ function TriggerSelectionPanel({
   toggleCategory,
   setEntryCondition,
   setObjectType,
+  openTriggerConfigPanel,
 }) {
   // Internal state for the multi-step flow
   const [flowStep, setFlowStep] = useState('triggers'); // triggers, records, settings
@@ -172,15 +175,8 @@ function TriggerSelectionPanel({
 
   // Handle trigger type selection
   const handleTriggerTypeSelect = (triggerType) => {
-    setSelectedTriggerType(triggerType);
-
-    if (triggerType === 'schedule') {
-      // For schedule, go directly to settings with embedded object type
-      setFlowStep('settings');
-    } else {
-      // For manual and filter, go to object selection first
-      setFlowStep('records');
-    }
+    // Open the TriggerConfigPanel for all trigger types
+    openTriggerConfigPanel();
   };
 
   // Handle object type selection for manual/filter
@@ -219,13 +215,9 @@ function TriggerSelectionPanel({
 
   // Handle event selection (from event categories)
   const handleEventSelect = (categoryKey, event) => {
-    setObjectType(categoryKey);
-    setEntryCondition({
-      triggerType: 'event',
-      eventType: event.value,
-      filterConfig: null,
-      scheduleConfig: null,
-    });
+    // Open the TriggerConfigPanel instead of setting entry condition directly
+    // The user can configure the trigger in the panel
+    openTriggerConfigPanel();
   };
 
   // Handle back button

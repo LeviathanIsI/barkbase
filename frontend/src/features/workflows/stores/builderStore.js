@@ -48,6 +48,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
   // UI state
   selectedStepId: null, // 'trigger' for trigger config, step ID for step config
   panelMode: 'trigger', // 'trigger' | 'actions' | 'config'
+  showTriggerConfigPanel: false, // Whether the trigger config panel is visible
   isDirty: false,
   isSaving: false,
   isInitialized: false,
@@ -63,6 +64,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
       steps: [],
       selectedStepId: 'trigger',
       panelMode: 'trigger',
+      showTriggerConfigPanel: false,
       isDirty: false,
       isSaving: false,
       isInitialized: true,
@@ -110,6 +112,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
       steps,
       selectedStepId: hasTrigger ? null : 'trigger',
       panelMode,
+      showTriggerConfigPanel: false,
       isDirty: false,
       isSaving: false,
       isInitialized: true,
@@ -125,6 +128,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
       steps: [],
       selectedStepId: null,
       panelMode: 'trigger',
+      showTriggerConfigPanel: false,
       isDirty: false,
       isSaving: false,
       isInitialized: false,
@@ -332,6 +336,20 @@ export const useWorkflowBuilderStore = create((set, get) => ({
    */
   setPanelMode: (panelMode) => {
     set({ panelMode });
+  },
+
+  /**
+   * Open the trigger config panel
+   */
+  openTriggerConfigPanel: () => {
+    set({ showTriggerConfigPanel: true });
+  },
+
+  /**
+   * Close the trigger config panel
+   */
+  closeTriggerConfigPanel: () => {
+    set({ showTriggerConfigPanel: false });
   },
 
   /**

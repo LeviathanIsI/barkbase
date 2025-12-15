@@ -2,7 +2,6 @@
  * BuilderCanvas - Main canvas component for the workflow builder
  * Renders the visual workflow with trigger, steps, and connectors
  */
-import { useState } from 'react';
 import { cn } from '@/lib/cn';
 import { useWorkflowBuilderStore } from '../../stores/builderStore';
 import { STEP_TYPES } from '../../constants';
@@ -21,9 +20,10 @@ export default function BuilderCanvas() {
     selectStep,
     addStep,
     deleteStep,
+    showTriggerConfigPanel,
+    openTriggerConfigPanel,
+    closeTriggerConfigPanel,
   } = useWorkflowBuilderStore();
-
-  const [showTriggerConfig, setShowTriggerConfig] = useState(false);
 
   // Get root level steps (not in branches)
   const rootSteps = steps
@@ -54,15 +54,15 @@ export default function BuilderCanvas() {
         isSelected={selectedStepId === 'trigger'}
         onClick={() => {
           selectStep('trigger');
-          setShowTriggerConfig(true);
+          openTriggerConfigPanel();
         }}
       />
 
       {/* Trigger Config Panel */}
-      {showTriggerConfig && (
+      {showTriggerConfigPanel && (
         <TriggerConfigPanel
-          onClose={() => setShowTriggerConfig(false)}
-          onSave={() => setShowTriggerConfig(false)}
+          onClose={closeTriggerConfigPanel}
+          onSave={closeTriggerConfigPanel}
         />
       )}
 
