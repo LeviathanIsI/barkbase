@@ -48,8 +48,11 @@ function formatDate(dateString) {
 }
 
 // Format number with commas
-function formatNumber(num) {
-  if (num === null || num === undefined) return '-';
+// For draft workflows, show '0' instead of '-' for null/undefined counts
+function formatNumber(num, isDraft = false) {
+  if (num === null || num === undefined) {
+    return isDraft ? '0' : '-';
+  }
   return num.toLocaleString();
 }
 
@@ -174,11 +177,18 @@ function WorkflowRow({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMenuOpen]);
 
-  const objectType = workflow.object_type || 'pet';
+  // Handle both camelCase (from apiClient) and snake_case (raw) keys
+  const objectType = workflow.objectType || workflow.object_type || 'pet';
   const ObjectIcon = OBJECT_TYPE_ICONS[objectType] || PawPrint;
   const objectConfig = OBJECT_TYPE_CONFIG[objectType] || {};
   const statusConfig = WORKFLOW_STATUS_CONFIG[workflow.status] || WORKFLOW_STATUS_CONFIG.draft;
   const isActive = workflow.status === 'active';
+  const isDraft = workflow.status === 'draft';
+
+  // Support both camelCase and snake_case for these fields
+  const createdAt = workflow.createdAt || workflow.created_at;
+  const enrolledCount = workflow.enrolledCount ?? workflow.enrolled_count;
+  const enrolledLast7Days = workflow.enrolledLast7Days ?? workflow.enrolled_last_7_days;
 
   return (
     <tr
@@ -217,21 +227,21 @@ function WorkflowRow({
       {/* Created On */}
       <td className="px-4 py-3">
         <span className="text-sm text-[var(--bb-color-text-secondary)]">
-          {formatDate(workflow.created_at)}
+          {formatDate(createdAt)}
         </span>
       </td>
 
       {/* Enrolled Total */}
       <td className="px-4 py-3 text-right">
         <span className="text-sm text-[var(--bb-color-text-primary)]">
-          {formatNumber(workflow.enrolled_count)}
+          {formatNumber(enrolledCount, isDraft)}
         </span>
       </td>
 
       {/* Last 7 Days */}
       <td className="px-4 py-3 text-right">
         <span className="text-sm text-[var(--bb-color-text-secondary)]">
-          {formatNumber(workflow.enrolled_last_7_days)}
+          {formatNumber(enrolledLast7Days, isDraft)}
         </span>
       </td>
 

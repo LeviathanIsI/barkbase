@@ -231,12 +231,12 @@ export default function Workflows() {
 
       {/* Delete confirmation dialog */}
       <ConfirmDialog
-        open={!!deleteConfirm}
-        onOpenChange={(open) => !open && setDeleteConfirm(null)}
+        isOpen={!!deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
         title="Delete workflow"
-        description="Are you sure you want to delete this workflow? This action cannot be undone."
+        message="Are you sure you want to delete this workflow? This action cannot be undone."
         confirmText="Delete"
-        confirmVariant="destructive"
+        variant="danger"
         onConfirm={handleDelete}
         isLoading={deleteMutation.isPending}
       />
