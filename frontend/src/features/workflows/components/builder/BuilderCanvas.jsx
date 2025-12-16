@@ -349,7 +349,6 @@ function DeterminatorNode({
         width={containerWidth}
         height="50"
         className="overflow-visible"
-        style={{ marginLeft: startX }}
       >
         {/* Vertical line from center down */}
         <line
