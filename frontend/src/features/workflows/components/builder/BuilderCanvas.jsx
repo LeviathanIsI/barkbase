@@ -344,7 +344,46 @@ function DeterminatorNode({
         branchCount={branchCount}
       />
 
-      {/* Branch containers with integrated connector lines */}
+      {/* Centered connector from Determinator to branch line */}
+      <svg
+        width={branchCount * branchSpacing}
+        height="50"
+        className="overflow-visible"
+        style={{ marginLeft: startX }}
+      >
+        {/* Vertical line from center down */}
+        <line
+          x1={branchCount * branchSpacing / 2}
+          y1="0"
+          x2={branchCount * branchSpacing / 2}
+          y2="20"
+          stroke="var(--bb-color-border-subtle)"
+          strokeWidth="2"
+        />
+        {/* Horizontal line across all branches */}
+        <line
+          x1={branchSpacing / 2}
+          y1="20"
+          x2={branchCount * branchSpacing - branchSpacing / 2}
+          y2="20"
+          stroke="var(--bb-color-border-subtle)"
+          strokeWidth="2"
+        />
+        {/* Vertical lines down to each branch */}
+        {sortedBranches.map((branch, index) => (
+          <line
+            key={branch.id}
+            x1={branchSpacing / 2 + index * branchSpacing}
+            y1="20"
+            x2={branchSpacing / 2 + index * branchSpacing}
+            y2="50"
+            stroke="var(--bb-color-border-subtle)"
+            strokeWidth="2"
+          />
+        ))}
+      </svg>
+
+      {/* Branch containers */}
       <div
         className="flex items-start"
         style={{ marginLeft: startX }}
@@ -359,30 +398,12 @@ function DeterminatorNode({
             ? '#6B7280'
             : branchColors[index % branchColors.length];
 
-          // Calculate SVG path - line from center top, horizontal to column center, then down
-          const svgCenterX = branchSpacing / 2;
-          const offsetFromCenter = (index - (branchCount - 1) / 2) * branchSpacing;
-
           return (
             <div
               key={branch.id}
               className="flex flex-col items-center"
               style={{ width: branchSpacing }}
             >
-              {/* SVG connector line for this branch */}
-              <svg
-                width={branchSpacing}
-                height="50"
-                className="overflow-visible"
-              >
-                <path
-                  d={`M ${svgCenterX - offsetFromCenter} 0 L ${svgCenterX - offsetFromCenter} 20 L ${svgCenterX} 20 L ${svgCenterX} 50`}
-                  fill="none"
-                  stroke="var(--bb-color-border-subtle)"
-                  strokeWidth="2"
-                />
-              </svg>
-
               {/* Branch label */}
               <div
                 className="px-2 py-0.5 rounded text-xs font-medium mb-2"
