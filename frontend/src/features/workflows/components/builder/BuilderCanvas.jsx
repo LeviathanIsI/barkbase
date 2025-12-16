@@ -330,7 +330,12 @@ function DeterminatorNode({
   const branchCount = sortedBranches.length;
   const branchSpacing = 180; // Space between branch centers
   const containerWidth = branchCount * branchSpacing;
-  const startX = -containerWidth / 2; // Center the entire branch structure
+
+  // Calculate positions for connector SVG
+  const connectorHeight = 50;
+  const horizontalY = 20;
+  // Center of the SVG is at containerWidth/2
+  const svgCenter = containerWidth / 2;
 
   return (
     <>
@@ -344,13 +349,50 @@ function DeterminatorNode({
         branchCount={branchCount}
       />
 
-      {/* Branch containers with integrated connector lines */}
+      {/* Centered SVG connector: vertical line from card center, horizontal bar, branch drops */}
+      <svg
+        width={containerWidth}
+        height={connectorHeight}
+        className="overflow-visible"
+      >
+        {/* Main vertical line from Determinator center (center of SVG) */}
+        <line
+          x1={svgCenter}
+          y1={0}
+          x2={svgCenter}
+          y2={horizontalY}
+          stroke="var(--bb-color-border-subtle)"
+          strokeWidth="2"
+        />
+        {/* Horizontal bar connecting all branches */}
+        <line
+          x1={branchSpacing / 2}
+          y1={horizontalY}
+          x2={containerWidth - branchSpacing / 2}
+          y2={horizontalY}
+          stroke="var(--bb-color-border-subtle)"
+          strokeWidth="2"
+        />
+        {/* Vertical drops to each branch center */}
+        {sortedBranches.map((_, index) => (
+          <line
+            key={index}
+            x1={index * branchSpacing + branchSpacing / 2}
+            y1={horizontalY}
+            x2={index * branchSpacing + branchSpacing / 2}
+            y2={connectorHeight}
+            stroke="var(--bb-color-border-subtle)"
+            strokeWidth="2"
+          />
+        ))}
+      </svg>
+
+      {/* Branch containers - centered by flex, no margin needed */}
       <div
         className="flex items-start"
-        style={{ marginLeft: startX }}
       >
         {sortedBranches.map((branch, index) => {
-          // Get steps for this branch (use branchId or legacy branchPath)
+          // Get steps for this branch
           const branchSteps = allSteps
             .filter((s) => s.parentStepId === step.id && s.branchId === branch.id)
             .sort((a, b) => a.position - b.position);
@@ -359,34 +401,12 @@ function DeterminatorNode({
             ? '#6B7280'
             : branchColors[index % branchColors.length];
 
-          // Calculate connector path from center to this branch
-          const centerIndex = (branchCount - 1) / 2;
-          const offsetFromCenter = (index - centerIndex) * branchSpacing;
-
           return (
             <div
               key={branch.id}
               className="flex flex-col items-center"
               style={{ width: branchSpacing }}
             >
-              {/* SVG connector: vertical from center, horizontal to branch, vertical down */}
-              <svg
-                width={branchSpacing}
-                height="50"
-                className="overflow-visible"
-              >
-                {/* Line from Determinator center down, then horizontal to this branch, then down */}
-                <path
-                  d={`M ${branchSpacing / 2 - offsetFromCenter} 0
-                      L ${branchSpacing / 2 - offsetFromCenter} 20
-                      L ${branchSpacing / 2} 20
-                      L ${branchSpacing / 2} 50`}
-                  fill="none"
-                  stroke="var(--bb-color-border-subtle)"
-                  strokeWidth="2"
-                />
-              </svg>
-
               {/* Branch label */}
               <div
                 className="px-2 py-0.5 rounded text-xs font-medium mb-2"
