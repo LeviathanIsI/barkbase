@@ -3,6 +3,7 @@
  * HubSpot-style table with columns for name, object type, created, enrolled, status
  */
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   MoreHorizontal,
@@ -161,12 +162,19 @@ function WorkflowRow({
   onDelete,
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const buttonRef = useRef(null);
   const menuRef = useRef(null);
 
   // Close menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(event.target)
+      ) {
         setIsMenuOpen(false);
       }
     }
@@ -176,6 +184,18 @@ function WorkflowRow({
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMenuOpen]);
+
+  // Update menu position when opening
+  const handleToggleMenu = () => {
+    if (!isMenuOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setMenuPosition({
+        top: rect.bottom + 4,
+        left: rect.right - 176, // 176px = w-44 (11rem)
+      });
+    }
+    setIsMenuOpen(!isMenuOpen);
+  };
 
   // Handle both camelCase (from apiClient) and snake_case (raw) keys
   const objectType = workflow.objectType || workflow.object_type || 'pet';
@@ -270,11 +290,11 @@ function WorkflowRow({
       <td className="px-4 py-3 text-right">
         <div
           className="relative inline-block"
-          ref={menuRef}
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            ref={buttonRef}
+            onClick={handleToggleMenu}
             className={cn(
               "p-1.5 rounded",
               "text-[var(--bb-color-text-tertiary)]",
@@ -285,15 +305,23 @@ function WorkflowRow({
             <MoreHorizontal size={18} />
           </button>
 
-          {/* Dropdown menu */}
-          {isMenuOpen && (
-            <div className={cn(
-              "absolute right-0 mt-1 w-44 z-50",
-              "bg-[var(--bb-color-bg-elevated)] rounded-md",
-              "border border-[var(--bb-color-border-subtle)]",
-              "shadow-lg",
-              "py-1"
-            )}>
+          {/* Dropdown menu rendered in portal to avoid overflow clipping */}
+          {isMenuOpen && createPortal(
+            <div
+              ref={menuRef}
+              className={cn(
+                "fixed w-44",
+                "bg-[var(--bb-color-bg-elevated)] rounded-md",
+                "border border-[var(--bb-color-border-subtle)]",
+                "shadow-lg",
+                "py-1"
+              )}
+              style={{
+                top: menuPosition.top,
+                left: menuPosition.left,
+                zIndex: 9999,
+              }}
+            >
               <button
                 onClick={() => {
                   setIsMenuOpen(false);
@@ -372,7 +400,8 @@ function WorkflowRow({
                 <Trash2 size={14} />
                 Delete
               </button>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       </td>
