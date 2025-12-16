@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { X, AlertTriangle, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import Button from '@/components/ui/Button';
-import { OBJECT_TYPE_CONFIG, TRIGGER_TYPES } from '../../constants';
+import { OBJECT_TYPE_CONFIG, ENTRY_CONDITION_TYPES } from '../../constants';
 
 /**
  * Validate workflow and steps for publishing
@@ -111,7 +111,7 @@ export default function PublishModal({ workflow, steps, onClose, onPublish }) {
 
   const objectConfig = OBJECT_TYPE_CONFIG[workflow.objectType] || {};
   const triggerLabel =
-    TRIGGER_TYPES.find((t) => t.value === workflow.entryCondition?.triggerType)?.label ||
+    ENTRY_CONDITION_TYPES.find((t) => t.value === workflow.entryCondition?.triggerType)?.label ||
     workflow.entryCondition?.triggerType ||
     'Not configured';
 
