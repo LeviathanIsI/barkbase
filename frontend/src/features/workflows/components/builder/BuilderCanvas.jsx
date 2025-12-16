@@ -329,8 +329,8 @@ function DeterminatorNode({
   // Calculate SVG connector paths for multiple branches
   const branchCount = sortedBranches.length;
   const branchSpacing = 180; // Space between branch centers
-  const totalWidth = (branchCount - 1) * branchSpacing;
-  const startX = -totalWidth / 2;
+  const containerWidth = branchCount * branchSpacing;
+  const startX = -containerWidth / 2; // Center the entire branch structure
 
   return (
     <>
@@ -346,16 +346,16 @@ function DeterminatorNode({
 
       {/* Centered connector from Determinator to branch line */}
       <svg
-        width={branchCount * branchSpacing}
+        width={containerWidth}
         height="50"
         className="overflow-visible"
         style={{ marginLeft: startX }}
       >
         {/* Vertical line from center down */}
         <line
-          x1={branchCount * branchSpacing / 2}
+          x1={containerWidth / 2}
           y1="0"
-          x2={branchCount * branchSpacing / 2}
+          x2={containerWidth / 2}
           y2="20"
           stroke="var(--bb-color-border-subtle)"
           strokeWidth="2"
@@ -364,7 +364,7 @@ function DeterminatorNode({
         <line
           x1={branchSpacing / 2}
           y1="20"
-          x2={branchCount * branchSpacing - branchSpacing / 2}
+          x2={containerWidth - branchSpacing / 2}
           y2="20"
           stroke="var(--bb-color-border-subtle)"
           strokeWidth="2"
