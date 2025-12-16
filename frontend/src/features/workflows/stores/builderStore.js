@@ -84,9 +84,9 @@ export const useWorkflowBuilderStore = create((set, get) => ({
       id: workflowData.id,
       name: workflowData.name || 'Untitled workflow',
       description: workflowData.description || '',
-      objectType: workflowData.object_type || 'pet',
+      objectType: workflowData.objectType || workflowData.object_type || 'pet',
       status: workflowData.status || 'draft',
-      entryCondition: workflowData.entry_condition || {
+      entryCondition: workflowData.entryCondition || workflowData.entry_condition || {
         triggerType: null,
         eventType: null,
         filterConfig: null,
@@ -98,13 +98,13 @@ export const useWorkflowBuilderStore = create((set, get) => ({
     // Convert steps from API format
     const steps = stepsData.map((s) => ({
       id: s.id,
-      stepType: s.step_type,
-      actionType: s.action_type,
-      name: s.name || getDefaultStepName(s.step_type, s.action_type),
+      stepType: s.stepType || s.step_type,
+      actionType: s.actionType || s.action_type,
+      name: s.name || getDefaultStepName(s.stepType || s.step_type, s.actionType || s.action_type),
       config: s.config || {},
       position: s.position,
-      parentStepId: s.parent_step_id || null,
-      branchPath: s.branch_path || null,
+      parentStepId: s.parentStepId || s.parent_step_id || null,
+      branchPath: s.branchPath || s.branch_path || null,
     }));
 
     // Determine initial panel mode based on workflow state

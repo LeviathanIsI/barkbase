@@ -11,5 +11,8 @@
     "bcrypt": "^6.0.0",
     "dotenv": "^16.4.5",
     "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0"
   }
 }

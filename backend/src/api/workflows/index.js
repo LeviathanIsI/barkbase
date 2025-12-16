@@ -203,7 +203,7 @@ router.post('/workflows', async (req, res) => {
         entry_condition, settings, folder_id, created_by, created_at, updated_at
       )
       VALUES (
-        gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+        uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
       )
       RETURNING *`,
       [
@@ -394,7 +394,7 @@ router.post('/workflows/:id/clone', async (req, res) => {
         entry_condition, settings, folder_id, created_by, created_at, updated_at
       )
       VALUES (
-        gen_random_uuid(), $1, $2, $3, $4, 'draft', $5, $6, $7, $8, NOW(), NOW()
+        uuid_generate_v4(), $1, $2, $3, $4, 'draft', $5, $6, $7, $8, NOW(), NOW()
       )
       RETURNING *`,
       [
@@ -427,7 +427,7 @@ router.post('/workflows/:id/clone', async (req, res) => {
           step_type, action_type, config, created_at, updated_at
         )
         VALUES (
-          gen_random_uuid(), $1, NULL, $2, $3, $4, $5, $6, NOW(), NOW()
+          uuid_generate_v4(), $1, NULL, $2, $3, $4, $5, $6, NOW(), NOW()
         )
         RETURNING id`,
         [
@@ -591,7 +591,7 @@ router.put('/workflows/:id/steps', async (req, res) => {
           step_type, action_type, name, config, created_at, updated_at
         )
         VALUES (
-          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
+          uuid_generate_v4(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
         )
         RETURNING *`,
         [
@@ -811,7 +811,7 @@ router.post('/workflows/:id/enroll', async (req, res) => {
         enrolled_at, created_at, updated_at
       )
       VALUES (
-        gen_random_uuid(), $1, $2, $3, $4, 'running', $5, $6, $7, NOW(), NOW(), NOW()
+        uuid_generate_v4(), $1, $2, $3, $4, 'running', $5, $6, $7, NOW(), NOW(), NOW()
       )
       RETURNING *`,
       [id, tenantId, record_id, record_type, currentStepId, workflow.revision, enrollmentCount],
@@ -1049,7 +1049,7 @@ router.post('/workflows/templates/:templateId/use', async (req, res) => {
         entry_condition, settings, created_by, created_at, updated_at
       )
       VALUES (
-        gen_random_uuid(), $1, $2, $3, $4, 'draft', $5, $6, $7, NOW(), NOW()
+        uuid_generate_v4(), $1, $2, $3, $4, 'draft', $5, $6, $7, NOW(), NOW()
       )
       RETURNING *`,
       [
@@ -1074,7 +1074,7 @@ router.post('/workflows/templates/:templateId/use', async (req, res) => {
           id, workflow_id, position, step_type, action_type, config, created_at, updated_at
         )
         VALUES (
-          gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW()
+          uuid_generate_v4(), $1, $2, $3, $4, $5, NOW(), NOW()
         )`,
         [
           newWorkflow.id,
@@ -1369,7 +1369,7 @@ router.post('/workflows/folders', async (req, res) => {
 
     const { rows } = await pool.query(
       `INSERT INTO "WorkflowFolder" (id, tenant_id, name, parent_id, created_at, updated_at)
-       VALUES (gen_random_uuid(), $1, $2, $3, NOW(), NOW())
+       VALUES (uuid_generate_v4(), $1, $2, $3, NOW(), NOW())
        RETURNING *`,
       [tenantId, name, parent_id || null],
     );

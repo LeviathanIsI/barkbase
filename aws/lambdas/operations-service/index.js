@@ -7662,6 +7662,7 @@ async function handleGetWorkflowSteps(tenantId, workflowId) {
 
 /**
  * Update workflow steps (full replacement)
+ * Uses two-pass approach to handle parent_step_id references for nested steps
  */
 async function handleUpdateWorkflowSteps(tenantId, user, workflowId, body) {
   const { steps = [] } = body;
@@ -7687,14 +7688,39 @@ async function handleUpdateWorkflowSteps(tenantId, user, workflowId, body) {
     // Delete existing steps
     await query(`DELETE FROM "WorkflowStep" WHERE workflow_id = $1`, [workflowId]);
 
-    // Insert new steps
+    // First pass: Insert all steps WITHOUT parent_step_id to get new database IDs
+    const insertedSteps = [];
+    const tempIdToRealId = {}; // Map frontend temp IDs to database UUIDs
+
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i];
-      await query(
-        `INSERT INTO "WorkflowStep" (workflow_id, parent_step_id, branch_path, position, step_type, action_type, config)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [workflowId, step.parent_step_id || null, step.branch_path || null, i, step.step_type, step.action_type || null, JSON.stringify(step.config || {})]
+      const result = await query(
+        `INSERT INTO "WorkflowStep" (workflow_id, parent_step_id, branch_path, position, step_type, action_type, name, config)
+         VALUES ($1, NULL, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [workflowId, step.branch_path || null, i, step.step_type, step.action_type || null, step.name || null, JSON.stringify(step.config || {})]
       );
+      const newStep = result.rows[0];
+      insertedSteps.push(newStep);
+
+      // Track temp ID mapping if provided
+      if (step.id || step.temp_id) {
+        tempIdToRealId[step.id || step.temp_id] = newStep.id;
+      }
+      // Also map by index as fallback
+      tempIdToRealId[`idx_${i}`] = newStep.id;
+    }
+
+    // Second pass: Update parent_step_id references
+    for (let i = 0; i < steps.length; i++) {
+      const step = steps[i];
+      if (step.parent_step_id) {
+        const resolvedParentId = tempIdToRealId[step.parent_step_id] || step.parent_step_id;
+        await query(
+          `UPDATE "WorkflowStep" SET parent_step_id = $1 WHERE id = $2`,
+          [resolvedParentId, insertedSteps[i].id]
+        );
+      }
     }
 
     // Update workflow timestamp
@@ -7703,20 +7729,28 @@ async function handleUpdateWorkflowSteps(tenantId, user, workflowId, body) {
       [workflowId]
     );
 
+    // Fetch final steps with resolved IDs
+    const finalStepsResult = await query(
+      `SELECT * FROM "WorkflowStep" WHERE workflow_id = $1 ORDER BY position`,
+      [workflowId]
+    );
+
     return createResponse(200, {
       success: true,
       message: 'Steps updated',
       count: steps.length,
+      steps: finalStepsResult.rows,
     });
 
   } catch (error) {
-    console.error('[Workflows] Failed to update steps:', error.message);
+    console.error('[Workflows] Failed to update steps:', error.message, error.stack);
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to update workflow steps',
     });
   }
 }
+
 
 /**
  * Get workflow executions
