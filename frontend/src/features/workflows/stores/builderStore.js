@@ -48,6 +48,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
   // UI state
   selectedStepId: null, // 'trigger' for trigger config, step ID for step config
   panelMode: 'trigger', // 'trigger' | 'trigger_config' | 'actions' | 'config' | 'settings' | null
+  settingsSection: null, // Which settings section to show: 'reenrollment' | 'suppression' | 'goals' | 'timing' | 'unenrollment' | null
   pendingTriggerType: null, // Trigger type being configured before saving
   pendingStepContext: null, // { afterStepId, branchPath } for where to insert new step
   isDirty: false,
@@ -215,10 +216,12 @@ export const useWorkflowBuilderStore = create((set, get) => ({
 
   /**
    * Open settings panel
+   * @param {string} section - Optional section to show: 'reenrollment', 'suppression', 'goals', 'timing', 'unenrollment'
    */
-  openSettings: () => {
+  openSettings: (section = null) => {
     set({
       panelMode: 'settings',
+      settingsSection: section,
       selectedStepId: null,
     });
   },

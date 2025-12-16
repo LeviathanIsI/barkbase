@@ -27,6 +27,7 @@ import BuilderHeader from '../components/builder/BuilderHeader';
 import BuilderLeftPanel from '../components/builder/BuilderLeftPanel';
 import BuilderCanvas from '../components/builder/BuilderCanvas';
 import StepConfigPanel from '../components/builder/StepConfigPanel';
+import WorkflowSettings from '../components/builder/WorkflowSettings';
 import PublishModal from '../components/builder/PublishModal';
 
 export default function WorkflowBuilder() {
@@ -55,6 +56,7 @@ export default function WorkflowBuilder() {
     setSaveStatus,
     setWorkflowId,
     markClean,
+    openSettings,
   } = useWorkflowBuilderStore();
 
   // Queries (only for existing workflows)
@@ -337,9 +339,8 @@ export default function WorkflowBuilder() {
    * Handle open settings
    */
   const handleOpenSettings = useCallback((section) => {
-    console.log('Open settings section:', section);
-    // TODO: Implement settings panel
-  }, []);
+    openSettings(section);
+  }, [openSettings]);
 
   /**
    * Handle show keyboard shortcuts
@@ -409,8 +410,9 @@ export default function WorkflowBuilder() {
     );
   }
 
-  // Determine if we should show the config panel
+  // Determine if we should show the config panel or settings panel
   const showConfigPanel = selectedStepId && selectedStepId !== 'trigger' && panelMode === 'config';
+  const showSettingsPanel = panelMode === 'settings';
 
   return (
     <div className="h-screen flex flex-col bg-[var(--bb-color-bg-body)]">
@@ -444,6 +446,9 @@ export default function WorkflowBuilder() {
 
         {/* Right config panel (when step selected) */}
         {showConfigPanel && <StepConfigPanel />}
+
+        {/* Right settings panel */}
+        {showSettingsPanel && <WorkflowSettings />}
       </div>
 
       {/* Publish modal */}
