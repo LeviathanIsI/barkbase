@@ -767,6 +767,8 @@ function WebhookConfig({ config, objectType, onChange }) {
           value={config?.url || ''}
           onChange={(e) => onChange('url', e.target.value)}
           placeholder="https://api.example.com/webhook"
+          autoComplete="off"
+          data-form-type="other"
           className={cn(
             "w-full px-3 py-2 rounded-md",
             "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
@@ -834,6 +836,8 @@ function WebhookConfig({ config, objectType, onChange }) {
               value={config?.apiKeyHeader || 'X-API-Key'}
               onChange={(e) => onChange('apiKeyHeader', e.target.value)}
               placeholder="X-API-Key"
+              autoComplete="off"
+              data-form-type="other"
               className={cn(
                 "w-full px-3 py-2 rounded-md",
                 "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
@@ -852,6 +856,8 @@ function WebhookConfig({ config, objectType, onChange }) {
               value={config?.apiKey || ''}
               onChange={(e) => onChange('apiKey', e.target.value)}
               placeholder="Enter API key..."
+              autoComplete="new-password"
+              data-form-type="other"
               className={cn(
                 "w-full px-3 py-2 rounded-md",
                 "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
@@ -875,6 +881,8 @@ function WebhookConfig({ config, objectType, onChange }) {
             value={config?.bearerToken || ''}
             onChange={(e) => onChange('bearerToken', e.target.value)}
             placeholder="Enter bearer token..."
+            autoComplete="new-password"
+            data-form-type="other"
             className={cn(
               "w-full px-3 py-2 rounded-md",
               "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
@@ -898,6 +906,8 @@ function WebhookConfig({ config, objectType, onChange }) {
               value={config?.basicUsername || ''}
               onChange={(e) => onChange('basicUsername', e.target.value)}
               placeholder="Username"
+              autoComplete="off"
+              data-form-type="other"
               className={cn(
                 "w-full px-3 py-2 rounded-md",
                 "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",
@@ -916,6 +926,8 @@ function WebhookConfig({ config, objectType, onChange }) {
               value={config?.basicPassword || ''}
               onChange={(e) => onChange('basicPassword', e.target.value)}
               placeholder="Password"
+              autoComplete="new-password"
+              data-form-type="other"
               className={cn(
                 "w-full px-3 py-2 rounded-md",
                 "bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]",

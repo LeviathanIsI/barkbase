@@ -97,6 +97,14 @@ const darkSelectStyles = {
   }),
 };
 
+// Operators that need simple days input (number only) instead of date picker
+const DAYS_OPERATORS = [
+  'is_less_than_days_ago',
+  'is_more_than_days_ago',
+  'is_less_than_days_from_now',
+  'is_more_than_days_from_now',
+];
+
 // Base input classes
 const inputClasses = cn(
   "w-full h-8 px-2 rounded",
@@ -171,6 +179,22 @@ export default function PropertyValueInput({
       );
 
     case 'date':
+      // For "X days ago/from now" operators, show number input instead of date picker
+      if (operator && DAYS_OPERATORS.includes(operator)) {
+        return (
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min="1"
+              className={inputClasses}
+              placeholder="7"
+              value={value || ''}
+              onChange={(e) => onChange(parseInt(e.target.value) || '')}
+            />
+            <span className="text-sm text-[var(--bb-color-text-tertiary)] whitespace-nowrap">days</span>
+          </div>
+        );
+      }
       return (
         <input
           type="date"
