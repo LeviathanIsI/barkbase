@@ -423,7 +423,7 @@ router.post('/workflows/:id/clone', async (req, res) => {
     for (const step of originalSteps) {
       const { rows: newStepRows } = await pool.query(
         `INSERT INTO "WorkflowStep" (
-          id, workflow_id, parent_step_id, branch_path, position,
+          id, workflow_id, parent_step_id, branch_id, position,
           step_type, action_type, config, created_at, updated_at
         )
         VALUES (
@@ -432,7 +432,7 @@ router.post('/workflows/:id/clone', async (req, res) => {
         RETURNING id`,
         [
           newWorkflow.id,
-          step.branch_path,
+          step.branch_id,
           step.position,
           step.step_type,
           step.action_type,
@@ -587,7 +587,7 @@ router.put('/workflows/:id/steps', async (req, res) => {
       const step = steps[i];
       const { rows: newStepRows } = await client.query(
         `INSERT INTO "WorkflowStep" (
-          id, workflow_id, parent_step_id, branch_path, position,
+          id, workflow_id, parent_step_id, branch_id, position,
           step_type, action_type, name, config, created_at, updated_at
         )
         VALUES (
@@ -597,7 +597,7 @@ router.put('/workflows/:id/steps', async (req, res) => {
         [
           id,
           null, // Will update parent_step_id in second pass
-          step.branch_path || null,
+          step.branch_id || null,
           i,
           step.step_type,
           step.action_type || null,

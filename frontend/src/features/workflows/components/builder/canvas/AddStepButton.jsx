@@ -8,14 +8,14 @@ import { useWorkflowBuilderStore } from '../../../stores/builderStore';
 
 export default function AddStepButton({
   afterStepId = null,
-  branchPath = null,
+  branchId = null,
   size = 'default',
 }) {
   const { openActionSelector } = useWorkflowBuilderStore();
 
   const handleClick = () => {
     // Open the action selector in the left panel with context
-    openActionSelector(afterStepId, branchPath);
+    openActionSelector(afterStepId, branchId);
   };
 
   const buttonSize = size === 'small' ? 'w-5 h-5' : 'w-6 h-6';

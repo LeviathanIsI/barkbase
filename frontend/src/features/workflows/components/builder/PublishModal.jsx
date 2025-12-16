@@ -75,11 +75,28 @@ function validateWorkflow(workflow, steps) {
       }
     }
 
-    // Check determinator steps
+    // Check determinator steps (multi-branch)
     if (step.stepType === 'determinator' || step.step_type === 'determinator') {
-      const detConfig = step.determinatorConfig || step.determinator_config || {};
-      if (!detConfig.conditions || detConfig.conditions.length === 0) {
-        issues.push({ type: 'error', message: 'Branch condition has no rules defined', step: step.name });
+      const config = step.config || {};
+      const branches = config.branches || [];
+
+      // Filter out the default "None matched" branch for validation
+      const conditionalBranches = branches.filter(b => !b.isDefault);
+
+      if (conditionalBranches.length === 0) {
+        issues.push({ type: 'error', message: 'Determinator has no conditional branches', step: step.name });
+      } else {
+        // Check each conditional branch has conditions defined
+        conditionalBranches.forEach((branch, index) => {
+          const conditions = branch.conditions?.conditions || [];
+          if (conditions.length === 0) {
+            issues.push({
+              type: 'warning',
+              message: `Branch "${branch.name || `Branch ${index + 1}`}" has no conditions defined`,
+              step: step.name
+            });
+          }
+        });
       }
     }
   });

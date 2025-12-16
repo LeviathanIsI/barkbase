@@ -204,7 +204,7 @@ export default function BuilderCanvas() {
           <div className="relative flex flex-col items-center">
             <Connector height={40} />
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-              <AddStepButton afterStepId={null} branchPath={null} />
+              <AddStepButton afterStepId={null} branchId={null} />
             </div>
           </div>
 
@@ -272,7 +272,7 @@ function StepNode({
         <div className="relative flex flex-col items-center">
           <Connector height={40} />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-            <AddStepButton afterStepId={step.id} branchPath={null} />
+            <AddStepButton afterStepId={step.id} branchId={null} />
           </div>
         </div>
       )}
@@ -284,7 +284,8 @@ function StepNode({
 }
 
 /**
- * DeterminatorNode - Renders a determinator step with Yes/No branches
+ * DeterminatorNode - Renders a determinator step with multiple dynamic branches
+ * Supports any number of conditional branches plus a "None matched" default branch
  */
 function DeterminatorNode({
   step,
@@ -294,14 +295,42 @@ function DeterminatorNode({
   onSelect,
   onDelete,
 }) {
-  // Get steps for each branch
-  const yesSteps = allSteps
-    .filter((s) => s.parentStepId === step.id && s.branchPath === 'yes')
-    .sort((a, b) => a.position - b.position);
+  // Get branches from step config or use legacy yes/no structure
+  const config = step.config || {};
+  let branches = config.branches;
 
-  const noSteps = allSteps
-    .filter((s) => s.parentStepId === step.id && s.branchPath === 'no')
-    .sort((a, b) => a.position - b.position);
+  // Handle legacy yes/no branch format (backwards compatibility)
+  if (!branches) {
+    branches = [
+      { id: 'yes', name: 'Yes', order: 0 },
+      { id: 'no', name: 'No', order: 1, isDefault: true },
+    ];
+  }
+
+  // Sort branches by order, keeping default at end
+  const sortedBranches = [...branches].sort((a, b) => {
+    if (a.isDefault) return 1;
+    if (b.isDefault) return -1;
+    return a.order - b.order;
+  });
+
+  // Get branch colors - cycle through colors array
+  const branchColors = [
+    '#10B981', // Green
+    '#3B82F6', // Blue
+    '#F59E0B', // Amber
+    '#8B5CF6', // Purple
+    '#EF4444', // Red
+    '#06B6D4', // Cyan
+    '#EC4899', // Pink
+    '#84CC16', // Lime
+  ];
+
+  // Calculate SVG connector paths for multiple branches
+  const branchCount = sortedBranches.length;
+  const branchSpacing = 180; // Space between branch centers
+  const totalWidth = (branchCount - 1) * branchSpacing;
+  const startX = -totalWidth / 2;
 
   return (
     <>
@@ -312,79 +341,77 @@ function DeterminatorNode({
         isSelected={isSelected}
         onClick={onSelect}
         onDelete={onDelete}
+        branchCount={branchCount}
       />
 
-      {/* Branch split */}
-      <div className="flex items-start">
-        {/* Yes branch */}
-        <div className="flex flex-col items-center mx-8">
-          {/* Branch connector */}
-          <svg width="100" height="40" className="overflow-visible">
+      {/* Branch split - SVG connector lines */}
+      <svg
+        width={Math.max(200, totalWidth + 100)}
+        height="50"
+        className="overflow-visible"
+        style={{ marginLeft: startX }}
+      >
+        {sortedBranches.map((branch, index) => {
+          const xOffset = index * branchSpacing;
+          const startPoint = (totalWidth + 100) / 2;
+          const endPoint = 50 + xOffset;
+
+          return (
             <path
-              d="M 50 0 L 50 20 L 0 20 L 0 40"
+              key={branch.id}
+              d={`M ${startPoint} 0 L ${startPoint} 20 L ${endPoint} 20 L ${endPoint} 50`}
               fill="none"
               stroke="var(--bb-color-border-subtle)"
               strokeWidth="2"
             />
-          </svg>
+          );
+        })}
+      </svg>
 
-          {/* Branch label */}
-          <div className="px-2 py-0.5 -mt-1 mb-2 rounded text-xs font-medium bg-[rgba(16,185,129,0.2)] text-[#10B981]">
-            Yes
-          </div>
+      {/* Branch containers */}
+      <div className="flex items-start justify-center" style={{ marginTop: '-10px' }}>
+        {sortedBranches.map((branch, index) => {
+          // Get steps for this branch (use branchId or legacy branchPath)
+          const branchSteps = allSteps
+            .filter((s) => s.parentStepId === step.id && s.branchId === branch.id)
+            .sort((a, b) => a.position - b.position);
 
-          {/* Add step button for yes branch */}
-          <AddStepButton afterStepId={step.id} branchPath="yes" size="small" />
+          const branchColor = branch.isDefault
+            ? '#6B7280'
+            : branchColors[index % branchColors.length];
 
-          {/* Yes branch steps */}
-          {yesSteps.map((branchStep) => (
-            <BranchStepNode
-              key={branchStep.id}
-              step={branchStep}
-              objectType={objectType}
-              branchPath="yes"
-            />
-          ))}
+          return (
+            <div key={branch.id} className="flex flex-col items-center mx-6">
+              {/* Branch label */}
+              <div
+                className="px-2 py-0.5 rounded text-xs font-medium mb-2"
+                style={{
+                  backgroundColor: `${branchColor}33`,
+                  color: branchColor,
+                }}
+              >
+                {branch.name || `Branch ${index + 1}`}
+              </div>
 
-          {/* End node for yes branch */}
-          <Connector height={20} />
-          <EndNode small />
-        </div>
+              {/* Add step button for this branch */}
+              <AddStepButton afterStepId={step.id} branchId={branch.id} size="small" />
 
-        {/* No branch */}
-        <div className="flex flex-col items-center mx-8">
-          {/* Branch connector */}
-          <svg width="100" height="40" className="overflow-visible">
-            <path
-              d="M 50 0 L 50 20 L 100 20 L 100 40"
-              fill="none"
-              stroke="var(--bb-color-border-subtle)"
-              strokeWidth="2"
-            />
-          </svg>
+              {/* Branch steps */}
+              {branchSteps.map((branchStep) => (
+                <BranchStepNode
+                  key={branchStep.id}
+                  step={branchStep}
+                  objectType={objectType}
+                  branchId={branch.id}
+                />
+              ))}
 
-          {/* Branch label */}
-          <div className="px-2 py-0.5 -mt-1 mb-2 rounded text-xs font-medium bg-[rgba(239,68,68,0.2)] text-[#EF4444]">
-            No
-          </div>
-
-          {/* Add step button for no branch */}
-          <AddStepButton afterStepId={step.id} branchPath="no" size="small" />
-
-          {/* No branch steps */}
-          {noSteps.map((branchStep) => (
-            <BranchStepNode
-              key={branchStep.id}
-              step={branchStep}
-              objectType={objectType}
-              branchPath="no"
-            />
-          ))}
-
-          {/* End node for no branch */}
-          <Connector height={20} />
-          <EndNode small />
-        </div>
+              {/* End node for branch */}
+              <Connector height={20} />
+              <EndNode small />
+            </div>
+          );
+        })}
       </div>
     </>
   );
@@ -393,7 +420,7 @@ function DeterminatorNode({
 /**
  * BranchStepNode - Step node inside a branch
  */
-function BranchStepNode({ step, objectType, branchPath }) {
+function BranchStepNode({ step, objectType, branchId }) {
   const { selectedStepId, selectStep, deleteStep } = useWorkflowBuilderStore();
 
   return (
@@ -407,7 +434,7 @@ function BranchStepNode({ step, objectType, branchPath }) {
         onDelete={() => deleteStep(step.id)}
       />
       <Connector height={20} />
-      <AddStepButton afterStepId={step.id} branchPath={branchPath} size="small" />
+      <AddStepButton afterStepId={step.id} branchId={branchId} size="small" />
     </>
   );
 }

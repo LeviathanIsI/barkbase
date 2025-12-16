@@ -68,6 +68,7 @@ export default function StepCard({
   onDelete,
   objectType = 'pet',
   lookups = {},
+  branchCount = null, // For determinators, show branch count
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
@@ -156,6 +157,12 @@ export default function StepCard({
           </div>
           <span className="text-sm font-medium text-[var(--bb-color-text-primary)] truncate">
             {step.name}
+            {/* Show branch count for determinators */}
+            {step.stepType === STEP_TYPES.DETERMINATOR && branchCount && (
+              <span className="ml-1 text-[var(--bb-color-text-tertiary)]">
+                ({branchCount})
+              </span>
+            )}
           </span>
           {/* Warning icon for incomplete steps */}
           {incomplete && (

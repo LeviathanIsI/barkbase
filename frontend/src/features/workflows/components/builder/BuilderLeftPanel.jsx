@@ -1446,8 +1446,8 @@ function ActionSelectionPanel({
     // action.stepType and action.actionType are always defined in ACTION_CATEGORIES
     const { stepType, actionType } = action;
     const afterStepId = pendingStepContext?.afterStepId || null;
-    const branchPath = pendingStepContext?.branchPath || null;
-    addStep(stepType, actionType, afterStepId, branchPath);
+    const branchId = pendingStepContext?.branchId || null;
+    addStep(stepType, actionType, afterStepId, branchId);
   };
 
   return (

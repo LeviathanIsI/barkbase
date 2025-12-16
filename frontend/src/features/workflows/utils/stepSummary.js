@@ -357,12 +357,51 @@ export function formatWaitSummary(config, objectType) {
 
 /**
  * Format determinator step summary
+ * Handles multi-branch structure with branches array
  */
 export function formatDeterminatorSummary(config) {
+  const branches = config?.branches || [];
+
+  // Handle new multi-branch structure
+  if (branches.length > 0) {
+    // Filter out the default "None matched" branch
+    const conditionalBranches = branches.filter(b => !b.isDefault);
+    const branchCount = branches.length; // Including "None matched"
+
+    // Count total conditions across all branches
+    const totalConditions = conditionalBranches.reduce((sum, branch) => {
+      const branchConditions = branch.conditions?.conditions || [];
+      return sum + branchConditions.length;
+    }, 0);
+
+    // Check if any conditional branch has no conditions
+    const hasIncomplete = conditionalBranches.some(branch => {
+      const branchConditions = branch.conditions?.conditions || [];
+      return branchConditions.length === 0;
+    });
+
+    if (conditionalBranches.length === 0) {
+      return { summary: 'Configure branches', incomplete: true };
+    }
+
+    if (totalConditions === 0) {
+      return {
+        summary: `${branchCount} branches (no conditions)`,
+        incomplete: true,
+      };
+    }
+
+    return {
+      summary: `${branchCount} branches, ${totalConditions} condition${totalConditions > 1 ? 's' : ''}`,
+      incomplete: hasIncomplete,
+    };
+  }
+
+  // Legacy structure support (groups or flat conditions)
   const groups = config?.groups || [];
   const conditions = config?.conditions || [];
 
-  // Handle both grouped and flat condition structures
+  // Handle grouped condition structures
   if (groups.length > 0) {
     const totalConditions = groups.reduce(
       (sum, g) => sum + (g.conditions?.length || 0),
@@ -391,7 +430,7 @@ export function formatDeterminatorSummary(config) {
     };
   }
 
-  return { summary: 'Configure conditions', incomplete: true };
+  return { summary: 'Configure branches', incomplete: true };
 }
 
 // =============================================================================

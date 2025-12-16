@@ -96,17 +96,29 @@ export const useWorkflowBuilderStore = create((set, get) => ({
       settings: workflowData.settings || { ...DEFAULT_WORKFLOW_SETTINGS },
     };
 
-    // Convert steps from API format
-    const steps = stepsData.map((s) => ({
-      id: s.id,
-      stepType: s.stepType || s.step_type,
-      actionType: s.actionType || s.action_type,
-      name: s.name || getDefaultStepName(s.stepType || s.step_type, s.actionType || s.action_type),
-      config: s.config || {},
-      position: s.position,
-      parentStepId: s.parentStepId || s.parent_step_id || null,
-      branchPath: s.branchPath || s.branch_path || null,
-    }));
+    // Convert steps from API format with backwards compatibility
+    const steps = stepsData.map((s) => {
+      // Handle backwards compatibility: convert old branchPath to branchId
+      let branchId = s.branchId || s.branch_id || null;
+      const branchPath = s.branchPath || s.branch_path;
+
+      // If using old format (yes/no branchPath), keep it as-is for now
+      // The canvas will handle both formats during transition
+      if (!branchId && branchPath) {
+        branchId = branchPath; // Use 'yes'/'no' as branch IDs for legacy data
+      }
+
+      return {
+        id: s.id,
+        stepType: s.stepType || s.step_type,
+        actionType: s.actionType || s.action_type,
+        name: s.name || getDefaultStepName(s.stepType || s.step_type, s.actionType || s.action_type),
+        config: s.config || {},
+        position: s.position,
+        parentStepId: s.parentStepId || s.parent_step_id || null,
+        branchId,
+      };
+    });
 
     // Determine initial panel mode based on workflow state
     const hasTrigger = workflow.entryCondition?.triggerType;
@@ -204,13 +216,13 @@ export const useWorkflowBuilderStore = create((set, get) => ({
   /**
    * Open action selector (when user clicks + button)
    * @param {string|null} afterStepId - Step ID to insert after (null for end of workflow)
-   * @param {string|null} branchPath - Branch path for determinators ('yes' or 'no')
+   * @param {string|null} branchId - Branch ID for determinator branches
    */
-  openActionSelector: (afterStepId = null, branchPath = null) => {
+  openActionSelector: (afterStepId = null, branchId = null) => {
     set({
       panelMode: 'actions',
       selectedStepId: null,
-      pendingStepContext: { afterStepId, branchPath },
+      pendingStepContext: { afterStepId, branchId },
     });
   },
 
@@ -243,8 +255,12 @@ export const useWorkflowBuilderStore = create((set, get) => ({
 
   /**
    * Add a new step to the workflow
+   * @param {string} stepType - Step type (action, wait, determinator, etc.)
+   * @param {string|null} actionType - Action type for action steps
+   * @param {string|null} afterStepId - Step ID to insert after (null for end)
+   * @param {string|null} branchId - Branch ID for determinator branches
    */
-  addStep: (stepType, actionType = null, afterStepId = null, branchPath = null) => {
+  addStep: (stepType, actionType = null, afterStepId = null, branchId = null) => {
     const state = get();
     const newStep = {
       id: generateId(),
@@ -254,7 +270,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
       config: getDefaultStepConfig(stepType, actionType),
       position: 0,
       parentStepId: null,
-      branchPath,
+      branchId, // Branch ID for multi-branch determinators
     };
 
     let newSteps = [...state.steps];
@@ -263,9 +279,9 @@ export const useWorkflowBuilderStore = create((set, get) => ({
       // Find the step to insert after
       const afterIndex = newSteps.findIndex((s) => s.id === afterStepId);
       if (afterIndex !== -1) {
-        // If the afterStep is a determinator and we have a branchPath, set parent
+        // If the afterStep is a determinator and we have a branchId, set parent
         const afterStep = newSteps[afterIndex];
-        if (afterStep.stepType === STEP_TYPES.DETERMINATOR && branchPath) {
+        if (afterStep.stepType === STEP_TYPES.DETERMINATOR && branchId) {
           newStep.parentStepId = afterStep.id;
         }
         // Insert after the specified step
@@ -483,7 +499,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
         config: s.config,
         position: s.position,
         parent_step_id: s.parentStepId,
-        branch_path: s.branchPath,
+        branch_id: s.branchId,
       })),
     };
   },
@@ -492,11 +508,13 @@ export const useWorkflowBuilderStore = create((set, get) => ({
 
   /**
    * Get steps for a specific branch (root level or under a parent)
+   * @param {string|null} parentStepId - Parent determinator step ID
+   * @param {string|null} branchId - Branch ID within the determinator
    */
-  getStepsForBranch: (parentStepId = null, branchPath = null) => {
+  getStepsForBranch: (parentStepId = null, branchId = null) => {
     const state = get();
     return state.steps
-      .filter((s) => s.parentStepId === parentStepId && s.branchPath === branchPath)
+      .filter((s) => s.parentStepId === parentStepId && s.branchId === branchId)
       .sort((a, b) => a.position - b.position);
   },
 
@@ -564,10 +582,32 @@ function getDefaultStepConfig(stepType) {
     };
   }
 
-  if (stepType === STEP_TYPES.DETERMINATOR || stepType === STEP_TYPES.GATE) {
+  if (stepType === STEP_TYPES.DETERMINATOR) {
+    // Multi-branch determinator with default "None matched" branch
+    const defaultBranchId = generateId();
+    const noneMatchedId = 'none-matched';
     return {
-      conditions: [],
-      conditionLogic: 'and',
+      branches: [
+        {
+          id: defaultBranchId,
+          name: 'Branch 1',
+          conditions: { logic: 'and', conditions: [] },
+          order: 0,
+        },
+        {
+          id: noneMatchedId,
+          name: 'None matched',
+          conditions: null, // No conditions - this is the default fallback
+          order: 999,
+          isDefault: true, // Cannot be deleted
+        },
+      ],
+    };
+  }
+
+  if (stepType === STEP_TYPES.GATE) {
+    return {
+      conditions: { logic: 'and', conditions: [] },
     };
   }
 
@@ -582,7 +622,7 @@ function recalculatePositions(steps) {
   const groups = {};
 
   steps.forEach((step) => {
-    const key = `${step.parentStepId || 'root'}-${step.branchPath || 'main'}`;
+    const key = `${step.parentStepId || 'root'}-${step.branchId || 'main'}`;
     if (!groups[key]) {
       groups[key] = [];
     }
@@ -591,7 +631,7 @@ function recalculatePositions(steps) {
 
   // Assign positions within each group
   return steps.map((step) => {
-    const key = `${step.parentStepId || 'root'}-${step.branchPath || 'main'}`;
+    const key = `${step.parentStepId || 'root'}-${step.branchId || 'main'}`;
     const group = groups[key];
     const index = group.indexOf(step);
     return { ...step, position: index };
