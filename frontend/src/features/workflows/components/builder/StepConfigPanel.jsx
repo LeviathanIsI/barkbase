@@ -84,7 +84,7 @@ export default function StepConfigPanel() {
     setHasChanges(true);
   }, []);
 
-  // Handle save
+  // Handle save - saves and closes
   const handleSave = useCallback(() => {
     if (selectedStepId === 'trigger' && localEntryCondition) {
       setEntryCondition(localEntryCondition);
@@ -92,9 +92,15 @@ export default function StepConfigPanel() {
       updateStep(localStep.id, localStep);
     }
     setHasChanges(false);
-  }, [selectedStepId, localStep, localEntryCondition, updateStep, setEntryCondition]);
+    clearSelection(); // Close after saving
+  }, [selectedStepId, localStep, localEntryCondition, updateStep, setEntryCondition, clearSelection]);
 
-  // Handle cancel / close
+  // Handle cancel - just closes without saving
+  const handleCancel = useCallback(() => {
+    clearSelection();
+  }, [clearSelection]);
+
+  // Handle X button close - warns if unsaved changes
   const handleClose = useCallback(() => {
     if (hasChanges) {
       setShowUnsavedWarning(true);
@@ -124,7 +130,7 @@ export default function StepConfigPanel() {
         onClose={handleClose}
         hasChanges={hasChanges}
         onSave={handleSave}
-        onCancel={handleClose}
+        onCancel={handleCancel}
         showUnsavedWarning={showUnsavedWarning}
         onDiscard={handleDiscard}
         onCancelDiscard={handleCancelDiscard}
@@ -203,7 +209,7 @@ export default function StepConfigPanel() {
       onClose={handleClose}
       hasChanges={hasChanges}
       onSave={handleSave}
-      onCancel={handleClose}
+      onCancel={handleCancel}
       showUnsavedWarning={showUnsavedWarning}
       onDiscard={handleDiscard}
       onCancelDiscard={handleCancelDiscard}
