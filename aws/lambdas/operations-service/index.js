@@ -7673,108 +7673,105 @@ async function handleGetMatchingRecordsCount(tenantId, workflowId) {
     }
 
     // Build WHERE clause from filter config
+    // Frontend stores filterConfig as { conditions: [...], logic: 'and' }
     let whereClause = 'tenant_id = $1';
     const params = [tenantId];
     let paramIndex = 2;
 
-    // Parse filter groups if present
-    if (filterConfig.groups && filterConfig.groups.length > 0) {
-      const groupConditions = [];
+    console.log('[Workflows][matchingRecordsCount] filterConfig:', JSON.stringify(filterConfig));
 
-      for (const group of filterConfig.groups) {
-        if (!group.conditions || group.conditions.length === 0) continue;
+    // Parse filter conditions
+    const conditions = filterConfig.conditions || [];
+    if (conditions.length > 0) {
+      const conditionClauses = [];
 
-        const conditionClauses = [];
-        for (const condition of group.conditions) {
-          const { field, operator, value } = condition;
-          if (!field || !operator) continue;
+      for (const condition of conditions) {
+        const { field, operator, value } = condition;
+        if (!field || !operator) continue;
 
-          // Map field names to database columns
-          const fieldMap = {
-            name: 'name',
-            status: 'status',
-            species: 'species',
-            breed: 'breed',
-            sex: 'sex',
-            is_neutered: 'is_neutered',
-            weight: 'weight',
-            color: 'color',
-            email: 'email',
-            phone: 'phone',
-            city: 'city',
-            state: 'state',
-          };
+        // Map field names to database columns
+        const fieldMap = {
+          name: 'name',
+          status: 'status',
+          species: 'species',
+          breed: 'breed',
+          sex: 'sex',
+          is_neutered: 'is_neutered',
+          weight: 'weight',
+          color: 'color',
+          email: 'email',
+          phone: 'phone',
+          city: 'city',
+          state: 'state',
+        };
 
-          const dbField = fieldMap[field] || field;
+        const dbField = fieldMap[field] || field;
+        console.log('[Workflows][matchingRecordsCount] Processing condition:', field, operator, value, '-> dbField:', dbField);
 
-          switch (operator) {
-            case 'equals':
-            case 'is':
-              conditionClauses.push(`"${dbField}" = $${paramIndex}`);
-              params.push(value);
-              paramIndex++;
-              break;
-            case 'not_equals':
-            case 'is_not':
-              conditionClauses.push(`"${dbField}" != $${paramIndex}`);
-              params.push(value);
-              paramIndex++;
-              break;
-            case 'contains':
-              conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
-              params.push(`%${value}%`);
-              paramIndex++;
-              break;
-            case 'starts_with':
-              conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
-              params.push(`${value}%`);
-              paramIndex++;
-              break;
-            case 'ends_with':
-              conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
-              params.push(`%${value}`);
-              paramIndex++;
-              break;
-            case 'is_empty':
-              conditionClauses.push(`("${dbField}" IS NULL OR "${dbField}" = '')`);
-              break;
-            case 'is_not_empty':
-              conditionClauses.push(`("${dbField}" IS NOT NULL AND "${dbField}" != '')`);
-              break;
-            case 'greater_than':
-              conditionClauses.push(`"${dbField}" > $${paramIndex}`);
-              params.push(value);
-              paramIndex++;
-              break;
-            case 'less_than':
-              conditionClauses.push(`"${dbField}" < $${paramIndex}`);
-              params.push(value);
-              paramIndex++;
-              break;
-            case 'in':
-            case 'is_any_of':
-              if (Array.isArray(value) && value.length > 0) {
-                const placeholders = value.map(() => `$${paramIndex++}`);
-                conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
-                params.push(...value);
-              }
-              break;
-            default:
-              conditionClauses.push(`"${dbField}" = $${paramIndex}`);
-              params.push(value);
-              paramIndex++;
-          }
-        }
-
-        if (conditionClauses.length > 0) {
-          const groupLogic = group.logic || 'AND';
-          groupConditions.push(`(${conditionClauses.join(` ${groupLogic} `)})`);
+        switch (operator) {
+          case 'equals':
+          case 'is':
+            conditionClauses.push(`"${dbField}" = $${paramIndex}`);
+            params.push(value);
+            paramIndex++;
+            break;
+          case 'not_equals':
+          case 'is_not':
+            conditionClauses.push(`"${dbField}" != $${paramIndex}`);
+            params.push(value);
+            paramIndex++;
+            break;
+          case 'contains':
+            conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
+            params.push(`%${value}%`);
+            paramIndex++;
+            break;
+          case 'starts_with':
+            conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
+            params.push(`${value}%`);
+            paramIndex++;
+            break;
+          case 'ends_with':
+            conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
+            params.push(`%${value}`);
+            paramIndex++;
+            break;
+          case 'is_empty':
+            conditionClauses.push(`("${dbField}" IS NULL OR "${dbField}" = '')`);
+            break;
+          case 'is_not_empty':
+            conditionClauses.push(`("${dbField}" IS NOT NULL AND "${dbField}" != '')`);
+            break;
+          case 'greater_than':
+            conditionClauses.push(`"${dbField}" > $${paramIndex}`);
+            params.push(value);
+            paramIndex++;
+            break;
+          case 'less_than':
+            conditionClauses.push(`"${dbField}" < $${paramIndex}`);
+            params.push(value);
+            paramIndex++;
+            break;
+          case 'in':
+          case 'is_any_of':
+          case 'is_equal_to_any_of':
+            if (Array.isArray(value) && value.length > 0) {
+              const placeholders = value.map(() => `$${paramIndex++}`);
+              conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
+              params.push(...value);
+            }
+            break;
+          default:
+            console.log('[Workflows][matchingRecordsCount] Unknown operator:', operator, '- treating as equals');
+            conditionClauses.push(`"${dbField}" = $${paramIndex}`);
+            params.push(value);
+            paramIndex++;
         }
       }
 
-      if (groupConditions.length > 0) {
-        const mainLogic = filterConfig.logic || 'AND';
-        whereClause += ` AND (${groupConditions.join(` ${mainLogic} `)})`;
+      if (conditionClauses.length > 0) {
+        const logic = (filterConfig.logic || 'and').toUpperCase();
+        whereClause += ` AND (${conditionClauses.join(` ${logic} `)})`;
       }
     }
 
@@ -8021,72 +8018,65 @@ async function enrollMatchingRecordsHelper(workflowId, tenantId, workflow) {
   }
 
   // Build WHERE clause (same logic as matching-records-count)
+  // Frontend stores filterConfig as { conditions: [...], logic: 'and' }
   let whereClause = 'tenant_id = $1';
   const params = [tenantId];
   let paramIndex = 2;
 
-  if (filterConfig.groups && filterConfig.groups.length > 0) {
-    const groupConditions = [];
+  const conditions = filterConfig.conditions || [];
+  if (conditions.length > 0) {
+    const conditionClauses = [];
 
-    for (const group of filterConfig.groups) {
-      if (!group.conditions || group.conditions.length === 0) continue;
+    for (const condition of conditions) {
+      const { field, operator, value } = condition;
+      if (!field || !operator) continue;
 
-      const conditionClauses = [];
-      for (const condition of group.conditions) {
-        const { field, operator, value } = condition;
-        if (!field || !operator) continue;
+      const fieldMap = {
+        name: 'name',
+        status: 'status',
+        species: 'species',
+        breed: 'breed',
+        sex: 'sex',
+        is_neutered: 'is_neutered',
+        weight: 'weight',
+        color: 'color',
+        email: 'email',
+        phone: 'phone',
+      };
 
-        const fieldMap = {
-          name: 'name',
-          status: 'status',
-          species: 'species',
-          breed: 'breed',
-          sex: 'sex',
-          is_neutered: 'is_neutered',
-          weight: 'weight',
-          color: 'color',
-          email: 'email',
-          phone: 'phone',
-        };
+      const dbField = fieldMap[field] || field;
 
-        const dbField = fieldMap[field] || field;
-
-        switch (operator) {
-          case 'equals':
-          case 'is':
-            conditionClauses.push(`"${dbField}" = $${paramIndex}`);
-            params.push(value);
-            paramIndex++;
-            break;
-          case 'contains':
-            conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
-            params.push(`%${value}%`);
-            paramIndex++;
-            break;
-          case 'in':
-          case 'is_any_of':
-            if (Array.isArray(value) && value.length > 0) {
-              const placeholders = value.map(() => `$${paramIndex++}`);
-              conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
-              params.push(...value);
-            }
-            break;
-          default:
-            conditionClauses.push(`"${dbField}" = $${paramIndex}`);
-            params.push(value);
-            paramIndex++;
-        }
-      }
-
-      if (conditionClauses.length > 0) {
-        const groupLogic = group.logic || 'AND';
-        groupConditions.push(`(${conditionClauses.join(` ${groupLogic} `)})`);
+      switch (operator) {
+        case 'equals':
+        case 'is':
+          conditionClauses.push(`"${dbField}" = $${paramIndex}`);
+          params.push(value);
+          paramIndex++;
+          break;
+        case 'contains':
+          conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
+          params.push(`%${value}%`);
+          paramIndex++;
+          break;
+        case 'in':
+        case 'is_any_of':
+        case 'is_equal_to_any_of':
+          if (Array.isArray(value) && value.length > 0) {
+            const placeholders = value.map(() => `$${paramIndex++}`);
+            conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
+            params.push(...value);
+          }
+          break;
+        default:
+          conditionClauses.push(`"${dbField}" = $${paramIndex}`);
+          params.push(value);
+          paramIndex++;
       }
     }
 
-    if (groupConditions.length > 0) {
-      const mainLogic = filterConfig.logic || 'AND';
-      whereClause += ` AND (${groupConditions.join(` ${mainLogic} `)})`;
+    if (conditionClauses.length > 0) {
+      const logic = (filterConfig.logic || 'and').toUpperCase();
+      whereClause += ` AND (${conditionClauses.join(` ${logic} `)})`;
     }
   }
 
