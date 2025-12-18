@@ -59,6 +59,7 @@ const Incidents = lazy(() => import("@/features/incidents/routes/Incidents"));
 const Workflows = lazy(() => import("@/features/workflows/routes/Workflows"));
 const WorkflowBuilder = lazy(() => import("@/features/workflows/routes/WorkflowBuilder"));
 const WorkflowDetails = lazy(() => import("@/features/workflows/routes/WorkflowDetails"));
+const WorkflowLogs = lazy(() => import("@/features/workflows/routes/WorkflowLogs"));
 const Login = lazy(() => import("@/features/auth/routes/Login"));
 const AuthCallback = lazy(() => import("@/features/auth/routes/AuthCallback"));
 const SettingsLayout = lazy(() =>
@@ -283,6 +284,7 @@ export const router = createBrowserRouter([
               { path: "workflows/new", element: <WorkflowBuilder /> },
               { path: "workflows/:id", element: <WorkflowBuilder /> },
               { path: "workflows/:id/details", element: <WorkflowDetails /> },
+              { path: "workflows/:id/logs", element: <WorkflowLogs /> },
               // Tenants consolidated into Settings - redirect for backwards compatibility
               { path: "tenants", element: <Navigate to="/settings" replace /> },
 

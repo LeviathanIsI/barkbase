@@ -29,7 +29,8 @@ export default function MenuBar({
   onManualEnroll,
 }) {
   const [openMenu, setOpenMenu] = useState(null);
-  const { selectStep } = useWorkflowBuilderStore();
+  const { selectStep, workflow } = useWorkflowBuilderStore();
+  const workflowId = workflow?.id;
 
   // Export as PNG handler
   const handleExportPNG = () => {
@@ -125,10 +126,10 @@ export default function MenuBar({
         { label: 'Connections', onClick: () => {} },
         { type: 'separator' },
         { label: 'Revision history', onClick: () => {} },
-        { label: 'Performance', onClick: () => window.open('/workflows/performance', '_blank'), external: true },
-        { label: 'Enrollment history', onClick: () => {} },
+        { label: 'Performance', onClick: () => workflowId && window.open(`/workflows/${workflowId}/details`, '_blank'), external: true, disabled: !workflowId },
+        { label: 'Enrollment history', onClick: () => workflowId && window.open(`/workflows/${workflowId}/details`, '_blank'), external: true, disabled: !workflowId },
         { label: 'Metrics', onClick: () => {} },
-        { label: 'Action logs', onClick: () => window.open('/workflows/logs', '_blank'), external: true },
+        { label: 'Action logs', onClick: () => workflowId && window.open(`/workflows/${workflowId}/logs`, '_blank'), external: true, disabled: !workflowId },
       ],
     },
     help: {

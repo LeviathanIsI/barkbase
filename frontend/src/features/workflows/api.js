@@ -217,7 +217,11 @@ export async function getWorkflowHistory(workflowId, params = {}) {
   const searchParams = new URLSearchParams();
 
   if (params.eventType) searchParams.append('eventType', params.eventType);
+  if (params.actionType) searchParams.append('actionType', params.actionType);
   if (params.stepId) searchParams.append('stepId', params.stepId);
+  if (params.startDate) searchParams.append('startDate', params.startDate);
+  if (params.endDate) searchParams.append('endDate', params.endDate);
+  if (params.recordId) searchParams.append('recordId', params.recordId);
   if (params.limit) searchParams.append('limit', params.limit);
   if (params.offset) searchParams.append('offset', params.offset);
 
