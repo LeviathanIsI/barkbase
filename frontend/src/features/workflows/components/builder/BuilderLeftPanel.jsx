@@ -35,7 +35,6 @@ import {
   PROPERTY_CHANGE_TYPES,
 } from '../../constants';
 import PropertyValueInput from './PropertyValueInput';
-import WorkflowSettings from './WorkflowSettings';
 
 // Icon mapping for object types
 const OBJECT_TYPE_ICONS = {
@@ -130,9 +129,9 @@ export default function BuilderLeftPanel({ onCreateWorkflow }) {
     );
   }
 
-  // Render settings panel
+  // Settings panel is rendered in the RIGHT panel (WorkflowBuilder.jsx), not here
   if (panelMode === 'settings') {
-    return <WorkflowSettings />;
+    return null;
   }
 
   // For 'config' mode, the StepConfigPanel on the right handles it

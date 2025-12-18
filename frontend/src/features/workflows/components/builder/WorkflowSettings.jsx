@@ -67,15 +67,15 @@ export default function WorkflowSettings() {
   };
 
   return (
-    <div className="w-96 h-full border-l border-[var(--bb-color-border-subtle)] bg-white flex flex-col">
-      {/* Teal Header - HubSpot style */}
-      <div className="flex-shrink-0 px-5 py-4 bg-[#00A4BD] flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-white">Settings</h2>
+    <div className="w-96 h-full border-l border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] flex flex-col">
+      {/* Header */}
+      <div className="flex-shrink-0 px-5 py-4 border-b border-[var(--bb-color-border-subtle)] flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-[var(--bb-color-text-primary)]">Settings</h2>
         <button
           onClick={handleCancel}
-          className="p-1 rounded hover:bg-white/20 transition-colors"
+          className="p-1 rounded hover:bg-[var(--bb-color-bg-elevated)] transition-colors"
         >
-          <X size={20} className="text-white" />
+          <X size={20} className="text-[var(--bb-color-text-tertiary)]" />
         </button>
       </div>
 
@@ -140,10 +140,10 @@ export default function WorkflowSettings() {
               checked={localSettings.metrics?.compareConversion || false}
               onChange={(checked) => updateNestedLocalSetting('metrics', 'compareConversion', checked)}
             />
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-[var(--bb-color-text-tertiary)] mt-2">
               Up to 20 workflows (3 used) <Info size={12} className="inline ml-1" />
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-[var(--bb-color-text-tertiary)]">
               Metrics use isn't recommended for this workflow <Info size={12} className="inline ml-1" />
             </p>
           </SettingsCard>
@@ -171,7 +171,7 @@ export default function WorkflowSettings() {
             />
             {localSettings.allowReenrollment && (
               <div className="mt-3 ml-12">
-                <label className="block text-xs text-gray-500 mb-1">
+                <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1">
                   Minimum days between re-enrollments
                 </label>
                 <input
@@ -181,9 +181,9 @@ export default function WorkflowSettings() {
                   onChange={(e) => updateLocalSetting('reenrollmentDelayDays', parseInt(e.target.value) || 0)}
                   className={cn(
                     'w-24 h-8 px-2 rounded',
-                    'bg-white border border-gray-300',
-                    'text-sm text-gray-900',
-                    'focus:outline-none focus:border-blue-400'
+                    'bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]',
+                    'text-sm text-[var(--bb-color-text-primary)]',
+                    'focus:outline-none focus:border-[var(--bb-color-accent)]'
                   )}
                 />
               </div>
@@ -215,22 +215,22 @@ export default function WorkflowSettings() {
       </div>
 
       {/* Footer with Save/Cancel buttons */}
-      <div className="flex-shrink-0 px-5 py-3 border-t border-gray-200 bg-white flex items-center gap-3">
+      <div className="flex-shrink-0 px-5 py-3 border-t border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] flex items-center gap-3">
         <button
           onClick={handleSave}
           disabled={!hasChanges}
           className={cn(
             'px-4 py-2 rounded text-sm font-medium transition-colors',
             hasChanges
-              ? 'bg-[#00A4BD] text-white hover:bg-[#008DA3]'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              ? 'bg-[var(--bb-color-accent)] text-white hover:bg-[var(--bb-color-accent-hover)]'
+              : 'bg-[var(--bb-color-bg-elevated)] text-[var(--bb-color-text-tertiary)] cursor-not-allowed'
           )}
         >
           Save
         </button>
         <button
           onClick={handleCancel}
-          className="px-4 py-2 rounded text-sm font-medium text-[#F2545B] hover:bg-red-50 transition-colors"
+          className="px-4 py-2 rounded text-sm font-medium text-[var(--bb-color-status-negative)] hover:bg-[rgba(239,68,68,0.1)] transition-colors"
         >
           Cancel
         </button>
@@ -243,7 +243,7 @@ export default function WorkflowSettings() {
 function SettingsSection({ title, children }) {
   return (
     <div className="px-5 py-4">
-      <h3 className="text-sm font-semibold text-gray-900 mb-3">{title}</h3>
+      <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)] mb-3">{title}</h3>
       <div className="space-y-3">{children}</div>
     </div>
   );
@@ -252,7 +252,7 @@ function SettingsSection({ title, children }) {
 // Card wrapper for settings
 function SettingsCard({ children }) {
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div className="p-4 border border-[var(--bb-color-border-subtle)] rounded-lg bg-[var(--bb-color-bg-elevated)]">
       {children}
     </div>
   );
@@ -269,21 +269,21 @@ function ToggleSettingWithDescription({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <HubSpotToggle checked={checked} onChange={onChange} />
+      <ToggleSwitch checked={checked} onChange={onChange} />
       <div className="flex-1">
         <div className="flex items-center gap-1">
-          <span className="text-sm font-medium text-gray-900">{title}</span>
+          <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">{title}</span>
           {infoTooltip && (
-            <Info size={14} className="text-gray-400" />
+            <Info size={14} className="text-[var(--bb-color-text-tertiary)]" />
           )}
         </div>
         {description && (
-          <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+          <p className="text-xs text-[var(--bb-color-text-secondary)] mt-0.5">{description}</p>
         )}
         {learnMore && (
           <a
             href="#"
-            className="inline-flex items-center gap-1 text-xs text-[#00A4BD] hover:underline mt-0.5"
+            className="inline-flex items-center gap-1 text-xs text-[var(--bb-color-accent)] hover:underline mt-0.5"
           >
             Learn more. <ExternalLink size={10} />
           </a>
@@ -293,8 +293,8 @@ function ToggleSettingWithDescription({
   );
 }
 
-// HubSpot-style toggle switch
-function HubSpotToggle({ checked, onChange }) {
+// Toggle switch component
+function ToggleSwitch({ checked, onChange }) {
   return (
     <button
       type="button"
@@ -303,7 +303,7 @@ function HubSpotToggle({ checked, onChange }) {
       onClick={() => onChange(!checked)}
       className={cn(
         'relative flex-shrink-0 w-12 h-6 rounded-full transition-colors',
-        checked ? 'bg-[#00A4BD]' : 'bg-gray-300'
+        checked ? 'bg-[var(--bb-color-accent)]' : 'bg-[var(--bb-color-bg-body)]'
       )}
     >
       <span
@@ -315,7 +315,7 @@ function HubSpotToggle({ checked, onChange }) {
       <span
         className={cn(
           'absolute top-1 text-[9px] font-bold uppercase',
-          checked ? 'left-1.5 text-white' : 'right-1 text-gray-500'
+          checked ? 'left-1.5 text-white' : 'right-1 text-[var(--bb-color-text-tertiary)]'
         )}
       >
         {checked ? '' : 'OFF'}
