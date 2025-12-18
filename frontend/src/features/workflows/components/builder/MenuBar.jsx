@@ -1,33 +1,19 @@
 /**
- * MenuBar - Menu bar component for the workflow builder
- * Provides File, Edit, View, Settings, and Help menus with keyboard shortcuts
+ * MenuBar - HubSpot-style menu bar for the workflow builder
+ * Provides File, Edit, Settings, View, and Help menus
  */
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
-  Save,
-  Upload,
-  Download,
-  Copy,
+  ExternalLink,
+  ChevronRight,
+  Search,
   Trash2,
-  Undo,
-  Redo,
-  Settings,
-  Eye,
-  EyeOff,
-  HelpCircle,
-  BookOpen,
-  MessageSquare,
-  Keyboard,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  LogOut,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useWorkflowBuilderStore } from '../../stores/builderStore';
 
 export default function MenuBar({
-  workflow,
-  onSave,
   onDuplicate,
   onDelete,
   onUndo,
@@ -35,45 +21,50 @@ export default function MenuBar({
   canUndo = false,
   canRedo = false,
   onOpenSettings,
-  onToggleLeftPanel,
-  showLeftPanel = true,
-  onZoomIn,
-  onZoomOut,
   onResetZoom,
-  onExit,
+  onFitToScreen,
   onShowShortcuts,
+  onExportPNG,
+  onCleanup,
+  onAddAction,
+  onManualEnroll,
 }) {
   const [openMenu, setOpenMenu] = useState(null);
+  const { selectStep } = useWorkflowBuilderStore();
 
-  const handleExport = () => {
-    const data = JSON.stringify(workflow, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${workflow.name || 'workflow'}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  // Export as PNG handler
+  const handleExportPNG = () => {
+    onExportPNG?.();
     setOpenMenu(null);
   };
 
-  const handleImport = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        try {
-          const text = await file.text();
-          JSON.parse(text);
-          // Import logic would go here - data is parsed but not used yet
-        } catch {
-          // Invalid JSON - silently ignore
-        }
-      }
-    };
-    input.click();
+  // Handle new workflow
+  const handleNew = () => {
+    window.open('/workflows/new', '_blank');
+    setOpenMenu(null);
+  };
+
+  // Handle clone
+  const handleClone = () => {
+    onDuplicate?.();
+    setOpenMenu(null);
+  };
+
+  // Handle delete
+  const handleDelete = () => {
+    onDelete?.();
+    setOpenMenu(null);
+  };
+
+  // Handle edit trigger
+  const handleEditTrigger = () => {
+    selectStep('trigger');
+    setOpenMenu(null);
+  };
+
+  // Handle settings - just opens settings panel
+  const handleOpenSettings = () => {
+    onOpenSettings?.();
     setOpenMenu(null);
   };
 
@@ -81,62 +72,75 @@ export default function MenuBar({
     file: {
       label: 'File',
       items: [
-        { label: 'Save', icon: Save, onClick: onSave, shortcut: 'Ctrl+S' },
+        { label: 'New', onClick: handleNew, external: true },
+        { label: 'Clone', onClick: handleClone, external: true },
+        { label: 'Export as .PNG', onClick: handleExportPNG },
+        {
+          label: 'Organize',
+          submenu: [
+            { label: 'Move to folder', onClick: () => {} },
+            { label: 'Add tags', onClick: () => {} },
+          ],
+        },
         { type: 'separator' },
-        { label: 'Duplicate workflow', icon: Copy, onClick: onDuplicate },
-        { label: 'Export as JSON', icon: Download, onClick: handleExport },
-        { label: 'Import from JSON', icon: Upload, onClick: handleImport },
-        { type: 'separator' },
-        { label: 'Exit builder', icon: LogOut, onClick: onExit },
-        { type: 'separator' },
-        { label: 'Delete workflow', icon: Trash2, onClick: onDelete, danger: true },
+        { label: 'Delete', onClick: handleDelete, danger: true },
       ],
     },
     edit: {
       label: 'Edit',
       items: [
-        { label: 'Undo', icon: Undo, onClick: onUndo, shortcut: 'Ctrl+Z', disabled: !canUndo },
-        { label: 'Redo', icon: Redo, onClick: onRedo, shortcut: 'Ctrl+Shift+Z', disabled: !canRedo },
+        { label: 'Edit enrollment trigger', onClick: handleEditTrigger, shortcut: 'Ctrl + Shift + E' },
+        { label: 'Add action', onClick: onAddAction, shortcut: 'Ctrl + Shift + A' },
+        { label: 'Edit available records', onClick: () => {} },
+        { label: 'Edit goal', onClick: () => onOpenSettings?.('goals') },
+        { label: 'Clean up workflow', onClick: onCleanup, disabled: true },
         { type: 'separator' },
-        { label: 'Workflow settings', icon: Settings, onClick: () => onOpenSettings?.('general') },
-      ],
-    },
-    view: {
-      label: 'View',
-      items: [
-        {
-          label: showLeftPanel ? 'Hide left panel' : 'Show left panel',
-          icon: showLeftPanel ? EyeOff : Eye,
-          onClick: onToggleLeftPanel,
-          shortcut: 'Ctrl+\\',
-        },
+        { label: 'Undo', onClick: onUndo, shortcut: 'Ctrl + Z', disabled: !canUndo },
+        { label: 'Redo', onClick: onRedo, shortcut: 'Ctrl + Shift + Z', disabled: !canRedo },
         { type: 'separator' },
-        { label: 'Zoom in', icon: ZoomIn, onClick: onZoomIn, shortcut: 'Ctrl++' },
-        { label: 'Zoom out', icon: ZoomOut, onClick: onZoomOut, shortcut: 'Ctrl+-' },
-        { label: 'Reset zoom', icon: Maximize2, onClick: onResetZoom, shortcut: 'Ctrl+0' },
+        { label: 'Manually enroll contact', onClick: onManualEnroll },
       ],
     },
     settings: {
       label: 'Settings',
+      isButton: true,
+      onClick: handleOpenSettings,
+    },
+    view: {
+      label: 'View',
       items: [
-        { label: 'Re-enrollment', onClick: () => onOpenSettings?.('reenrollment') },
-        { label: 'Suppression list', onClick: () => onOpenSettings?.('suppression') },
-        { label: 'Goals', onClick: () => onOpenSettings?.('goals') },
-        { label: 'Timing', onClick: () => onOpenSettings?.('timing') },
-        { label: 'Unenrollment', onClick: () => onOpenSettings?.('unenrollment') },
+        { label: 'Comments', onClick: () => {}, shortcut: 'Alt + Shift + C' },
+        {
+          label: 'Zoom',
+          submenu: [
+            { label: '50%', onClick: () => {} },
+            { label: '75%', onClick: () => {} },
+            { label: '100%', onClick: onResetZoom },
+            { label: '125%', onClick: () => {} },
+            { label: '150%', onClick: () => {} },
+            { type: 'separator' },
+            { label: 'Fit to screen', onClick: onFitToScreen },
+          ],
+        },
+        { label: 'Test', onClick: () => {} },
+        { label: 'Connections', onClick: () => {} },
+        { type: 'separator' },
+        { label: 'Revision history', onClick: () => {} },
+        { label: 'Performance', onClick: () => window.open('/workflows/performance', '_blank'), external: true },
+        { label: 'Enrollment history', onClick: () => {} },
+        { label: 'Metrics', onClick: () => {} },
+        { label: 'Action logs', onClick: () => window.open('/workflows/logs', '_blank'), external: true },
       ],
     },
     help: {
       label: 'Help',
+      hasSearch: true,
       items: [
-        {
-          label: 'Documentation',
-          icon: BookOpen,
-          onClick: () => window.open('/docs/workflows', '_blank'),
-        },
-        { label: 'Keyboard shortcuts', icon: Keyboard, onClick: onShowShortcuts, shortcut: 'Ctrl+/' },
+        { label: 'Knowledge base', onClick: () => window.open('/docs/workflows', '_blank'), external: true },
         { type: 'separator' },
-        { label: 'Send feedback', icon: MessageSquare, onClick: () => {} },
+        { label: 'Troubleshoot actions', onClick: () => {} },
+        { label: 'Troubleshoot enrollment', onClick: () => {} },
+        { label: 'Keyboard shortcuts', onClick: onShowShortcuts, shortcut: 'Ctrl + /' },
       ],
     },
   };
@@ -148,23 +152,40 @@ export default function MenuBar({
           key={key}
           label={menu.label}
           items={menu.items}
+          isButton={menu.isButton}
+          buttonOnClick={menu.onClick}
+          hasSearch={menu.hasSearch}
           isOpen={openMenu === key}
           onOpen={() => setOpenMenu(openMenu === key ? null : key)}
           onClose={() => setOpenMenu(null)}
-          onHover={() => openMenu && setOpenMenu(key)}
+          onHover={() => openMenu && !menu.isButton && setOpenMenu(key)}
         />
       ))}
     </div>
   );
 }
 
-function MenuDropdown({ label, items, isOpen, onOpen, onClose, onHover }) {
+function MenuDropdown({
+  label,
+  items,
+  isButton,
+  buttonOnClick,
+  hasSearch,
+  isOpen,
+  onOpen,
+  onClose,
+  onHover,
+}) {
   const ref = useRef(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeSubmenu, setActiveSubmenu] = useState(null);
+  const [submenuPosition, setSubmenuPosition] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (ref.current && !ref.current.contains(e.target)) {
         onClose();
+        setActiveSubmenu(null);
       }
     };
     if (isOpen) {
@@ -173,61 +194,205 @@ function MenuDropdown({ label, items, isOpen, onOpen, onClose, onHover }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose]);
 
+  // Reset search when menu closes
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery('');
+      setActiveSubmenu(null);
+    }
+  }, [isOpen]);
+
+  // Filter items based on search
+  const filteredItems = searchQuery
+    ? items?.filter(
+        (item) =>
+          item.type !== 'separator' &&
+          item.label?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : items;
+
+  // If this is a button-style menu item (like Settings)
+  if (isButton) {
+    return (
+      <button
+        onClick={buttonOnClick}
+        onMouseEnter={onHover}
+        className={cn(
+          'px-3 py-1.5 text-sm transition-colors',
+          'text-[var(--bb-color-text-secondary)] hover:bg-[var(--bb-color-bg-elevated)] hover:text-[var(--bb-color-text-primary)]'
+        )}
+      >
+        {label}
+      </button>
+    );
+  }
+
+  const handleSubmenuHover = (item, itemRef) => {
+    if (item.submenu && itemRef) {
+      const rect = itemRef.getBoundingClientRect();
+      setSubmenuPosition({
+        top: rect.top,
+        left: rect.right + 2,
+      });
+      setActiveSubmenu(item.label);
+    } else {
+      setActiveSubmenu(null);
+    }
+  };
+
   return (
     <div ref={ref} className="relative">
       <button
         onClick={onOpen}
         onMouseEnter={onHover}
         className={cn(
-          'px-3 py-1.5 text-sm transition-colors',
+          'px-3 py-1.5 text-sm transition-colors flex items-center gap-1',
           isOpen
             ? 'bg-[var(--bb-color-bg-elevated)] text-[var(--bb-color-text-primary)]'
             : 'text-[var(--bb-color-text-secondary)] hover:bg-[var(--bb-color-bg-elevated)] hover:text-[var(--bb-color-text-primary)]'
         )}
       >
         {label}
+        <ChevronRight
+          size={12}
+          className={cn(
+            'transition-transform',
+            isOpen ? 'rotate-90' : ''
+          )}
+        />
       </button>
 
       {isOpen && (
         <div
           className={cn(
-            'absolute top-full left-0 mt-0.5 w-56 z-50',
-            'bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]',
+            'absolute top-full left-0 mt-0.5 w-64 z-50',
+            'bg-white border border-gray-200',
             'rounded-lg shadow-xl py-1'
           )}
         >
-          {items.map((item, index) =>
+          {/* Search input for Help menu */}
+          {hasSearch && (
+            <div className="px-3 py-2 border-b border-gray-100">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search menus Ctrl + K"
+                  className={cn(
+                    'w-full pl-3 pr-8 py-1.5 text-sm',
+                    'bg-gray-50 border border-gray-200 rounded',
+                    'text-gray-900 placeholder-gray-500',
+                    'focus:outline-none focus:border-blue-400'
+                  )}
+                />
+                <Search
+                  size={14}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Menu items */}
+          {filteredItems?.map((item, index) =>
             item.type === 'separator' ? (
-              <div key={index} className="my-1 border-t border-[var(--bb-color-border-subtle)]" />
+              <div key={index} className="my-1 border-t border-gray-100" />
             ) : (
-              <button
+              <MenuItem
                 key={index}
-                onClick={() => {
-                  if (!item.disabled) {
-                    item.onClick?.();
-                    onClose();
-                  }
-                }}
-                disabled={item.disabled}
-                className={cn(
-                  'w-full px-3 py-1.5 text-left text-sm flex items-center gap-2',
-                  item.disabled
-                    ? 'text-[var(--bb-color-text-tertiary)] cursor-not-allowed'
-                    : item.danger
-                      ? 'text-[var(--bb-color-status-negative)] hover:bg-[rgba(239,68,68,0.1)]'
-                      : 'text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-surface)]'
-                )}
-              >
-                {item.icon && <item.icon size={14} />}
-                <span className="flex-1">{item.label}</span>
-                {item.shortcut && (
-                  <span className="text-xs text-[var(--bb-color-text-tertiary)]">{item.shortcut}</span>
-                )}
-              </button>
+                item={item}
+                onClose={onClose}
+                onSubmenuHover={handleSubmenuHover}
+                isSubmenuActive={activeSubmenu === item.label}
+              />
             )
           )}
+
+          {/* Submenu portal */}
+          {activeSubmenu &&
+            filteredItems?.find((item) => item.label === activeSubmenu)?.submenu &&
+            createPortal(
+              <div
+                className={cn(
+                  'fixed w-48 z-[60]',
+                  'bg-white border border-gray-200',
+                  'rounded-lg shadow-xl py-1'
+                )}
+                style={{
+                  top: submenuPosition.top,
+                  left: submenuPosition.left,
+                }}
+                onMouseLeave={() => setActiveSubmenu(null)}
+              >
+                {filteredItems
+                  .find((item) => item.label === activeSubmenu)
+                  ?.submenu.map((subItem, subIndex) =>
+                    subItem.type === 'separator' ? (
+                      <div key={subIndex} className="my-1 border-t border-gray-100" />
+                    ) : (
+                      <button
+                        key={subIndex}
+                        onClick={() => {
+                          subItem.onClick?.();
+                          onClose();
+                          setActiveSubmenu(null);
+                        }}
+                        className={cn(
+                          'w-full px-3 py-1.5 text-left text-sm flex items-center',
+                          'text-gray-700 hover:bg-gray-100'
+                        )}
+                      >
+                        {subItem.label}
+                      </button>
+                    )
+                  )}
+              </div>,
+              document.body
+            )}
         </div>
       )}
     </div>
+  );
+}
+
+function MenuItem({ item, onClose, onSubmenuHover, isSubmenuActive }) {
+  const itemRef = useRef(null);
+
+  const handleClick = () => {
+    if (item.disabled) return;
+    if (item.submenu) return; // Don't close for submenu items
+    item.onClick?.();
+    onClose();
+  };
+
+  const handleMouseEnter = () => {
+    onSubmenuHover(item, itemRef.current);
+  };
+
+  return (
+    <button
+      ref={itemRef}
+      onClick={handleClick}
+      onMouseEnter={handleMouseEnter}
+      disabled={item.disabled}
+      className={cn(
+        'w-full px-3 py-1.5 text-left text-sm flex items-center gap-2',
+        item.disabled
+          ? 'text-gray-400 cursor-not-allowed'
+          : item.danger
+            ? 'text-red-600 hover:bg-red-50'
+            : 'text-gray-700 hover:bg-gray-100',
+        isSubmenuActive && 'bg-gray-100'
+      )}
+    >
+      {item.danger && <Trash2 size={14} />}
+      <span className="flex-1">{item.label}</span>
+      {item.external && <ExternalLink size={12} className="text-gray-400" />}
+      {item.submenu && <ChevronRight size={14} className="text-gray-400" />}
+      {item.shortcut && (
+        <span className="text-xs text-gray-400">{item.shortcut}</span>
+      )}
+    </button>
   );
 }

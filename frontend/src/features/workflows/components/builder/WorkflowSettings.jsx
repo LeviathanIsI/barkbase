@@ -1,18 +1,9 @@
 /**
- * WorkflowSettings - Settings panel for workflow configuration
- * Includes re-enrollment, suppression, goal, timing, and unenrollment settings
+ * WorkflowSettings - HubSpot-style settings panel for workflow configuration
+ * Matches HubSpot's workflow settings design pattern
  */
-import { useState } from 'react';
-import {
-  RefreshCw,
-  Target,
-  Clock,
-  CalendarOff,
-  LogOut,
-  X,
-  Plus,
-  ChevronLeft,
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Info, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useWorkflowBuilderStore } from '../../stores/builderStore';
 import { useSegments } from '@/features/segments/api';
@@ -33,422 +24,302 @@ export default function WorkflowSettings() {
   const settings = workflow.settings || DEFAULT_WORKFLOW_SETTINGS;
   const objectType = workflow.objectType || 'pet';
 
-  // Fetch segments for suppression list
-  const { data: segmentsData } = useSegments();
-  const segments = segmentsData?.data || segmentsData || [];
+  // Local state for editing
+  const [localSettings, setLocalSettings] = useState(settings);
+  const [hasChanges, setHasChanges] = useState(false);
 
-  // Local state for pause date input
-  const [newPauseDate, setNewPauseDate] = useState('');
+  // Sync local settings when store settings change
+  useEffect(() => {
+    setLocalSettings(settings);
+    setHasChanges(false);
+  }, [settings]);
 
-  // Update a specific setting
-  const updateSetting = (key, value) => {
-    setWorkflowSettings({ [key]: value });
+  // Fetch segments for suppression list (for future use)
+  useSegments();
+
+  // Update a local setting
+  const updateLocalSetting = (key, value) => {
+    setLocalSettings((prev) => ({ ...prev, [key]: value }));
+    setHasChanges(true);
   };
 
-  // Update nested setting
-  const updateNestedSetting = (parentKey, childKey, value) => {
-    const parent = settings[parentKey] || {};
-    setWorkflowSettings({
-      [parentKey]: { ...parent, [childKey]: value },
-    });
+  // Update nested local setting
+  const updateNestedLocalSetting = (parentKey, childKey, value) => {
+    setLocalSettings((prev) => ({
+      ...prev,
+      [parentKey]: { ...prev[parentKey], [childKey]: value },
+    }));
+    setHasChanges(true);
   };
 
-  // Toggle day in timing config
-  const toggleDay = (day) => {
-    const currentDays = settings.timingConfig?.days || [];
-    const newDays = currentDays.includes(day)
-      ? currentDays.filter((d) => d !== day)
-      : [...currentDays, day];
-    updateNestedSetting('timingConfig', 'days', newDays);
+  // Save settings
+  const handleSave = () => {
+    setWorkflowSettings(localSettings);
+    setHasChanges(false);
+    clearSelection();
   };
 
-  // Add pause date
-  const addPauseDate = () => {
-    if (!newPauseDate) return;
-    const currentDates = settings.timingConfig?.pauseDates || [];
-    if (!currentDates.includes(newPauseDate)) {
-      updateNestedSetting('timingConfig', 'pauseDates', [...currentDates, newPauseDate]);
-    }
-    setNewPauseDate('');
-  };
-
-  // Remove pause date
-  const removePauseDate = (date) => {
-    const currentDates = settings.timingConfig?.pauseDates || [];
-    updateNestedSetting('timingConfig', 'pauseDates', currentDates.filter((d) => d !== date));
-  };
-
-  // Toggle suppression segment
-  const toggleSuppressionSegment = (segmentId) => {
-    const currentIds = settings.suppressionSegmentIds || [];
-    const newIds = currentIds.includes(segmentId)
-      ? currentIds.filter((id) => id !== segmentId)
-      : [...currentIds, segmentId];
-    updateSetting('suppressionSegmentIds', newIds);
+  // Cancel and close
+  const handleCancel = () => {
+    setLocalSettings(settings);
+    setHasChanges(false);
+    clearSelection();
   };
 
   return (
-    <div className="w-80 h-full border-r border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] flex flex-col">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-[var(--bb-color-border-subtle)] flex items-center justify-between">
+    <div className="w-96 h-full border-l border-[var(--bb-color-border-subtle)] bg-white flex flex-col">
+      {/* Teal Header - HubSpot style */}
+      <div className="flex-shrink-0 px-5 py-4 bg-[#00A4BD] flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-white">Settings</h2>
         <button
-          onClick={clearSelection}
-          className="flex items-center gap-1 text-sm text-[var(--bb-color-text-secondary)] hover:text-[var(--bb-color-text-primary)]"
+          onClick={handleCancel}
+          className="p-1 rounded hover:bg-white/20 transition-colors"
         >
-          <ChevronLeft size={16} />
-          Back
+          <X size={20} className="text-white" />
         </button>
-        <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">
-          Settings
-        </span>
-        <div className="w-12" /> {/* Spacer for alignment */}
       </div>
 
-      {/* Settings content */}
+      {/* Settings content - scrollable */}
       <div className="flex-1 overflow-auto">
-        {/* Re-enrollment Section */}
-        <SettingsSection
-          icon={RefreshCw}
-          title="Re-enrollment"
-          description="Allow records to be enrolled multiple times"
-        >
-          <ToggleSetting
-            label="Allow records to re-enroll in this workflow"
-            checked={settings.allowReenrollment || false}
-            onChange={(checked) => updateSetting('allowReenrollment', checked)}
-          />
-          {settings.allowReenrollment && (
-            <div className="mt-3 pl-6">
-              <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
-                Minimum days between re-enrollments
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={settings.reenrollmentDelayDays || 0}
-                onChange={(e) => updateSetting('reenrollmentDelayDays', parseInt(e.target.value) || 0)}
-                className={cn(
-                  'w-24 h-8 px-2 rounded',
-                  'bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]',
-                  'text-sm text-[var(--bb-color-text-primary)]',
-                  'focus:outline-none focus:border-[var(--bb-color-accent)]'
-                )}
-              />
-            </div>
-          )}
+        {/* Schedule when actions can run */}
+        <SettingsSection title="Schedule when actions can run">
+          <SettingsCard>
+            <ToggleSettingWithDescription
+              title="Run actions on specific dates & times only"
+              description="Doesn't impact delays or branches."
+              checked={localSettings.timingConfig?.enabled || false}
+              onChange={(checked) => updateNestedLocalSetting('timingConfig', 'enabled', checked)}
+              learnMore
+            />
+          </SettingsCard>
+
+          <SettingsCard>
+            <ToggleSettingWithDescription
+              title="Pause actions on specific dates"
+              description="Doesn't impact delays or branches."
+              checked={localSettings.timingConfig?.pauseEnabled || false}
+              onChange={(checked) => updateNestedLocalSetting('timingConfig', 'pauseEnabled', checked)}
+              learnMore
+            />
+          </SettingsCard>
+
+          <SettingsCard>
+            <ToggleSettingWithDescription
+              title="Schedule this workflow to turn off automatically"
+              description="Any runs in progress will end early"
+              checked={localSettings.autoTurnOff?.enabled || false}
+              onChange={(checked) => updateNestedLocalSetting('autoTurnOff', 'enabled', checked)}
+            />
+          </SettingsCard>
         </SettingsSection>
 
-        {/* Suppression Section */}
-        <SettingsSection
-          icon={LogOut}
-          title="Suppression List"
-          description="Records in these segments won't be enrolled"
-        >
-          {segments.length > 0 ? (
-            <div className="space-y-2">
-              {segments.map((segment) => (
-                <label
-                  key={segment.id}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={(settings.suppressionSegmentIds || []).includes(segment.id)}
-                    onChange={() => toggleSuppressionSegment(segment.id)}
-                    className="w-4 h-4 rounded border-[var(--bb-color-border-subtle)] text-[var(--bb-color-accent)] focus:ring-[var(--bb-color-accent)]"
-                  />
-                  <span className="text-sm text-[var(--bb-color-text-primary)]">
-                    {segment.name}
-                  </span>
-                  <span className="text-xs text-[var(--bb-color-text-tertiary)]">
-                    ({segment.memberCount || 0})
-                  </span>
-                </label>
-              ))}
-            </div>
-          ) : (
-            <div className="text-sm text-[var(--bb-color-text-tertiary)] italic">
-              No segments available
-            </div>
-          )}
+        {/* Analyze performance */}
+        <SettingsSection title="Analyze performance">
+          <SettingsCard>
+            <ToggleSettingWithDescription
+              title="Get notified about workflow issues"
+              checked={localSettings.notifications?.workflowIssues || false}
+              onChange={(checked) => updateNestedLocalSetting('notifications', 'workflowIssues', checked)}
+              infoTooltip
+            />
+          </SettingsCard>
+
+          <SettingsCard>
+            <ToggleSettingWithDescription
+              title="Get notified if the enrollment rate changes"
+              checked={localSettings.notifications?.enrollmentRateChanges || false}
+              onChange={(checked) => updateNestedLocalSetting('notifications', 'enrollmentRateChanges', checked)}
+              infoTooltip
+            />
+          </SettingsCard>
+
+          <SettingsCard>
+            <ToggleSettingWithDescription
+              title="Compare conversion metrics for each path"
+              description="See metrics, including how many records reached each step, and how many had errors at each step."
+              checked={localSettings.metrics?.compareConversion || false}
+              onChange={(checked) => updateNestedLocalSetting('metrics', 'compareConversion', checked)}
+            />
+            <p className="text-xs text-gray-500 mt-2">
+              Up to 20 workflows (3 used) <Info size={12} className="inline ml-1" />
+            </p>
+            <p className="text-xs text-gray-500">
+              Metrics use isn't recommended for this workflow <Info size={12} className="inline ml-1" />
+            </p>
+          </SettingsCard>
         </SettingsSection>
 
-        {/* Goal Section */}
-        <SettingsSection
-          icon={Target}
-          title="Goal (Auto-unenrollment)"
-          description="Remove records when they meet these conditions"
-        >
-          <ToggleSetting
-            label="Enable goal-based unenrollment"
-            checked={settings.goalConfig?.enabled || false}
-            onChange={(checked) => updateNestedSetting('goalConfig', 'enabled', checked)}
-          />
-          {settings.goalConfig?.enabled && (
-            <div className="mt-3">
-              <ConditionBuilder
-                objectType={objectType}
-                conditions={settings.goalConfig?.conditions || { logic: 'and', conditions: [] }}
-                onChange={(conditions) => updateNestedSetting('goalConfig', 'conditions', conditions)}
-                label="Unenroll when"
-              />
-              <p className="text-xs text-[var(--bb-color-text-tertiary)] mt-2">
-                Records meeting these conditions will be automatically unenrolled
-              </p>
-            </div>
-          )}
+        {/* Connections */}
+        <SettingsSection title="Connections">
+          <SettingsCard>
+            <ToggleSettingWithDescription
+              title="Unenroll records from other workflows when they enroll in this workflow"
+              checked={localSettings.unenrollFromOtherWorkflows || false}
+              onChange={(checked) => updateLocalSetting('unenrollFromOtherWorkflows', checked)}
+            />
+          </SettingsCard>
         </SettingsSection>
 
-        {/* Execution Timing Section */}
-        <SettingsSection
-          icon={Clock}
-          title="Execution Timing"
-          description="Restrict when workflow actions can run"
-        >
-          <ToggleSetting
-            label="Only execute during specific times"
-            checked={settings.timingConfig?.enabled || false}
-            onChange={(checked) => updateNestedSetting('timingConfig', 'enabled', checked)}
-          />
-          {settings.timingConfig?.enabled && (
-            <div className="mt-3 space-y-4">
-              {/* Days of week */}
-              <div>
-                <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-2">
-                  Days
+        {/* Re-enrollment */}
+        <SettingsSection title="Re-enrollment">
+          <SettingsCard>
+            <ToggleSettingWithDescription
+              title="Allow records to re-enroll in this workflow"
+              description="Records that have completed or been unenrolled can be enrolled again."
+              checked={localSettings.allowReenrollment || false}
+              onChange={(checked) => updateLocalSetting('allowReenrollment', checked)}
+            />
+            {localSettings.allowReenrollment && (
+              <div className="mt-3 ml-12">
+                <label className="block text-xs text-gray-500 mb-1">
+                  Minimum days between re-enrollments
                 </label>
-                <div className="flex flex-wrap gap-1">
-                  {DAYS_OF_WEEK.map((day) => {
-                    const isSelected = (settings.timingConfig?.days || []).includes(day.value);
-                    return (
-                      <button
-                        key={day.value}
-                        onClick={() => toggleDay(day.value)}
-                        className={cn(
-                          'px-2 py-1 rounded text-xs font-medium transition-colors',
-                          isSelected
-                            ? 'bg-[var(--bb-color-accent)] text-white'
-                            : 'bg-[var(--bb-color-bg-body)] text-[var(--bb-color-text-secondary)] hover:bg-[var(--bb-color-bg-elevated)]'
-                        )}
-                      >
-                        {day.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Time window */}
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
-                    Start time
-                  </label>
-                  <input
-                    type="time"
-                    value={settings.timingConfig?.startTime || '09:00'}
-                    onChange={(e) => updateNestedSetting('timingConfig', 'startTime', e.target.value)}
-                    className={cn(
-                      'w-full h-8 px-2 rounded',
-                      'bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]',
-                      'text-sm text-[var(--bb-color-text-primary)]',
-                      'focus:outline-none focus:border-[var(--bb-color-accent)]'
-                    )}
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
-                    End time
-                  </label>
-                  <input
-                    type="time"
-                    value={settings.timingConfig?.endTime || '17:00'}
-                    onChange={(e) => updateNestedSetting('timingConfig', 'endTime', e.target.value)}
-                    className={cn(
-                      'w-full h-8 px-2 rounded',
-                      'bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]',
-                      'text-sm text-[var(--bb-color-text-primary)]',
-                      'focus:outline-none focus:border-[var(--bb-color-accent)]'
-                    )}
-                  />
-                </div>
-              </div>
-
-              {/* Timezone */}
-              <div>
-                <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-1.5">
-                  Timezone
-                </label>
-                <select
-                  value={settings.timingConfig?.timezone || 'America/New_York'}
-                  onChange={(e) => updateNestedSetting('timingConfig', 'timezone', e.target.value)}
+                <input
+                  type="number"
+                  min="0"
+                  value={localSettings.reenrollmentDelayDays || 0}
+                  onChange={(e) => updateLocalSetting('reenrollmentDelayDays', parseInt(e.target.value) || 0)}
                   className={cn(
-                    'w-full h-8 px-2 rounded',
-                    'bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]',
-                    'text-sm text-[var(--bb-color-text-primary)]',
-                    'focus:outline-none focus:border-[var(--bb-color-accent)]'
+                    'w-24 h-8 px-2 rounded',
+                    'bg-white border border-gray-300',
+                    'text-sm text-gray-900',
+                    'focus:outline-none focus:border-blue-400'
                   )}
-                >
-                  {COMMON_TIMEZONES.map((tz) => (
-                    <option key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
-
-              <p className="text-xs text-[var(--bb-color-text-tertiary)]">
-                Actions will only execute during these times
-              </p>
-            </div>
-          )}
+            )}
+          </SettingsCard>
         </SettingsSection>
 
-        {/* Pause Dates Section */}
-        <SettingsSection
-          icon={CalendarOff}
-          title="Pause Dates"
-          description="Pause workflow on specific dates"
-        >
-          {/* Add new date */}
-          <div className="flex gap-2 mb-3">
-            <input
-              type="date"
-              value={newPauseDate}
-              onChange={(e) => setNewPauseDate(e.target.value)}
-              className={cn(
-                'flex-1 h-8 px-2 rounded',
-                'bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]',
-                'text-sm text-[var(--bb-color-text-primary)]',
-                'focus:outline-none focus:border-[var(--bb-color-accent)]'
-              )}
+        {/* Goal */}
+        <SettingsSection title="Goal">
+          <SettingsCard>
+            <ToggleSettingWithDescription
+              title="Enable goal-based unenrollment"
+              description="Automatically unenroll records when they meet certain conditions."
+              checked={localSettings.goalConfig?.enabled || false}
+              onChange={(checked) => updateNestedLocalSetting('goalConfig', 'enabled', checked)}
             />
-            <button
-              onClick={addPauseDate}
-              disabled={!newPauseDate}
-              className={cn(
-                'px-3 h-8 rounded flex items-center gap-1',
-                'text-sm font-medium transition-colors',
-                newPauseDate
-                  ? 'bg-[var(--bb-color-accent)] text-white hover:bg-[var(--bb-color-accent-hover)]'
-                  : 'bg-[var(--bb-color-bg-elevated)] text-[var(--bb-color-text-tertiary)] cursor-not-allowed'
-              )}
-            >
-              <Plus size={14} />
-              Add
-            </button>
-          </div>
-
-          {/* List of pause dates */}
-          {(settings.timingConfig?.pauseDates || []).length > 0 && (
-            <div className="space-y-1 mb-3">
-              {(settings.timingConfig?.pauseDates || []).map((date) => (
-                <div
-                  key={date}
-                  className="flex items-center justify-between px-2 py-1.5 rounded bg-[var(--bb-color-bg-body)]"
-                >
-                  <span className="text-sm text-[var(--bb-color-text-primary)]">
-                    {new Date(date).toLocaleDateString()}
-                  </span>
-                  <button
-                    onClick={() => removePauseDate(date)}
-                    className="text-[var(--bb-color-text-tertiary)] hover:text-red-400"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <ToggleSetting
-            label="Pause annually on these dates"
-            checked={settings.timingConfig?.pauseAnnually || false}
-            onChange={(checked) => updateNestedSetting('timingConfig', 'pauseAnnually', checked)}
-          />
+            {localSettings.goalConfig?.enabled && (
+              <div className="mt-3">
+                <ConditionBuilder
+                  objectType={objectType}
+                  conditions={localSettings.goalConfig?.conditions || { logic: 'and', conditions: [] }}
+                  onChange={(conditions) => updateNestedLocalSetting('goalConfig', 'conditions', conditions)}
+                  label="Unenroll when"
+                />
+              </div>
+            )}
+          </SettingsCard>
         </SettingsSection>
+      </div>
 
-        {/* Unenrollment Triggers Section */}
-        <SettingsSection
-          icon={LogOut}
-          title="Unenrollment Triggers"
-          description="Additional conditions to remove records"
+      {/* Footer with Save/Cancel buttons */}
+      <div className="flex-shrink-0 px-5 py-3 border-t border-gray-200 bg-white flex items-center gap-3">
+        <button
+          onClick={handleSave}
+          disabled={!hasChanges}
+          className={cn(
+            'px-4 py-2 rounded text-sm font-medium transition-colors',
+            hasChanges
+              ? 'bg-[#00A4BD] text-white hover:bg-[#008DA3]'
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+          )}
         >
-          <ToggleSetting
-            label="Unenroll when record no longer meets enrollment criteria"
-            checked={settings.unenrollOnCriteriaChange || false}
-            onChange={(checked) => updateSetting('unenrollOnCriteriaChange', checked)}
-          />
-
-          <div className="mt-3">
-            <ToggleSetting
-              label="Enable custom unenrollment triggers"
-              checked={settings.unenrollmentTriggers?.enabled || false}
-              onChange={(checked) => updateNestedSetting('unenrollmentTriggers', 'enabled', checked)}
-            />
-          </div>
-
-          {settings.unenrollmentTriggers?.enabled && (
-            <div className="mt-3">
-              <ConditionBuilder
-                objectType={objectType}
-                conditions={settings.unenrollmentTriggers?.conditions || { logic: 'and', conditions: [] }}
-                onChange={(conditions) => updateNestedSetting('unenrollmentTriggers', 'conditions', conditions)}
-                label="Unenroll when"
-              />
-            </div>
-          )}
-        </SettingsSection>
+          Save
+        </button>
+        <button
+          onClick={handleCancel}
+          className="px-4 py-2 rounded text-sm font-medium text-[#F2545B] hover:bg-red-50 transition-colors"
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );
 }
 
-// Settings section wrapper component
-function SettingsSection({ icon, title, description, children }) {
-  const IconComponent = icon;
+// Settings section with title
+function SettingsSection({ title, children }) {
   return (
-    <div className="p-4 border-b border-[var(--bb-color-border-subtle)]">
-      <div className="flex items-start gap-3 mb-3">
-        <div className="w-8 h-8 rounded-lg bg-[var(--bb-color-bg-body)] flex items-center justify-center flex-shrink-0">
-          <IconComponent size={16} className="text-[var(--bb-color-text-secondary)]" />
-        </div>
-        <div>
-          <h3 className="text-sm font-medium text-[var(--bb-color-text-primary)]">
-            {title}
-          </h3>
-          <p className="text-xs text-[var(--bb-color-text-tertiary)]">
-            {description}
-          </p>
-        </div>
-      </div>
-      <div className="pl-11">{children}</div>
+    <div className="px-5 py-4">
+      <h3 className="text-sm font-semibold text-gray-900 mb-3">{title}</h3>
+      <div className="space-y-3">{children}</div>
     </div>
   );
 }
 
-// Toggle setting component
-function ToggleSetting({ label, checked, onChange }) {
+// Card wrapper for settings
+function SettingsCard({ children }) {
   return (
-    <label className="flex items-center gap-3 cursor-pointer">
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        onClick={() => onChange(!checked)}
+    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+      {children}
+    </div>
+  );
+}
+
+// Toggle setting with optional description, learn more link, or info tooltip
+function ToggleSettingWithDescription({
+  title,
+  description,
+  checked,
+  onChange,
+  learnMore,
+  infoTooltip,
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <HubSpotToggle checked={checked} onChange={onChange} />
+      <div className="flex-1">
+        <div className="flex items-center gap-1">
+          <span className="text-sm font-medium text-gray-900">{title}</span>
+          {infoTooltip && (
+            <Info size={14} className="text-gray-400" />
+          )}
+        </div>
+        {description && (
+          <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+        )}
+        {learnMore && (
+          <a
+            href="#"
+            className="inline-flex items-center gap-1 text-xs text-[#00A4BD] hover:underline mt-0.5"
+          >
+            Learn more. <ExternalLink size={10} />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// HubSpot-style toggle switch
+function HubSpotToggle({ checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        'relative flex-shrink-0 w-12 h-6 rounded-full transition-colors',
+        checked ? 'bg-[#00A4BD]' : 'bg-gray-300'
+      )}
+    >
+      <span
         className={cn(
-          'relative w-9 h-5 rounded-full transition-colors',
-          checked ? 'bg-[var(--bb-color-accent)]' : 'bg-[var(--bb-color-bg-body)]'
+          'absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow',
+          checked ? 'left-7' : 'left-1'
+        )}
+      />
+      <span
+        className={cn(
+          'absolute top-1 text-[9px] font-bold uppercase',
+          checked ? 'left-1.5 text-white' : 'right-1 text-gray-500'
         )}
       >
-        <span
-          className={cn(
-            'absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform',
-            checked && 'translate-x-4'
-          )}
-        />
-      </button>
-      <span className="text-sm text-[var(--bb-color-text-primary)]">{label}</span>
-    </label>
+        {checked ? '' : 'OFF'}
+      </span>
+    </button>
   );
 }
