@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "dev": "node server.js",
+    "workflow:worker": "node src/workers/workflow-worker.js",
     "db:wipe": "node scripts/wipe-database.js",
     "db:seed": "node scripts/seed-database.js",
     "db:reset": "node scripts/wipe-database.js && node scripts/seed-database.js",

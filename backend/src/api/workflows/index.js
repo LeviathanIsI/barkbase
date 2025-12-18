@@ -54,10 +54,15 @@ const WORKFLOW_STEP_QUEUE_URL = process.env.WORKFLOW_STEP_QUEUE_URL;
 
 /**
  * Queue a workflow step for execution
+ * @param {string} executionId - The execution ID
+ * @param {string} workflowId - The workflow ID
+ * @param {string} tenantId - The tenant ID
+ * @param {string} [stepId] - Optional specific step ID to process
  */
-async function queueStepExecution(executionId, workflowId, tenantId) {
+async function queueStepExecution(executionId, workflowId, tenantId, stepId = null) {
   if (!WORKFLOW_STEP_QUEUE_URL) {
-    console.warn('[workflows] WORKFLOW_STEP_QUEUE_URL not set, skipping step queue');
+    // In development without SQS, log for the local worker to pick up
+    console.log('[workflows] No SQS queue configured, execution will be processed by local worker');
     return null;
   }
 
@@ -68,6 +73,7 @@ async function queueStepExecution(executionId, workflowId, tenantId) {
         executionId,
         workflowId,
         tenantId,
+        stepId,
         action: 'execute_next',
         timestamp: new Date().toISOString(),
       }),
@@ -78,7 +84,7 @@ async function queueStepExecution(executionId, workflowId, tenantId) {
         },
       },
     }));
-    console.log('[workflows] Queued step execution:', executionId, result.MessageId);
+    console.log('[workflows] Queued step execution:', executionId, stepId || 'next', result.MessageId);
     return result.MessageId;
   } catch (error) {
     console.error('[workflows] Failed to queue step execution:', error);
@@ -1463,5 +1469,7 @@ router.delete('/workflows/folders/:folderId', async (req, res) => {
   }
 });
 
+// Export router and helper functions
 module.exports = router;
+module.exports.queueStepExecution = queueStepExecution;
 
