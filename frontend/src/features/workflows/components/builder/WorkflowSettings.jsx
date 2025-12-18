@@ -306,15 +306,19 @@ function ToggleSwitch({ checked, onChange }) {
         checked ? 'bg-[var(--bb-color-status-positive)]' : 'bg-[var(--bb-color-border-subtle)]'
       )}
     >
+      {/* Knob */}
       <span
         className={cn(
           'absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow',
           checked ? 'left-6' : 'left-1'
         )}
       />
+      {/* OFF label - positioned to the right of the knob */}
       {!checked && (
-        <span className="absolute inset-0 flex items-center justify-center pr-1 text-[9px] font-bold uppercase text-[var(--bb-color-text-tertiary)]">
-          <span className="ml-4">OFF</span>
+        <span
+          className="absolute top-0 right-0 w-6 h-6 flex items-center justify-center text-[9px] font-bold uppercase text-[var(--bb-color-text-tertiary)]"
+        >
+          OFF
         </span>
       )}
     </button>
