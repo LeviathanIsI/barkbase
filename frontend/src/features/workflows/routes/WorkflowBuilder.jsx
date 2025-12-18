@@ -29,6 +29,9 @@ import BuilderCanvas from '../components/builder/BuilderCanvas';
 import StepConfigPanel from '../components/builder/StepConfigPanel';
 import WorkflowSettings from '../components/builder/WorkflowSettings';
 import PublishModal from '../components/builder/PublishModal';
+import ReviewWorkflowSidebar from '../components/builder/ReviewWorkflowSidebar';
+import EnrollExistingModal from '../components/builder/EnrollExistingModal';
+import apiClient from '@/lib/apiClient';
 
 export default function WorkflowBuilder() {
   const { id } = useParams();
@@ -39,6 +42,8 @@ export default function WorkflowBuilder() {
   // UI state
   const [showLeftPanel, setShowLeftPanel] = useState(true);
   const [showPublishModal, setShowPublishModal] = useState(false);
+  const [showReviewSidebar, setShowReviewSidebar] = useState(false);
+  const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
 
   // Store
@@ -219,8 +224,7 @@ export default function WorkflowBuilder() {
    */
   const handlePublish = useCallback(
     async (options = {}) => {
-      // enrollExisting option could be used in future to enroll existing records
-      const { enrollExisting: _enrollExisting } = options;
+      const { enrollExisting = false } = options;
 
       // If no workflow ID, can't publish
       if (!workflow.id) {
@@ -247,8 +251,25 @@ export default function WorkflowBuilder() {
       }
 
       try {
-        await activateWorkflowMutation.mutateAsync(workflow.id);
-        toast.success('Workflow published and activated');
+        // Use activate-with-enrollment endpoint if enrolling existing records
+        if (enrollExisting && workflow.entryCondition?.triggerType === 'filter_criteria') {
+          const { data: result } = await apiClient.post(
+            `/api/workflows/${workflow.id}/activate-with-enrollment`,
+            { enrollExisting: true }
+          );
+
+          const enrolledCount = result.enrollment?.enrolled || 0;
+
+          if (enrolledCount > 0) {
+            toast.success(`Workflow activated! ${enrolledCount} records enrolled.`);
+          } else {
+            toast.success('Workflow activated!');
+          }
+        } else {
+          await activateWorkflowMutation.mutateAsync(workflow.id);
+          toast.success('Workflow published and activated');
+        }
+
         navigate('/workflows');
       } catch (error) {
         console.error('Failed to publish workflow:', error);
@@ -257,7 +278,7 @@ export default function WorkflowBuilder() {
         setIsPublishing(false);
       }
     },
-    [workflow.id, isDirty, saveStatus, autoSave, activateWorkflowMutation, navigate]
+    [workflow.id, workflow.entryCondition?.triggerType, isDirty, saveStatus, autoSave, activateWorkflowMutation, navigate]
   );
 
   /**
@@ -336,6 +357,31 @@ export default function WorkflowBuilder() {
   }, [workflow.id, deleteWorkflowMutation, navigate]);
 
   /**
+   * Handle review sidebar activation
+   * Called when user clicks Activate in the ReviewWorkflowSidebar
+   */
+  const handleReviewActivate = useCallback(() => {
+    setShowReviewSidebar(false);
+
+    // If trigger is filter_criteria, show the enrollment modal
+    if (workflow.entryCondition?.triggerType === 'filter_criteria') {
+      setShowEnrollModal(true);
+    } else {
+      // For other trigger types, activate directly
+      handlePublish({ enrollExisting: false });
+    }
+  }, [workflow.entryCondition?.triggerType, handlePublish]);
+
+  /**
+   * Handle enrollment modal activation
+   * Called when user chooses to enroll (or not) in EnrollExistingModal
+   */
+  const handleEnrollActivate = useCallback(async (options) => {
+    setShowEnrollModal(false);
+    await handlePublish(options);
+  }, [handlePublish]);
+
+  /**
    * Handle open settings
    */
   const handleOpenSettings = useCallback((section) => {
@@ -364,13 +410,7 @@ export default function WorkflowBuilder() {
             break;
           case 'z':
             e.preventDefault();
-            if (e.shiftKey) {
-              // Redo - TODO: implement undo/redo
-              console.log('Redo');
-            } else {
-              // Undo - TODO: implement undo/redo
-              console.log('Undo');
-            }
+            // TODO: implement undo/redo
             break;
           case '\\':
             e.preventDefault();
@@ -418,8 +458,8 @@ export default function WorkflowBuilder() {
     <div className="h-screen flex flex-col bg-[var(--bb-color-bg-body)]">
       {/* Header */}
       <BuilderHeader
-        onActivate={() => setShowPublishModal(true)}
-        onOpenPublishModal={() => setShowPublishModal(true)}
+        onActivate={() => setShowReviewSidebar(true)}
+        onOpenPublishModal={() => setShowReviewSidebar(true)}
         onPause={handlePause}
         onResume={handleResume}
         onSave={handleManualSave}
@@ -451,13 +491,33 @@ export default function WorkflowBuilder() {
         {showSettingsPanel && <WorkflowSettings />}
       </div>
 
-      {/* Publish modal */}
+      {/* Publish modal (kept for backwards compatibility) */}
       {showPublishModal && (
         <PublishModal
           workflow={workflow}
           steps={steps}
           onClose={() => setShowPublishModal(false)}
           onPublish={handlePublish}
+        />
+      )}
+
+      {/* Review workflow sidebar (pre-activation checklist) */}
+      {showReviewSidebar && (
+        <ReviewWorkflowSidebar
+          workflow={workflow}
+          steps={steps}
+          onClose={() => setShowReviewSidebar(false)}
+          onActivate={handleReviewActivate}
+          isActivating={isPublishing}
+        />
+      )}
+
+      {/* Enroll existing modal (shown for filter_criteria workflows) */}
+      {showEnrollModal && (
+        <EnrollExistingModal
+          workflow={workflow}
+          onClose={() => setShowEnrollModal(false)}
+          onActivate={handleEnrollActivate}
         />
       )}
     </div>
