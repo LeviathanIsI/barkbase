@@ -258,7 +258,7 @@ export default function WorkflowBuilder() {
         // Use activate-with-enrollment endpoint if enrolling existing records
         if (enrollExisting && workflow.entryCondition?.triggerType === 'filter_criteria') {
           const { data: result } = await apiClient.post(
-            `/api/workflows/${workflow.id}/activate-with-enrollment`,
+            `/api/v1/workflows/${workflow.id}/activate-with-enrollment`,
             { enrollExisting: true }
           );
 
@@ -395,7 +395,7 @@ export default function WorkflowBuilder() {
       if (options.enrollExisting && pendingTriggerConfig.triggerType === 'filter_criteria') {
         try {
           const { data: result } = await apiClient.post(
-            `/api/workflows/${workflow.id}/activate-with-enrollment`,
+            `/api/v1/workflows/${workflow.id}/activate-with-enrollment`,
             { enrollExisting: true }
           );
           const enrolledCount = result.enrollment?.enrolled || 0;

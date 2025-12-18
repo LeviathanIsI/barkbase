@@ -218,7 +218,7 @@ export default function ReviewWorkflowSidebar({
     const fetchDependencies = async () => {
       try {
         setLoadingDeps(true);
-        const { data } = await apiClient.get(`/api/workflows/${workflow.id}/dependencies`);
+        const { data } = await apiClient.get(`/api/v1/workflows/${workflow.id}/dependencies`);
         setDependencies(data);
       } catch (err) {
         console.error('Error fetching dependencies:', err);

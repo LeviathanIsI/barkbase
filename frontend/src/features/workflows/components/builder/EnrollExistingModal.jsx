@@ -25,7 +25,7 @@ export default function EnrollExistingModal({ workflow, onClose, onActivate }) {
       try {
         setLoading(true);
         setError(null);
-        const { data } = await apiClient.get(`/api/workflows/${workflow.id}/matching-records-count`);
+        const { data } = await apiClient.get(`/api/v1/workflows/${workflow.id}/matching-records-count`);
         setCount(data.count);
       } catch (err) {
         console.error('Error fetching matching records:', err);
