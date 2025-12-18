@@ -302,24 +302,21 @@ function ToggleSwitch({ checked, onChange }) {
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative flex-shrink-0 w-12 h-6 rounded-full transition-colors',
-        checked ? 'bg-[var(--bb-color-accent)]' : 'bg-[var(--bb-color-bg-body)]'
+        'relative flex-shrink-0 w-11 h-6 rounded-full transition-colors',
+        checked ? 'bg-[var(--bb-color-status-positive)]' : 'bg-[var(--bb-color-border-subtle)]'
       )}
     >
       <span
         className={cn(
           'absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow',
-          checked ? 'left-7' : 'left-1'
+          checked ? 'left-6' : 'left-1'
         )}
       />
-      <span
-        className={cn(
-          'absolute top-1 text-[9px] font-bold uppercase',
-          checked ? 'left-1.5 text-white' : 'right-1 text-[var(--bb-color-text-tertiary)]'
-        )}
-      >
-        {checked ? '' : 'OFF'}
-      </span>
+      {!checked && (
+        <span className="absolute inset-0 flex items-center justify-center pr-1 text-[9px] font-bold uppercase text-[var(--bb-color-text-tertiary)]">
+          <span className="ml-4">OFF</span>
+        </span>
+      )}
     </button>
   );
 }
