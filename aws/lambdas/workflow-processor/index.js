@@ -45,10 +45,17 @@ const STEP_QUEUE_URL = process.env.WORKFLOW_STEP_QUEUE_URL;
  * Main handler for SQS trigger events
  */
 exports.handler = async (event) => {
-  console.log('[WorkflowTrigger] Processing', event.Records?.length || 0, 'messages');
+  console.log('[WORKFLOW TRIGGER] ========================================');
+  console.log('[WORKFLOW TRIGGER] LAMBDA INVOKED');
+  console.log('[WORKFLOW TRIGGER] ========================================');
+  console.log('[WORKFLOW TRIGGER] Event:', JSON.stringify(event, null, 2));
+  console.log('[WORKFLOW TRIGGER] Records count:', event.Records?.length || 0);
+  console.log('[WORKFLOW TRIGGER] STEP_QUEUE_URL:', STEP_QUEUE_URL);
 
   // Ensure database pool is initialized
+  console.log('[WORKFLOW TRIGGER] Initializing database pool...');
   await getPoolAsync();
+  console.log('[WORKFLOW TRIGGER] Database pool ready');
 
   const results = {
     processed: 0,
@@ -59,15 +66,20 @@ exports.handler = async (event) => {
 
   // Process each SQS record
   for (const record of event.Records || []) {
+    console.log('[WORKFLOW TRIGGER] Processing record:', record.messageId);
+    console.log('[WORKFLOW TRIGGER] Record body:', record.body);
     try {
       const message = JSON.parse(record.body);
+      console.log('[WORKFLOW TRIGGER] Parsed message:', JSON.stringify(message, null, 2));
       const result = await processEvent(message);
 
       results.processed++;
       results.enrolled += result.enrolled || 0;
       results.skipped += result.skipped || 0;
+      console.log('[WORKFLOW TRIGGER] Record result:', result);
     } catch (error) {
-      console.error('[WorkflowTrigger] Error processing message:', error);
+      console.error('[WORKFLOW TRIGGER] Error processing message:', error);
+      console.error('[WORKFLOW TRIGGER] Error stack:', error.stack);
       results.errors.push({
         messageId: record.messageId,
         error: error.message,
@@ -75,7 +87,9 @@ exports.handler = async (event) => {
     }
   }
 
-  console.log('[WorkflowTrigger] Results:', results);
+  console.log('[WORKFLOW TRIGGER] ========================================');
+  console.log('[WORKFLOW TRIGGER] FINAL RESULTS:', JSON.stringify(results, null, 2));
+  console.log('[WORKFLOW TRIGGER] ========================================');
 
   return {
     batchItemFailures: results.errors.map(e => ({
@@ -90,50 +104,62 @@ exports.handler = async (event) => {
 async function processEvent(message) {
   const { eventType, recordId, recordType, tenantId, eventData, timestamp } = message;
 
-  console.log('[WorkflowTrigger] Processing event:', {
-    eventType,
-    recordId,
-    recordType,
-    tenantId,
-  });
+  console.log('[WORKFLOW TRIGGER] ---------- PROCESS EVENT ----------');
+  console.log('[WORKFLOW TRIGGER] Event type:', eventType);
+  console.log('[WORKFLOW TRIGGER] Record ID:', recordId);
+  console.log('[WORKFLOW TRIGGER] Record type:', recordType);
+  console.log('[WORKFLOW TRIGGER] Tenant ID:', tenantId);
+  console.log('[WORKFLOW TRIGGER] Event data:', JSON.stringify(eventData, null, 2));
+  console.log('[WORKFLOW TRIGGER] Timestamp:', timestamp);
 
   // Validate required fields
   if (!eventType || !recordId || !recordType || !tenantId) {
-    console.warn('[WorkflowTrigger] Missing required fields in message');
+    console.warn('[WORKFLOW TRIGGER] MISSING required fields in message!');
+    console.warn('[WORKFLOW TRIGGER] eventType:', eventType, '| recordId:', recordId, '| recordType:', recordType, '| tenantId:', tenantId);
     return { enrolled: 0, skipped: 1 };
   }
 
   // Find active workflows that match this event type and object type
+  console.log('[WORKFLOW TRIGGER] Finding matching workflows...');
   const matchingWorkflows = await findMatchingWorkflows(tenantId, recordType, eventType);
 
   if (matchingWorkflows.length === 0) {
-    console.log('[WorkflowTrigger] No matching workflows found');
+    console.log('[WORKFLOW TRIGGER] No matching workflows found!');
     return { enrolled: 0, skipped: 0 };
   }
 
-  console.log('[WorkflowTrigger] Found', matchingWorkflows.length, 'matching workflows');
+  console.log('[WORKFLOW TRIGGER] Found', matchingWorkflows.length, 'matching workflows');
+  console.log('[WORKFLOW TRIGGER] Matching workflows:', JSON.stringify(matchingWorkflows, null, 2));
 
   let enrolled = 0;
   let skipped = 0;
 
   // Try to enroll in each matching workflow
   for (const workflow of matchingWorkflows) {
+    console.log('[WORKFLOW TRIGGER] Processing workflow:', workflow.id, workflow.name);
     try {
       const result = await enrollInWorkflow(workflow, recordId, recordType, tenantId, eventData);
+      console.log('[WORKFLOW TRIGGER] Enrollment result:', JSON.stringify(result, null, 2));
 
       if (result.enrolled) {
         enrolled++;
         // Queue first step for execution
+        console.log('[WORKFLOW TRIGGER] Queuing first step...');
         await queueFirstStep(result.executionId, workflow.id, tenantId);
+        console.log('[WORKFLOW TRIGGER] First step queued successfully');
       } else {
+        console.log('[WORKFLOW TRIGGER] Skipped enrollment. Reason:', result.reason);
         skipped++;
       }
     } catch (error) {
-      console.error('[WorkflowTrigger] Error enrolling in workflow:', workflow.id, error);
+      console.error('[WORKFLOW TRIGGER] Error enrolling in workflow:', workflow.id, error);
+      console.error('[WORKFLOW TRIGGER] Error stack:', error.stack);
       skipped++;
     }
   }
 
+  console.log('[WORKFLOW TRIGGER] ---------- PROCESS EVENT COMPLETE ----------');
+  console.log('[WORKFLOW TRIGGER] Enrolled:', enrolled, '| Skipped:', skipped);
   return { enrolled, skipped };
 }
 
@@ -141,17 +167,25 @@ async function processEvent(message) {
  * Find active workflows that match the event type and object type
  */
 async function findMatchingWorkflows(tenantId, recordType, eventType) {
-  const result = await query(
-    `SELECT id, name, entry_condition, settings
+  console.log('[WORKFLOW TRIGGER] findMatchingWorkflows called');
+  console.log('[WORKFLOW TRIGGER] Query params - tenantId:', tenantId, '| recordType:', recordType, '| eventType:', eventType);
+
+  const sqlQuery = `SELECT id, name, entry_condition, settings
      FROM "Workflow"
      WHERE tenant_id = $1
        AND object_type = $2
        AND status = 'active'
        AND deleted_at IS NULL
        AND entry_condition->>'trigger_type' = 'event'
-       AND entry_condition->>'event_type' = $3`,
-    [tenantId, recordType, eventType]
-  );
+       AND entry_condition->>'event_type' = $3`;
+
+  console.log('[WORKFLOW TRIGGER] SQL:', sqlQuery);
+  console.log('[WORKFLOW TRIGGER] Params:', [tenantId, recordType, eventType]);
+
+  const result = await query(sqlQuery, [tenantId, recordType, eventType]);
+
+  console.log('[WORKFLOW TRIGGER] Query returned', result.rows.length, 'rows');
+  console.log('[WORKFLOW TRIGGER] Rows:', JSON.stringify(result.rows, null, 2));
 
   return result.rows;
 }
@@ -255,8 +289,15 @@ async function enrollInWorkflow(workflow, recordId, recordType, tenantId, eventD
  * Queue the first step for execution
  */
 async function queueFirstStep(executionId, workflowId, tenantId) {
+  console.log('[WORKFLOW TRIGGER] queueFirstStep called');
+  console.log('[WORKFLOW TRIGGER] Execution ID:', executionId);
+  console.log('[WORKFLOW TRIGGER] Workflow ID:', workflowId);
+  console.log('[WORKFLOW TRIGGER] Tenant ID:', tenantId);
+  console.log('[WORKFLOW TRIGGER] STEP_QUEUE_URL:', STEP_QUEUE_URL);
+
   if (!STEP_QUEUE_URL) {
-    console.warn('[WorkflowTrigger] WORKFLOW_STEP_QUEUE_URL not set');
+    console.error('[WORKFLOW TRIGGER] ERROR: WORKFLOW_STEP_QUEUE_URL not set!');
+    console.error('[WORKFLOW TRIGGER] process.env.WORKFLOW_STEP_QUEUE_URL:', process.env.WORKFLOW_STEP_QUEUE_URL);
     return;
   }
 
@@ -268,18 +309,27 @@ async function queueFirstStep(executionId, workflowId, tenantId) {
     timestamp: new Date().toISOString(),
   };
 
-  await sqs.send(new SendMessageCommand({
-    QueueUrl: STEP_QUEUE_URL,
-    MessageBody: JSON.stringify(message),
-    MessageAttributes: {
-      executionId: {
-        DataType: 'String',
-        StringValue: executionId,
-      },
-    },
-  }));
+  console.log('[WORKFLOW TRIGGER] SQS message body:', JSON.stringify(message, null, 2));
 
-  console.log('[WorkflowTrigger] Queued first step for execution:', executionId);
+  try {
+    const result = await sqs.send(new SendMessageCommand({
+      QueueUrl: STEP_QUEUE_URL,
+      MessageBody: JSON.stringify(message),
+      MessageAttributes: {
+        executionId: {
+          DataType: 'String',
+          StringValue: executionId,
+        },
+      },
+    }));
+
+    console.log('[WORKFLOW TRIGGER] SQS send SUCCESS! Message ID:', result.MessageId);
+    console.log('[WORKFLOW TRIGGER] SQS result:', JSON.stringify(result, null, 2));
+  } catch (error) {
+    console.error('[WORKFLOW TRIGGER] SQS send FAILED:', error);
+    console.error('[WORKFLOW TRIGGER] SQS error stack:', error.stack);
+    throw error;
+  }
 }
 
 /**
@@ -364,10 +414,15 @@ exports.manualEnrollHandler = async (event) => {
  * Called by EventBridge rule on a schedule
  */
 exports.filterTriggerHandler = async (event) => {
-  console.log('[WorkflowTrigger] Filter trigger check');
+  console.log('[FILTER TRIGGER] ========================================');
+  console.log('[FILTER TRIGGER] LAMBDA INVOKED');
+  console.log('[FILTER TRIGGER] ========================================');
+  console.log('[FILTER TRIGGER] Event:', JSON.stringify(event, null, 2));
 
   // Ensure database pool is initialized
+  console.log('[FILTER TRIGGER] Initializing database pool...');
   await getPoolAsync();
+  console.log('[FILTER TRIGGER] Database pool ready');
 
   const results = {
     workflowsChecked: 0,
@@ -377,23 +432,30 @@ exports.filterTriggerHandler = async (event) => {
 
   try {
     // Find all active workflows with filter_criteria trigger
-    const workflowsResult = await query(
-      `SELECT w.id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings
+    const filterQuery = `SELECT w.id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings
        FROM "Workflow" w
        WHERE w.status = 'active'
          AND w.deleted_at IS NULL
-         AND w.entry_condition->>'trigger_type' = 'filter_criteria'`
-    );
+         AND w.entry_condition->>'trigger_type' = 'filter_criteria'`;
 
-    console.log('[WorkflowTrigger] Found', workflowsResult.rows.length, 'filter-based workflows');
+    console.log('[FILTER TRIGGER] SQL:', filterQuery);
+
+    const workflowsResult = await query(filterQuery);
+
+    console.log('[FILTER TRIGGER] Found', workflowsResult.rows.length, 'filter-based workflows');
+    console.log('[FILTER TRIGGER] Workflows:', JSON.stringify(workflowsResult.rows, null, 2));
 
     for (const workflow of workflowsResult.rows) {
+      console.log('[FILTER TRIGGER] Processing workflow:', workflow.id, workflow.name);
+      console.log('[FILTER TRIGGER] Workflow entry_condition:', JSON.stringify(workflow.entry_condition, null, 2));
       try {
         const enrolled = await processFilterWorkflow(workflow);
         results.workflowsChecked++;
         results.recordsEnrolled += enrolled;
+        console.log('[FILTER TRIGGER] Workflow processed. Enrolled:', enrolled);
       } catch (error) {
-        console.error('[WorkflowTrigger] Error processing filter workflow:', workflow.id, error);
+        console.error('[FILTER TRIGGER] Error processing filter workflow:', workflow.id, error);
+        console.error('[FILTER TRIGGER] Error stack:', error.stack);
         results.errors.push({
           workflowId: workflow.id,
           error: error.message,
@@ -401,10 +463,13 @@ exports.filterTriggerHandler = async (event) => {
       }
     }
 
-    console.log('[WorkflowTrigger] Filter trigger results:', results);
+    console.log('[FILTER TRIGGER] ========================================');
+    console.log('[FILTER TRIGGER] FINAL RESULTS:', JSON.stringify(results, null, 2));
+    console.log('[FILTER TRIGGER] ========================================');
     return results;
   } catch (error) {
-    console.error('[WorkflowTrigger] Filter trigger error:', error);
+    console.error('[FILTER TRIGGER] Filter trigger error:', error);
+    console.error('[FILTER TRIGGER] Error stack:', error.stack);
     throw error;
   }
 };
@@ -416,17 +481,25 @@ async function processFilterWorkflow(workflow) {
   const { id: workflowId, tenant_id: tenantId, object_type: objectType, entry_condition: entryCondition } = workflow;
   const filter = entryCondition?.filter || {};
 
+  console.log('[FILTER TRIGGER] processFilterWorkflow called');
+  console.log('[FILTER TRIGGER] Workflow ID:', workflowId);
+  console.log('[FILTER TRIGGER] Tenant ID:', tenantId);
+  console.log('[FILTER TRIGGER] Object type:', objectType);
+  console.log('[FILTER TRIGGER] Entry condition:', JSON.stringify(entryCondition, null, 2));
+  console.log('[FILTER TRIGGER] Filter:', JSON.stringify(filter, null, 2));
+
   // Build dynamic query based on object type and filter
   const baseQuery = getFilterBaseQuery(objectType);
+  console.log('[FILTER TRIGGER] Base query:', baseQuery);
+
   if (!baseQuery) {
-    console.warn('[WorkflowTrigger] Unknown object type for filter:', objectType);
+    console.error('[FILTER TRIGGER] Unknown object type for filter:', objectType);
     return 0;
   }
 
   // For now, simple implementation - find records not already enrolled
   // TODO: Add proper filter condition parsing when filter builder is implemented
-  const recordsResult = await query(
-    `${baseQuery}
+  const recordsQuery = `${baseQuery}
      WHERE r.tenant_id = $1
        AND NOT EXISTS (
          SELECT 1 FROM "WorkflowExecution" we
@@ -434,27 +507,39 @@ async function processFilterWorkflow(workflow) {
            AND we.record_id = r.id
            AND we.status IN ('running', 'paused')
        )
-     LIMIT 100`,
-    [tenantId, workflowId]
-  );
+     LIMIT 100`;
 
-  console.log('[WorkflowTrigger] Found', recordsResult.rows.length, 'records for filter workflow:', workflowId);
+  console.log('[FILTER TRIGGER] Records query:', recordsQuery);
+  console.log('[FILTER TRIGGER] Query params:', [tenantId, workflowId]);
+
+  const recordsResult = await query(recordsQuery, [tenantId, workflowId]);
+
+  console.log('[FILTER TRIGGER] Found', recordsResult.rows.length, 'records');
+  console.log('[FILTER TRIGGER] Record IDs:', recordsResult.rows.map(r => r.id));
 
   let enrolled = 0;
 
   for (const record of recordsResult.rows) {
+    console.log('[FILTER TRIGGER] Processing record:', record.id);
     try {
       const result = await enrollInWorkflow(workflow, record.id, objectType, tenantId, {});
+      console.log('[FILTER TRIGGER] Enrollment result:', JSON.stringify(result, null, 2));
 
       if (result.enrolled) {
+        console.log('[FILTER TRIGGER] Queuing first step for execution:', result.executionId);
         await queueFirstStep(result.executionId, workflowId, tenantId);
         enrolled++;
+        console.log('[FILTER TRIGGER] Record enrolled successfully');
+      } else {
+        console.log('[FILTER TRIGGER] Record not enrolled. Reason:', result.reason);
       }
     } catch (error) {
-      console.error('[WorkflowTrigger] Error enrolling record:', record.id, error);
+      console.error('[FILTER TRIGGER] Error enrolling record:', record.id, error);
+      console.error('[FILTER TRIGGER] Error stack:', error.stack);
     }
   }
 
+  console.log('[FILTER TRIGGER] processFilterWorkflow complete. Enrolled:', enrolled);
   return enrolled;
 }
 

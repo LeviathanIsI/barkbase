@@ -42,10 +42,17 @@ const TRIGGER_QUEUE_URL = process.env.WORKFLOW_TRIGGER_QUEUE_URL;
  * Main handler for scheduled invocation
  */
 exports.handler = async (event) => {
-  console.log('[ScheduledProcessor] Starting scheduled run');
+  console.log('[SCHEDULED PROCESSOR] ========================================');
+  console.log('[SCHEDULED PROCESSOR] LAMBDA INVOKED');
+  console.log('[SCHEDULED PROCESSOR] ========================================');
+  console.log('[SCHEDULED PROCESSOR] Event:', JSON.stringify(event, null, 2));
+  console.log('[SCHEDULED PROCESSOR] STEP_QUEUE_URL:', STEP_QUEUE_URL);
+  console.log('[SCHEDULED PROCESSOR] TRIGGER_QUEUE_URL:', TRIGGER_QUEUE_URL);
 
   // Ensure database pool is initialized
+  console.log('[SCHEDULED PROCESSOR] Initializing database pool...');
   await getPoolAsync();
+  console.log('[SCHEDULED PROCESSOR] Database pool ready');
 
   const results = {
     resumedExecutions: 0,
@@ -56,23 +63,32 @@ exports.handler = async (event) => {
 
   try {
     // 1. Resume paused executions whose wait time has passed
+    console.log('[SCHEDULED PROCESSOR] Step 1: Resume paused executions...');
     const resumed = await resumePausedExecutions();
     results.resumedExecutions = resumed;
+    console.log('[SCHEDULED PROCESSOR] Resumed:', resumed);
 
     // 2. Process schedule-triggered workflows
+    console.log('[SCHEDULED PROCESSOR] Step 2: Process schedule-triggered workflows...');
     const scheduled = await processScheduleWorkflows();
     results.scheduleWorkflowsTriggered = scheduled;
+    console.log('[SCHEDULED PROCESSOR] Scheduled triggered:', scheduled);
 
     // 3. Process filter-criteria workflows (check for matching records)
+    console.log('[SCHEDULED PROCESSOR] Step 3: Process filter-criteria workflows...');
     const filtered = await processFilterWorkflows();
     results.filterWorkflowsProcessed = filtered;
+    console.log('[SCHEDULED PROCESSOR] Filter processed:', filtered);
 
   } catch (error) {
-    console.error('[ScheduledProcessor] Error:', error);
+    console.error('[SCHEDULED PROCESSOR] Error:', error);
+    console.error('[SCHEDULED PROCESSOR] Error stack:', error.stack);
     results.errors.push(error.message);
   }
 
-  console.log('[ScheduledProcessor] Results:', results);
+  console.log('[SCHEDULED PROCESSOR] ========================================');
+  console.log('[SCHEDULED PROCESSOR] FINAL RESULTS:', JSON.stringify(results, null, 2));
+  console.log('[SCHEDULED PROCESSOR] ========================================');
   return results;
 };
 
@@ -80,22 +96,25 @@ exports.handler = async (event) => {
  * Resume paused executions whose wait time has passed
  */
 async function resumePausedExecutions() {
-  console.log('[ScheduledProcessor] Checking for paused executions to resume...');
+  console.log('[SCHEDULED PROCESSOR] resumePausedExecutions called');
 
-  // Find all paused executions where resume_at has passed
-  const pausedResult = await query(
-    `SELECT we.id as execution_id, we.workflow_id, we.tenant_id, we.current_step_id,
-            w.name as workflow_name
+  const pausedQuery = `SELECT we.id as execution_id, we.workflow_id, we.tenant_id, we.current_step_id,
+            w.name as workflow_name, we.resume_at
      FROM "WorkflowExecution" we
      JOIN "Workflow" w ON we.workflow_id = w.id
      WHERE we.status = 'paused'
        AND we.resume_at IS NOT NULL
        AND we.resume_at <= NOW()
      ORDER BY we.resume_at ASC
-     LIMIT 100`
-  );
+     LIMIT 100`;
 
-  console.log('[ScheduledProcessor] Found', pausedResult.rows.length, 'executions to resume');
+  console.log('[SCHEDULED PROCESSOR] Query:', pausedQuery);
+
+  // Find all paused executions where resume_at has passed
+  const pausedResult = await query(pausedQuery);
+
+  console.log('[SCHEDULED PROCESSOR] Found', pausedResult.rows.length, 'executions to resume');
+  console.log('[SCHEDULED PROCESSOR] Paused executions:', JSON.stringify(pausedResult.rows, null, 2));
 
   let resumed = 0;
 

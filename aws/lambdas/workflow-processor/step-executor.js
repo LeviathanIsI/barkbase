@@ -57,10 +57,18 @@ const SCHEDULER_ROLE_ARN = process.env.WORKFLOW_SCHEDULER_ROLE_ARN;
  * Main handler for SQS step execution events
  */
 exports.handler = async (event) => {
-  console.log('[StepExecutor] Processing', event.Records?.length || 0, 'messages');
+  console.log('[STEP EXECUTOR] ========================================');
+  console.log('[STEP EXECUTOR] LAMBDA INVOKED');
+  console.log('[STEP EXECUTOR] ========================================');
+  console.log('[STEP EXECUTOR] Event:', JSON.stringify(event, null, 2));
+  console.log('[STEP EXECUTOR] Records count:', event.Records?.length || 0);
+  console.log('[STEP EXECUTOR] STEP_QUEUE_URL:', STEP_QUEUE_URL);
+  console.log('[STEP EXECUTOR] SCHEDULER_ROLE_ARN:', SCHEDULER_ROLE_ARN);
 
   // Ensure database pool is initialized
+  console.log('[STEP EXECUTOR] Initializing database pool...');
   await getPoolAsync();
+  console.log('[STEP EXECUTOR] Database pool ready');
 
   const results = {
     processed: 0,
@@ -71,13 +79,18 @@ exports.handler = async (event) => {
 
   // Process each SQS record
   for (const record of event.Records || []) {
+    console.log('[STEP EXECUTOR] Processing record:', record.messageId);
+    console.log('[STEP EXECUTOR] Record body:', record.body);
     try {
       const message = JSON.parse(record.body);
+      console.log('[STEP EXECUTOR] Parsed message:', JSON.stringify(message, null, 2));
       await processStepExecution(message);
       results.processed++;
       results.succeeded++;
+      console.log('[STEP EXECUTOR] Record processed successfully');
     } catch (error) {
-      console.error('[StepExecutor] Error processing message:', error);
+      console.error('[STEP EXECUTOR] Error processing message:', error);
+      console.error('[STEP EXECUTOR] Error stack:', error.stack);
       results.failed++;
       results.errors.push({
         messageId: record.messageId,
@@ -86,7 +99,9 @@ exports.handler = async (event) => {
     }
   }
 
-  console.log('[StepExecutor] Results:', results);
+  console.log('[STEP EXECUTOR] ========================================');
+  console.log('[STEP EXECUTOR] FINAL RESULTS:', JSON.stringify(results, null, 2));
+  console.log('[STEP EXECUTOR] ========================================');
 
   return {
     batchItemFailures: results.errors.map(e => ({
@@ -101,9 +116,14 @@ exports.handler = async (event) => {
 async function processStepExecution(message) {
   const { executionId, workflowId, tenantId, action } = message;
 
-  console.log('[StepExecutor] Processing:', { executionId, action });
+  console.log('[STEP EXECUTOR] ---------- PROCESS STEP EXECUTION ----------');
+  console.log('[STEP EXECUTOR] Execution ID:', executionId);
+  console.log('[STEP EXECUTOR] Workflow ID:', workflowId);
+  console.log('[STEP EXECUTOR] Tenant ID:', tenantId);
+  console.log('[STEP EXECUTOR] Action:', action);
 
   // Get execution details
+  console.log('[STEP EXECUTOR] Fetching execution details...');
   const executionResult = await query(
     `SELECT we.*, w.name as workflow_name, w.object_type
      FROM "WorkflowExecution" we
@@ -113,83 +133,112 @@ async function processStepExecution(message) {
   );
 
   if (executionResult.rows.length === 0) {
-    console.warn('[StepExecutor] Execution not found:', executionId);
+    console.error('[STEP EXECUTOR] Execution NOT FOUND:', executionId);
     return;
   }
 
   const execution = executionResult.rows[0];
+  console.log('[STEP EXECUTOR] Execution found:', JSON.stringify(execution, null, 2));
 
   // Check if execution is still running
   if (execution.status !== 'running' && execution.status !== 'paused') {
-    console.log('[StepExecutor] Execution not active:', execution.status);
+    console.log('[STEP EXECUTOR] Execution not active. Status:', execution.status);
     return;
   }
 
   // Get current step details
+  console.log('[STEP EXECUTOR] Fetching step details. Step ID:', execution.current_step_id);
   const stepResult = await query(
     `SELECT * FROM "WorkflowStep" WHERE id = $1`,
     [execution.current_step_id]
   );
 
   if (stepResult.rows.length === 0) {
-    console.warn('[StepExecutor] Step not found:', execution.current_step_id);
+    console.error('[STEP EXECUTOR] Step NOT FOUND:', execution.current_step_id);
     await failExecution(executionId, 'Step not found');
     return;
   }
 
   const step = stepResult.rows[0];
+  console.log('[STEP EXECUTOR] Step found:', JSON.stringify(step, null, 2));
+  console.log('[STEP EXECUTOR] Step type:', step.step_type);
+  console.log('[STEP EXECUTOR] Action type:', step.action_type);
+  console.log('[STEP EXECUTOR] Step config:', JSON.stringify(step.config, null, 2));
 
   // Get record data for template interpolation
+  console.log('[STEP EXECUTOR] Fetching record data. Record ID:', execution.record_id, '| Type:', execution.object_type);
   const recordData = await getRecordData(execution.record_id, execution.object_type, tenantId);
+  console.log('[STEP EXECUTOR] Record data:', JSON.stringify(recordData, null, 2));
 
   // Execute step based on type
   let stepResult2;
+  console.log('[STEP EXECUTOR] Executing step type:', step.step_type);
   try {
     switch (step.step_type) {
       case 'action':
+        console.log('[STEP EXECUTOR] Executing ACTION step');
         stepResult2 = await executeAction(step, execution, recordData, tenantId);
         break;
       case 'wait':
+        console.log('[STEP EXECUTOR] Executing WAIT step');
         stepResult2 = await executeWait(step, execution, recordData, tenantId);
         break;
       case 'determinator':
+        console.log('[STEP EXECUTOR] Executing DETERMINATOR step');
         stepResult2 = await executeDeterminator(step, execution, recordData, tenantId);
         break;
       case 'gate':
+        console.log('[STEP EXECUTOR] Executing GATE step');
         stepResult2 = await executeGate(step, execution, recordData, tenantId);
         break;
       case 'terminus':
+        console.log('[STEP EXECUTOR] Executing TERMINUS step');
         stepResult2 = await executeTerminus(step, execution, tenantId);
         break;
       default:
-        console.warn('[StepExecutor] Unknown step type:', step.step_type);
+        console.error('[STEP EXECUTOR] Unknown step type:', step.step_type);
         stepResult2 = { success: false, error: 'Unknown step type' };
     }
   } catch (error) {
-    console.error('[StepExecutor] Step execution error:', error);
+    console.error('[STEP EXECUTOR] Step execution error:', error);
+    console.error('[STEP EXECUTOR] Error stack:', error.stack);
     stepResult2 = { success: false, error: error.message };
   }
 
+  console.log('[STEP EXECUTOR] Step result:', JSON.stringify(stepResult2, null, 2));
+
   // Log step execution
+  console.log('[STEP EXECUTOR] Logging step execution...');
   await logStepExecution(executionId, step.id, stepResult2);
 
   // Handle result and queue next step if needed
   if (stepResult2.success) {
+    console.log('[STEP EXECUTOR] Step succeeded');
     if (stepResult2.nextStepId) {
       // Update current step and queue next
+      console.log('[STEP EXECUTOR] Has next step:', stepResult2.nextStepId);
       await updateCurrentStep(executionId, stepResult2.nextStepId);
       await queueNextStep(executionId, workflowId, tenantId);
+      console.log('[STEP EXECUTOR] Next step queued');
     } else if (stepResult2.waitUntil) {
       // Schedule delayed execution
+      console.log('[STEP EXECUTOR] Scheduling delayed execution until:', stepResult2.waitUntil);
       await scheduleDelayedExecution(executionId, workflowId, tenantId, stepResult2.waitUntil);
+      console.log('[STEP EXECUTOR] Delayed execution scheduled');
     } else if (stepResult2.completed) {
       // Workflow completed
+      console.log('[STEP EXECUTOR] Workflow COMPLETED');
       await completeExecution(executionId, workflowId);
+    } else {
+      console.log('[STEP EXECUTOR] No next step, no wait, no completed flag - workflow may be stuck!');
     }
   } else {
     // Step failed
+    console.error('[STEP EXECUTOR] Step FAILED:', stepResult2.error);
     await failExecution(executionId, stepResult2.error);
   }
+
+  console.log('[STEP EXECUTOR] ---------- PROCESS STEP EXECUTION COMPLETE ----------');
 }
 
 /**
@@ -199,7 +248,10 @@ async function executeAction(step, execution, recordData, tenantId) {
   const config = step.config || {};
   const actionType = step.action_type;
 
-  console.log('[StepExecutor] Executing action:', actionType);
+  console.log('[STEP EXECUTOR] ===== EXECUTE ACTION =====');
+  console.log('[STEP EXECUTOR] Action type:', actionType);
+  console.log('[STEP EXECUTOR] Config:', JSON.stringify(config, null, 2));
+  console.log('[STEP EXECUTOR] Record data:', JSON.stringify(recordData, null, 2));
 
   let result;
 

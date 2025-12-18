@@ -60,23 +60,34 @@ const WORKFLOW_STEP_QUEUE_URL = process.env.WORKFLOW_STEP_QUEUE_URL;
  * @param {string} [stepId] - Optional specific step ID to process
  */
 async function queueStepExecution(executionId, workflowId, tenantId, stepId = null) {
+  console.log('[SQS] ========== QUEUE STEP EXECUTION ==========');
+  console.log('[SQS] Execution ID:', executionId);
+  console.log('[SQS] Workflow ID:', workflowId);
+  console.log('[SQS] Tenant ID:', tenantId);
+  console.log('[SQS] Step ID:', stepId);
+  console.log('[SQS] Queue URL:', WORKFLOW_STEP_QUEUE_URL);
+
   if (!WORKFLOW_STEP_QUEUE_URL) {
-    // In development without SQS, log for the local worker to pick up
-    console.log('[workflows] No SQS queue configured, execution will be processed by local worker');
+    console.log('[SQS] WARNING: No SQS queue URL configured!');
+    console.log('[SQS] WORKFLOW_STEP_QUEUE_URL env var is:', process.env.WORKFLOW_STEP_QUEUE_URL);
     return null;
   }
+
+  const messageBody = {
+    executionId,
+    workflowId,
+    tenantId,
+    stepId,
+    action: 'execute_next',
+    timestamp: new Date().toISOString(),
+  };
+
+  console.log('[SQS] Message body:', JSON.stringify(messageBody, null, 2));
 
   try {
     const result = await sqs.send(new SendMessageCommand({
       QueueUrl: WORKFLOW_STEP_QUEUE_URL,
-      MessageBody: JSON.stringify({
-        executionId,
-        workflowId,
-        tenantId,
-        stepId,
-        action: 'execute_next',
-        timestamp: new Date().toISOString(),
-      }),
+      MessageBody: JSON.stringify(messageBody),
       MessageAttributes: {
         executionId: {
           DataType: 'String',
@@ -84,10 +95,16 @@ async function queueStepExecution(executionId, workflowId, tenantId, stepId = nu
         },
       },
     }));
-    console.log('[workflows] Queued step execution:', executionId, stepId || 'next', result.MessageId);
+    console.log('[SQS] SUCCESS! Message ID:', result.MessageId);
+    console.log('[SQS] Full result:', JSON.stringify(result, null, 2));
+    console.log('[SQS] ========== QUEUE COMPLETE ==========');
     return result.MessageId;
   } catch (error) {
-    console.error('[workflows] Failed to queue step execution:', error);
+    console.error('[SQS] FAILED to send message:', error);
+    console.error('[SQS] Error name:', error.name);
+    console.error('[SQS] Error message:', error.message);
+    console.error('[SQS] Error stack:', error.stack);
+    console.log('[SQS] ========== QUEUE FAILED ==========');
     return null;
   }
 }
@@ -474,6 +491,17 @@ router.post('/workflows/:id/activate', async (req, res) => {
     const tenantId = req.tenantId;
     const { id } = req.params;
 
+    console.log('[WORKFLOW API] ========== ACTIVATE WORKFLOW ==========');
+    console.log('[WORKFLOW API] Workflow ID:', id);
+    console.log('[WORKFLOW API] Tenant ID:', tenantId);
+
+    // Get workflow BEFORE updating to see current state
+    const { rows: beforeRows } = await pool.query(
+      `SELECT * FROM "Workflow" WHERE id = $1 AND tenant_id = $2`,
+      [id, tenantId],
+    );
+    console.log('[WORKFLOW API] Workflow BEFORE update:', JSON.stringify(beforeRows[0], null, 2));
+
     const { rows } = await pool.query(
       `UPDATE "Workflow"
        SET status = 'active', updated_at = NOW()
@@ -483,12 +511,21 @@ router.post('/workflows/:id/activate', async (req, res) => {
     );
 
     if (rows.length === 0) {
+      console.log('[WORKFLOW API] Workflow not found!');
       return fail(res, 404, { message: 'Workflow not found' });
     }
 
+    const workflow = rows[0];
+    console.log('[WORKFLOW API] Workflow AFTER update:', JSON.stringify(workflow, null, 2));
+    console.log('[WORKFLOW API] Entry condition:', JSON.stringify(workflow.entry_condition, null, 2));
+    console.log('[WORKFLOW API] Trigger type:', workflow.entry_condition?.trigger_type);
+    console.log('[WORKFLOW API] Object type:', workflow.object_type);
+    console.log('[WORKFLOW API] Settings:', JSON.stringify(workflow.settings, null, 2));
+    console.log('[WORKFLOW API] ========== ACTIVATE COMPLETE ==========');
+
     return ok(res, rows[0]);
   } catch (error) {
-    console.error('[workflows] activateWorkflow failed', error);
+    console.error('[WORKFLOW API] activateWorkflow FAILED:', error);
     return fail(res, 500, { message: 'Failed to activate workflow' });
   }
 });
@@ -759,7 +796,14 @@ router.post('/workflows/:id/enroll', async (req, res) => {
     const { id } = req.params;
     const { record_id, record_type } = req.body || {};
 
+    console.log('[WORKFLOW API] ========== MANUAL ENROLL ==========');
+    console.log('[WORKFLOW API] Workflow ID:', id);
+    console.log('[WORKFLOW API] Tenant ID:', tenantId);
+    console.log('[WORKFLOW API] Record ID:', record_id);
+    console.log('[WORKFLOW API] Record Type:', record_type);
+
     if (!record_id || !record_type) {
+      console.log('[WORKFLOW API] Missing required fields!');
       return fail(res, 400, { message: 'Missing required fields: record_id, record_type' });
     }
 
@@ -775,23 +819,29 @@ router.post('/workflows/:id/enroll', async (req, res) => {
     }
 
     const workflow = workflowRows[0];
+    console.log('[WORKFLOW API] Workflow found:', JSON.stringify(workflow, null, 2));
 
     if (workflow.object_type !== record_type) {
+      console.log('[WORKFLOW API] Object type mismatch! Expected:', workflow.object_type, 'Got:', record_type);
       return fail(res, 400, { message: `Workflow expects ${workflow.object_type} records, got ${record_type}` });
     }
 
     // Check if already enrolled
+    console.log('[WORKFLOW API] Checking if already enrolled...');
     const { rows: existingRows } = await pool.query(
       `SELECT id, enrollment_count FROM "WorkflowExecution"
        WHERE workflow_id = $1 AND record_id = $2 AND status IN ('running', 'paused')`,
       [id, record_id],
     );
+    console.log('[WORKFLOW API] Existing enrollments:', existingRows.length);
 
     if (existingRows.length > 0) {
+      console.log('[WORKFLOW API] Already enrolled! Execution ID:', existingRows[0].id);
       return fail(res, 409, { message: 'Record is already enrolled in this workflow' });
     }
 
     // Get first step (use start_step_id or fallback to first by position)
+    console.log('[WORKFLOW API] Getting first step. start_step_id:', workflow.start_step_id);
     let currentStepId = workflow.start_step_id;
     if (!currentStepId) {
       const { rows: stepRows } = await pool.query(
@@ -799,7 +849,9 @@ router.post('/workflows/:id/enroll', async (req, res) => {
         [id],
       );
       currentStepId = stepRows.length > 0 ? stepRows[0].id : null;
+      console.log('[WORKFLOW API] First step by position:', currentStepId);
     }
+    console.log('[WORKFLOW API] Current step ID:', currentStepId);
 
     // Check for re-enrollment count
     const { rows: previousEnrollments } = await pool.query(
@@ -808,8 +860,10 @@ router.post('/workflows/:id/enroll', async (req, res) => {
       [id, record_id],
     );
     const enrollmentCount = (previousEnrollments[0]?.max_count || 0) + 1;
+    console.log('[WORKFLOW API] Enrollment count:', enrollmentCount);
 
     // Create enrollment with workflow revision tracking
+    console.log('[WORKFLOW API] Creating enrollment...');
     const { rows } = await pool.query(
       `INSERT INTO "WorkflowExecution" (
         id, workflow_id, tenant_id, record_id, record_type,
@@ -822,6 +876,7 @@ router.post('/workflows/:id/enroll', async (req, res) => {
       RETURNING *`,
       [id, tenantId, record_id, record_type, currentStepId, workflow.revision, enrollmentCount],
     );
+    console.log('[WORKFLOW API] Enrollment created:', JSON.stringify(rows[0], null, 2));
 
     // Update workflow counts
     await pool.query(
@@ -832,12 +887,21 @@ router.post('/workflows/:id/enroll', async (req, res) => {
        WHERE id = $1`,
       [id],
     );
+    console.log('[WORKFLOW API] Workflow counts updated');
 
     // Queue first step for execution
     if (currentStepId) {
+      console.log('[WORKFLOW API] Queuing first step for execution...');
+      console.log('[WORKFLOW API] Execution ID:', rows[0].id);
+      console.log('[WORKFLOW API] Workflow ID:', id);
+      console.log('[WORKFLOW API] Tenant ID:', tenantId);
       await queueStepExecution(rows[0].id, id, tenantId);
+      console.log('[WORKFLOW API] Step queued successfully');
+    } else {
+      console.log('[WORKFLOW API] WARNING: No current step ID, not queuing execution!');
     }
 
+    console.log('[WORKFLOW API] ========== ENROLL COMPLETE ==========');
     return ok(res, rows[0], 201);
   } catch (error) {
     console.error('[workflows] enrollRecord failed', error);
