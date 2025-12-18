@@ -49,6 +49,41 @@ const {
   publishBookingCancelled,
 } = sharedLayer;
 
+// SQS for workflow step queuing
+const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+const sqs = new SQSClient({
+  region: process.env.AWS_REGION_DEPLOY || process.env.AWS_REGION || 'us-east-2',
+});
+const WORKFLOW_STEP_QUEUE_URL = process.env.WORKFLOW_STEP_QUEUE_URL;
+
+/**
+ * Queue a workflow step for execution
+ */
+async function queueStepExecution(executionId, workflowId, tenantId) {
+  if (!WORKFLOW_STEP_QUEUE_URL) {
+    console.warn('[OperationsService] WORKFLOW_STEP_QUEUE_URL not set, cannot queue step');
+    return false;
+  }
+
+  try {
+    await sqs.send(new SendMessageCommand({
+      QueueUrl: WORKFLOW_STEP_QUEUE_URL,
+      MessageBody: JSON.stringify({
+        executionId,
+        workflowId,
+        tenantId,
+        action: 'execute_next',
+        timestamp: new Date().toISOString(),
+      }),
+    }));
+    console.log('[OperationsService] Queued step execution for', executionId);
+    return true;
+  } catch (error) {
+    console.error('[OperationsService] Failed to queue step execution:', error.message);
+    return false;
+  }
+}
+
 // =============================================================================
 // INPUT VALIDATION HELPERS
 // =============================================================================
@@ -8126,7 +8161,10 @@ async function enrollMatchingRecordsHelper(workflowId, tenantId, workflow) {
         [workflowId, tenantId, record.id, objectType, firstStepId]
       );
 
-      if (execResult.rows.length > 0) {
+      if (execResult.rows.length > 0 && firstStepId) {
+        const executionId = execResult.rows[0].id;
+        // Queue the first step for execution
+        await queueStepExecution(executionId, workflowId, tenantId);
         enrolled++;
         enrolledIds.push(record.id);
       }
