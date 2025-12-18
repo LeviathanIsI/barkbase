@@ -56,7 +56,7 @@ const CATEGORY_ICONS = {
   pet_health: Heart,
 };
 
-export default function BuilderLeftPanel({ onCreateWorkflow }) {
+export default function BuilderLeftPanel({ onCreateWorkflow, onActiveTriggerChange }) {
   const {
     workflow,
     panelMode,
@@ -111,6 +111,7 @@ export default function BuilderLeftPanel({ onCreateWorkflow }) {
         setObjectType={setObjectType}
         onCancel={clearSelection}
         onCreateWorkflow={onCreateWorkflow}
+        onActiveTriggerChange={onActiveTriggerChange}
       />
     );
   }
@@ -799,6 +800,7 @@ function TriggerConfigPanel({
   setObjectType,
   onCancel,
   onCreateWorkflow,
+  onActiveTriggerChange,
 }) {
   // Get saved entry condition for pre-populating forms
   const savedEntryCondition = workflow?.entryCondition;
@@ -851,9 +853,8 @@ function TriggerConfigPanel({
 
   // Handle save for filter_criteria
   const handleSaveFilterConfig = async () => {
-    const triggerConfig = {
+    const newEntryCondition = {
       triggerType: 'filter_criteria',
-      objectType: objectType,
       eventType: null,
       filterConfig: {
         conditions: filterConditions,
@@ -862,17 +863,34 @@ function TriggerConfigPanel({
       scheduleConfig: null,
     };
 
+    const triggerConfig = {
+      triggerType: 'filter_criteria',
+      objectType: objectType,
+      eventType: null,
+      filterConfig: newEntryCondition.filterConfig,
+      scheduleConfig: null,
+    };
+
     if (!workflow.id && onCreateWorkflow) {
       // New workflow - create it with this trigger
       await onCreateWorkflow(triggerConfig);
+    } else if (workflow.status === 'active' && onActiveTriggerChange) {
+      // Active workflow with filter_criteria trigger change - show enrollment modal
+      // Check if the filter config actually changed
+      const currentFilterConfig = savedEntryCondition?.filterConfig;
+      const newFilterConfig = newEntryCondition.filterConfig;
+      const hasChanged = JSON.stringify(currentFilterConfig) !== JSON.stringify(newFilterConfig);
+
+      if (hasChanged) {
+        // Trigger changed - let WorkflowBuilder show the enrollment modal
+        onActiveTriggerChange(newEntryCondition);
+      } else {
+        // No change - just close the panel
+        setEntryCondition(newEntryCondition);
+      }
     } else {
-      // Existing workflow - just update entry condition
-      setEntryCondition({
-        triggerType: 'filter_criteria',
-        eventType: null,
-        filterConfig: triggerConfig.filterConfig,
-        scheduleConfig: null,
-      });
+      // Existing workflow (not active) - just update entry condition
+      setEntryCondition(newEntryCondition);
     }
   };
 

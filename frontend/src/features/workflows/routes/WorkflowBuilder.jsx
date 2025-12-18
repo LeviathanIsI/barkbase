@@ -46,6 +46,9 @@ export default function WorkflowBuilder() {
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
 
+  // Pending trigger config (for active workflow trigger changes)
+  const [pendingTriggerConfig, setPendingTriggerConfig] = useState(null);
+
   // Store
   const {
     workflow,
@@ -62,6 +65,7 @@ export default function WorkflowBuilder() {
     setWorkflowId,
     markClean,
     openSettings,
+    setEntryCondition,
   } = useWorkflowBuilderStore();
 
   // Queries (only for existing workflows)
@@ -378,8 +382,65 @@ export default function WorkflowBuilder() {
    */
   const handleEnrollActivate = useCallback(async (options) => {
     setShowEnrollModal(false);
-    await handlePublish(options);
-  }, [handlePublish]);
+
+    // If we have pending trigger config, apply it and optionally enroll
+    if (pendingTriggerConfig) {
+      // Apply the pending trigger config
+      setEntryCondition(pendingTriggerConfig);
+
+      // Force save to persist the trigger change
+      await autoSave();
+
+      // If enrolling, use activate-with-enrollment to enroll new matching records
+      if (options.enrollExisting && pendingTriggerConfig.triggerType === 'filter_criteria') {
+        try {
+          const { data: result } = await apiClient.post(
+            `/api/workflows/${workflow.id}/activate-with-enrollment`,
+            { enrollExisting: true }
+          );
+          const enrolledCount = result.enrollment?.enrolled || 0;
+          if (enrolledCount > 0) {
+            toast.success(`Trigger updated! ${enrolledCount} new records enrolled.`);
+          } else {
+            toast.success('Trigger updated!');
+          }
+        } catch (error) {
+          console.error('Failed to enroll new records:', error);
+          toast.success('Trigger updated (enrollment skipped due to error)');
+        }
+      } else {
+        toast.success('Trigger updated!');
+      }
+
+      setPendingTriggerConfig(null);
+    } else {
+      // Normal activation flow (not a trigger change)
+      await handlePublish(options);
+    }
+  }, [handlePublish, pendingTriggerConfig, setEntryCondition, autoSave, workflow.id]);
+
+  /**
+   * Handle trigger config change on active workflow
+   * Called when user saves a trigger change on an already-active workflow with filter_criteria
+   * Shows enrollment modal to ask if they want to enroll records matching new criteria
+   */
+  const handleActiveTriggerChange = useCallback((newTriggerConfig) => {
+    // Store the pending config and show enrollment modal
+    setPendingTriggerConfig(newTriggerConfig);
+    setShowEnrollModal(true);
+  }, []);
+
+  /**
+   * Handle closing enrollment modal (canceling trigger change on active workflow)
+   */
+  const handleEnrollModalClose = useCallback(() => {
+    setShowEnrollModal(false);
+    // If we had pending trigger config, clear it (user canceled)
+    if (pendingTriggerConfig) {
+      setPendingTriggerConfig(null);
+      toast('Trigger change cancelled');
+    }
+  }, [pendingTriggerConfig]);
 
   /**
    * Handle open settings
@@ -476,8 +537,13 @@ export default function WorkflowBuilder() {
 
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left panel - pass createWorkflow for first trigger save */}
-        {showLeftPanel && <BuilderLeftPanel onCreateWorkflow={createWorkflow} />}
+        {/* Left panel - pass createWorkflow for first trigger save and active trigger change handler */}
+        {showLeftPanel && (
+          <BuilderLeftPanel
+            onCreateWorkflow={createWorkflow}
+            onActiveTriggerChange={handleActiveTriggerChange}
+          />
+        )}
 
         {/* Center canvas */}
         <div className="flex-1 overflow-auto">
@@ -512,11 +578,11 @@ export default function WorkflowBuilder() {
         />
       )}
 
-      {/* Enroll existing modal (shown for filter_criteria workflows) */}
+      {/* Enroll existing modal (shown for filter_criteria workflows or active trigger changes) */}
       {showEnrollModal && (
         <EnrollExistingModal
           workflow={workflow}
-          onClose={() => setShowEnrollModal(false)}
+          onClose={handleEnrollModalClose}
           onActivate={handleEnrollActivate}
         />
       )}
