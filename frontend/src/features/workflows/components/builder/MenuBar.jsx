@@ -7,7 +7,6 @@ import { createPortal } from 'react-dom';
 import {
   ExternalLink,
   ChevronRight,
-  Search,
   Trash2,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -134,7 +133,6 @@ export default function MenuBar({
     },
     help: {
       label: 'Help',
-      hasSearch: true,
       items: [
         { label: 'Knowledge base', onClick: () => window.open('/docs/workflows', '_blank'), external: true },
         { type: 'separator' },
@@ -154,7 +152,6 @@ export default function MenuBar({
           items={menu.items}
           isButton={menu.isButton}
           buttonOnClick={menu.onClick}
-          hasSearch={menu.hasSearch}
           isOpen={openMenu === key}
           onOpen={() => setOpenMenu(openMenu === key ? null : key)}
           onClose={() => setOpenMenu(null)}
@@ -170,14 +167,12 @@ function MenuDropdown({
   items,
   isButton,
   buttonOnClick,
-  hasSearch,
   isOpen,
   onOpen,
   onClose,
   onHover,
 }) {
   const ref = useRef(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const [activeSubmenu, setActiveSubmenu] = useState(null);
   const [submenuPosition, setSubmenuPosition] = useState({ top: 0, left: 0 });
 
@@ -194,22 +189,12 @@ function MenuDropdown({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, onClose]);
 
-  // Reset search when menu closes
+  // Reset submenu when menu closes
   useEffect(() => {
     if (!isOpen) {
-      setSearchQuery('');
       setActiveSubmenu(null);
     }
   }, [isOpen]);
-
-  // Filter items based on search
-  const filteredItems = searchQuery
-    ? items?.filter(
-        (item) =>
-          item.type !== 'separator' &&
-          item.label?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : items;
 
   // If this is a button-style menu item (like Settings)
   if (isButton) {
@@ -266,38 +251,14 @@ function MenuDropdown({
         <div
           className={cn(
             'absolute top-full left-0 mt-0.5 w-64 z-50',
-            'bg-white border border-gray-200',
+            'bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]',
             'rounded-lg shadow-xl py-1'
           )}
         >
-          {/* Search input for Help menu */}
-          {hasSearch && (
-            <div className="px-3 py-2 border-b border-gray-100">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search menus Ctrl + K"
-                  className={cn(
-                    'w-full pl-3 pr-8 py-1.5 text-sm',
-                    'bg-gray-50 border border-gray-200 rounded',
-                    'text-gray-900 placeholder-gray-500',
-                    'focus:outline-none focus:border-blue-400'
-                  )}
-                />
-                <Search
-                  size={14}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-              </div>
-            </div>
-          )}
-
           {/* Menu items */}
-          {filteredItems?.map((item, index) =>
+          {items?.map((item, index) =>
             item.type === 'separator' ? (
-              <div key={index} className="my-1 border-t border-gray-100" />
+              <div key={index} className="my-1 border-t border-[var(--bb-color-border-subtle)]" />
             ) : (
               <MenuItem
                 key={index}
@@ -311,12 +272,12 @@ function MenuDropdown({
 
           {/* Submenu portal */}
           {activeSubmenu &&
-            filteredItems?.find((item) => item.label === activeSubmenu)?.submenu &&
+            items?.find((item) => item.label === activeSubmenu)?.submenu &&
             createPortal(
               <div
                 className={cn(
                   'fixed w-48 z-[60]',
-                  'bg-white border border-gray-200',
+                  'bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]',
                   'rounded-lg shadow-xl py-1'
                 )}
                 style={{
@@ -325,11 +286,11 @@ function MenuDropdown({
                 }}
                 onMouseLeave={() => setActiveSubmenu(null)}
               >
-                {filteredItems
+                {items
                   .find((item) => item.label === activeSubmenu)
                   ?.submenu.map((subItem, subIndex) =>
                     subItem.type === 'separator' ? (
-                      <div key={subIndex} className="my-1 border-t border-gray-100" />
+                      <div key={subIndex} className="my-1 border-t border-[var(--bb-color-border-subtle)]" />
                     ) : (
                       <button
                         key={subIndex}
@@ -340,7 +301,7 @@ function MenuDropdown({
                         }}
                         className={cn(
                           'w-full px-3 py-1.5 text-left text-sm flex items-center',
-                          'text-gray-700 hover:bg-gray-100'
+                          'text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-surface)]'
                         )}
                       >
                         {subItem.label}
@@ -379,19 +340,19 @@ function MenuItem({ item, onClose, onSubmenuHover, isSubmenuActive }) {
       className={cn(
         'w-full px-3 py-1.5 text-left text-sm flex items-center gap-2',
         item.disabled
-          ? 'text-gray-400 cursor-not-allowed'
+          ? 'text-[var(--bb-color-text-tertiary)] cursor-not-allowed'
           : item.danger
-            ? 'text-red-600 hover:bg-red-50'
-            : 'text-gray-700 hover:bg-gray-100',
-        isSubmenuActive && 'bg-gray-100'
+            ? 'text-[var(--bb-color-status-negative)] hover:bg-[rgba(239,68,68,0.1)]'
+            : 'text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-surface)]',
+        isSubmenuActive && 'bg-[var(--bb-color-bg-surface)]'
       )}
     >
       {item.danger && <Trash2 size={14} />}
       <span className="flex-1">{item.label}</span>
-      {item.external && <ExternalLink size={12} className="text-gray-400" />}
-      {item.submenu && <ChevronRight size={14} className="text-gray-400" />}
+      {item.external && <ExternalLink size={12} className="text-[var(--bb-color-text-tertiary)]" />}
+      {item.submenu && <ChevronRight size={14} className="text-[var(--bb-color-text-tertiary)]" />}
       {item.shortcut && (
-        <span className="text-xs text-gray-400">{item.shortcut}</span>
+        <span className="text-xs text-[var(--bb-color-text-tertiary)]">{item.shortcut}</span>
       )}
     </button>
   );
