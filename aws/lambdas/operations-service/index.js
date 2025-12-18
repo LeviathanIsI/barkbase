@@ -610,6 +610,18 @@ exports.handler = async (event, context) => {
       if (subPath === '/activate' && method === 'POST') {
         return handleActivateWorkflow(tenantId, user, workflowId);
       }
+      if (subPath === '/activate-with-enrollment' && method === 'POST') {
+        return handleActivateWithEnrollment(tenantId, user, workflowId, parseBody(event));
+      }
+      if (subPath === '/matching-records-count' && method === 'GET') {
+        return handleGetMatchingRecordsCount(tenantId, workflowId);
+      }
+      if (subPath === '/dependencies' && method === 'GET') {
+        return handleGetWorkflowDependencies(tenantId, workflowId);
+      }
+      if (subPath === '/used-by' && method === 'GET') {
+        return handleGetWorkflowUsedBy(tenantId, workflowId);
+      }
       if (subPath === '/pause' && method === 'POST') {
         return handlePauseWorkflow(tenantId, user, workflowId);
       }
@@ -7613,6 +7625,537 @@ async function handlePauseWorkflow(tenantId, user, workflowId) {
       message: 'Failed to pause workflow',
     });
   }
+}
+
+/**
+ * Get count of records matching workflow trigger criteria
+ * Used for "Enroll existing records?" dialog
+ */
+async function handleGetMatchingRecordsCount(tenantId, workflowId) {
+  console.log('[Workflows][matchingRecordsCount] id:', workflowId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    // Get workflow with entry condition
+    const workflowResult = await query(
+      `SELECT id, object_type, entry_condition, settings FROM "Workflow"
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [workflowId, tenantId]
+    );
+
+    if (workflowResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Workflow not found',
+      });
+    }
+
+    const workflow = workflowResult.rows[0];
+    const objectType = workflow.object_type;
+    const entryCondition = workflow.entry_condition || {};
+    const filterConfig = entryCondition.filterConfig || entryCondition.filter || {};
+
+    // Determine which table to query based on object type
+    const tableMap = {
+      pet: 'Pet',
+      booking: 'Booking',
+      owner: 'Owner',
+      contact: 'Owner',
+      invoice: 'Invoice',
+      payment: 'Payment',
+      task: 'Task',
+    };
+
+    const tableName = tableMap[objectType];
+    if (!tableName) {
+      return createResponse(200, { count: 0, error: `Unknown object type: ${objectType}` });
+    }
+
+    // Build WHERE clause from filter config
+    let whereClause = 'tenant_id = $1';
+    const params = [tenantId];
+    let paramIndex = 2;
+
+    // Parse filter groups if present
+    if (filterConfig.groups && filterConfig.groups.length > 0) {
+      const groupConditions = [];
+
+      for (const group of filterConfig.groups) {
+        if (!group.conditions || group.conditions.length === 0) continue;
+
+        const conditionClauses = [];
+        for (const condition of group.conditions) {
+          const { field, operator, value } = condition;
+          if (!field || !operator) continue;
+
+          // Map field names to database columns
+          const fieldMap = {
+            name: 'name',
+            status: 'status',
+            species: 'species',
+            breed: 'breed',
+            sex: 'sex',
+            is_neutered: 'is_neutered',
+            weight: 'weight',
+            color: 'color',
+            email: 'email',
+            phone: 'phone',
+            city: 'city',
+            state: 'state',
+          };
+
+          const dbField = fieldMap[field] || field;
+
+          switch (operator) {
+            case 'equals':
+            case 'is':
+              conditionClauses.push(`"${dbField}" = $${paramIndex}`);
+              params.push(value);
+              paramIndex++;
+              break;
+            case 'not_equals':
+            case 'is_not':
+              conditionClauses.push(`"${dbField}" != $${paramIndex}`);
+              params.push(value);
+              paramIndex++;
+              break;
+            case 'contains':
+              conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
+              params.push(`%${value}%`);
+              paramIndex++;
+              break;
+            case 'starts_with':
+              conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
+              params.push(`${value}%`);
+              paramIndex++;
+              break;
+            case 'ends_with':
+              conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
+              params.push(`%${value}`);
+              paramIndex++;
+              break;
+            case 'is_empty':
+              conditionClauses.push(`("${dbField}" IS NULL OR "${dbField}" = '')`);
+              break;
+            case 'is_not_empty':
+              conditionClauses.push(`("${dbField}" IS NOT NULL AND "${dbField}" != '')`);
+              break;
+            case 'greater_than':
+              conditionClauses.push(`"${dbField}" > $${paramIndex}`);
+              params.push(value);
+              paramIndex++;
+              break;
+            case 'less_than':
+              conditionClauses.push(`"${dbField}" < $${paramIndex}`);
+              params.push(value);
+              paramIndex++;
+              break;
+            case 'in':
+            case 'is_any_of':
+              if (Array.isArray(value) && value.length > 0) {
+                const placeholders = value.map(() => `$${paramIndex++}`);
+                conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
+                params.push(...value);
+              }
+              break;
+            default:
+              conditionClauses.push(`"${dbField}" = $${paramIndex}`);
+              params.push(value);
+              paramIndex++;
+          }
+        }
+
+        if (conditionClauses.length > 0) {
+          const groupLogic = group.logic || 'AND';
+          groupConditions.push(`(${conditionClauses.join(` ${groupLogic} `)})`);
+        }
+      }
+
+      if (groupConditions.length > 0) {
+        const mainLogic = filterConfig.logic || 'AND';
+        whereClause += ` AND (${groupConditions.join(` ${mainLogic} `)})`;
+      }
+    }
+
+    // Exclude already enrolled records if re-enrollment is disabled
+    const settings = workflow.settings || {};
+    if (!settings.allowReenrollment) {
+      whereClause += ` AND id NOT IN (
+        SELECT record_id FROM "WorkflowExecution"
+        WHERE workflow_id = $${paramIndex} AND status IN ('running', 'paused', 'completed')
+      )`;
+      params.push(workflowId);
+    }
+
+    // Count matching records
+    const countQuery = `SELECT COUNT(*) as count FROM "${tableName}" WHERE ${whereClause}`;
+    console.log('[Workflows][matchingRecordsCount] Query:', countQuery);
+
+    const countResult = await query(countQuery, params);
+    const count = parseInt(countResult.rows[0].count, 10);
+
+    return createResponse(200, {
+      count,
+      objectType,
+      triggerType: entryCondition.triggerType || entryCondition.trigger_type,
+      filterApplied: !!(filterConfig.groups && filterConfig.groups.length > 0),
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to count matching records:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to count matching records',
+    });
+  }
+}
+
+/**
+ * Get workflow dependencies (what this workflow uses)
+ */
+async function handleGetWorkflowDependencies(tenantId, workflowId) {
+  console.log('[Workflows][dependencies] id:', workflowId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    // Verify workflow exists
+    const workflowResult = await query(
+      `SELECT id, name FROM "Workflow"
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [workflowId, tenantId]
+    );
+
+    if (workflowResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Workflow not found',
+      });
+    }
+
+    // Get steps that reference other workflows (enroll_in_workflow action)
+    const enrollStepsResult = await query(
+      `SELECT ws.id, ws.name, ws.config, w.name as target_workflow_name
+       FROM "WorkflowStep" ws
+       LEFT JOIN "Workflow" w ON w.id = (ws.config->>'workflowId')::uuid
+       WHERE ws.workflow_id = $1 AND ws.action_type = 'enroll_in_workflow'`,
+      [workflowId]
+    );
+
+    // Get steps that create tasks
+    const taskStepsResult = await query(
+      `SELECT ws.id, ws.name, ws.config
+       FROM "WorkflowStep" ws
+       WHERE ws.workflow_id = $1 AND ws.action_type = 'create_task'`,
+      [workflowId]
+    );
+
+    // Get steps that send emails
+    const emailStepsResult = await query(
+      `SELECT ws.id, ws.name, ws.config
+       FROM "WorkflowStep" ws
+       WHERE ws.workflow_id = $1 AND ws.action_type = 'send_email'`,
+      [workflowId]
+    );
+
+    return createResponse(200, {
+      workflows: enrollStepsResult.rows.map(s => ({
+        stepId: s.id,
+        stepName: s.name,
+        targetWorkflowId: s.config?.workflowId,
+        targetWorkflowName: s.target_workflow_name,
+      })),
+      tasks: taskStepsResult.rows.map(s => ({
+        stepId: s.id,
+        stepName: s.name,
+        taskConfig: s.config,
+      })),
+      emails: emailStepsResult.rows.map(s => ({
+        stepId: s.id,
+        stepName: s.name,
+        emailConfig: s.config,
+      })),
+      properties: [],
+      segments: [],
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to load dependencies:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to load dependencies',
+    });
+  }
+}
+
+/**
+ * Get workflows that use this workflow
+ */
+async function handleGetWorkflowUsedBy(tenantId, workflowId) {
+  console.log('[Workflows][usedBy] id:', workflowId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    // Find workflows that enroll into this workflow
+    const result = await query(
+      `SELECT DISTINCT w.id, w.name, w.status, ws.name as step_name
+       FROM "Workflow" w
+       JOIN "WorkflowStep" ws ON ws.workflow_id = w.id
+       WHERE w.tenant_id = $1
+         AND w.deleted_at IS NULL
+         AND ws.action_type = 'enroll_in_workflow'
+         AND ws.config->>'workflowId' = $2`,
+      [tenantId, workflowId]
+    );
+
+    return createResponse(200, {
+      workflows: result.rows.map(r => ({
+        id: r.id,
+        name: r.name,
+        status: r.status,
+        stepName: r.step_name,
+      })),
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to load used-by:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to load used-by',
+    });
+  }
+}
+
+/**
+ * Activate workflow with optional immediate enrollment
+ */
+async function handleActivateWithEnrollment(tenantId, user, workflowId, body) {
+  console.log('[Workflows][activateWithEnrollment] id:', workflowId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+    const { enrollExisting = false } = body || {};
+
+    console.log('[Workflows][activateWithEnrollment] enrollExisting:', enrollExisting);
+
+    // Get workflow before activating
+    const beforeResult = await query(
+      `SELECT * FROM "Workflow" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [workflowId, tenantId]
+    );
+
+    if (beforeResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Workflow not found',
+      });
+    }
+
+    const workflow = beforeResult.rows[0];
+
+    // Activate the workflow
+    const activateResult = await query(
+      `UPDATE "Workflow"
+       SET status = 'active', updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      [workflowId, tenantId]
+    );
+
+    const activatedWorkflow = activateResult.rows[0];
+
+    // If enrollExisting is true and this is a filter_criteria workflow, enroll matching records
+    let enrollmentResult = null;
+    const entryCondition = workflow.entry_condition || {};
+    const triggerType = entryCondition.triggerType || entryCondition.trigger_type;
+
+    if (enrollExisting && triggerType === 'filter_criteria') {
+      console.log('[Workflows][activateWithEnrollment] Enrolling existing records...');
+      enrollmentResult = await enrollMatchingRecordsHelper(workflowId, tenantId, workflow);
+      console.log('[Workflows][activateWithEnrollment] Enrollment result:', enrollmentResult);
+    }
+
+    return createResponse(200, {
+      workflow: activatedWorkflow,
+      enrollment: enrollmentResult,
+      success: true,
+      status: 'active',
+      message: enrollmentResult
+        ? `Workflow activated and ${enrollmentResult.enrolled} records enrolled`
+        : 'Workflow activated',
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to activate with enrollment:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to activate workflow',
+    });
+  }
+}
+
+/**
+ * Helper: Enroll all matching records into a workflow
+ */
+async function enrollMatchingRecordsHelper(workflowId, tenantId, workflow) {
+  const objectType = workflow.object_type;
+  const entryCondition = workflow.entry_condition || {};
+  const filterConfig = entryCondition.filterConfig || entryCondition.filter || {};
+  const settings = workflow.settings || {};
+
+  const tableMap = {
+    pet: 'Pet',
+    booking: 'Booking',
+    owner: 'Owner',
+    contact: 'Owner',
+    invoice: 'Invoice',
+    payment: 'Payment',
+    task: 'Task',
+  };
+
+  const tableName = tableMap[objectType];
+  if (!tableName) {
+    return { enrolled: 0, error: `Unknown object type: ${objectType}` };
+  }
+
+  // Build WHERE clause (same logic as matching-records-count)
+  let whereClause = 'tenant_id = $1';
+  const params = [tenantId];
+  let paramIndex = 2;
+
+  if (filterConfig.groups && filterConfig.groups.length > 0) {
+    const groupConditions = [];
+
+    for (const group of filterConfig.groups) {
+      if (!group.conditions || group.conditions.length === 0) continue;
+
+      const conditionClauses = [];
+      for (const condition of group.conditions) {
+        const { field, operator, value } = condition;
+        if (!field || !operator) continue;
+
+        const fieldMap = {
+          name: 'name',
+          status: 'status',
+          species: 'species',
+          breed: 'breed',
+          sex: 'sex',
+          is_neutered: 'is_neutered',
+          weight: 'weight',
+          color: 'color',
+          email: 'email',
+          phone: 'phone',
+        };
+
+        const dbField = fieldMap[field] || field;
+
+        switch (operator) {
+          case 'equals':
+          case 'is':
+            conditionClauses.push(`"${dbField}" = $${paramIndex}`);
+            params.push(value);
+            paramIndex++;
+            break;
+          case 'contains':
+            conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
+            params.push(`%${value}%`);
+            paramIndex++;
+            break;
+          case 'in':
+          case 'is_any_of':
+            if (Array.isArray(value) && value.length > 0) {
+              const placeholders = value.map(() => `$${paramIndex++}`);
+              conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
+              params.push(...value);
+            }
+            break;
+          default:
+            conditionClauses.push(`"${dbField}" = $${paramIndex}`);
+            params.push(value);
+            paramIndex++;
+        }
+      }
+
+      if (conditionClauses.length > 0) {
+        const groupLogic = group.logic || 'AND';
+        groupConditions.push(`(${conditionClauses.join(` ${groupLogic} `)})`);
+      }
+    }
+
+    if (groupConditions.length > 0) {
+      const mainLogic = filterConfig.logic || 'AND';
+      whereClause += ` AND (${groupConditions.join(` ${mainLogic} `)})`;
+    }
+  }
+
+  // Exclude already enrolled
+  if (!settings.allowReenrollment) {
+    whereClause += ` AND id NOT IN (
+      SELECT record_id FROM "WorkflowExecution"
+      WHERE workflow_id = $${paramIndex}
+    )`;
+    params.push(workflowId);
+  }
+
+  // Get matching records (limit to 1000 for safety)
+  const selectQuery = `SELECT id FROM "${tableName}" WHERE ${whereClause} LIMIT 1000`;
+  console.log('[Workflows][enrollMatchingRecords] Query:', selectQuery);
+
+  const recordsResult = await query(selectQuery, params);
+  console.log('[Workflows][enrollMatchingRecords] Found', recordsResult.rows.length, 'records');
+
+  if (recordsResult.rows.length === 0) {
+    return { enrolled: 0, records: [] };
+  }
+
+  // Get first step
+  const stepsResult = await query(
+    `SELECT id FROM "WorkflowStep" WHERE workflow_id = $1 ORDER BY position LIMIT 1`,
+    [workflowId]
+  );
+
+  const firstStepId = stepsResult.rows.length > 0 ? stepsResult.rows[0].id : null;
+
+  // Enroll each record
+  let enrolled = 0;
+  const enrolledIds = [];
+
+  for (const record of recordsResult.rows) {
+    try {
+      const execResult = await query(
+        `INSERT INTO "WorkflowExecution" (
+          id, workflow_id, tenant_id, record_id, record_type,
+          status, current_step_id, enrolled_at, created_at, updated_at
+        )
+        VALUES (
+          uuid_generate_v4(), $1, $2, $3, $4, 'running', $5, NOW(), NOW(), NOW()
+        )
+        RETURNING id`,
+        [workflowId, tenantId, record.id, objectType, firstStepId]
+      );
+
+      if (execResult.rows.length > 0) {
+        enrolled++;
+        enrolledIds.push(record.id);
+      }
+    } catch (err) {
+      console.error('[Workflows][enrollMatchingRecords] Error enrolling record:', record.id, err.message);
+    }
+  }
+
+  // Update workflow counts
+  await query(
+    `UPDATE "Workflow" SET
+      enrolled_count = enrolled_count + $1,
+      active_count = active_count + $1,
+      last_run_at = NOW()
+     WHERE id = $2`,
+    [enrolled, workflowId]
+  );
+
+  return { enrolled, total: recordsResult.rows.length, enrolledIds };
 }
 
 /**
