@@ -230,19 +230,19 @@ function ConfigPanelWrapper({
 }) {
   return (
     <div className={cn(
-      "w-80 h-full",
+      "w-80 h-full relative",
       "border-l border-[var(--bb-color-border-subtle)]",
       "bg-[var(--bb-color-bg-surface)]",
       "flex flex-col"
     )}>
       {/* Header */}
-      <div className="px-4 py-3 border-b border-[var(--bb-color-border-subtle)] flex items-center justify-between">
+      <div className="flex-shrink-0 px-4 py-3 border-b border-[var(--bb-color-border-subtle)] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">
             {title}
           </h3>
           {hasChanges && (
-            <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--bb-color-accent-soft)] text-[var(--bb-color-accent)]">
+            <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-[rgba(59,130,246,0.2)] text-[#3B82F6]">
               Unsaved
             </span>
           )}
@@ -259,28 +259,43 @@ function ConfigPanelWrapper({
         </button>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto">
-        {children}
-      </div>
-
-      {/* Footer with Save/Cancel buttons */}
-      <div className="px-4 py-3 border-t border-[var(--bb-color-border-subtle)] flex items-center justify-end gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
+      {/* Save/Cancel buttons - RIGHT BELOW HEADER */}
+      <div className={cn(
+        "flex-shrink-0 px-4 py-3",
+        "border-b border-[var(--bb-color-border-subtle)]",
+        "bg-[var(--bb-color-bg-surface)]",
+        "flex items-center justify-end gap-3"
+      )}>
+        <button
           onClick={onCancel}
+          className={cn(
+            "px-4 py-2 rounded-md text-sm font-medium",
+            "bg-[var(--bb-color-bg-elevated)] text-[var(--bb-color-text-primary)]",
+            "border border-[var(--bb-color-border-subtle)]",
+            "hover:bg-[var(--bb-color-bg-body)] hover:border-[var(--bb-color-border-strong)]",
+            "transition-colors"
+          )}
         >
           Cancel
-        </Button>
-        <Button
-          variant="primary"
-          size="sm"
+        </button>
+        <button
           onClick={onSave}
           disabled={!hasChanges}
+          className={cn(
+            "px-4 py-2 rounded-md text-sm font-medium",
+            "transition-colors",
+            hasChanges
+              ? "bg-[#3B82F6] text-white hover:bg-[#2563EB]"
+              : "bg-[#3B82F6]/50 text-white/70 cursor-not-allowed"
+          )}
         >
           Save
-        </Button>
+        </button>
+      </div>
+
+      {/* Content - scrollable area */}
+      <div className="flex-1 overflow-auto min-h-0">
+        {children}
       </div>
 
       {/* Unsaved changes warning modal */}
@@ -291,7 +306,7 @@ function ConfigPanelWrapper({
             "rounded-lg p-4 m-4 shadow-xl max-w-xs"
           )}>
             <div className="flex items-start gap-3 mb-4">
-              <AlertCircle className="w-5 h-5 text-[var(--bb-color-status-warning)] flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-[#F59E0B] flex-shrink-0 mt-0.5" />
               <div>
                 <h4 className="text-sm font-medium text-[var(--bb-color-text-primary)] mb-1">
                   Unsaved changes
@@ -302,20 +317,27 @@ function ConfigPanelWrapper({
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
+              <button
                 onClick={onCancelDiscard}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-sm font-medium",
+                  "bg-[var(--bb-color-bg-elevated)] text-[var(--bb-color-text-primary)]",
+                  "border border-[var(--bb-color-border-subtle)]",
+                  "hover:bg-[var(--bb-color-bg-body)]"
+                )}
               >
                 Keep editing
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
+              </button>
+              <button
                 onClick={onDiscard}
+                className={cn(
+                  "px-3 py-1.5 rounded-md text-sm font-medium",
+                  "bg-[#EF4444] text-white",
+                  "hover:bg-[#DC2626]"
+                )}
               >
                 Discard
-              </Button>
+              </button>
             </div>
           </div>
         </div>
