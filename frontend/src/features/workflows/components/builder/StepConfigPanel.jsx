@@ -1,8 +1,13 @@
 /**
  * StepConfigPanel - Right panel for configuring workflow steps
  * Shows different configuration forms based on the selected step type
+ *
+ * IMPORTANT: This panel uses local state for editing. Changes are only
+ * committed to the store when the user clicks "Save". Clicking "Cancel"
+ * or closing the panel discards unsaved changes.
  */
-import { X } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { X, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import Button from '@/components/ui/Button';
 import { useWorkflowBuilderStore } from '../../stores/builderStore';
@@ -25,64 +30,153 @@ export default function StepConfigPanel() {
     setEntryCondition,
   } = useWorkflowBuilderStore();
 
+  // Local state for editing
+  const [localStep, setLocalStep] = useState(null);
+  const [localEntryCondition, setLocalEntryCondition] = useState(null);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+
+  // Find the selected step from the store
+  const storeStep = steps.find((s) => s.id === selectedStepId);
+
+  // Initialize local state when selection changes
+  useEffect(() => {
+    if (selectedStepId === 'trigger') {
+      setLocalEntryCondition(JSON.parse(JSON.stringify(workflow.entryCondition || {})));
+      setLocalStep(null);
+    } else if (storeStep) {
+      setLocalStep(JSON.parse(JSON.stringify(storeStep)));
+      setLocalEntryCondition(null);
+    } else {
+      setLocalStep(null);
+      setLocalEntryCondition(null);
+    }
+    setHasChanges(false);
+    setShowUnsavedWarning(false);
+  }, [selectedStepId, storeStep?.id]); // Only reset when selection changes
+
+  // Handle local step update
+  const handleLocalUpdate = useCallback((updates) => {
+    setLocalStep((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev };
+
+      // Merge updates
+      Object.keys(updates).forEach((key) => {
+        if (key === 'config') {
+          updated.config = { ...updated.config, ...updates.config };
+        } else {
+          updated[key] = updates[key];
+        }
+      });
+
+      return updated;
+    });
+    setHasChanges(true);
+  }, []);
+
+  // Handle local entry condition update
+  const handleLocalEntryConditionUpdate = useCallback((updates) => {
+    setLocalEntryCondition((prev) => ({
+      ...prev,
+      ...updates,
+    }));
+    setHasChanges(true);
+  }, []);
+
+  // Handle save
+  const handleSave = useCallback(() => {
+    if (selectedStepId === 'trigger' && localEntryCondition) {
+      setEntryCondition(localEntryCondition);
+    } else if (localStep) {
+      updateStep(localStep.id, localStep);
+    }
+    setHasChanges(false);
+  }, [selectedStepId, localStep, localEntryCondition, updateStep, setEntryCondition]);
+
+  // Handle cancel / close
+  const handleClose = useCallback(() => {
+    if (hasChanges) {
+      setShowUnsavedWarning(true);
+    } else {
+      clearSelection();
+    }
+  }, [hasChanges, clearSelection]);
+
+  // Handle discard changes
+  const handleDiscard = useCallback(() => {
+    setShowUnsavedWarning(false);
+    clearSelection();
+  }, [clearSelection]);
+
+  // Handle cancel discard (stay on panel)
+  const handleCancelDiscard = useCallback(() => {
+    setShowUnsavedWarning(false);
+  }, []);
+
   // Handle trigger config
   if (selectedStepId === 'trigger') {
+    if (!localEntryCondition) return null;
+
     return (
-      <ConfigPanelWrapper title="Trigger" onClose={clearSelection}>
+      <ConfigPanelWrapper
+        title="Trigger"
+        onClose={handleClose}
+        hasChanges={hasChanges}
+        onSave={handleSave}
+        onCancel={handleClose}
+        showUnsavedWarning={showUnsavedWarning}
+        onDiscard={handleDiscard}
+        onCancelDiscard={handleCancelDiscard}
+      >
         <TriggerConfig
-          entryCondition={workflow.entryCondition}
+          entryCondition={localEntryCondition}
           objectType={workflow.objectType}
-          onChange={setEntryCondition}
+          onChange={handleLocalEntryConditionUpdate}
         />
       </ConfigPanelWrapper>
     );
   }
 
-  // Find the selected step
-  const step = steps.find((s) => s.id === selectedStepId);
-  if (!step) return null;
-
-  // Handle update
-  const handleUpdate = (updates) => {
-    updateStep(step.id, updates);
-  };
+  // No step selected or step not found
+  if (!localStep) return null;
 
   // Render appropriate config component
   const renderConfig = () => {
-    switch (step.stepType) {
+    switch (localStep.stepType) {
       case STEP_TYPES.ACTION:
         return (
           <ActionConfig
-            step={step}
+            step={localStep}
             objectType={workflow.objectType}
-            onChange={handleUpdate}
+            onChange={handleLocalUpdate}
           />
         );
 
       case STEP_TYPES.WAIT:
         return (
           <WaitConfig
-            step={step}
+            step={localStep}
             objectType={workflow.objectType}
-            onChange={handleUpdate}
+            onChange={handleLocalUpdate}
           />
         );
 
       case STEP_TYPES.DETERMINATOR:
         return (
           <DeterminatorConfig
-            step={step}
+            step={localStep}
             objectType={workflow.objectType}
-            onChange={handleUpdate}
+            onChange={handleLocalUpdate}
           />
         );
 
       case STEP_TYPES.GATE:
         return (
           <GateConfig
-            step={step}
+            step={localStep}
             objectType={workflow.objectType}
-            onChange={handleUpdate}
+            onChange={handleLocalUpdate}
           />
         );
 
@@ -97,7 +191,7 @@ export default function StepConfigPanel() {
       default:
         return (
           <div className="p-4 text-sm text-[var(--bb-color-text-tertiary)]">
-            Unknown step type: {step.stepType}
+            Unknown step type: {localStep.stepType}
           </div>
         );
     }
@@ -105,8 +199,14 @@ export default function StepConfigPanel() {
 
   return (
     <ConfigPanelWrapper
-      title={step.name || 'Configure Step'}
-      onClose={clearSelection}
+      title={localStep.name || 'Configure Step'}
+      onClose={handleClose}
+      hasChanges={hasChanges}
+      onSave={handleSave}
+      onCancel={handleClose}
+      showUnsavedWarning={showUnsavedWarning}
+      onDiscard={handleDiscard}
+      onCancelDiscard={handleCancelDiscard}
     >
       {renderConfig()}
     </ConfigPanelWrapper>
@@ -115,8 +215,19 @@ export default function StepConfigPanel() {
 
 /**
  * ConfigPanelWrapper - Wrapper component for config panels
+ * Includes header, content area, and Save/Cancel buttons
  */
-function ConfigPanelWrapper({ title, onClose, children }) {
+function ConfigPanelWrapper({
+  title,
+  onClose,
+  hasChanges,
+  onSave,
+  onCancel,
+  showUnsavedWarning,
+  onDiscard,
+  onCancelDiscard,
+  children,
+}) {
   return (
     <div className={cn(
       "w-80 h-full",
@@ -126,9 +237,16 @@ function ConfigPanelWrapper({ title, onClose, children }) {
     )}>
       {/* Header */}
       <div className="px-4 py-3 border-b border-[var(--bb-color-border-subtle)] flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">
-          {title}
-        </h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">
+            {title}
+          </h3>
+          {hasChanges && (
+            <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-[var(--bb-color-accent-soft)] text-[var(--bb-color-accent)]">
+              Unsaved
+            </span>
+          )}
+        </div>
         <button
           onClick={onClose}
           className={cn(
@@ -145,6 +263,63 @@ function ConfigPanelWrapper({ title, onClose, children }) {
       <div className="flex-1 overflow-auto">
         {children}
       </div>
+
+      {/* Footer with Save/Cancel buttons */}
+      <div className="px-4 py-3 border-t border-[var(--bb-color-border-subtle)] flex items-center justify-end gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onCancel}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={onSave}
+          disabled={!hasChanges}
+        >
+          Save
+        </Button>
+      </div>
+
+      {/* Unsaved changes warning modal */}
+      {showUnsavedWarning && (
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className={cn(
+            "bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]",
+            "rounded-lg p-4 m-4 shadow-xl max-w-xs"
+          )}>
+            <div className="flex items-start gap-3 mb-4">
+              <AlertCircle className="w-5 h-5 text-[var(--bb-color-status-warning)] flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium text-[var(--bb-color-text-primary)] mb-1">
+                  Unsaved changes
+                </h4>
+                <p className="text-xs text-[var(--bb-color-text-secondary)]">
+                  You have unsaved changes. Do you want to discard them?
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onCancelDiscard}
+              >
+                Keep editing
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={onDiscard}
+              >
+                Discard
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

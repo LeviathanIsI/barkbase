@@ -35,7 +35,8 @@ function validateWorkflow(workflow, steps) {
 
   // Check for unconfigured steps
   steps.forEach((step) => {
-    const config = step.actionConfig || step.action_config || {};
+    // Config can be in step.config (from builder), step.actionConfig (camelCase), or step.action_config (snake_case)
+    const config = step.config || step.actionConfig || step.action_config || {};
 
     if (step.actionType === 'send_sms' || step.action_type === 'send_sms') {
       if (!config.message) {
