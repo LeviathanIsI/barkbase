@@ -8998,7 +8998,7 @@ async function handleGetWorkflowExecutions(tenantId, workflowId, queryParams) {
 
 /**
  * Get workflow execution history/logs
- * Returns logs from WorkflowExecutionLog joined with step names
+ * Returns logs from WorkflowExecutionLog joined with step names and record details
  */
 async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
   const { limit = 100, offset = 0 } = queryParams;
@@ -9021,26 +9021,41 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
       });
     }
 
-    // Get logs with step names and execution details
+    // Get logs with step names, execution details, and record names
     const result = await query(
       `SELECT
          l.id,
          l.execution_id,
          l.step_id,
          s.name as step_name,
-         l.status,
-         l.status as event_type,
-         l.completed_at as created_at,
-         l.result,
-         l.result->>'error' as error_message,
          s.action_type,
+         CASE
+           WHEN l.status = 'success' THEN 'step_completed'
+           WHEN l.status = 'failed' THEN 'step_failed'
+           WHEN l.status = 'skipped' THEN 'step_skipped'
+           WHEN l.status = 'goal_reached' THEN 'goal_reached'
+           ELSE l.status
+         END as event_type,
          e.record_id,
-         e.record_type as record_name
+         e.object_type,
+         COALESCE(p.name, o.first_name || ' ' || o.last_name, b.id::text) as record_name,
+         l.started_at as created_at,
+         l.completed_at,
+         CASE
+           WHEN l.started_at IS NOT NULL AND l.completed_at IS NOT NULL
+           THEN EXTRACT(EPOCH FROM (l.completed_at - l.started_at)) * 1000
+           ELSE NULL
+         END as duration_ms,
+         l.result,
+         l.result->>'error' as error_message
        FROM "WorkflowExecutionLog" l
        JOIN "WorkflowExecution" e ON e.id = l.execution_id
        LEFT JOIN "WorkflowStep" s ON s.id = l.step_id
+       LEFT JOIN "Pet" p ON e.object_type = 'Pet' AND e.record_id = p.id
+       LEFT JOIN "Owner" o ON e.object_type = 'Owner' AND e.record_id = o.id
+       LEFT JOIN "Booking" b ON e.object_type = 'Booking' AND e.record_id = b.id
        WHERE e.workflow_id = $1 AND e.tenant_id = $2
-       ORDER BY l.completed_at DESC
+       ORDER BY l.completed_at DESC NULLS LAST, l.started_at DESC
        LIMIT $3 OFFSET $4`,
       [workflowId, tenantId, parseInt(limit), parseInt(offset)]
     );
@@ -9054,11 +9069,26 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
       [workflowId, tenantId]
     );
 
+    // Transform rows to ensure proper types
+    const logs = result.rows.map(row => ({
+      id: row.id,
+      execution_id: row.execution_id,
+      step_id: row.step_id,
+      step_name: row.step_name || 'Unknown Step',
+      action_type: row.action_type,
+      event_type: row.event_type,
+      record_id: row.record_id,
+      record_name: row.record_name || row.object_type || 'Unknown',
+      created_at: row.created_at,
+      completed_at: row.completed_at,
+      duration_ms: row.duration_ms ? Math.round(row.duration_ms) : null,
+      result: row.result,
+      error_message: row.error_message
+    }));
+
     return createResponse(200, {
-      logs: result.rows,
-      total: parseInt(countResult.rows[0]?.total || 0),
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      logs,
+      total: parseInt(countResult.rows[0]?.total || 0)
     });
 
   } catch (error) {
