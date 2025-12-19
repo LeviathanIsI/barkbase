@@ -32,6 +32,54 @@ const {
   parseBody,
 } = sharedLayer;
 
+// SQS for workflow trigger events
+const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+const sqs = new SQSClient({
+  region: process.env.AWS_REGION_DEPLOY || process.env.AWS_REGION || 'us-east-2',
+});
+const WORKFLOW_TRIGGER_QUEUE_URL = process.env.WORKFLOW_TRIGGER_QUEUE_URL;
+
+/**
+ * Publish a workflow trigger event to the trigger queue
+ * This notifies the workflow-trigger-processor Lambda about domain events
+ * that may trigger workflow enrollments.
+ *
+ * @param {string} eventType - Event type (e.g., 'payment.received', 'invoice.created')
+ * @param {string} recordId - ID of the record that triggered the event
+ * @param {string} recordType - Type of record ('payment', 'invoice', etc.)
+ * @param {string} tenantId - Tenant ID for multi-tenancy
+ * @param {object} eventData - Additional event data (optional)
+ */
+async function publishWorkflowEvent(eventType, recordId, recordType, tenantId, eventData = {}) {
+  if (!WORKFLOW_TRIGGER_QUEUE_URL) {
+    // Silently skip if queue URL not configured
+    return false;
+  }
+
+  try {
+    const message = {
+      eventType,
+      recordId,
+      recordType,
+      tenantId,
+      eventData,
+      timestamp: new Date().toISOString(),
+    };
+
+    await sqs.send(new SendMessageCommand({
+      QueueUrl: WORKFLOW_TRIGGER_QUEUE_URL,
+      MessageBody: JSON.stringify(message),
+    }));
+
+    console.log('[FinancialService][WorkflowEvent] Published:', eventType, 'for', recordType, recordId);
+    return true;
+  } catch (error) {
+    // Log but don't throw - workflow events shouldn't break main operations
+    console.error('[FinancialService][WorkflowEvent] Failed to publish:', eventType, error.message);
+    return false;
+  }
+}
+
 // =============================================================================
 // STRIPE INITIALIZATION
 // =============================================================================
@@ -841,6 +889,18 @@ async function handleCreateInvoice(tenantId, body) {
 
     const invoice = result.rows[0];
 
+    // Publish workflow event
+    try {
+      await publishWorkflowEvent('invoice.created', invoice.id, 'invoice', tenantId, {
+        total: invoice.total_cents / 100,
+        totalCents: invoice.total_cents,
+        status: invoice.status,
+        ownerId: invoice.owner_id,
+      });
+    } catch (err) {
+      console.error('[FINANCIAL-SERVICE] Failed to publish invoice.created event:', err.message);
+    }
+
     return createResponse(201, {
       success: true,
       invoice: {
@@ -1159,6 +1219,19 @@ async function handleUpdateInvoice(tenantId, invoiceId, body) {
     }
 
     const invoice = result.rows[0];
+
+    // Publish workflow event for overdue status change
+    if (status && status.toUpperCase() === 'OVERDUE') {
+      try {
+        await publishWorkflowEvent('invoice.overdue', invoice.id, 'invoice', tenantId, {
+          totalCents: invoice.total_cents,
+          dueDate: invoice.due_date,
+          ownerId: invoice.owner_id,
+        });
+      } catch (err) {
+        console.error('[FINANCIAL-SERVICE] Failed to publish invoice.overdue event:', err.message);
+      }
+    }
 
     return createResponse(200, {
       success: true,
@@ -1496,6 +1569,21 @@ async function handleCreatePayment(tenantId, body) {
     );
 
     const payment = result.rows[0];
+
+    // Publish workflow event for successful payment
+    if (statusValue === 'CAPTURED' || statusValue === 'COMPLETED') {
+      try {
+        await publishWorkflowEvent('payment.received', payment.id, 'payment', tenantId, {
+          amount: payment.amount_cents / 100,
+          amountCents: payment.amount_cents,
+          method: payment.method,
+          invoiceId: payment.invoice_id,
+          ownerId: payment.owner_id,
+        });
+      } catch (err) {
+        console.error('[FINANCIAL-SERVICE] Failed to publish payment.received event:', err.message);
+      }
+    }
 
     return createResponse(201, {
       success: true,
@@ -3460,11 +3548,12 @@ async function handleStripeWebhook(event) {
 
         if (existing.rows.length === 0) {
           // Record the payment
-          await query(
+          const paymentResult = await query(
             `INSERT INTO "Payment" (
               tenant_id, owner_id, invoice_id, amount_cents, method, processor,
               processor_transaction_id, stripe_payment_intent_id, status, processed_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+            RETURNING id`,
             [
               tenantId,
               paymentIntent.metadata?.owner_id || null,
@@ -3478,6 +3567,21 @@ async function handleStripeWebhook(event) {
             ]
           );
           console.log('[Stripe Webhook] Payment recorded via webhook');
+
+          // Publish workflow event for successful payment
+          if (paymentResult.rows.length > 0) {
+            try {
+              await publishWorkflowEvent('payment.received', paymentResult.rows[0].id, 'payment', tenantId, {
+                amount: paymentIntent.amount / 100,
+                amountCents: paymentIntent.amount,
+                method: 'card',
+                invoiceId: paymentIntent.metadata?.invoice_id || null,
+                ownerId: paymentIntent.metadata?.owner_id || null,
+              });
+            } catch (err) {
+              console.error('[Stripe Webhook] Failed to publish payment.received event:', err.message);
+            }
+          }
         }
         break;
       }
@@ -3490,7 +3594,7 @@ async function handleStripeWebhook(event) {
         if (!tenantId) break;
 
         // Record the failed payment attempt
-        await query(
+        const failedPaymentResult = await query(
           `INSERT INTO "Payment" (
             tenant_id, owner_id, invoice_id, amount_cents, method, processor,
             stripe_payment_intent_id, status, failure_code, failure_message, processed_at
@@ -3500,7 +3604,8 @@ async function handleStripeWebhook(event) {
             status = 'failed',
             failure_code = EXCLUDED.failure_code,
             failure_message = EXCLUDED.failure_message,
-            updated_at = NOW()`,
+            updated_at = NOW()
+          RETURNING id`,
           [
             tenantId,
             paymentIntent.metadata?.owner_id || null,
@@ -3514,6 +3619,23 @@ async function handleStripeWebhook(event) {
             paymentIntent.last_payment_error?.message,
           ]
         );
+
+        // Publish workflow event for failed payment
+        if (failedPaymentResult.rows.length > 0) {
+          try {
+            await publishWorkflowEvent('payment.failed', failedPaymentResult.rows[0].id, 'payment', tenantId, {
+              amount: paymentIntent.amount / 100,
+              amountCents: paymentIntent.amount,
+              method: 'card',
+              invoiceId: paymentIntent.metadata?.invoice_id || null,
+              ownerId: paymentIntent.metadata?.owner_id || null,
+              errorCode: paymentIntent.last_payment_error?.code || null,
+              errorMessage: paymentIntent.last_payment_error?.message || null,
+            });
+          } catch (err) {
+            console.error('[Stripe Webhook] Failed to publish payment.failed event:', err.message);
+          }
+        }
         break;
       }
 
