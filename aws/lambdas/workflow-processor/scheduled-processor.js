@@ -387,13 +387,18 @@ async function getRecordsForScheduleWorkflow(workflow) {
 async function processFilterWorkflows() {
   console.log('[ScheduledProcessor] Checking for filter-criteria workflows...');
 
-  // Find active workflows with filter_criteria trigger
+  // Find active workflows with filter_criteria or filter trigger
+  // Frontend uses 'filter', backend historically used 'filter_criteria' - accept both for compatibility
+  // Also check both triggerType (camelCase) and trigger_type (snake_case)
   const workflowsResult = await query(
     `SELECT w.id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings
      FROM "Workflow" w
      WHERE w.status = 'active'
        AND w.deleted_at IS NULL
-       AND w.entry_condition->>'trigger_type' = 'filter_criteria'`
+       AND (
+         w.entry_condition->>'trigger_type' IN ('filter_criteria', 'filter')
+         OR w.entry_condition->>'triggerType' IN ('filter_criteria', 'filter')
+       )`
   );
 
   console.log('[ScheduledProcessor] Found', workflowsResult.rows.length, 'filter workflows');

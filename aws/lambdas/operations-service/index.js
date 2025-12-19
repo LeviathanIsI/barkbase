@@ -8080,12 +8080,13 @@ async function handleActivateWithEnrollment(tenantId, user, workflowId, body) {
 
     const activatedWorkflow = activateResult.rows[0];
 
-    // If enrollExisting is true and this is a filter_criteria workflow, enroll matching records
+    // If enrollExisting is true and this is a filter/filter_criteria workflow, enroll matching records
+    // Frontend uses 'filter', backend historically used 'filter_criteria' - accept both for compatibility
     let enrollmentResult = null;
     const entryCondition = workflow.entry_condition || {};
     const triggerType = entryCondition.triggerType || entryCondition.trigger_type;
 
-    if (enrollExisting && triggerType === 'filter_criteria') {
+    if (enrollExisting && (triggerType === 'filter_criteria' || triggerType === 'filter')) {
       console.log('[Workflows][activateWithEnrollment] Enrolling existing records...');
       enrollmentResult = await enrollMatchingRecordsHelper(workflowId, tenantId, workflow);
       console.log('[Workflows][activateWithEnrollment] Enrollment result:', enrollmentResult);
