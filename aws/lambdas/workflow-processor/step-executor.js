@@ -420,34 +420,44 @@ async function executeSendEmail(config, recordData, tenantId) {
 
 /**
  * Execute create_task action
+ * Task table uses snake_case columns: id, tenant_id, title, description, task_type, priority, status, due_at, pet_id, etc.
  */
 async function executeCreateTask(config, recordData, tenantId) {
   try {
-    const title = interpolateTemplate(config.title || '', recordData);
+    const title = interpolateTemplate(config.title || 'Workflow Task', recordData);
     const description = interpolateTemplate(config.description || '', recordData);
-    const priority = config.priority || 'medium';
     const dueInHours = config.due_in_hours || 24;
+
+    // Map config priority to integer (1=low, 2=medium, 3=high, 4=urgent)
+    const priorityMap = {
+      low: 1,
+      medium: 2,
+      high: 3,
+      urgent: 4,
+    };
+    const priority = priorityMap[(config.priority || 'medium').toLowerCase()] || 2;
 
     const dueAt = new Date();
     dueAt.setHours(dueAt.getHours() + dueInHours);
 
+    // Get pet_id from record data
+    const petId = recordData.record?.id;
+
     const taskResult = await query(
-      `INSERT INTO "Task"
-         (tenant_id, title, description, priority, status, due_at, metadata)
-       VALUES ($1, $2, $3, $4, 'pending', $5, $6)
+      `INSERT INTO "Task" (
+         id, tenant_id, title, description, task_type, priority, status, due_at, pet_id, created_at, updated_at
+       )
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
        RETURNING id`,
       [
         tenantId,
         title,
-        description,
+        description || null,
+        'OTHER',  // task_type for workflow-generated tasks
         priority,
+        'PENDING',  // status
         dueAt.toISOString(),
-        JSON.stringify({
-          automated: true,
-          source: 'workflow',
-          recordId: recordData.record?.id,
-          recordType: recordData.recordType,
-        }),
+        petId,
       ]
     );
 
@@ -884,22 +894,42 @@ async function findNextStep(workflowId, currentStepId, parentStepId, branchPath)
 
   const currentPosition = currentResult.rows[0].position;
 
+  // Build query dynamically based on which parameters are provided
+  // to ensure placeholder numbers match the parameter array
+  const params = [workflowId];
+  let paramIndex = 2;
+
+  let parentCondition;
+  if (parentStepId) {
+    parentCondition = `= $${paramIndex}`;
+    params.push(parentStepId);
+    paramIndex++;
+  } else {
+    parentCondition = 'IS NULL';
+  }
+
+  let branchCondition;
+  if (branchPath) {
+    branchCondition = `= $${paramIndex}`;
+    params.push(branchPath);
+    paramIndex++;
+  } else {
+    branchCondition = 'IS NULL';
+  }
+
+  params.push(currentPosition);
+  const positionPlaceholder = `$${paramIndex}`;
+
   // Find next sibling at same level
   const nextSiblingResult = await query(
     `SELECT id FROM "WorkflowStep"
      WHERE workflow_id = $1
-       AND parent_step_id ${parentStepId ? '= $2' : 'IS NULL'}
-       AND branch_path ${branchPath ? '= $3' : 'IS NULL'}
-       AND position > $4
+       AND parent_step_id ${parentCondition}
+       AND branch_path ${branchCondition}
+       AND position > ${positionPlaceholder}
      ORDER BY position ASC
      LIMIT 1`,
-    parentStepId && branchPath
-      ? [workflowId, parentStepId, branchPath, currentPosition]
-      : parentStepId
-        ? [workflowId, parentStepId, currentPosition]
-        : branchPath
-          ? [workflowId, branchPath, currentPosition]
-          : [workflowId, currentPosition]
+    params
   );
 
   if (nextSiblingResult.rows.length > 0) {
