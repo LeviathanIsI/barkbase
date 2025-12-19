@@ -8024,6 +8024,26 @@ async function handleGetMatchingRecordsCount(tenantId, workflowId) {
     );
     console.log('[Workflows][matchingRecordsCount] Result: count=', count, 'filterApplied=', filterApplied);
 
+    // Debug: Show breakdown of matching vs enrolled when count is 0
+    if (count === 0 && filterApplied) {
+      // Count without enrollment exclusion
+      const baseWhereIndex = whereClause.indexOf(' AND id NOT IN');
+      const baseWhere = baseWhereIndex > 0 ? whereClause.substring(0, baseWhereIndex) : whereClause;
+      const baseParams = baseWhereIndex > 0 ? params.slice(0, -1) : params;
+
+      const baseCountQuery = `SELECT COUNT(*) as count FROM "${tableName}" WHERE ${baseWhere}`;
+      const baseCountResult = await query(baseCountQuery, baseParams);
+      const baseCount = parseInt(baseCountResult.rows[0].count, 10);
+
+      // Count already enrolled
+      const enrolledCountQuery = `SELECT COUNT(*) as count FROM "WorkflowExecution" WHERE workflow_id = $1 AND status IN ('running', 'paused', 'completed')`;
+      const enrolledCountResult = await query(enrolledCountQuery, [workflowId]);
+      const enrolledCount = parseInt(enrolledCountResult.rows[0].count, 10);
+
+      console.log('[Workflows][matchingRecordsCount] DEBUG: matchingWithoutExclusion=', baseCount, 'alreadyEnrolled=', enrolledCount);
+      console.log('[Workflows][matchingRecordsCount] DEBUG: If matchingWithoutExclusion > 0 but count = 0, the records are already enrolled');
+    }
+
     return createResponse(200, {
       count,
       objectType,
