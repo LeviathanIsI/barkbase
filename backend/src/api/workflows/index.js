@@ -561,16 +561,22 @@ router.post('/workflows/:id/pause', async (req, res) => {
 /**
  * Get count of records matching workflow trigger criteria
  * Used for "Enroll existing records?" dialog
+ * Supports both GET (uses database filter) and POST (uses provided filter)
  */
-router.get('/workflows/:id/matching-records-count', async (req, res) => {
+router.post('/workflows/:id/matching-records-count', async (req, res) => {
   try {
     const pool = getPool();
     const tenantId = req.tenantId;
     const { id } = req.params;
+    const { filterConfig: providedFilterConfig, objectType: providedObjectType } = req.body || {};
 
-    // Get workflow with entry condition
+    console.log('[WORKFLOW API] POST matching-records-count');
+    console.log('[WORKFLOW API] Workflow ID:', id);
+    console.log('[WORKFLOW API] Provided filter config:', JSON.stringify(providedFilterConfig, null, 2));
+
+    // Get workflow to verify it exists and get object_type if not provided
     const { rows: workflowRows } = await pool.query(
-      `SELECT id, object_type, entry_condition, settings FROM "Workflow"
+      `SELECT id, object_type, settings FROM "Workflow"
        WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [id, tenantId],
     );
@@ -580,16 +586,15 @@ router.get('/workflows/:id/matching-records-count', async (req, res) => {
     }
 
     const workflow = workflowRows[0];
-    const objectType = workflow.object_type;
-    const entryCondition = workflow.entry_condition || {};
-    const filterConfig = entryCondition.filterConfig || entryCondition.filter || {};
+    const objectType = providedObjectType || workflow.object_type;
+    const filterConfig = providedFilterConfig || {};
 
     // Determine which table to query based on object type
     const tableMap = {
       pet: 'Pet',
       booking: 'Booking',
       owner: 'Owner',
-      contact: 'Owner', // Contact maps to Owner
+      contact: 'Owner',
       invoice: 'Invoice',
       payment: 'Payment',
       task: 'Task',
@@ -605,11 +610,21 @@ router.get('/workflows/:id/matching-records-count', async (req, res) => {
     const params = [tenantId];
     let paramIndex = 2;
 
-    // Parse filter groups if present
+    // Normalize filter config: support both groups[] and direct conditions[] formats
+    let groups = [];
     if (filterConfig.groups && filterConfig.groups.length > 0) {
+      groups = filterConfig.groups;
+    } else if (filterConfig.conditions && filterConfig.conditions.length > 0) {
+      groups = [{ conditions: filterConfig.conditions, logic: filterConfig.logic || 'AND' }];
+    }
+
+    console.log('[WORKFLOW API] POST - Normalized filter groups:', JSON.stringify(groups));
+
+    // Parse filter groups if present
+    if (groups.length > 0) {
       const groupConditions = [];
 
-      for (const group of filterConfig.groups) {
+      for (const group of groups) {
         if (!group.conditions || group.conditions.length === 0) continue;
 
         const conditionClauses = [];
@@ -682,8 +697,14 @@ router.get('/workflows/:id/matching-records-count', async (req, res) => {
             case 'in':
             case 'is_any_of':
             case 'is_equal_to_any': {
-              // Use 'values' array for multi-value operators, fall back to 'value' if it's an array
-              const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+              let arr = null;
+              if (Array.isArray(values) && values.length > 0) {
+                arr = values;
+              } else if (Array.isArray(value)) {
+                arr = value;
+              } else if (value != null && value !== '') {
+                arr = [value];
+              }
               if (arr && arr.length > 0) {
                 const placeholders = arr.map(() => `$${paramIndex++}`);
                 conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
@@ -693,7 +714,235 @@ router.get('/workflows/:id/matching-records-count', async (req, res) => {
             }
             case 'is_not_equal_to_any':
             case 'is_none_of': {
-              const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+              let arr = null;
+              if (Array.isArray(values) && values.length > 0) {
+                arr = values;
+              } else if (Array.isArray(value)) {
+                arr = value;
+              } else if (value != null && value !== '') {
+                arr = [value];
+              }
+              if (arr && arr.length > 0) {
+                const placeholders = arr.map(() => `$${paramIndex++}`);
+                conditionClauses.push(`"${dbField}" NOT IN (${placeholders.join(', ')})`);
+                params.push(...arr);
+              }
+              break;
+            }
+            default:
+              conditionClauses.push(`"${dbField}" = $${paramIndex}`);
+              params.push(value);
+              paramIndex++;
+          }
+        }
+
+        if (conditionClauses.length > 0) {
+          const groupLogic = group.logic || 'AND';
+          groupConditions.push(`(${conditionClauses.join(` ${groupLogic} `)})`);
+        }
+      }
+
+      if (groupConditions.length > 0) {
+        const mainLogic = filterConfig.logic || 'AND';
+        whereClause += ` AND (${groupConditions.join(` ${mainLogic} `)})`;
+      }
+    }
+
+    // Exclude already enrolled records if re-enrollment is disabled
+    const settings = workflow.settings || {};
+    if (!settings.allowReenrollment) {
+      whereClause += ` AND id NOT IN (
+        SELECT record_id FROM "WorkflowExecution"
+        WHERE workflow_id = $${paramIndex} AND status IN ('running', 'paused', 'completed')
+      )`;
+      params.push(id);
+    }
+
+    // Count matching records
+    const countQuery = `SELECT COUNT(*) as count FROM "${tableName}" WHERE ${whereClause}`;
+    console.log('[WORKFLOW API] POST Matching records query:', countQuery);
+    console.log('[WORKFLOW API] POST Params:', params);
+
+    const { rows: countRows } = await pool.query(countQuery, params);
+    const count = parseInt(countRows[0].count, 10);
+
+    console.log('[WORKFLOW API] POST Result count:', count);
+
+    return ok(res, {
+      count,
+      objectType,
+      filterApplied: groups.length > 0,
+    });
+  } catch (error) {
+    console.error('[workflows] POST getMatchingRecordsCount failed', error);
+    return fail(res, 500, { message: 'Failed to count matching records' });
+  }
+});
+
+/**
+ * Get count of records matching workflow trigger criteria (GET version - uses DB filter)
+ * Used for "Enroll existing records?" dialog
+ */
+router.get('/workflows/:id/matching-records-count', async (req, res) => {
+  try {
+    const pool = getPool();
+    const tenantId = req.tenantId;
+    const { id } = req.params;
+
+    // Get workflow with entry condition
+    const { rows: workflowRows } = await pool.query(
+      `SELECT id, object_type, entry_condition, settings FROM "Workflow"
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [id, tenantId],
+    );
+
+    if (workflowRows.length === 0) {
+      return fail(res, 404, { message: 'Workflow not found' });
+    }
+
+    const workflow = workflowRows[0];
+    const objectType = workflow.object_type;
+    const entryCondition = workflow.entry_condition || {};
+    const filterConfig = entryCondition.filterConfig || entryCondition.filter || {};
+
+    // Determine which table to query based on object type
+    const tableMap = {
+      pet: 'Pet',
+      booking: 'Booking',
+      owner: 'Owner',
+      contact: 'Owner', // Contact maps to Owner
+      invoice: 'Invoice',
+      payment: 'Payment',
+      task: 'Task',
+    };
+
+    const tableName = tableMap[objectType];
+    if (!tableName) {
+      return ok(res, { count: 0, error: `Unknown object type: ${objectType}` });
+    }
+
+    // Build WHERE clause from filter config
+    let whereClause = 'tenant_id = $1';
+    const params = [tenantId];
+    let paramIndex = 2;
+
+    // Normalize filter config: support both groups[] and direct conditions[] formats
+    let groups = [];
+    if (filterConfig.groups && filterConfig.groups.length > 0) {
+      // New format: { groups: [{ conditions: [...], logic: 'AND' }], logic: 'AND' }
+      groups = filterConfig.groups;
+    } else if (filterConfig.conditions && filterConfig.conditions.length > 0) {
+      // Simple format: { conditions: [...], logic: 'AND' }
+      // Wrap in a single group
+      groups = [{ conditions: filterConfig.conditions, logic: filterConfig.logic || 'AND' }];
+    }
+
+    console.log('[WORKFLOW API] Normalized filter groups:', JSON.stringify(groups));
+
+    // Parse filter groups if present
+    if (groups.length > 0) {
+      const groupConditions = [];
+
+      for (const group of groups) {
+        if (!group.conditions || group.conditions.length === 0) continue;
+
+        const conditionClauses = [];
+        for (const condition of group.conditions) {
+          const { field, operator, value, values } = condition;
+          if (!field || !operator) continue;
+
+          // Map field names to database columns
+          const fieldMap = {
+            name: 'name',
+            status: 'status',
+            species: 'species',
+            breed: 'breed',
+            sex: 'sex',
+            is_neutered: 'is_neutered',
+            weight: 'weight',
+            color: 'color',
+            email: 'email',
+            phone: 'phone',
+            city: 'city',
+            state: 'state',
+          };
+
+          const dbField = fieldMap[field] || field;
+
+          switch (operator) {
+            case 'equals':
+            case 'is':
+              conditionClauses.push(`"${dbField}" = $${paramIndex}`);
+              params.push(value);
+              paramIndex++;
+              break;
+            case 'not_equals':
+            case 'is_not':
+              conditionClauses.push(`"${dbField}" != $${paramIndex}`);
+              params.push(value);
+              paramIndex++;
+              break;
+            case 'contains':
+              conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
+              params.push(`%${value}%`);
+              paramIndex++;
+              break;
+            case 'starts_with':
+              conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
+              params.push(`${value}%`);
+              paramIndex++;
+              break;
+            case 'ends_with':
+              conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
+              params.push(`%${value}`);
+              paramIndex++;
+              break;
+            case 'is_empty':
+              conditionClauses.push(`("${dbField}" IS NULL OR "${dbField}" = '')`);
+              break;
+            case 'is_not_empty':
+              conditionClauses.push(`("${dbField}" IS NOT NULL AND "${dbField}" != '')`);
+              break;
+            case 'greater_than':
+              conditionClauses.push(`"${dbField}" > $${paramIndex}`);
+              params.push(value);
+              paramIndex++;
+              break;
+            case 'less_than':
+              conditionClauses.push(`"${dbField}" < $${paramIndex}`);
+              params.push(value);
+              paramIndex++;
+              break;
+            case 'in':
+            case 'is_any_of':
+            case 'is_equal_to_any': {
+              // Use 'values' array for multi-value operators, fall back to 'value' if it's an array or string
+              let arr = null;
+              if (Array.isArray(values) && values.length > 0) {
+                arr = values;
+              } else if (Array.isArray(value)) {
+                arr = value;
+              } else if (value != null && value !== '') {
+                // Single value - treat as single-element array for IN clause
+                arr = [value];
+              }
+              if (arr && arr.length > 0) {
+                const placeholders = arr.map(() => `$${paramIndex++}`);
+                conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
+                params.push(...arr);
+              }
+              break;
+            }
+            case 'is_not_equal_to_any':
+            case 'is_none_of': {
+              let arr = null;
+              if (Array.isArray(values) && values.length > 0) {
+                arr = values;
+              } else if (Array.isArray(value)) {
+                arr = value;
+              } else if (value != null && value !== '') {
+                arr = [value];
+              }
               if (arr && arr.length > 0) {
                 const placeholders = arr.map(() => `$${paramIndex++}`);
                 conditionClauses.push(`"${dbField}" NOT IN (${placeholders.join(', ')})`);
@@ -743,7 +992,7 @@ router.get('/workflows/:id/matching-records-count', async (req, res) => {
       count,
       objectType,
       triggerType: entryCondition.triggerType || entryCondition.trigger_type,
-      filterApplied: !!(filterConfig.groups && filterConfig.groups.length > 0),
+      filterApplied: groups.length > 0,
     });
   } catch (error) {
     console.error('[workflows] getMatchingRecordsCount failed', error);
@@ -949,10 +1198,20 @@ async function enrollMatchingRecords(pool, workflowId, tenantId, workflow) {
   const params = [tenantId];
   let paramIndex = 2;
 
+  // Normalize filter config: support both groups[] and direct conditions[] formats
+  let groups = [];
   if (filterConfig.groups && filterConfig.groups.length > 0) {
+    groups = filterConfig.groups;
+  } else if (filterConfig.conditions && filterConfig.conditions.length > 0) {
+    groups = [{ conditions: filterConfig.conditions, logic: filterConfig.logic || 'AND' }];
+  }
+
+  console.log('[WORKFLOW API] Enrollment filter groups:', JSON.stringify(groups));
+
+  if (groups.length > 0) {
     const groupConditions = [];
 
-    for (const group of filterConfig.groups) {
+    for (const group of groups) {
       if (!group.conditions || group.conditions.length === 0) continue;
 
       const conditionClauses = [];
@@ -990,7 +1249,14 @@ async function enrollMatchingRecords(pool, workflowId, tenantId, workflow) {
           case 'in':
           case 'is_any_of':
           case 'is_equal_to_any': {
-            const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+            let arr = null;
+            if (Array.isArray(values) && values.length > 0) {
+              arr = values;
+            } else if (Array.isArray(value)) {
+              arr = value;
+            } else if (value != null && value !== '') {
+              arr = [value];
+            }
             if (arr && arr.length > 0) {
               const placeholders = arr.map(() => `$${paramIndex++}`);
               conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
@@ -1000,7 +1266,14 @@ async function enrollMatchingRecords(pool, workflowId, tenantId, workflow) {
           }
           case 'is_not_equal_to_any':
           case 'is_none_of': {
-            const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+            let arr = null;
+            if (Array.isArray(values) && values.length > 0) {
+              arr = values;
+            } else if (Array.isArray(value)) {
+              arr = value;
+            } else if (value != null && value !== '') {
+              arr = [value];
+            }
             if (arr && arr.length > 0) {
               const placeholders = arr.map(() => `$${paramIndex++}`);
               conditionClauses.push(`"${dbField}" NOT IN (${placeholders.join(', ')})`);
@@ -1169,7 +1442,7 @@ router.put('/workflows/:id/steps', async (req, res) => {
       const step = steps[i];
       const { rows: newStepRows } = await client.query(
         `INSERT INTO "WorkflowStep" (
-          id, workflow_id, parent_step_id, branch_id, position,
+          id, workflow_id, parent_step_id, branch_path, position,
           step_type, action_type, name, config, created_at, updated_at
         )
         VALUES (
@@ -1179,7 +1452,7 @@ router.put('/workflows/:id/steps', async (req, res) => {
         [
           id,
           null, // Will update parent_step_id in second pass
-          step.branch_id || null,
+          step.branch_path || step.branch_id || null,
           i,
           step.step_type,
           step.action_type || null,

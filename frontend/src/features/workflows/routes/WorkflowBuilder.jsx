@@ -582,6 +582,7 @@ export default function WorkflowBuilder() {
       {showEnrollModal && (
         <EnrollExistingModal
           workflow={workflow}
+          pendingFilterConfig={pendingTriggerConfig?.filterConfig}
           onClose={handleEnrollModalClose}
           onActivate={handleEnrollActivate}
         />

@@ -9,7 +9,7 @@ import Button from '@/components/ui/Button';
 import apiClient from '@/lib/apiClient';
 import { OBJECT_TYPE_CONFIG } from '../../constants';
 
-export default function EnrollExistingModal({ workflow, onClose, onActivate }) {
+export default function EnrollExistingModal({ workflow, pendingFilterConfig, onClose, onActivate }) {
   const [count, setCount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,12 +20,28 @@ export default function EnrollExistingModal({ workflow, onClose, onActivate }) {
   const objectLabelPlural = objectConfig.labelPlural || `${objectLabel}s`;
 
   // Fetch count of matching records on mount
+  // If pendingFilterConfig is provided, use POST to send the new filter
+  // Otherwise use GET to read from database
   useEffect(() => {
     const fetchCount = async () => {
       try {
         setLoading(true);
         setError(null);
-        const { data } = await apiClient.get(`/api/v1/workflows/${workflow.id}/matching-records-count`);
+
+        let data;
+        if (pendingFilterConfig) {
+          // Use POST with the pending filter config (not yet saved to DB)
+          const response = await apiClient.post(
+            `/api/v1/workflows/${workflow.id}/matching-records-count`,
+            { filterConfig: pendingFilterConfig, objectType: workflow.objectType }
+          );
+          data = response.data;
+        } else {
+          // Use GET to read filter from database
+          const response = await apiClient.get(`/api/v1/workflows/${workflow.id}/matching-records-count`);
+          data = response.data;
+        }
+
         setCount(data.count);
       } catch (err) {
         console.error('Error fetching matching records:', err);
@@ -36,7 +52,7 @@ export default function EnrollExistingModal({ workflow, onClose, onActivate }) {
     };
 
     fetchCount();
-  }, [workflow.id]);
+  }, [workflow.id, workflow.objectType, pendingFilterConfig]);
 
   const handleActivate = async (enrollExisting) => {
     setActivating(true);

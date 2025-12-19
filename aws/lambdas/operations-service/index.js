@@ -693,6 +693,9 @@ exports.handler = async (event, context) => {
       if (subPath === '/matching-records-count' && method === 'GET') {
         return handleGetMatchingRecordsCount(tenantId, workflowId);
       }
+      if (subPath === '/matching-records-count' && method === 'POST') {
+        return handlePostMatchingRecordsCount(tenantId, workflowId, parseBody(event));
+      }
       if (subPath === '/dependencies' && method === 'GET') {
         return handleGetWorkflowDependencies(tenantId, workflowId);
       }
@@ -8053,6 +8056,267 @@ async function handleGetMatchingRecordsCount(tenantId, workflowId) {
 
   } catch (error) {
     console.error('[Workflows] Failed to count matching records:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to count matching records',
+    });
+  }
+}
+
+/**
+ * POST /workflows/:id/matching-records-count
+ * Count records matching provided filter config (for pending changes not yet saved)
+ */
+async function handlePostMatchingRecordsCount(tenantId, workflowId, body) {
+  console.log('[Workflows][POST matchingRecordsCount] id:', workflowId, 'tenantId:', tenantId);
+  console.log('[Workflows][POST matchingRecordsCount] body:', JSON.stringify(body));
+
+  const { filterConfig: providedFilterConfig, objectType: providedObjectType } = body || {};
+
+  try {
+    await getPoolAsync();
+
+    // Get workflow to verify it exists and get settings/objectType if not provided
+    const workflowResult = await query(
+      `SELECT id, object_type, settings FROM "Workflow"
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [workflowId, tenantId]
+    );
+
+    if (workflowResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Workflow not found',
+      });
+    }
+
+    const workflow = workflowResult.rows[0];
+    const objectType = providedObjectType || workflow.object_type;
+    const filterConfig = providedFilterConfig || {};
+
+    console.log('[Workflows][POST matchingRecordsCount] objectType:', objectType);
+    console.log('[Workflows][POST matchingRecordsCount] filterConfig:', JSON.stringify(filterConfig));
+
+    // Determine which table to query based on object type
+    const tableMap = {
+      pet: 'Pet',
+      booking: 'Booking',
+      owner: 'Owner',
+      contact: 'Owner',
+      invoice: 'Invoice',
+      payment: 'Payment',
+      task: 'Task',
+    };
+
+    const tableName = tableMap[objectType];
+    if (!tableName) {
+      return createResponse(200, { count: 0, error: `Unknown object type: ${objectType}` });
+    }
+
+    // Build WHERE clause from filter config
+    let whereClause = 'tenant_id = $1';
+    const params = [tenantId];
+    let paramIndex = 2;
+
+    // Field name mapping (handles both camelCase and lowercase)
+    const fieldMap = {
+      name: 'name', Name: 'name',
+      status: 'status', Status: 'status',
+      species: 'species', Species: 'species',
+      breed: 'breed', Breed: 'breed',
+      sex: 'sex', Sex: 'sex',
+      is_neutered: 'is_neutered', isNeutered: 'is_neutered',
+      weight: 'weight', Weight: 'weight',
+      color: 'color', Color: 'color',
+      email: 'email', Email: 'email',
+      phone: 'phone', Phone: 'phone',
+      city: 'city', City: 'city',
+      state: 'state', State: 'state',
+      first_name: 'first_name', firstName: 'first_name',
+      last_name: 'last_name', lastName: 'last_name',
+    };
+
+    // Text fields that should use case-insensitive comparison
+    const textFields = ['name', 'status', 'species', 'breed', 'sex', 'color', 'email', 'phone', 'city', 'state', 'first_name', 'last_name'];
+
+    // Helper to build a single condition clause
+    const buildConditionClause = (condition) => {
+      const { field, operator, value, values } = condition;
+      if (!field || !operator) return null;
+
+      const dbField = fieldMap[field] || field.toLowerCase();
+      const isTextField = textFields.includes(dbField);
+      console.log('[Workflows][POST matchingRecordsCount] Condition:', field, operator, value, values, '-> dbField:', dbField);
+
+      switch (operator) {
+        case 'equals':
+        case 'is':
+        case 'is_equal_to':
+          if (isTextField && typeof value === 'string') {
+            params.push(value.toLowerCase());
+            return `LOWER("${dbField}") = $${paramIndex++}`;
+          }
+          params.push(value);
+          return `"${dbField}" = $${paramIndex++}`;
+
+        case 'not_equals':
+        case 'is_not':
+          if (isTextField && typeof value === 'string') {
+            params.push(value.toLowerCase());
+            return `LOWER("${dbField}") != $${paramIndex++}`;
+          }
+          params.push(value);
+          return `"${dbField}" != $${paramIndex++}`;
+
+        case 'contains':
+        case 'contains_exactly':
+          params.push(`%${value}%`);
+          return `"${dbField}" ILIKE $${paramIndex++}`;
+
+        case 'starts_with':
+          params.push(`${value}%`);
+          return `"${dbField}" ILIKE $${paramIndex++}`;
+
+        case 'ends_with':
+          params.push(`%${value}`);
+          return `"${dbField}" ILIKE $${paramIndex++}`;
+
+        case 'is_empty':
+        case 'is_unknown':
+          return `("${dbField}" IS NULL OR "${dbField}" = '')`;
+
+        case 'is_not_empty':
+        case 'is_known':
+          return `("${dbField}" IS NOT NULL AND "${dbField}" != '')`;
+
+        case 'greater_than':
+        case 'is_greater_than':
+          params.push(value);
+          return `"${dbField}" > $${paramIndex++}`;
+
+        case 'less_than':
+        case 'is_less_than':
+          params.push(value);
+          return `"${dbField}" < $${paramIndex++}`;
+
+        case 'in':
+        case 'is_any_of':
+        case 'is_equal_to_any':
+        case 'is_equal_to_any_of': {
+          let arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+          if (!arr && value && typeof value === 'string') arr = [value];
+          if (arr && arr.length > 0) {
+            if (isTextField) {
+              const placeholders = arr.map(() => `$${paramIndex++}`);
+              params.push(...arr.map(v => typeof v === 'string' ? v.toLowerCase() : v));
+              return `LOWER("${dbField}") IN (${placeholders.join(', ')})`;
+            }
+            const placeholders = arr.map(() => `$${paramIndex++}`);
+            params.push(...arr);
+            return `"${dbField}" IN (${placeholders.join(', ')})`;
+          }
+          return null;
+        }
+
+        case 'not_in':
+        case 'is_none_of':
+        case 'is_not_equal_to_any': {
+          let arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+          if (!arr && value && typeof value === 'string') arr = [value];
+          if (arr && arr.length > 0) {
+            if (isTextField) {
+              const placeholders = arr.map(() => `$${paramIndex++}`);
+              params.push(...arr.map(v => typeof v === 'string' ? v.toLowerCase() : v));
+              return `LOWER("${dbField}") NOT IN (${placeholders.join(', ')})`;
+            }
+            const placeholders = arr.map(() => `$${paramIndex++}`);
+            params.push(...arr);
+            return `"${dbField}" NOT IN (${placeholders.join(', ')})`;
+          }
+          return null;
+        }
+
+        default:
+          console.log('[Workflows][POST matchingRecordsCount] Unknown operator:', operator);
+          params.push(value);
+          return `"${dbField}" = $${paramIndex++}`;
+      }
+    };
+
+    // Check for groups format (new) or conditions format (legacy)
+    const groups = filterConfig.groups || [];
+    const legacyConditions = filterConfig.conditions || [];
+
+    if (groups.length > 0) {
+      // New groups format: { groups: [{ conditions: [...], logic: 'and' }], groupLogic: 'or' }
+      const groupClauses = [];
+
+      for (const group of groups) {
+        const groupConditions = group.conditions || [];
+        if (groupConditions.length === 0) continue;
+
+        const conditionClauses = [];
+        for (const condition of groupConditions) {
+          const clause = buildConditionClause(condition);
+          if (clause) conditionClauses.push(clause);
+        }
+
+        if (conditionClauses.length > 0) {
+          const groupLogic = (group.logic || 'and').toUpperCase();
+          groupClauses.push(`(${conditionClauses.join(` ${groupLogic} `)})`);
+        }
+      }
+
+      if (groupClauses.length > 0) {
+        const mainLogic = (filterConfig.groupLogic || filterConfig.logic || 'or').toUpperCase();
+        whereClause += ` AND (${groupClauses.join(` ${mainLogic} `)})`;
+      }
+    } else if (legacyConditions.length > 0) {
+      // Legacy flat format: { conditions: [...], logic: 'and' }
+      const conditionClauses = [];
+      for (const condition of legacyConditions) {
+        const clause = buildConditionClause(condition);
+        if (clause) conditionClauses.push(clause);
+      }
+
+      if (conditionClauses.length > 0) {
+        const logic = (filterConfig.logic || 'and').toUpperCase();
+        whereClause += ` AND (${conditionClauses.join(` ${logic} `)})`;
+      }
+    }
+
+    // Exclude already enrolled records if re-enrollment is disabled
+    const settings = workflow.settings || {};
+    if (!settings.allowReenrollment) {
+      whereClause += ` AND id NOT IN (
+        SELECT record_id FROM "WorkflowExecution"
+        WHERE workflow_id = $${paramIndex} AND status IN ('running', 'paused', 'completed')
+      )`;
+      params.push(workflowId);
+    }
+
+    // Count matching records
+    const countQuery = `SELECT COUNT(*) as count FROM "${tableName}" WHERE ${whereClause}`;
+    console.log('[Workflows][POST matchingRecordsCount] Generated SQL:', countQuery);
+    console.log('[Workflows][POST matchingRecordsCount] SQL Params:', JSON.stringify(params));
+
+    const countResult = await query(countQuery, params);
+    const count = parseInt(countResult.rows[0].count, 10);
+
+    const filterApplied = !!(
+      (filterConfig.groups && filterConfig.groups.length > 0) ||
+      (filterConfig.conditions && filterConfig.conditions.length > 0)
+    );
+    console.log('[Workflows][POST matchingRecordsCount] Result: count=', count, 'filterApplied=', filterApplied);
+
+    return createResponse(200, {
+      count,
+      objectType,
+      filterApplied,
+    });
+
+  } catch (error) {
+    console.error('[Workflows][POST] Failed to count matching records:', error.message);
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to count matching records',
