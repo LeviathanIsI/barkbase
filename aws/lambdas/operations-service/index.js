@@ -1531,9 +1531,19 @@ async function handleCreateBooking(tenantId, user, body) {
     }
 
     // Publish workflow event
-    publishBookingCreated(booking, tenantId).catch(err => {
+    try {
+      await publishWorkflowEvent('booking.created', booking.id, 'booking', tenantId, {
+        status: booking.status,
+        ownerId: booking.owner_id,
+        kennelId: booking.kennel_id,
+        serviceId: booking.service_id,
+        checkIn: booking.check_in,
+        checkOut: booking.check_out,
+        petIds: petsToLink,
+      });
+    } catch (err) {
       console.error('[Bookings][create] Failed to publish workflow event:', err.message);
-    });
+    }
 
     return createResponse(201, {
       success: true,
@@ -2014,6 +2024,28 @@ async function handleUpdateBooking(tenantId, bookingId, body) {
     const booking = result.rows[0];
     console.log('[Bookings][update] updated:', bookingId);
 
+    // Publish workflow event for modification
+    try {
+      await publishWorkflowEvent('booking.modified', booking.id, 'booking', tenantId, {
+        status: booking.status,
+        changes: Object.keys(body).filter(k => body[k] !== undefined),
+      });
+    } catch (err) {
+      console.error('[Bookings][update] Failed to publish workflow event:', err.message);
+    }
+
+    // Check for status changes that warrant specific events
+    if (status) {
+      const upperStatus = status.toUpperCase();
+      try {
+        if (upperStatus === 'CONFIRMED') {
+          await publishWorkflowEvent('booking.confirmed', booking.id, 'booking', tenantId, {});
+        }
+      } catch (err) {
+        console.error('[Bookings][update] Failed to publish status workflow event:', err.message);
+      }
+    }
+
     return createResponse(200, {
       success: true,
       booking: {
@@ -2062,9 +2094,14 @@ async function handleCancelBooking(tenantId, bookingId) {
     });
 
     // Publish workflow event
-    publishBookingCancelled(booking, tenantId).catch(err => {
+    try {
+      await publishWorkflowEvent('booking.cancelled', booking.id, 'booking', tenantId, {
+        cancelledAt: booking.cancelled_at,
+        reason: booking.cancellation_reason || null,
+      });
+    } catch (err) {
       console.error('[Bookings][cancel] Failed to publish workflow event:', err.message);
-    });
+    }
 
     return createResponse(200, {
       success: true,
@@ -2188,9 +2225,14 @@ async function handleCheckIn(tenantId, bookingId, body) {
     const booking = result.rows[0];
 
     // Publish workflow event
-    publishBookingCheckedIn(booking, tenantId).catch(err => {
+    try {
+      await publishWorkflowEvent('booking.checked_in', booking.id, 'booking', tenantId, {
+        checkedInAt: booking.checked_in_at,
+        checkedInBy: booking.checked_in_by,
+      });
+    } catch (err) {
       console.error('[Bookings][checkin] Failed to publish workflow event:', err.message);
-    });
+    }
 
     return createResponse(200, {
       success: true,
@@ -2314,9 +2356,14 @@ async function handleCheckOut(tenantId, bookingId, body) {
     }
 
     // Publish workflow event
-    publishBookingCheckedOut(booking, tenantId).catch(err => {
+    try {
+      await publishWorkflowEvent('booking.checked_out', booking.id, 'booking', tenantId, {
+        checkedOutAt: booking.checked_out_at,
+        checkedOutBy: booking.checked_out_by,
+      });
+    } catch (err) {
       console.error('[Bookings][checkout] Failed to publish workflow event:', err.message);
-    });
+    }
 
     return createResponse(200, {
       success: true,
