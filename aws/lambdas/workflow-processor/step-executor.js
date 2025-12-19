@@ -122,10 +122,10 @@ async function processStepExecution(message) {
   console.log('[STEP EXECUTOR] Tenant ID:', tenantId);
   console.log('[STEP EXECUTOR] Action:', action);
 
-  // Get execution details
+  // Get execution details including workflow goal_config
   console.log('[STEP EXECUTOR] Fetching execution details...');
   const executionResult = await query(
-    `SELECT we.*, w.name as workflow_name, w.object_type
+    `SELECT we.*, w.name as workflow_name, w.object_type, w.goal_config
      FROM "WorkflowExecution" we
      JOIN "Workflow" w ON we.workflow_id = w.id
      WHERE we.id = $1 AND we.tenant_id = $2`,
@@ -214,6 +214,24 @@ async function processStepExecution(message) {
   // Handle result and queue next step if needed
   if (stepResult2.success) {
     console.log('[STEP EXECUTOR] Step succeeded');
+
+    // Check if workflow has goal conditions and if they're met
+    if (execution.goal_config) {
+      console.log('[STEP EXECUTOR] Checking goal conditions...');
+      // Refresh record data to get latest state
+      const freshRecordData = await getRecordData(execution.record_id, execution.object_type, tenantId);
+      const goalResult = evaluateGoalConditions(execution.goal_config, freshRecordData);
+
+      if (goalResult.met) {
+        console.log('[STEP EXECUTOR] GOAL REACHED! Completing execution early.');
+        await logGoalCompletion(executionId, step.id, goalResult);
+        await completeExecution(executionId, workflowId, 'goal_reached', goalResult);
+        console.log('[STEP EXECUTOR] ---------- PROCESS STEP EXECUTION COMPLETE (GOAL) ----------');
+        return; // Exit early - goal reached
+      }
+      console.log('[STEP EXECUTOR] Goal not yet met, continuing workflow');
+    }
+
     if (stepResult2.nextStepId) {
       // Update current step and queue next
       console.log('[STEP EXECUTOR] Has next step:', stepResult2.nextStepId);
@@ -226,9 +244,9 @@ async function processStepExecution(message) {
       await scheduleDelayedExecution(executionId, workflowId, tenantId, stepResult2.waitUntil);
       console.log('[STEP EXECUTOR] Delayed execution scheduled');
     } else if (stepResult2.completed) {
-      // Workflow completed
+      // Workflow completed normally
       console.log('[STEP EXECUTOR] Workflow COMPLETED');
-      await completeExecution(executionId, workflowId);
+      await completeExecution(executionId, workflowId, 'completed', null);
     } else {
       console.log('[STEP EXECUTOR] No next step, no wait, no completed flag - workflow may be stuck!');
     }
@@ -729,6 +747,55 @@ function evaluateConditions(conditions, logic, recordData) {
 }
 
 /**
+ * Evaluate workflow goal conditions against record data
+ * Returns { met: boolean, matchedConditions: array } for detailed tracking
+ */
+function evaluateGoalConditions(goalConfig, recordData) {
+  if (!goalConfig) {
+    return { met: false, reason: 'No goal configured' };
+  }
+
+  const conditions = goalConfig.conditions || [];
+  const conditionLogic = goalConfig.conditionLogic || goalConfig.logic || 'and';
+
+  if (conditions.length === 0) {
+    return { met: false, reason: 'No goal conditions defined' };
+  }
+
+  console.log('[StepExecutor] Evaluating goal conditions:', conditions.length, 'conditions with', conditionLogic, 'logic');
+
+  // Evaluate each condition and track results
+  const conditionResults = conditions.map(condition => {
+    const result = evaluateCondition(condition, recordData);
+    return {
+      field: condition.field,
+      operator: condition.operator,
+      expectedValue: condition.value,
+      actualValue: getNestedValue(recordData, condition.field),
+      met: result,
+    };
+  });
+
+  // Determine if goal is met based on logic
+  let goalMet;
+  if (conditionLogic === 'or') {
+    goalMet = conditionResults.some(r => r.met);
+  } else {
+    goalMet = conditionResults.every(r => r.met);
+  }
+
+  console.log('[StepExecutor] Goal evaluation result:', goalMet);
+  console.log('[StepExecutor] Condition results:', JSON.stringify(conditionResults, null, 2));
+
+  return {
+    met: goalMet,
+    conditionLogic,
+    conditionResults,
+    reason: goalMet ? 'All goal conditions satisfied' : 'Goal conditions not yet met',
+  };
+}
+
+/**
  * Evaluate a single condition
  */
 function evaluateCondition(condition, recordData) {
@@ -1068,25 +1135,73 @@ async function scheduleDelayedExecution(executionId, workflowId, tenantId, waitU
 }
 
 /**
- * Mark execution as completed
+ * Log goal completion to execution log
  */
-async function completeExecution(executionId, workflowId) {
+async function logGoalCompletion(executionId, stepId, goalResult) {
+  try {
+    await query(
+      `INSERT INTO "WorkflowExecutionLog"
+         (execution_id, step_id, status, completed_at, result)
+       VALUES ($1, $2, 'goal_reached', NOW(), $3)`,
+      [
+        executionId,
+        stepId,
+        JSON.stringify({
+          event: 'goal_reached',
+          conditionLogic: goalResult.conditionLogic,
+          conditionResults: goalResult.conditionResults,
+          reason: goalResult.reason,
+        }),
+      ]
+    );
+    console.log('[StepExecutor] Logged goal completion for execution:', executionId);
+  } catch (error) {
+    console.error('[StepExecutor] Error logging goal completion:', error);
+  }
+}
+
+/**
+ * Mark execution as completed
+ * @param {string} executionId - The execution ID
+ * @param {string} workflowId - The workflow ID
+ * @param {string} completionReason - Reason for completion: 'completed', 'goal_reached', 'gate_blocked'
+ * @param {object} goalResult - Goal evaluation result (if goal_reached)
+ */
+async function completeExecution(executionId, workflowId, completionReason = 'completed', goalResult = null) {
+  // Update execution with completion status and reason
   await query(
     `UPDATE "WorkflowExecution"
-     SET status = 'completed', completed_at = NOW()
-     WHERE id = $1`,
-    [executionId]
+     SET status = 'completed',
+         completed_at = NOW(),
+         completion_reason = $1,
+         goal_result = $2
+     WHERE id = $3`,
+    [
+      completionReason,
+      goalResult ? JSON.stringify(goalResult) : null,
+      executionId,
+    ]
   );
 
-  // Increment workflow completed count
-  await query(
-    `UPDATE "Workflow"
-     SET completed_count = completed_count + 1
-     WHERE id = $1`,
-    [workflowId]
-  );
-
-  console.log('[StepExecutor] Execution completed:', executionId);
+  // Increment appropriate workflow counter based on completion reason
+  if (completionReason === 'goal_reached') {
+    await query(
+      `UPDATE "Workflow"
+       SET completed_count = COALESCE(completed_count, 0) + 1,
+           goal_reached_count = COALESCE(goal_reached_count, 0) + 1
+       WHERE id = $1`,
+      [workflowId]
+    );
+    console.log('[StepExecutor] Execution completed (GOAL REACHED):', executionId);
+  } else {
+    await query(
+      `UPDATE "Workflow"
+       SET completed_count = COALESCE(completed_count, 0) + 1
+       WHERE id = $1`,
+      [workflowId]
+    );
+    console.log('[StepExecutor] Execution completed:', executionId);
+  }
 }
 
 /**

@@ -8652,8 +8652,14 @@ async function handleGetWorkflowExecutions(tenantId, workflowId, queryParams) {
       [...params, parseInt(limit), parseInt(offset)]
     );
 
+    // Enhance each execution with goal_reached boolean for clarity
+    const executions = result.rows.map(execution => ({
+      ...execution,
+      goal_reached: execution.completion_reason === 'goal_reached',
+    }));
+
     return createResponse(200, {
-      executions: result.rows,
+      executions,
       total: result.rows.length,
       limit: parseInt(limit),
       offset: parseInt(offset),
@@ -8699,7 +8705,11 @@ async function handleGetWorkflowExecution(tenantId, workflowId, executionId) {
       });
     }
 
-    return createResponse(200, result.rows[0]);
+    // Enhance response with goal_reached boolean for clarity
+    const execution = result.rows[0];
+    execution.goal_reached = execution.completion_reason === 'goal_reached';
+
+    return createResponse(200, execution);
 
   } catch (error) {
     console.error('[Workflows] Failed to get execution:', error.message);
