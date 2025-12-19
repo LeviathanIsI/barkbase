@@ -49,12 +49,13 @@ const {
   publishBookingCancelled,
 } = sharedLayer;
 
-// SQS for workflow step queuing
+// SQS for workflow step queuing and trigger events
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
 const sqs = new SQSClient({
   region: process.env.AWS_REGION_DEPLOY || process.env.AWS_REGION || 'us-east-2',
 });
 const WORKFLOW_STEP_QUEUE_URL = process.env.WORKFLOW_STEP_QUEUE_URL;
+const WORKFLOW_TRIGGER_QUEUE_URL = process.env.WORKFLOW_TRIGGER_QUEUE_URL;
 
 /**
  * Queue a workflow step for execution
@@ -80,6 +81,47 @@ async function queueStepExecution(executionId, workflowId, tenantId) {
     return true;
   } catch (error) {
     console.error('[OperationsService] Failed to queue step execution:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Publish a workflow trigger event to the trigger queue
+ * This notifies the workflow-trigger-processor Lambda about domain events
+ * that may trigger workflow enrollments.
+ *
+ * @param {string} eventType - Event type (e.g., 'pet.created', 'booking.checked_in')
+ * @param {string} recordId - ID of the record that triggered the event
+ * @param {string} recordType - Type of record ('pet', 'booking', 'owner', etc.)
+ * @param {string} tenantId - Tenant ID for multi-tenancy
+ * @param {object} eventData - Additional event data (optional)
+ */
+async function publishWorkflowEvent(eventType, recordId, recordType, tenantId, eventData = {}) {
+  if (!WORKFLOW_TRIGGER_QUEUE_URL) {
+    // Silently skip if queue URL not configured
+    return false;
+  }
+
+  try {
+    const message = {
+      eventType,
+      recordId,
+      recordType,
+      tenantId,
+      eventData,
+      timestamp: new Date().toISOString(),
+    };
+
+    await sqs.send(new SendMessageCommand({
+      QueueUrl: WORKFLOW_TRIGGER_QUEUE_URL,
+      MessageBody: JSON.stringify(message),
+    }));
+
+    console.log('[OperationsService][WorkflowEvent] Published:', eventType, 'for', recordType, recordId);
+    return true;
+  } catch (error) {
+    // Log but don't throw - workflow events shouldn't break main operations
+    console.error('[OperationsService][WorkflowEvent] Failed to publish:', eventType, error.message);
     return false;
   }
 }
