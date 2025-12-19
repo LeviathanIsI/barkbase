@@ -7708,101 +7708,149 @@ async function handleGetMatchingRecordsCount(tenantId, workflowId) {
     }
 
     // Build WHERE clause from filter config
-    // Frontend stores filterConfig as { conditions: [...], logic: 'and' }
+    // Frontend sends: { groups: [{ conditions: [...], logic: 'and' }], groupLogic: 'or' }
+    // Legacy format: { conditions: [...], logic: 'and' }
     let whereClause = 'tenant_id = $1';
     const params = [tenantId];
     let paramIndex = 2;
 
     console.log('[Workflows][matchingRecordsCount] filterConfig:', JSON.stringify(filterConfig));
 
-    // Parse filter conditions
-    const conditions = filterConfig.conditions || [];
-    if (conditions.length > 0) {
-      const conditionClauses = [];
+    // Field name mapping (handles both camelCase and lowercase)
+    const fieldMap = {
+      name: 'name', Name: 'name',
+      status: 'status', Status: 'status',
+      species: 'species', Species: 'species',
+      breed: 'breed', Breed: 'breed',
+      sex: 'sex', Sex: 'sex',
+      is_neutered: 'is_neutered', isNeutered: 'is_neutered',
+      weight: 'weight', Weight: 'weight',
+      color: 'color', Color: 'color',
+      email: 'email', Email: 'email',
+      phone: 'phone', Phone: 'phone',
+      city: 'city', City: 'city',
+      state: 'state', State: 'state',
+      first_name: 'first_name', firstName: 'first_name',
+      last_name: 'last_name', lastName: 'last_name',
+    };
 
-      for (const condition of conditions) {
-        const { field, operator, value, values } = condition;
-        if (!field || !operator) continue;
+    // Helper to build a single condition clause
+    const buildConditionClause = (condition) => {
+      const { field, operator, value, values } = condition;
+      if (!field || !operator) return null;
 
-        // Map field names to database columns
-        const fieldMap = {
-          name: 'name',
-          status: 'status',
-          species: 'species',
-          breed: 'breed',
-          sex: 'sex',
-          is_neutered: 'is_neutered',
-          weight: 'weight',
-          color: 'color',
-          email: 'email',
-          phone: 'phone',
-          city: 'city',
-          state: 'state',
-        };
+      const dbField = fieldMap[field] || field.toLowerCase();
+      console.log('[Workflows][matchingRecordsCount] Condition:', field, operator, value, values, '-> dbField:', dbField);
 
-        const dbField = fieldMap[field] || field;
-        console.log('[Workflows][matchingRecordsCount] Processing condition:', field, operator, value, '-> dbField:', dbField);
+      switch (operator) {
+        case 'equals':
+        case 'is':
+        case 'is_equal_to':
+          params.push(value);
+          return `"${dbField}" = $${paramIndex++}`;
 
-        switch (operator) {
-          case 'equals':
-          case 'is':
-            conditionClauses.push(`"${dbField}" = $${paramIndex}`);
-            params.push(value);
-            paramIndex++;
-            break;
-          case 'not_equals':
-          case 'is_not':
-            conditionClauses.push(`"${dbField}" != $${paramIndex}`);
-            params.push(value);
-            paramIndex++;
-            break;
-          case 'contains':
-            conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
-            params.push(`%${value}%`);
-            paramIndex++;
-            break;
-          case 'starts_with':
-            conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
-            params.push(`${value}%`);
-            paramIndex++;
-            break;
-          case 'ends_with':
-            conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
-            params.push(`%${value}`);
-            paramIndex++;
-            break;
-          case 'is_empty':
-            conditionClauses.push(`("${dbField}" IS NULL OR "${dbField}" = '')`);
-            break;
-          case 'is_not_empty':
-            conditionClauses.push(`("${dbField}" IS NOT NULL AND "${dbField}" != '')`);
-            break;
-          case 'greater_than':
-            conditionClauses.push(`"${dbField}" > $${paramIndex}`);
-            params.push(value);
-            paramIndex++;
-            break;
-          case 'less_than':
-            conditionClauses.push(`"${dbField}" < $${paramIndex}`);
-            params.push(value);
-            paramIndex++;
-            break;
-          case 'in':
-          case 'is_any_of':
-          case 'is_equal_to_any_of':
-          case 'is_equal_to_any':
-            const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null); if (arr && arr.length > 0) {
-              const placeholders = arr.map(() => `$${paramIndex++}`);
-              conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
-              params.push(...arr);
-            }
-            break;
-          default:
-            console.log('[Workflows][matchingRecordsCount] Unknown operator:', operator, '- treating as equals');
-            conditionClauses.push(`"${dbField}" = $${paramIndex}`);
-            params.push(value);
-            paramIndex++;
+        case 'not_equals':
+        case 'is_not':
+          params.push(value);
+          return `"${dbField}" != $${paramIndex++}`;
+
+        case 'contains':
+        case 'contains_exactly':
+          params.push(`%${value}%`);
+          return `"${dbField}" ILIKE $${paramIndex++}`;
+
+        case 'starts_with':
+          params.push(`${value}%`);
+          return `"${dbField}" ILIKE $${paramIndex++}`;
+
+        case 'ends_with':
+          params.push(`%${value}`);
+          return `"${dbField}" ILIKE $${paramIndex++}`;
+
+        case 'is_empty':
+        case 'is_unknown':
+          return `("${dbField}" IS NULL OR "${dbField}" = '')`;
+
+        case 'is_not_empty':
+        case 'is_known':
+          return `("${dbField}" IS NOT NULL AND "${dbField}" != '')`;
+
+        case 'greater_than':
+        case 'is_greater_than':
+          params.push(value);
+          return `"${dbField}" > $${paramIndex++}`;
+
+        case 'less_than':
+        case 'is_less_than':
+          params.push(value);
+          return `"${dbField}" < $${paramIndex++}`;
+
+        case 'in':
+        case 'is_any_of':
+        case 'is_equal_to_any':
+        case 'is_equal_to_any_of': {
+          const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+          if (arr && arr.length > 0) {
+            const placeholders = arr.map(() => `$${paramIndex++}`);
+            params.push(...arr);
+            return `"${dbField}" IN (${placeholders.join(', ')})`;
+          }
+          return null;
         }
+
+        case 'not_in':
+        case 'is_none_of':
+        case 'is_not_equal_to_any': {
+          const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+          if (arr && arr.length > 0) {
+            const placeholders = arr.map(() => `$${paramIndex++}`);
+            params.push(...arr);
+            return `"${dbField}" NOT IN (${placeholders.join(', ')})`;
+          }
+          return null;
+        }
+
+        default:
+          console.log('[Workflows][matchingRecordsCount] Unknown operator:', operator);
+          params.push(value);
+          return `"${dbField}" = $${paramIndex++}`;
+      }
+    };
+
+    // Check for groups format (new) or conditions format (legacy)
+    const groups = filterConfig.groups || [];
+    const legacyConditions = filterConfig.conditions || [];
+
+    if (groups.length > 0) {
+      // New groups format: { groups: [{ conditions: [...], logic: 'and' }], groupLogic: 'or' }
+      const groupClauses = [];
+
+      for (const group of groups) {
+        const groupConditions = group.conditions || [];
+        if (groupConditions.length === 0) continue;
+
+        const conditionClauses = [];
+        for (const condition of groupConditions) {
+          const clause = buildConditionClause(condition);
+          if (clause) conditionClauses.push(clause);
+        }
+
+        if (conditionClauses.length > 0) {
+          const groupLogic = (group.logic || 'and').toUpperCase();
+          groupClauses.push(`(${conditionClauses.join(` ${groupLogic} `)})`);
+        }
+      }
+
+      if (groupClauses.length > 0) {
+        const mainLogic = (filterConfig.groupLogic || filterConfig.logic || 'or').toUpperCase();
+        whereClause += ` AND (${groupClauses.join(` ${mainLogic} `)})`;
+      }
+    } else if (legacyConditions.length > 0) {
+      // Legacy flat format: { conditions: [...], logic: 'and' }
+      const conditionClauses = [];
+      for (const condition of legacyConditions) {
+        const clause = buildConditionClause(condition);
+        if (clause) conditionClauses.push(clause);
       }
 
       if (conditionClauses.length > 0) {
@@ -7810,6 +7858,8 @@ async function handleGetMatchingRecordsCount(tenantId, workflowId) {
         whereClause += ` AND (${conditionClauses.join(` ${logic} `)})`;
       }
     }
+
+    console.log('[Workflows][matchingRecordsCount] Params:', params);
 
     // Exclude already enrolled records if re-enrollment is disabled
     const settings = workflow.settings || {};
