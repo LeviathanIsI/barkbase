@@ -99,7 +99,8 @@ async function resumePausedExecutions() {
   console.log('[SCHEDULED PROCESSOR] resumePausedExecutions called');
 
   const pausedQuery = `SELECT we.id as execution_id, we.workflow_id, we.tenant_id, we.current_step_id,
-            w.name as workflow_name, we.resume_at
+            w.name as workflow_name, we.resume_at, we.pause_reason,
+            w.settings->'timingConfig' as timing_config
      FROM "WorkflowExecution" we
      JOIN "Workflow" w ON we.workflow_id = w.id
      WHERE we.status = 'paused'
@@ -120,10 +121,48 @@ async function resumePausedExecutions() {
 
   for (const execution of pausedResult.rows) {
     try {
+      // Re-check timing restrictions before resuming
+      if (execution.timing_config?.enabled) {
+        console.log('[SCHEDULED PROCESSOR] Re-checking timing restrictions for execution:', execution.execution_id);
+        const timingCheck = checkTimingRestrictions(execution.timing_config);
+
+        if (!timingCheck.allowed) {
+          console.log('[SCHEDULED PROCESSOR] Still outside timing window. Rescheduling to:', timingCheck.nextAllowedTime);
+
+          // Update resume_at to next allowed time
+          await query(
+            `UPDATE "WorkflowExecution"
+             SET resume_at = $1, updated_at = NOW()
+             WHERE id = $2`,
+            [timingCheck.nextAllowedTime.toISOString(), execution.execution_id]
+          );
+
+          // Log the reschedule
+          await query(
+            `INSERT INTO "WorkflowExecutionLog"
+               (execution_id, step_id, status, completed_at, result)
+             VALUES ($1, $2, 'pending', NOW(), $3)`,
+            [
+              execution.execution_id,
+              execution.current_step_id,
+              JSON.stringify({
+                event: 'timing_reschedule',
+                previousResumeAt: execution.resume_at,
+                newResumeAt: timingCheck.nextAllowedTime.toISOString(),
+                reason: timingCheck.reason,
+              }),
+            ]
+          );
+
+          continue; // Skip this execution, will be picked up later
+        }
+        console.log('[SCHEDULED PROCESSOR] Timing check passed, resuming execution');
+      }
+
       // Update execution status back to running
       await query(
         `UPDATE "WorkflowExecution"
-         SET status = 'running', resume_at = NULL, updated_at = NOW()
+         SET status = 'running', resume_at = NULL, pause_reason = NULL, updated_at = NOW()
          WHERE id = $1`,
         [execution.execution_id]
       );
@@ -617,4 +656,198 @@ async function queueTriggerEvent(eventType, recordId, recordType, tenantId, even
       timestamp: new Date().toISOString(),
     }),
   }));
+}
+
+// =============================================================================
+// TIMING RESTRICTION HELPERS
+// =============================================================================
+
+/**
+ * Check if current time is within allowed timing window
+ * @param {object} timingConfig - Timing configuration
+ * @returns {{ allowed: boolean, nextAllowedTime?: Date, reason?: string }}
+ */
+function checkTimingRestrictions(timingConfig) {
+  if (!timingConfig || !timingConfig.enabled) {
+    return { allowed: true };
+  }
+
+  const {
+    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+    startTime = '09:00',
+    endTime = '17:00',
+    timezone = 'America/New_York',
+  } = timingConfig;
+
+  // Get current time in the specified timezone
+  const now = new Date();
+  const currentTimeInTz = getTimeInTimezone(now, timezone);
+
+  // Check if current day is allowed
+  const currentDay = getDayName(currentTimeInTz);
+  const isDayAllowed = days.map(d => d.toLowerCase()).includes(currentDay.toLowerCase());
+
+  // Parse start and end times
+  const [startHour, startMin] = startTime.split(':').map(Number);
+  const [endHour, endMin] = endTime.split(':').map(Number);
+
+  const currentHour = currentTimeInTz.getHours();
+  const currentMin = currentTimeInTz.getMinutes();
+
+  // Convert to minutes for easier comparison
+  const currentMinutes = currentHour * 60 + currentMin;
+  const startMinutes = startHour * 60 + startMin;
+  const endMinutes = endHour * 60 + endMin;
+
+  const isTimeAllowed = currentMinutes >= startMinutes && currentMinutes < endMinutes;
+
+  if (isDayAllowed && isTimeAllowed) {
+    return { allowed: true };
+  }
+
+  // Calculate next allowed time
+  const nextAllowedTime = getNextAllowedTime(timingConfig, now);
+
+  let reason;
+  if (!isDayAllowed) {
+    reason = `Current day (${currentDay}) is not in allowed days: ${days.join(', ')}`;
+  } else {
+    reason = `Current time (${formatTime(currentHour, currentMin)}) is outside allowed hours: ${startTime} - ${endTime} (${timezone})`;
+  }
+
+  return {
+    allowed: false,
+    nextAllowedTime,
+    reason,
+  };
+}
+
+/**
+ * Calculate the next datetime when execution is allowed
+ */
+function getNextAllowedTime(timingConfig, fromDate = new Date()) {
+  const {
+    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+    startTime = '09:00',
+    endTime = '17:00',
+    timezone = 'America/New_York',
+  } = timingConfig;
+
+  const [startHour, startMin] = startTime.split(':').map(Number);
+
+  // Normalize days to lowercase
+  const allowedDays = days.map(d => d.toLowerCase());
+
+  // Get current time in timezone
+  const currentTimeInTz = getTimeInTimezone(fromDate, timezone);
+  const currentDay = getDayName(currentTimeInTz);
+  const currentHour = currentTimeInTz.getHours();
+  const currentMin = currentTimeInTz.getMinutes();
+
+  const currentMinutes = currentHour * 60 + currentMin;
+  const startMinutes = startHour * 60 + startMin;
+
+  // Check if today is allowed and if we're before the end time
+  if (allowedDays.includes(currentDay.toLowerCase())) {
+    if (currentMinutes < startMinutes) {
+      return createDateTimeInTimezone(currentTimeInTz, startHour, startMin, timezone);
+    }
+  }
+
+  // Need to find next allowed day
+  const dayOrder = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const currentDayIndex = dayOrder.indexOf(currentDay.toLowerCase());
+
+  for (let daysAhead = 1; daysAhead <= 7; daysAhead++) {
+    const targetDayIndex = (currentDayIndex + daysAhead) % 7;
+    const targetDay = dayOrder[targetDayIndex];
+
+    if (allowedDays.includes(targetDay)) {
+      const targetDate = new Date(currentTimeInTz);
+      targetDate.setDate(targetDate.getDate() + daysAhead);
+      return createDateTimeInTimezone(targetDate, startHour, startMin, timezone);
+    }
+  }
+
+  // Fallback
+  const tomorrow = new Date(currentTimeInTz);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return createDateTimeInTimezone(tomorrow, startHour, startMin, timezone);
+}
+
+/**
+ * Get current time in a specific timezone
+ */
+function getTimeInTimezone(date, timezone) {
+  try {
+    const options = {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    };
+
+    const formatter = new Intl.DateTimeFormat('en-US', options);
+    const parts = formatter.formatToParts(date);
+
+    const getPart = (type) => parts.find(p => p.type === type)?.value;
+
+    const year = parseInt(getPart('year'));
+    const month = parseInt(getPart('month')) - 1;
+    const day = parseInt(getPart('day'));
+    const hour = parseInt(getPart('hour'));
+    const minute = parseInt(getPart('minute'));
+    const second = parseInt(getPart('second'));
+
+    return new Date(year, month, day, hour, minute, second);
+  } catch (e) {
+    console.error('[ScheduledProcessor] Timezone error:', e);
+    return date;
+  }
+}
+
+/**
+ * Create a datetime in a specific timezone and convert to UTC
+ */
+function createDateTimeInTimezone(baseDate, hour, minute, timezone) {
+  try {
+    const year = baseDate.getFullYear();
+    const month = String(baseDate.getMonth() + 1).padStart(2, '0');
+    const day = String(baseDate.getDate()).padStart(2, '0');
+    const hourStr = String(hour).padStart(2, '0');
+    const minStr = String(minute).padStart(2, '0');
+
+    const dateStr = `${year}-${month}-${day}T${hourStr}:${minStr}:00`;
+
+    const targetDate = new Date(dateStr);
+    const utcDate = new Date(targetDate.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const tzDate = new Date(targetDate.toLocaleString('en-US', { timeZone: timezone }));
+    const offset = utcDate - tzDate;
+
+    return new Date(targetDate.getTime() + offset);
+  } catch (e) {
+    console.error('[ScheduledProcessor] Timezone creation error:', e);
+    const result = new Date(baseDate);
+    result.setHours(hour, minute, 0, 0);
+    return result;
+  }
+}
+
+/**
+ * Get day name from date
+ */
+function getDayName(date) {
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  return days[date.getDay()];
+}
+
+/**
+ * Format time as HH:MM
+ */
+function formatTime(hour, minute) {
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }

@@ -8671,17 +8671,21 @@ async function handleGetWorkflowExecutions(tenantId, workflowId, queryParams) {
     }
 
     const result = await query(
-      `SELECT * FROM "WorkflowExecution"
-       WHERE ${whereClause}
-       ORDER BY enrolled_at DESC
+      `SELECT e.*, w.settings->'timingConfig' as timing_config
+       FROM "WorkflowExecution" e
+       JOIN "Workflow" w ON e.workflow_id = w.id
+       WHERE ${whereClause.replace('workflow_id', 'e.workflow_id').replace('tenant_id', 'e.tenant_id').replace('status', 'e.status')}
+       ORDER BY e.enrolled_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...params, parseInt(limit), parseInt(offset)]
     );
 
-    // Enhance each execution with goal_reached boolean for clarity
+    // Enhance each execution with goal_reached boolean and timing status
     const executions = result.rows.map(execution => ({
       ...execution,
       goal_reached: execution.completion_reason === 'goal_reached',
+      timing_paused: execution.pause_reason === 'timing_restriction',
+      timing_config: undefined, // Remove from response (included in timing_paused)
     }));
 
     return createResponse(200, {
@@ -8716,11 +8720,13 @@ async function handleGetWorkflowExecution(tenantId, workflowId, executionId) {
 
     const result = await query(
       `SELECT e.*,
+              w.settings->'timingConfig' as timing_config,
               array_agg(json_build_object('id', l.id, 'step_id', l.step_id, 'status', l.status, 'started_at', l.started_at, 'completed_at', l.completed_at, 'result', l.result) ORDER BY l.started_at) as logs
        FROM "WorkflowExecution" e
+       JOIN "Workflow" w ON e.workflow_id = w.id
        LEFT JOIN "WorkflowExecutionLog" l ON e.id = l.execution_id
        WHERE e.id = $1 AND e.workflow_id = $2 AND e.tenant_id = $3
-       GROUP BY e.id`,
+       GROUP BY e.id, w.settings`,
       [executionId, workflowId, tenantId]
     );
 
@@ -8731,9 +8737,25 @@ async function handleGetWorkflowExecution(tenantId, workflowId, executionId) {
       });
     }
 
-    // Enhance response with goal_reached boolean for clarity
+    // Enhance response with goal_reached boolean and timing status
     const execution = result.rows[0];
     execution.goal_reached = execution.completion_reason === 'goal_reached';
+
+    // Add timing status information
+    execution.timing_status = {
+      restrictions_enabled: execution.timing_config?.enabled || false,
+      paused_for_timing: execution.pause_reason === 'timing_restriction',
+      resume_at: execution.resume_at,
+      timing_config: execution.timing_config?.enabled ? {
+        days: execution.timing_config.days,
+        start_time: execution.timing_config.startTime,
+        end_time: execution.timing_config.endTime,
+        timezone: execution.timing_config.timezone,
+      } : null,
+    };
+
+    // Remove raw timing_config from response (it's now in timing_status)
+    delete execution.timing_config;
 
     return createResponse(200, execution);
 

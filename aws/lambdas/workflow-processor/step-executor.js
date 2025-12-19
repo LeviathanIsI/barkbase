@@ -122,10 +122,11 @@ async function processStepExecution(message) {
   console.log('[STEP EXECUTOR] Tenant ID:', tenantId);
   console.log('[STEP EXECUTOR] Action:', action);
 
-  // Get execution details including workflow goal_config
+  // Get execution details including workflow goal_config and timing_config
   console.log('[STEP EXECUTOR] Fetching execution details...');
   const executionResult = await query(
-    `SELECT we.*, w.name as workflow_name, w.object_type, w.goal_config
+    `SELECT we.*, w.name as workflow_name, w.object_type, w.goal_config,
+            w.settings->'timingConfig' as timing_config
      FROM "WorkflowExecution" we
      JOIN "Workflow" w ON we.workflow_id = w.id
      WHERE we.id = $1 AND we.tenant_id = $2`,
@@ -177,6 +178,33 @@ async function processStepExecution(message) {
     switch (step.step_type) {
       case 'action':
         console.log('[STEP EXECUTOR] Executing ACTION step');
+
+        // Check timing restrictions before executing action
+        if (execution.timing_config?.enabled) {
+          console.log('[STEP EXECUTOR] Checking timing restrictions...');
+          const timingCheck = checkTimingRestrictions(execution.timing_config);
+
+          if (!timingCheck.allowed) {
+            console.log('[STEP EXECUTOR] Action blocked by timing restrictions. Next allowed:', timingCheck.nextAllowedTime);
+
+            // Pause execution until next allowed time
+            await pauseForTiming(execution.id, workflowId, tenantId, timingCheck.nextAllowedTime, step.id);
+
+            stepResult2 = {
+              success: true,
+              paused: true,
+              pausedReason: 'timing_restriction',
+              result: {
+                pausedAt: new Date().toISOString(),
+                resumeAt: timingCheck.nextAllowedTime.toISOString(),
+                reason: timingCheck.reason,
+              },
+            };
+            break;
+          }
+          console.log('[STEP EXECUTOR] Timing check passed');
+        }
+
         stepResult2 = await executeAction(step, execution, recordData, tenantId);
         break;
       case 'wait':
@@ -214,6 +242,13 @@ async function processStepExecution(message) {
   // Handle result and queue next step if needed
   if (stepResult2.success) {
     console.log('[STEP EXECUTOR] Step succeeded');
+
+    // If paused for timing, don't proceed to next step
+    if (stepResult2.paused) {
+      console.log('[STEP EXECUTOR] Execution paused for timing restrictions');
+      console.log('[STEP EXECUTOR] ---------- PROCESS STEP EXECUTION COMPLETE (PAUSED) ----------');
+      return;
+    }
 
     // Check if workflow has goal conditions and if they're met
     if (execution.goal_config) {
@@ -1216,4 +1251,276 @@ async function failExecution(executionId, errorMessage) {
   );
 
   console.log('[StepExecutor] Execution failed:', executionId, errorMessage);
+}
+
+// =============================================================================
+// TIMING RESTRICTION HELPERS
+// =============================================================================
+
+/**
+ * Check if current time is within allowed timing window
+ * @param {object} timingConfig - Timing configuration
+ * @returns {{ allowed: boolean, nextAllowedTime?: Date, reason?: string }}
+ */
+function checkTimingRestrictions(timingConfig) {
+  if (!timingConfig || !timingConfig.enabled) {
+    return { allowed: true };
+  }
+
+  const {
+    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+    startTime = '09:00',
+    endTime = '17:00',
+    timezone = 'America/New_York',
+  } = timingConfig;
+
+  // Get current time in the specified timezone
+  const now = new Date();
+  const currentTimeInTz = getTimeInTimezone(now, timezone);
+
+  // Check if current day is allowed
+  const currentDay = getDayName(currentTimeInTz);
+  const isDayAllowed = days.map(d => d.toLowerCase()).includes(currentDay.toLowerCase());
+
+  // Parse start and end times
+  const [startHour, startMin] = startTime.split(':').map(Number);
+  const [endHour, endMin] = endTime.split(':').map(Number);
+
+  const currentHour = currentTimeInTz.getHours();
+  const currentMin = currentTimeInTz.getMinutes();
+
+  // Convert to minutes for easier comparison
+  const currentMinutes = currentHour * 60 + currentMin;
+  const startMinutes = startHour * 60 + startMin;
+  const endMinutes = endHour * 60 + endMin;
+
+  const isTimeAllowed = currentMinutes >= startMinutes && currentMinutes < endMinutes;
+
+  if (isDayAllowed && isTimeAllowed) {
+    return { allowed: true };
+  }
+
+  // Calculate next allowed time
+  const nextAllowedTime = getNextAllowedTime(timingConfig, now);
+
+  let reason;
+  if (!isDayAllowed) {
+    reason = `Current day (${currentDay}) is not in allowed days: ${days.join(', ')}`;
+  } else {
+    reason = `Current time (${formatTime(currentHour, currentMin)}) is outside allowed hours: ${startTime} - ${endTime} (${timezone})`;
+  }
+
+  return {
+    allowed: false,
+    nextAllowedTime,
+    reason,
+  };
+}
+
+/**
+ * Calculate the next datetime when execution is allowed
+ * @param {object} timingConfig - Timing configuration
+ * @param {Date} fromDate - Starting date to calculate from (defaults to now)
+ * @returns {Date} - Next allowed datetime
+ */
+function getNextAllowedTime(timingConfig, fromDate = new Date()) {
+  const {
+    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+    startTime = '09:00',
+    endTime = '17:00',
+    timezone = 'America/New_York',
+  } = timingConfig;
+
+  const [startHour, startMin] = startTime.split(':').map(Number);
+  const [endHour, endMin] = endTime.split(':').map(Number);
+
+  // Normalize days to lowercase
+  const allowedDays = days.map(d => d.toLowerCase());
+
+  // Get current time in timezone
+  const currentTimeInTz = getTimeInTimezone(fromDate, timezone);
+  const currentDay = getDayName(currentTimeInTz);
+  const currentHour = currentTimeInTz.getHours();
+  const currentMin = currentTimeInTz.getMinutes();
+
+  // Convert to minutes for comparison
+  const currentMinutes = currentHour * 60 + currentMin;
+  const startMinutes = startHour * 60 + startMin;
+  const endMinutes = endHour * 60 + endMin;
+
+  // Check if today is allowed and if we're before the end time
+  if (allowedDays.includes(currentDay.toLowerCase())) {
+    // If we're before start time today, return start time today
+    if (currentMinutes < startMinutes) {
+      return createDateTimeInTimezone(currentTimeInTz, startHour, startMin, timezone);
+    }
+    // If we're within the window, return now (shouldn't happen if called correctly)
+    if (currentMinutes < endMinutes) {
+      return fromDate;
+    }
+  }
+
+  // Need to find next allowed day
+  const dayOrder = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const currentDayIndex = dayOrder.indexOf(currentDay.toLowerCase());
+
+  // Search up to 7 days ahead
+  for (let daysAhead = 1; daysAhead <= 7; daysAhead++) {
+    const targetDayIndex = (currentDayIndex + daysAhead) % 7;
+    const targetDay = dayOrder[targetDayIndex];
+
+    if (allowedDays.includes(targetDay)) {
+      // Found next allowed day - set to start time on that day
+      const targetDate = new Date(currentTimeInTz);
+      targetDate.setDate(targetDate.getDate() + daysAhead);
+      return createDateTimeInTimezone(targetDate, startHour, startMin, timezone);
+    }
+  }
+
+  // Fallback: return tomorrow at start time (shouldn't reach here if days array is valid)
+  const tomorrow = new Date(currentTimeInTz);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return createDateTimeInTimezone(tomorrow, startHour, startMin, timezone);
+}
+
+/**
+ * Get current time in a specific timezone
+ * @param {Date} date - Date to convert
+ * @param {string} timezone - IANA timezone string
+ * @returns {Date} - Date object adjusted for timezone display
+ */
+function getTimeInTimezone(date, timezone) {
+  try {
+    // Get the date string in the target timezone
+    const options = {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    };
+
+    const formatter = new Intl.DateTimeFormat('en-US', options);
+    const parts = formatter.formatToParts(date);
+
+    const getPart = (type) => parts.find(p => p.type === type)?.value;
+
+    const year = parseInt(getPart('year'));
+    const month = parseInt(getPart('month')) - 1;
+    const day = parseInt(getPart('day'));
+    const hour = parseInt(getPart('hour'));
+    const minute = parseInt(getPart('minute'));
+    const second = parseInt(getPart('second'));
+
+    // Create a new date object representing the time in that timezone
+    // This is a "fake" date that just has the right hour/minute values for comparison
+    return new Date(year, month, day, hour, minute, second);
+  } catch (e) {
+    console.error('[StepExecutor] Timezone error:', e);
+    return date;
+  }
+}
+
+/**
+ * Create a datetime in a specific timezone and convert to UTC
+ * @param {Date} baseDate - Date to use for year/month/day
+ * @param {number} hour - Hour in timezone
+ * @param {number} minute - Minute in timezone
+ * @param {string} timezone - IANA timezone string
+ * @returns {Date} - Date object in UTC
+ */
+function createDateTimeInTimezone(baseDate, hour, minute, timezone) {
+  try {
+    // Format the date string in the target timezone format
+    const year = baseDate.getFullYear();
+    const month = String(baseDate.getMonth() + 1).padStart(2, '0');
+    const day = String(baseDate.getDate()).padStart(2, '0');
+    const hourStr = String(hour).padStart(2, '0');
+    const minStr = String(minute).padStart(2, '0');
+
+    // Create a date string and parse it as if it were in the target timezone
+    const dateStr = `${year}-${month}-${day}T${hourStr}:${minStr}:00`;
+
+    // Use Intl to get the UTC offset for this date/time in the target timezone
+    const targetDate = new Date(dateStr);
+    const utcDate = new Date(targetDate.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const tzDate = new Date(targetDate.toLocaleString('en-US', { timeZone: timezone }));
+    const offset = utcDate - tzDate;
+
+    // Adjust for the timezone offset
+    return new Date(targetDate.getTime() + offset);
+  } catch (e) {
+    console.error('[StepExecutor] Timezone creation error:', e);
+    // Fallback to simple approach
+    const result = new Date(baseDate);
+    result.setHours(hour, minute, 0, 0);
+    return result;
+  }
+}
+
+/**
+ * Get day name from date
+ * @param {Date} date
+ * @returns {string} - Lowercase day name
+ */
+function getDayName(date) {
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  return days[date.getDay()];
+}
+
+/**
+ * Format time as HH:MM
+ * @param {number} hour
+ * @param {number} minute
+ * @returns {string}
+ */
+function formatTime(hour, minute) {
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
+/**
+ * Pause execution for timing restrictions and schedule resumption
+ * @param {string} executionId - Execution ID
+ * @param {string} workflowId - Workflow ID
+ * @param {string} tenantId - Tenant ID
+ * @param {Date} resumeAt - When to resume
+ * @param {string} stepId - Current step ID
+ */
+async function pauseForTiming(executionId, workflowId, tenantId, resumeAt, stepId) {
+  console.log('[StepExecutor] Pausing execution for timing. Resume at:', resumeAt);
+
+  // Update execution status
+  await query(
+    `UPDATE "WorkflowExecution"
+     SET status = 'paused',
+         resume_at = $1,
+         pause_reason = 'timing_restriction',
+         updated_at = NOW()
+     WHERE id = $2`,
+    [resumeAt.toISOString(), executionId]
+  );
+
+  // Log the timing pause
+  await query(
+    `INSERT INTO "WorkflowExecutionLog"
+       (execution_id, step_id, status, completed_at, result)
+     VALUES ($1, $2, 'pending', NOW(), $3)`,
+    [
+      executionId,
+      stepId,
+      JSON.stringify({
+        event: 'timing_pause',
+        pausedAt: new Date().toISOString(),
+        resumeAt: resumeAt.toISOString(),
+      }),
+    ]
+  );
+
+  // Schedule resumption via EventBridge Scheduler
+  await scheduleDelayedExecution(executionId, workflowId, tenantId, resumeAt);
+
+  console.log('[StepExecutor] Execution paused and resumption scheduled');
 }
