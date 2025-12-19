@@ -7721,7 +7721,7 @@ async function handleGetMatchingRecordsCount(tenantId, workflowId) {
       const conditionClauses = [];
 
       for (const condition of conditions) {
-        const { field, operator, value } = condition;
+        const { field, operator, value, values } = condition;
         if (!field || !operator) continue;
 
         // Map field names to database columns
@@ -7790,10 +7790,11 @@ async function handleGetMatchingRecordsCount(tenantId, workflowId) {
           case 'in':
           case 'is_any_of':
           case 'is_equal_to_any_of':
-            if (Array.isArray(value) && value.length > 0) {
-              const placeholders = value.map(() => `$${paramIndex++}`);
+          case 'is_equal_to_any':
+            const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null); if (arr && arr.length > 0) {
+              const placeholders = arr.map(() => `$${paramIndex++}`);
               conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
-              params.push(...value);
+              params.push(...arr);
             }
             break;
           default:
@@ -8063,7 +8064,7 @@ async function enrollMatchingRecordsHelper(workflowId, tenantId, workflow) {
     const conditionClauses = [];
 
     for (const condition of conditions) {
-      const { field, operator, value } = condition;
+      const { field, operator, value, values } = condition;
       if (!field || !operator) continue;
 
       const fieldMap = {
@@ -8096,10 +8097,11 @@ async function enrollMatchingRecordsHelper(workflowId, tenantId, workflow) {
         case 'in':
         case 'is_any_of':
         case 'is_equal_to_any_of':
-          if (Array.isArray(value) && value.length > 0) {
-            const placeholders = value.map(() => `$${paramIndex++}`);
+          case 'is_equal_to_any':
+          const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null); if (arr && arr.length > 0) {
+            const placeholders = arr.map(() => `$${paramIndex++}`);
             conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
-            params.push(...value);
+            params.push(...arr);
           }
           break;
         default:
