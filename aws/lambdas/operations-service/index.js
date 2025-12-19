@@ -7789,7 +7789,7 @@ async function handleGetMatchingRecordsCount(tenantId, workflowId) {
         case 'is_any_of':
         case 'is_equal_to_any':
         case 'is_equal_to_any_of': {
-          const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+          let arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null); if (!arr && value && typeof value === 'string') arr = [value];
           if (arr && arr.length > 0) {
             const placeholders = arr.map(() => `$${paramIndex++}`);
             params.push(...arr);
@@ -7801,7 +7801,7 @@ async function handleGetMatchingRecordsCount(tenantId, workflowId) {
         case 'not_in':
         case 'is_none_of':
         case 'is_not_equal_to_any': {
-          const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+          let arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null); if (!arr && value && typeof value === 'string') arr = [value];
           if (arr && arr.length > 0) {
             const placeholders = arr.map(() => `$${paramIndex++}`);
             params.push(...arr);
@@ -8148,7 +8148,7 @@ async function enrollMatchingRecordsHelper(workflowId, tenantId, workflow) {
         case 'is_any_of':
         case 'is_equal_to_any_of':
           case 'is_equal_to_any':
-          const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null); if (arr && arr.length > 0) {
+          let arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null); if (!arr && value && typeof value === 'string') arr = [value]; if (arr && arr.length > 0) {
             const placeholders = arr.map(() => `$${paramIndex++}`);
             conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
             params.push(...arr);
