@@ -710,6 +710,9 @@ exports.handler = async (event, context) => {
           return handleGetWorkflowExecutions(tenantId, workflowId, event.queryStringParameters || {});
         }
       }
+      if (subPath === '/history' && method === 'GET') {
+        return handleGetWorkflowHistory(tenantId, workflowId, event.queryStringParameters || {});
+      }
       // Execution by ID
       const executionMatch = subPath.match(/\/executions\/([a-f0-9-]+)(\/.*)?$/i);
       if (executionMatch) {
@@ -8989,6 +8992,85 @@ async function handleGetWorkflowExecutions(tenantId, workflowId, queryParams) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to retrieve workflow executions',
+    });
+  }
+}
+
+/**
+ * Get workflow execution history/logs
+ * Returns logs from WorkflowExecutionLog joined with step names
+ */
+async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
+  const { limit = 100, offset = 0 } = queryParams;
+
+  console.log('[Workflows][getHistory] workflowId:', workflowId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    // Verify workflow exists and belongs to tenant
+    const workflowResult = await query(
+      `SELECT id FROM "Workflow" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [workflowId, tenantId]
+    );
+
+    if (workflowResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Workflow not found',
+      });
+    }
+
+    // Get logs with step names and execution details
+    const result = await query(
+      `SELECT
+         l.id,
+         l.execution_id,
+         l.step_id,
+         s.name as step_name,
+         l.status,
+         l.status as event_type,
+         l.completed_at as created_at,
+         l.result,
+         l.result->>'error' as error_message,
+         s.action_type,
+         e.record_id,
+         e.record_type as record_name
+       FROM "WorkflowExecutionLog" l
+       JOIN "WorkflowExecution" e ON e.id = l.execution_id
+       LEFT JOIN "WorkflowStep" s ON s.id = l.step_id
+       WHERE e.workflow_id = $1 AND e.tenant_id = $2
+       ORDER BY l.completed_at DESC
+       LIMIT $3 OFFSET $4`,
+      [workflowId, tenantId, parseInt(limit), parseInt(offset)]
+    );
+
+    // Get total count
+    const countResult = await query(
+      `SELECT COUNT(*) as total
+       FROM "WorkflowExecutionLog" l
+       JOIN "WorkflowExecution" e ON e.id = l.execution_id
+       WHERE e.workflow_id = $1 AND e.tenant_id = $2`,
+      [workflowId, tenantId]
+    );
+
+    return createResponse(200, {
+      logs: result.rows,
+      total: parseInt(countResult.rows[0]?.total || 0),
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to get history:', error.message);
+
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, { logs: [], total: 0 });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve workflow history',
     });
   }
 }
