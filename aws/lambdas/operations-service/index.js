@@ -7734,23 +7734,35 @@ async function handleGetMatchingRecordsCount(tenantId, workflowId) {
       last_name: 'last_name', lastName: 'last_name',
     };
 
+    // Text fields that should use case-insensitive comparison
+    const textFields = ['name', 'status', 'species', 'breed', 'sex', 'color', 'email', 'phone', 'city', 'state', 'first_name', 'last_name'];
+
     // Helper to build a single condition clause
     const buildConditionClause = (condition) => {
       const { field, operator, value, values } = condition;
       if (!field || !operator) return null;
 
       const dbField = fieldMap[field] || field.toLowerCase();
-      console.log('[Workflows][matchingRecordsCount] Condition:', field, operator, value, values, '-> dbField:', dbField);
+      const isTextField = textFields.includes(dbField);
+      console.log('[Workflows][matchingRecordsCount] Condition:', field, operator, value, values, '-> dbField:', dbField, 'isTextField:', isTextField);
 
       switch (operator) {
         case 'equals':
         case 'is':
         case 'is_equal_to':
+          if (isTextField && typeof value === 'string') {
+            params.push(value.toLowerCase());
+            return `LOWER("${dbField}") = $${paramIndex++}`;
+          }
           params.push(value);
           return `"${dbField}" = $${paramIndex++}`;
 
         case 'not_equals':
         case 'is_not':
+          if (isTextField && typeof value === 'string') {
+            params.push(value.toLowerCase());
+            return `LOWER("${dbField}") != $${paramIndex++}`;
+          }
           params.push(value);
           return `"${dbField}" != $${paramIndex++}`;
 
@@ -7789,8 +7801,14 @@ async function handleGetMatchingRecordsCount(tenantId, workflowId) {
         case 'is_any_of':
         case 'is_equal_to_any':
         case 'is_equal_to_any_of': {
-          let arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null); if (!arr && value && typeof value === 'string') arr = [value];
+          let arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+          if (!arr && value && typeof value === 'string') arr = [value];
           if (arr && arr.length > 0) {
+            if (isTextField) {
+              const placeholders = arr.map(() => `$${paramIndex++}`);
+              params.push(...arr.map(v => typeof v === 'string' ? v.toLowerCase() : v));
+              return `LOWER("${dbField}") IN (${placeholders.join(', ')})`;
+            }
             const placeholders = arr.map(() => `$${paramIndex++}`);
             params.push(...arr);
             return `"${dbField}" IN (${placeholders.join(', ')})`;
@@ -7801,8 +7819,14 @@ async function handleGetMatchingRecordsCount(tenantId, workflowId) {
         case 'not_in':
         case 'is_none_of':
         case 'is_not_equal_to_any': {
-          let arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null); if (!arr && value && typeof value === 'string') arr = [value];
+          let arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+          if (!arr && value && typeof value === 'string') arr = [value];
           if (arr && arr.length > 0) {
+            if (isTextField) {
+              const placeholders = arr.map(() => `$${paramIndex++}`);
+              params.push(...arr.map(v => typeof v === 'string' ? v.toLowerCase() : v));
+              return `LOWER("${dbField}") NOT IN (${placeholders.join(', ')})`;
+            }
             const placeholders = arr.map(() => `$${paramIndex++}`);
             params.push(...arr);
             return `"${dbField}" NOT IN (${placeholders.join(', ')})`;
@@ -7873,16 +7897,23 @@ async function handleGetMatchingRecordsCount(tenantId, workflowId) {
 
     // Count matching records
     const countQuery = `SELECT COUNT(*) as count FROM "${tableName}" WHERE ${whereClause}`;
-    console.log('[Workflows][matchingRecordsCount] Query:', countQuery);
+    console.log('[Workflows][matchingRecordsCount] Generated SQL:', countQuery);
+    console.log('[Workflows][matchingRecordsCount] SQL Params:', JSON.stringify(params));
 
     const countResult = await query(countQuery, params);
     const count = parseInt(countResult.rows[0].count, 10);
+
+    const filterApplied = !!(
+      (filterConfig.groups && filterConfig.groups.length > 0) ||
+      (filterConfig.conditions && filterConfig.conditions.length > 0)
+    );
+    console.log('[Workflows][matchingRecordsCount] Result: count=', count, 'filterApplied=', filterApplied);
 
     return createResponse(200, {
       count,
       objectType,
       triggerType: entryCondition.triggerType || entryCondition.trigger_type,
-      filterApplied: !!(filterConfig.groups && filterConfig.groups.length > 0),
+      filterApplied,
     });
 
   } catch (error) {
@@ -8104,61 +8135,173 @@ async function enrollMatchingRecordsHelper(workflowId, tenantId, workflow) {
   }
 
   // Build WHERE clause (same logic as matching-records-count)
-  // Frontend stores filterConfig as { conditions: [...], logic: 'and' }
+  // Frontend sends: { groups: [{ conditions: [...], logic: 'and' }], groupLogic: 'or' }
+  // Legacy format: { conditions: [...], logic: 'and' }
   let whereClause = 'tenant_id = $1';
   const params = [tenantId];
   let paramIndex = 2;
 
-  const conditions = filterConfig.conditions || [];
-  if (conditions.length > 0) {
-    const conditionClauses = [];
+  console.log('[Workflows][enrollMatchingRecords] filterConfig:', JSON.stringify(filterConfig));
 
-    for (const condition of conditions) {
-      const { field, operator, value, values } = condition;
-      if (!field || !operator) continue;
+  // Field name mapping (handles both camelCase and lowercase)
+  const fieldMap = {
+    name: 'name', Name: 'name',
+    status: 'status', Status: 'status',
+    species: 'species', Species: 'species',
+    breed: 'breed', Breed: 'breed',
+    sex: 'sex', Sex: 'sex',
+    is_neutered: 'is_neutered', isNeutered: 'is_neutered',
+    weight: 'weight', Weight: 'weight',
+    color: 'color', Color: 'color',
+    email: 'email', Email: 'email',
+    phone: 'phone', Phone: 'phone',
+    city: 'city', City: 'city',
+    state: 'state', State: 'state',
+    first_name: 'first_name', firstName: 'first_name',
+    last_name: 'last_name', lastName: 'last_name',
+  };
 
-      const fieldMap = {
-        name: 'name',
-        status: 'status',
-        species: 'species',
-        breed: 'breed',
-        sex: 'sex',
-        is_neutered: 'is_neutered',
-        weight: 'weight',
-        color: 'color',
-        email: 'email',
-        phone: 'phone',
-      };
+  // Text fields that should use case-insensitive comparison
+  const textFields = ['name', 'status', 'species', 'breed', 'sex', 'color', 'email', 'phone', 'city', 'state', 'first_name', 'last_name'];
 
-      const dbField = fieldMap[field] || field;
+  // Helper to build a single condition clause
+  const buildConditionClause = (condition) => {
+    const { field, operator, value, values } = condition;
+    if (!field || !operator) return null;
 
-      switch (operator) {
-        case 'equals':
-        case 'is':
-          conditionClauses.push(`"${dbField}" = $${paramIndex}`);
-          params.push(value);
-          paramIndex++;
-          break;
-        case 'contains':
-          conditionClauses.push(`"${dbField}" ILIKE $${paramIndex}`);
-          params.push(`%${value}%`);
-          paramIndex++;
-          break;
-        case 'in':
-        case 'is_any_of':
-        case 'is_equal_to_any_of':
-          case 'is_equal_to_any':
-          let arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null); if (!arr && value && typeof value === 'string') arr = [value]; if (arr && arr.length > 0) {
+    const dbField = fieldMap[field] || field.toLowerCase();
+    const isTextField = textFields.includes(dbField);
+    console.log('[Workflows][enrollMatchingRecords] Condition:', field, operator, value, values, '-> dbField:', dbField, 'isTextField:', isTextField);
+
+    switch (operator) {
+      case 'equals':
+      case 'is':
+      case 'is_equal_to':
+        if (isTextField && typeof value === 'string') {
+          params.push(value.toLowerCase());
+          return `LOWER("${dbField}") = $${paramIndex++}`;
+        }
+        params.push(value);
+        return `"${dbField}" = $${paramIndex++}`;
+
+      case 'not_equals':
+      case 'is_not':
+        if (isTextField && typeof value === 'string') {
+          params.push(value.toLowerCase());
+          return `LOWER("${dbField}") != $${paramIndex++}`;
+        }
+        params.push(value);
+        return `"${dbField}" != $${paramIndex++}`;
+
+      case 'contains':
+      case 'contains_exactly':
+        params.push(`%${value}%`);
+        return `"${dbField}" ILIKE $${paramIndex++}`;
+
+      case 'starts_with':
+        params.push(`${value}%`);
+        return `"${dbField}" ILIKE $${paramIndex++}`;
+
+      case 'ends_with':
+        params.push(`%${value}`);
+        return `"${dbField}" ILIKE $${paramIndex++}`;
+
+      case 'is_empty':
+      case 'is_unknown':
+        return `("${dbField}" IS NULL OR "${dbField}" = '')`;
+
+      case 'is_not_empty':
+      case 'is_known':
+        return `("${dbField}" IS NOT NULL AND "${dbField}" != '')`;
+
+      case 'greater_than':
+      case 'is_greater_than':
+        params.push(value);
+        return `"${dbField}" > $${paramIndex++}`;
+
+      case 'less_than':
+      case 'is_less_than':
+        params.push(value);
+        return `"${dbField}" < $${paramIndex++}`;
+
+      case 'in':
+      case 'is_any_of':
+      case 'is_equal_to_any':
+      case 'is_equal_to_any_of': {
+        let arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+        if (!arr && value && typeof value === 'string') arr = [value];
+        if (arr && arr.length > 0) {
+          if (isTextField) {
             const placeholders = arr.map(() => `$${paramIndex++}`);
-            conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
-            params.push(...arr);
+            params.push(...arr.map(v => typeof v === 'string' ? v.toLowerCase() : v));
+            return `LOWER("${dbField}") IN (${placeholders.join(', ')})`;
           }
-          break;
-        default:
-          conditionClauses.push(`"${dbField}" = $${paramIndex}`);
-          params.push(value);
-          paramIndex++;
+          const placeholders = arr.map(() => `$${paramIndex++}`);
+          params.push(...arr);
+          return `"${dbField}" IN (${placeholders.join(', ')})`;
+        }
+        return null;
       }
+
+      case 'not_in':
+      case 'is_none_of':
+      case 'is_not_equal_to_any': {
+        let arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+        if (!arr && value && typeof value === 'string') arr = [value];
+        if (arr && arr.length > 0) {
+          if (isTextField) {
+            const placeholders = arr.map(() => `$${paramIndex++}`);
+            params.push(...arr.map(v => typeof v === 'string' ? v.toLowerCase() : v));
+            return `LOWER("${dbField}") NOT IN (${placeholders.join(', ')})`;
+          }
+          const placeholders = arr.map(() => `$${paramIndex++}`);
+          params.push(...arr);
+          return `"${dbField}" NOT IN (${placeholders.join(', ')})`;
+        }
+        return null;
+      }
+
+      default:
+        console.log('[Workflows][enrollMatchingRecords] Unknown operator:', operator);
+        params.push(value);
+        return `"${dbField}" = $${paramIndex++}`;
+    }
+  };
+
+  // Check for groups format (new) or conditions format (legacy)
+  const groups = filterConfig.groups || [];
+  const legacyConditions = filterConfig.conditions || [];
+
+  if (groups.length > 0) {
+    // New groups format: { groups: [{ conditions: [...], logic: 'and' }], groupLogic: 'or' }
+    const groupClauses = [];
+
+    for (const group of groups) {
+      const groupConditions = group.conditions || [];
+      if (groupConditions.length === 0) continue;
+
+      const conditionClauses = [];
+      for (const condition of groupConditions) {
+        const clause = buildConditionClause(condition);
+        if (clause) conditionClauses.push(clause);
+      }
+
+      if (conditionClauses.length > 0) {
+        const groupLogic = (group.logic || 'and').toUpperCase();
+        groupClauses.push(`(${conditionClauses.join(` ${groupLogic} `)})`);
+      }
+    }
+
+    if (groupClauses.length > 0) {
+      const mainLogic = (filterConfig.groupLogic || filterConfig.logic || 'or').toUpperCase();
+      whereClause += ` AND (${groupClauses.join(` ${mainLogic} `)})`;
+    }
+  } else if (legacyConditions.length > 0) {
+    // Legacy flat format: { conditions: [...], logic: 'and' }
+    const conditionClauses = [];
+    for (const condition of legacyConditions) {
+      const clause = buildConditionClause(condition);
+      if (clause) conditionClauses.push(clause);
     }
 
     if (conditionClauses.length > 0) {
@@ -8166,6 +8309,8 @@ async function enrollMatchingRecordsHelper(workflowId, tenantId, workflow) {
       whereClause += ` AND (${conditionClauses.join(` ${logic} `)})`;
     }
   }
+
+  console.log('[Workflows][enrollMatchingRecords] Params:', JSON.stringify(params));
 
   // Exclude already enrolled
   if (!settings.allowReenrollment) {
@@ -8178,10 +8323,11 @@ async function enrollMatchingRecordsHelper(workflowId, tenantId, workflow) {
 
   // Get matching records (limit to 1000 for safety)
   const selectQuery = `SELECT id FROM "${tableName}" WHERE ${whereClause} LIMIT 1000`;
-  console.log('[Workflows][enrollMatchingRecords] Query:', selectQuery);
+  console.log('[Workflows][enrollMatchingRecords] Generated SQL:', selectQuery);
+  console.log('[Workflows][enrollMatchingRecords] SQL Params:', JSON.stringify(params));
 
   const recordsResult = await query(selectQuery, params);
-  console.log('[Workflows][enrollMatchingRecords] Found', recordsResult.rows.length, 'records');
+  console.log('[Workflows][enrollMatchingRecords] Found', recordsResult.rows.length, 'matching records');
 
   if (recordsResult.rows.length === 0) {
     return { enrolled: 0, records: [] };
