@@ -34,8 +34,8 @@ export default function WorkflowSettings() {
     setHasChanges(false);
   }, [settings]);
 
-  // Fetch segments for suppression list (for future use)
-  useSegments();
+  // Fetch segments for suppression list
+  const { data: segments = [], isLoading: segmentsLoading } = useSegments();
 
   // Update a local setting
   const updateLocalSetting = (key, value) => {
@@ -191,6 +191,37 @@ export default function WorkflowSettings() {
           </SettingsCard>
         </SettingsSection>
 
+        {/* Suppression List */}
+        <SettingsSection title="Suppression list">
+          <SettingsCard>
+            <ToggleSettingWithDescription
+              title="Exclude records in specific segments"
+              description="Records in selected segments will not be enrolled in this workflow."
+              checked={localSettings.suppressionEnabled || false}
+              onChange={(checked) => {
+                updateLocalSetting('suppressionEnabled', checked);
+                if (!checked) {
+                  updateLocalSetting('suppressionSegmentIds', []);
+                }
+              }}
+            />
+            {localSettings.suppressionEnabled && (
+              <div className="mt-3 ml-12">
+                <label className="block text-xs text-[var(--bb-color-text-tertiary)] mb-2">
+                  Select segments to suppress
+                </label>
+                <SegmentMultiSelect
+                  segments={segments}
+                  selectedIds={localSettings.suppressionSegmentIds || []}
+                  onChange={(ids) => updateLocalSetting('suppressionSegmentIds', ids)}
+                  isLoading={segmentsLoading}
+                  placeholder="Select segments..."
+                />
+              </div>
+            )}
+          </SettingsCard>
+        </SettingsSection>
+
         {/* Goal */}
         <SettingsSection title="Goal">
           <SettingsCard>
@@ -322,5 +353,117 @@ function ToggleSwitch({ checked, onChange }) {
         </span>
       )}
     </button>
+  );
+}
+
+// Multi-select dropdown for segments
+function SegmentMultiSelect({ segments, selectedIds, onChange, isLoading, placeholder }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const selectedSegments = segments.filter((s) => selectedIds.includes(s.id));
+
+  const toggleSegment = (segmentId) => {
+    if (selectedIds.includes(segmentId)) {
+      onChange(selectedIds.filter((id) => id !== segmentId));
+    } else {
+      onChange([...selectedIds, segmentId]);
+    }
+  };
+
+  const removeSegment = (segmentId, e) => {
+    e.stopPropagation();
+    onChange(selectedIds.filter((id) => id !== segmentId));
+  };
+
+  return (
+    <div className="relative">
+      {/* Selected segments display / trigger */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'w-full min-h-[36px] px-3 py-2 rounded text-left',
+          'bg-[var(--bb-color-bg-body)] border border-[var(--bb-color-border-subtle)]',
+          'text-sm text-[var(--bb-color-text-primary)]',
+          'focus:outline-none focus:border-[var(--bb-color-accent)]',
+          'flex flex-wrap gap-1 items-center'
+        )}
+      >
+        {selectedSegments.length > 0 ? (
+          selectedSegments.map((segment) => (
+            <span
+              key={segment.id}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[var(--bb-color-accent-muted)] text-[var(--bb-color-accent)] text-xs"
+            >
+              {segment.name}
+              <button
+                type="button"
+                onClick={(e) => removeSegment(segment.id, e)}
+                className="hover:text-[var(--bb-color-accent-hover)]"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ))
+        ) : (
+          <span className="text-[var(--bb-color-text-tertiary)]">
+            {isLoading ? 'Loading segments...' : placeholder}
+          </span>
+        )}
+      </button>
+
+      {/* Dropdown */}
+      {isOpen && (
+        <div className="absolute z-50 mt-1 w-full max-h-48 overflow-auto rounded border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] shadow-lg">
+          {segments.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-[var(--bb-color-text-tertiary)]">
+              No segments available
+            </div>
+          ) : (
+            segments.map((segment) => (
+              <button
+                key={segment.id}
+                type="button"
+                onClick={() => toggleSegment(segment.id)}
+                className={cn(
+                  'w-full px-3 py-2 text-left text-sm flex items-center gap-2',
+                  'hover:bg-[var(--bb-color-bg-elevated)] transition-colors',
+                  selectedIds.includes(segment.id)
+                    ? 'text-[var(--bb-color-accent)]'
+                    : 'text-[var(--bb-color-text-primary)]'
+                )}
+              >
+                <span
+                  className={cn(
+                    'w-4 h-4 rounded border flex items-center justify-center',
+                    selectedIds.includes(segment.id)
+                      ? 'bg-[var(--bb-color-accent)] border-[var(--bb-color-accent)]'
+                      : 'border-[var(--bb-color-border-subtle)]'
+                  )}
+                >
+                  {selectedIds.includes(segment.id) && (
+                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </span>
+                <span>{segment.name}</span>
+                <span className="ml-auto text-xs text-[var(--bb-color-text-tertiary)]">
+                  {segment.memberCount || 0} members
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Click outside to close */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+    </div>
   );
 }

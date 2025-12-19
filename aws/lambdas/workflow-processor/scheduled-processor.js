@@ -204,7 +204,7 @@ async function processScheduleWorkflows() {
 
   // Find active workflows with schedule trigger
   const workflowsResult = await query(
-    `SELECT w.id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings, w.last_run_at
+    `SELECT w.id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings, w.last_run_at, w.suppression_segment_ids
      FROM "Workflow" w
      WHERE w.status = 'active'
        AND w.deleted_at IS NULL

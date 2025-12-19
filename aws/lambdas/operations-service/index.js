@@ -7467,11 +7467,21 @@ async function handleCreateWorkflow(tenantId, user, body) {
   try {
     await getPoolAsync();
 
+    // Extract suppression_segment_ids from settings if enabled
+    const suppressionSegmentIds = (settings.suppressionEnabled && settings.suppressionSegmentIds?.length > 0)
+      ? settings.suppressionSegmentIds
+      : null;
+
+    // Extract goal_config from settings if enabled
+    const goalConfig = (settings.goalConfig?.enabled && settings.goalConfig?.conditions)
+      ? JSON.stringify(settings.goalConfig.conditions)
+      : null;
+
     const result = await query(
-      `INSERT INTO "Workflow" (tenant_id, name, description, object_type, status, entry_condition, settings, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO "Workflow" (tenant_id, name, description, object_type, status, entry_condition, settings, created_by, suppression_segment_ids, goal_config)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
-      [tenantId, name, description || null, object_type, status, JSON.stringify(entry_condition), JSON.stringify(settings), user?.userId || null]
+      [tenantId, name, description || null, object_type, status, JSON.stringify(entry_condition), JSON.stringify(settings), user?.userId || null, suppressionSegmentIds, goalConfig]
     );
 
     const workflow = result.rows[0];
@@ -7531,6 +7541,22 @@ async function handleUpdateWorkflow(tenantId, user, workflowId, body) {
     if (settings !== undefined) {
       updates.push(`settings = $${paramIndex++}`);
       params.push(JSON.stringify(settings));
+
+      // Extract suppression_segment_ids from settings if enabled
+      if (settings.suppressionEnabled && settings.suppressionSegmentIds?.length > 0) {
+        updates.push(`suppression_segment_ids = $${paramIndex++}`);
+        params.push(settings.suppressionSegmentIds);
+      } else if (settings.suppressionEnabled === false) {
+        updates.push(`suppression_segment_ids = NULL`);
+      }
+
+      // Extract goal_config from settings if enabled
+      if (settings.goalConfig?.enabled && settings.goalConfig?.conditions) {
+        updates.push(`goal_config = $${paramIndex++}`);
+        params.push(JSON.stringify(settings.goalConfig.conditions));
+      } else if (settings.goalConfig?.enabled === false) {
+        updates.push(`goal_config = NULL`);
+      }
     }
     if (folder_id !== undefined) {
       updates.push(`folder_id = $${paramIndex++}`);

@@ -170,7 +170,7 @@ async function findMatchingWorkflows(tenantId, recordType, eventType) {
   console.log('[WORKFLOW TRIGGER] findMatchingWorkflows called');
   console.log('[WORKFLOW TRIGGER] Query params - tenantId:', tenantId, '| recordType:', recordType, '| eventType:', eventType);
 
-  const sqlQuery = `SELECT id, name, entry_condition, settings
+  const sqlQuery = `SELECT id, name, entry_condition, settings, suppression_segment_ids
      FROM "Workflow"
      WHERE tenant_id = $1
        AND object_type = $2
@@ -191,12 +191,239 @@ async function findMatchingWorkflows(tenantId, recordType, eventType) {
 }
 
 /**
+ * Check if a record is in any suppression segment
+ * @param {string} recordId - The record ID to check
+ * @param {string} recordType - The type of record (pet, owner, booking, etc.)
+ * @param {string[]} segmentIds - Array of segment IDs to check
+ * @param {string} tenantId - The tenant ID
+ * @returns {Promise<{suppressed: boolean, segmentId?: string, segmentName?: string}>}
+ */
+async function isRecordSuppressed(recordId, recordType, segmentIds, tenantId) {
+  if (!segmentIds || segmentIds.length === 0) {
+    return { suppressed: false };
+  }
+
+  console.log('[WorkflowTrigger] Checking suppression for record:', recordId, 'in segments:', segmentIds);
+
+  try {
+    // Get segment details
+    const segmentsResult = await query(
+      `SELECT id, name, segment_type, object_type, filters
+       FROM "Segment"
+       WHERE id = ANY($1) AND tenant_id = $2`,
+      [segmentIds, tenantId]
+    );
+
+    if (segmentsResult.rows.length === 0) {
+      console.log('[WorkflowTrigger] No valid suppression segments found');
+      return { suppressed: false };
+    }
+
+    for (const segment of segmentsResult.rows) {
+      // Skip if segment object type doesn't match record type
+      if (segment.object_type !== recordType && segment.object_type !== 'owners') {
+        console.log('[WorkflowTrigger] Skipping segment', segment.id, '- object type mismatch');
+        continue;
+      }
+
+      // Check membership based on segment type
+      if (segment.segment_type === 'static') {
+        // For static segments, check SegmentMember table
+        const memberResult = await query(
+          `SELECT 1 FROM "SegmentMember"
+           WHERE segment_id = $1 AND owner_id = $2
+           LIMIT 1`,
+          [segment.id, recordId]
+        );
+
+        if (memberResult.rows.length > 0) {
+          console.log('[WorkflowTrigger] Record suppressed by static segment:', segment.name);
+          return {
+            suppressed: true,
+            segmentId: segment.id,
+            segmentName: segment.name,
+          };
+        }
+      } else {
+        // For active/dynamic segments, evaluate filters against the record
+        const isMember = await evaluateSegmentFilters(recordId, recordType, segment.filters, tenantId);
+
+        if (isMember) {
+          console.log('[WorkflowTrigger] Record suppressed by dynamic segment:', segment.name);
+          return {
+            suppressed: true,
+            segmentId: segment.id,
+            segmentName: segment.name,
+          };
+        }
+      }
+    }
+
+    console.log('[WorkflowTrigger] Record not in any suppression segment');
+    return { suppressed: false };
+
+  } catch (error) {
+    console.error('[WorkflowTrigger] Error checking suppression:', error.message);
+    // On error, don't suppress - allow enrollment to proceed
+    return { suppressed: false };
+  }
+}
+
+/**
+ * Evaluate segment filters against a record
+ * @param {string} recordId - The record ID
+ * @param {string} recordType - The type of record
+ * @param {object} filters - The segment filter configuration
+ * @param {string} tenantId - The tenant ID
+ * @returns {Promise<boolean>} - True if record matches filters
+ */
+async function evaluateSegmentFilters(recordId, recordType, filters, tenantId) {
+  if (!filters || !filters.groups || filters.groups.length === 0) {
+    return false;
+  }
+
+  try {
+    // Get the record data
+    const tableName = getTableName(recordType);
+    if (!tableName) {
+      return false;
+    }
+
+    const recordResult = await query(
+      `SELECT * FROM "${tableName}" WHERE id = $1 AND tenant_id = $2`,
+      [recordId, tenantId]
+    );
+
+    if (recordResult.rows.length === 0) {
+      return false;
+    }
+
+    const record = recordResult.rows[0];
+    const groupLogic = filters.groupLogic || 'OR';
+
+    // Evaluate each group
+    const groupResults = filters.groups.map(group => {
+      const conditionLogic = group.logic || 'AND';
+      const conditions = group.conditions || [];
+
+      if (conditions.length === 0) {
+        return false;
+      }
+
+      const conditionResults = conditions.map(condition => {
+        return evaluateFilterCondition(condition, record);
+      });
+
+      if (conditionLogic === 'OR') {
+        return conditionResults.some(r => r);
+      }
+      return conditionResults.every(r => r);
+    });
+
+    // Combine group results based on group logic
+    if (groupLogic === 'AND') {
+      return groupResults.every(r => r);
+    }
+    return groupResults.some(r => r);
+
+  } catch (error) {
+    console.error('[WorkflowTrigger] Error evaluating segment filters:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Evaluate a single filter condition against a record
+ */
+function evaluateFilterCondition(condition, record) {
+  const { field, operator, value } = condition;
+  const actualValue = record[field];
+
+  switch (operator) {
+    case 'equals':
+    case 'is':
+      return String(actualValue).toLowerCase() === String(value).toLowerCase();
+    case 'not_equals':
+    case 'is_not':
+      return String(actualValue).toLowerCase() !== String(value).toLowerCase();
+    case 'contains':
+      return String(actualValue).toLowerCase().includes(String(value).toLowerCase());
+    case 'not_contains':
+      return !String(actualValue).toLowerCase().includes(String(value).toLowerCase());
+    case 'starts_with':
+      return String(actualValue).toLowerCase().startsWith(String(value).toLowerCase());
+    case 'ends_with':
+      return String(actualValue).toLowerCase().endsWith(String(value).toLowerCase());
+    case 'is_empty':
+      return !actualValue || actualValue === '' || actualValue === null;
+    case 'is_not_empty':
+      return !!actualValue && actualValue !== '' && actualValue !== null;
+    case 'greater_than':
+      return Number(actualValue) > Number(value);
+    case 'less_than':
+      return Number(actualValue) < Number(value);
+    case 'greater_or_equal':
+      return Number(actualValue) >= Number(value);
+    case 'less_or_equal':
+      return Number(actualValue) <= Number(value);
+    case 'is_true':
+      return actualValue === true || actualValue === 'true';
+    case 'is_false':
+      return actualValue === false || actualValue === 'false';
+    default:
+      console.warn('[WorkflowTrigger] Unknown filter operator:', operator);
+      return false;
+  }
+}
+
+/**
+ * Get table name for record type
+ */
+function getTableName(recordType) {
+  const tables = {
+    pet: 'Pet',
+    owner: 'Owner',
+    booking: 'Booking',
+    payment: 'Payment',
+    invoice: 'Invoice',
+    task: 'Task',
+  };
+  return tables[recordType] || null;
+}
+
+/**
  * Attempt to enroll a record in a workflow
  */
 async function enrollInWorkflow(workflow, recordId, recordType, tenantId, eventData) {
   const settings = workflow.settings || {};
   const allowReenrollment = settings.allow_reenrollment === true;
   const reenrollmentDelayDays = settings.reenrollment_delay_days || 0;
+
+  // Check suppression lists first
+  if (workflow.suppression_segment_ids && workflow.suppression_segment_ids.length > 0) {
+    const suppressionResult = await isRecordSuppressed(
+      recordId,
+      recordType,
+      workflow.suppression_segment_ids,
+      tenantId
+    );
+
+    if (suppressionResult.suppressed) {
+      console.log('[WorkflowTrigger] Record suppressed from workflow:', {
+        workflowId: workflow.id,
+        workflowName: workflow.name,
+        recordId,
+        segmentId: suppressionResult.segmentId,
+        segmentName: suppressionResult.segmentName,
+      });
+      return {
+        enrolled: false,
+        reason: 'suppressed',
+        suppressionSegmentId: suppressionResult.segmentId,
+        suppressionSegmentName: suppressionResult.segmentName,
+      };
+    }
+  }
 
   // Check if already enrolled
   const existingEnrollment = await query(
@@ -353,7 +580,7 @@ exports.manualEnrollHandler = async (event) => {
 
     // Verify workflow exists and is active
     const workflowResult = await query(
-      `SELECT id, name, object_type, entry_condition, settings
+      `SELECT id, name, object_type, entry_condition, settings, suppression_segment_ids
        FROM "Workflow"
        WHERE id = $1
          AND tenant_id = $2
@@ -434,7 +661,7 @@ exports.filterTriggerHandler = async (event) => {
     // Find all active workflows with filter_criteria or filter trigger
     // Frontend uses 'filter', backend historically used 'filter_criteria' - accept both for compatibility
     // Also check both triggerType (camelCase) and trigger_type (snake_case)
-    const filterQuery = `SELECT w.id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings
+    const filterQuery = `SELECT w.id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings, w.suppression_segment_ids
        FROM "Workflow" w
        WHERE w.status = 'active'
          AND w.deleted_at IS NULL
