@@ -382,7 +382,7 @@ export class ServicesStack extends cdk.Stack {
 
     this.workflowStepExecutorFunction.addEventSource(
       new lambdaEventSources.SqsEventSource(this.workflowStepQueue as sqs.Queue, {
-        batchSize: 5,
+        batchSize: 10,
         maxBatchingWindow: cdk.Duration.seconds(2),
         reportBatchItemFailures: true,
       })
