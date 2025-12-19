@@ -9037,7 +9037,7 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
            ELSE l.status
          END as event_type,
          e.record_id,
-         e.object_type,
+         e.record_type,
          COALESCE(p.name, o.first_name || ' ' || o.last_name, b.id::text) as record_name,
          l.started_at as created_at,
          l.completed_at,
@@ -9051,9 +9051,9 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
        FROM "WorkflowExecutionLog" l
        JOIN "WorkflowExecution" e ON e.id = l.execution_id
        LEFT JOIN "WorkflowStep" s ON s.id = l.step_id
-       LEFT JOIN "Pet" p ON e.object_type = 'Pet' AND e.record_id = p.id
-       LEFT JOIN "Owner" o ON e.object_type = 'Owner' AND e.record_id = o.id
-       LEFT JOIN "Booking" b ON e.object_type = 'Booking' AND e.record_id = b.id
+       LEFT JOIN "Pet" p ON e.record_type = 'Pet' AND e.record_id = p.id
+       LEFT JOIN "Owner" o ON e.record_type = 'Owner' AND e.record_id = o.id
+       LEFT JOIN "Booking" b ON e.record_type = 'Booking' AND e.record_id = b.id
        WHERE e.workflow_id = $1 AND e.tenant_id = $2
        ORDER BY l.completed_at DESC NULLS LAST, l.started_at DESC
        LIMIT $3 OFFSET $4`,
@@ -9078,7 +9078,7 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
       action_type: row.action_type,
       event_type: row.event_type,
       record_id: row.record_id,
-      record_name: row.record_name || row.object_type || 'Unknown',
+      record_name: row.record_name || row.record_type || 'Unknown',
       created_at: row.created_at,
       completed_at: row.completed_at,
       duration_ms: row.duration_ms ? Math.round(row.duration_ms) : null,
