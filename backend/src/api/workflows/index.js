@@ -614,7 +614,7 @@ router.get('/workflows/:id/matching-records-count', async (req, res) => {
 
         const conditionClauses = [];
         for (const condition of group.conditions) {
-          const { field, operator, value } = condition;
+          const { field, operator, value, values } = condition;
           if (!field || !operator) continue;
 
           // Map field names to database columns
@@ -681,12 +681,26 @@ router.get('/workflows/:id/matching-records-count', async (req, res) => {
               break;
             case 'in':
             case 'is_any_of':
-              if (Array.isArray(value) && value.length > 0) {
-                const placeholders = value.map(() => `$${paramIndex++}`);
+            case 'is_equal_to_any': {
+              // Use 'values' array for multi-value operators, fall back to 'value' if it's an array
+              const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+              if (arr && arr.length > 0) {
+                const placeholders = arr.map(() => `$${paramIndex++}`);
                 conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
-                params.push(...value);
+                params.push(...arr);
               }
               break;
+            }
+            case 'is_not_equal_to_any':
+            case 'is_none_of': {
+              const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+              if (arr && arr.length > 0) {
+                const placeholders = arr.map(() => `$${paramIndex++}`);
+                conditionClauses.push(`"${dbField}" NOT IN (${placeholders.join(', ')})`);
+                params.push(...arr);
+              }
+              break;
+            }
             default:
               // Default to equals
               conditionClauses.push(`"${dbField}" = $${paramIndex}`);
@@ -943,7 +957,7 @@ async function enrollMatchingRecords(pool, workflowId, tenantId, workflow) {
 
       const conditionClauses = [];
       for (const condition of group.conditions) {
-        const { field, operator, value } = condition;
+        const { field, operator, value, values } = condition;
         if (!field || !operator) continue;
 
         const fieldMap = {
@@ -975,12 +989,25 @@ async function enrollMatchingRecords(pool, workflowId, tenantId, workflow) {
             break;
           case 'in':
           case 'is_any_of':
-            if (Array.isArray(value) && value.length > 0) {
-              const placeholders = value.map(() => `$${paramIndex++}`);
+          case 'is_equal_to_any': {
+            const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+            if (arr && arr.length > 0) {
+              const placeholders = arr.map(() => `$${paramIndex++}`);
               conditionClauses.push(`"${dbField}" IN (${placeholders.join(', ')})`);
-              params.push(...value);
+              params.push(...arr);
             }
             break;
+          }
+          case 'is_not_equal_to_any':
+          case 'is_none_of': {
+            const arr = Array.isArray(values) && values.length > 0 ? values : (Array.isArray(value) ? value : null);
+            if (arr && arr.length > 0) {
+              const placeholders = arr.map(() => `$${paramIndex++}`);
+              conditionClauses.push(`"${dbField}" NOT IN (${placeholders.join(', ')})`);
+              params.push(...arr);
+            }
+            break;
+          }
           default:
             conditionClauses.push(`"${dbField}" = $${paramIndex}`);
             params.push(value);
