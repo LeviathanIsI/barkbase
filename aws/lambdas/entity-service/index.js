@@ -19,6 +19,54 @@ const { getPoolAsync, query, softDelete, softDeleteBatch } = dbLayer;
 const { createResponse, authenticateRequest, parseBody, getQueryParams, getPathParams } = sharedLayer;
 const { enforceLimit, getLimit, getTenantPlan, createTierErrorResponse } = sharedLayer;
 
+// SQS for workflow trigger events
+const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+const sqs = new SQSClient({
+  region: process.env.AWS_REGION_DEPLOY || process.env.AWS_REGION || 'us-east-2',
+});
+const WORKFLOW_TRIGGER_QUEUE_URL = process.env.WORKFLOW_TRIGGER_QUEUE_URL;
+
+/**
+ * Publish a workflow trigger event to the trigger queue
+ * This notifies the workflow-trigger-processor Lambda about domain events
+ * that may trigger workflow enrollments.
+ *
+ * @param {string} eventType - Event type (e.g., 'pet.created', 'owner.updated')
+ * @param {string} recordId - ID of the record that triggered the event
+ * @param {string} recordType - Type of record ('pet', 'owner', etc.)
+ * @param {string} tenantId - Tenant ID for multi-tenancy
+ * @param {object} eventData - Additional event data (optional)
+ */
+async function publishWorkflowEvent(eventType, recordId, recordType, tenantId, eventData = {}) {
+  if (!WORKFLOW_TRIGGER_QUEUE_URL) {
+    // Silently skip if queue URL not configured
+    return false;
+  }
+
+  try {
+    const message = {
+      eventType,
+      recordId,
+      recordType,
+      tenantId,
+      eventData,
+      timestamp: new Date().toISOString(),
+    };
+
+    await sqs.send(new SendMessageCommand({
+      QueueUrl: WORKFLOW_TRIGGER_QUEUE_URL,
+      MessageBody: JSON.stringify(message),
+    }));
+
+    console.log('[EntityService][WorkflowEvent] Published:', eventType, 'for', recordType, recordId);
+    return true;
+  } catch (error) {
+    // Log but don't throw - workflow events shouldn't break main operations
+    console.error('[EntityService][WorkflowEvent] Failed to publish:', eventType, error.message);
+    return false;
+  }
+}
+
 /**
  * Validate email format
  * @param {string} email - Email to validate
@@ -976,6 +1024,19 @@ async function createPet(event) {
     }
 
     console.log('[ENTITY-SERVICE] Created pet:', petId);
+
+    // Publish workflow event
+    try {
+      await publishWorkflowEvent('pet.created', petId, 'pet', tenantId, {
+        name: result.rows[0].name,
+        species: result.rows[0].species,
+        breed: result.rows[0].breed,
+        ownerId: ownerId || null,
+      });
+    } catch (err) {
+      console.error('[ENTITY-SERVICE] Failed to publish pet.created event:', err.message);
+    }
+
     return createResponse(201, { data: result.rows[0] });
   } catch (error) {
     console.error('[ENTITY-SERVICE] createPet error:', error);
@@ -1109,6 +1170,16 @@ async function updatePet(event) {
     }
 
     console.log('[ENTITY-SERVICE] Updated pet:', id);
+
+    // Publish workflow event
+    try {
+      await publishWorkflowEvent('pet.updated', id, 'pet', tenantId, {
+        changedFields: Object.keys(body).filter(k => body[k] !== undefined),
+      });
+    } catch (err) {
+      console.error('[ENTITY-SERVICE] Failed to publish pet.updated event:', err.message);
+    }
+
     return createResponse(200, { data: result.rows[0] });
   } catch (error) {
     console.error('[ENTITY-SERVICE] updatePet error:', error);
@@ -1329,6 +1400,18 @@ async function createOwner(event) {
     );
 
     console.log('[ENTITY-SERVICE] Created owner:', result.rows[0].id);
+
+    // Publish workflow event
+    try {
+      await publishWorkflowEvent('owner.created', result.rows[0].id, 'owner', tenantId, {
+        firstName: result.rows[0].first_name,
+        lastName: result.rows[0].last_name,
+        email: result.rows[0].email,
+      });
+    } catch (err) {
+      console.error('[ENTITY-SERVICE] Failed to publish owner.created event:', err.message);
+    }
+
     return createResponse(201, { data: result.rows[0] });
   } catch (error) {
     console.error('[ENTITY-SERVICE] createOwner error:', error);
@@ -1431,6 +1514,16 @@ async function updateOwner(event) {
     }
 
     console.log('[ENTITY-SERVICE] Updated owner:', id);
+
+    // Publish workflow event
+    try {
+      await publishWorkflowEvent('owner.updated', id, 'owner', tenantId, {
+        changedFields: Object.keys(body).filter(k => body[k] !== undefined),
+      });
+    } catch (err) {
+      console.error('[ENTITY-SERVICE] Failed to publish owner.updated event:', err.message);
+    }
+
     return createResponse(200, { data: result.rows[0] });
   } catch (error) {
     console.error('[ENTITY-SERVICE] updateOwner error:', error);
