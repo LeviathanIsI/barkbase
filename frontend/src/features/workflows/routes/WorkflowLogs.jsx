@@ -108,11 +108,11 @@ export default function WorkflowLogs() {
   const activateMutation = useActivateWorkflow();
   const pauseMutation = usePauseWorkflow();
 
-  const workflow = workflowData?.data || workflowData;
-  const logs = historyData?.data?.logs || historyData?.logs || [];
-  const total = historyData?.data?.total || historyData?.total || 0;
+  const workflow = workflowData?.data?.data || workflowData?.data || workflowData;
+  const logs = historyData?.data?.data?.logs || historyData?.data?.logs || [];
+  const total = historyData?.data?.data?.total || historyData?.data?.total || 0;
   const totalPages = Math.ceil(total / pageSize);
-  const totalEnrolled = executionsData?.total || workflow?.enrolled_count || 0;
+  const totalEnrolled = executionsData?.data?.data?.total || executionsData?.data?.total || workflow?.enrolled_count || 0;
 
   // Handlers
   const handleActivate = async () => {
@@ -510,8 +510,10 @@ function SummaryItem({ label, value }) {
 
 // Log row component - no expandable functionality
 function LogRow({ log }) {
-  const eventConfig = EVENT_TYPE_CONFIG[log.event_type] || {
-    label: log.event_type,
+  // API returns camelCase field names
+  const eventType = log.eventType || log.event_type;
+  const eventConfig = EVENT_TYPE_CONFIG[eventType] || {
+    label: eventType,
     icon: Clock,
     color: '#6B7280',
     dotColor: 'bg-gray-500',
@@ -527,7 +529,7 @@ function LogRow({ log }) {
       {/* Record */}
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-sm text-[var(--bb-color-accent)] truncate">
-          {log.record_name || log.record_id}
+          {log.recordName || log.record_name || log.recordId || log.record_id}
         </span>
       </div>
 
@@ -550,11 +552,11 @@ function LogRow({ log }) {
       {/* Action */}
       <div className="min-w-0">
         <div className="text-sm text-[var(--bb-color-text-primary)] truncate">
-          {log.step_name || '-'}
+          {log.stepName || log.step_name || '-'}
         </div>
-        {log.action_type && (
+        {(log.actionType || log.action_type) && (
           <div className="text-xs text-[var(--bb-color-text-tertiary)]">
-            {formatActionType(log.action_type)}
+            {formatActionType(log.actionType || log.action_type)}
           </div>
         )}
       </div>
@@ -566,9 +568,9 @@ function LogRow({ log }) {
           <div className="text-sm text-[var(--bb-color-text-primary)]">
             {eventConfig.label}
           </div>
-          {log.error_message && (
+          {(log.errorMessage || log.error_message) && (
             <div className="text-xs text-[var(--bb-color-status-negative)] truncate">
-              {log.error_message}
+              {log.errorMessage || log.error_message}
             </div>
           )}
         </div>
@@ -576,7 +578,7 @@ function LogRow({ log }) {
 
       {/* Time */}
       <div className="text-sm text-[var(--bb-color-text-secondary)]">
-        {formatDateTime(log.created_at || log.started_at)}
+        {formatDateTime(log.createdAt || log.created_at || log.startedAt || log.started_at)}
       </div>
     </div>
   );

@@ -8857,6 +8857,12 @@ async function handleUpdateWorkflowSteps(tenantId, user, workflowId, body) {
       });
     }
 
+    // Clear foreign key references in WorkflowExecution before deleting steps
+    await query(
+      `UPDATE "WorkflowExecution" SET current_step_id = NULL WHERE workflow_id = $1`,
+      [workflowId]
+    );
+
     // Delete existing steps
     await query(`DELETE FROM "WorkflowStep" WHERE workflow_id = $1`, [workflowId]);
 
