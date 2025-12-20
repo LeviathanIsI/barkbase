@@ -3,7 +3,7 @@
  * Shows detailed action logs in a table format like HubSpot
  */
 import { useState } from 'react';
-import { ExternalLink, Filter, X, Calendar } from 'lucide-react';
+import { Filter, X, Calendar } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import LoadingState from '@/components/ui/LoadingState';
 import { useWorkflowHistory } from '../../hooks';
@@ -48,7 +48,6 @@ export default function ActionLogsTab({ workflowId }) {
   const [eventTypeFilter, setEventTypeFilter] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [currentPage, setCurrentPage] = useState(1);
-  const [expandedLog, setExpandedLog] = useState(null);
   const pageSize = 50;
 
   const { data, isLoading } = useWorkflowHistory(workflowId, {
@@ -171,9 +170,6 @@ export default function ActionLogsTab({ workflowId }) {
                   Record
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--bb-color-text-tertiary)] uppercase tracking-wider">
-                  Diagnose
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--bb-color-text-tertiary)] uppercase tracking-wider">
                   Action
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--bb-color-text-tertiary)] uppercase tracking-wider">
@@ -191,142 +187,51 @@ export default function ActionLogsTab({ workflowId }) {
                   color: '#6B7280',
                 };
                 const actionLabel = ACTION_TYPE_LABELS[log.action_type] || log.action_type || '-';
-                const isExpanded = expandedLog === log.id;
 
                 return (
-                  <>
-                    <tr
-                      key={log.id}
-                      className="hover:bg-[var(--bb-color-bg-elevated)] cursor-pointer"
-                      onClick={() => setExpandedLog(isExpanded ? null : log.id)}
-                    >
-                      {/* Record Name */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm font-medium text-[var(--bb-color-accent)]">
-                            {log.record_name || 'Unknown'}
-                          </span>
-                          <ExternalLink size={12} className="text-[var(--bb-color-accent)]" />
-                        </div>
+                  <tr key={log.id}>
+                    {/* Record Name */}
+                    <td className="px-4 py-3">
+                      <div className="text-sm font-medium text-[var(--bb-color-text-primary)]">
+                        {log.record_name || 'Unknown'}
+                      </div>
+                      <div className="text-xs text-[var(--bb-color-text-tertiary)]">
+                        {log.record_type || 'Record'}
+                      </div>
+                    </td>
+
+                    {/* Action */}
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-[var(--bb-color-text-primary)]">
+                        {actionLabel}
+                      </div>
+                      {log.step_name && (
                         <div className="text-xs text-[var(--bb-color-text-tertiary)]">
-                          {log.record_type || 'Record'}
+                          {log.step_name}
                         </div>
-                      </td>
+                      )}
+                    </td>
 
-                      {/* Diagnose */}
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExpandedLog(isExpanded ? null : log.id);
-                          }}
-                          className="text-xs text-[var(--bb-color-accent)] hover:underline"
-                        >
-                          Why enrolled?
-                        </button>
-                      </td>
+                    {/* Event */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: eventConfig.color }}
+                        />
+                        <span className="text-sm text-[var(--bb-color-text-primary)]">
+                          {eventConfig.label}
+                        </span>
+                      </div>
+                    </td>
 
-                      {/* Action */}
-                      <td className="px-4 py-3">
-                        {log.step_name ? (
-                          <div>
-                            <div className="text-sm font-medium text-[var(--bb-color-accent)]">
-                              {log.step_name}
-                            </div>
-                            <div className="text-xs text-[var(--bb-color-text-tertiary)]">
-                              {actionLabel}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-[var(--bb-color-text-tertiary)]">-</span>
-                        )}
-                      </td>
-
-                      {/* Event */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: eventConfig.color }}
-                          />
-                          <span className="text-sm text-[var(--bb-color-text-primary)]">
-                            {eventConfig.label}
-                          </span>
-                        </div>
-                        {log.error_message && (
-                          <div className="text-xs text-[var(--bb-color-status-negative)] mt-1 truncate max-w-[200px]">
-                            {log.error_message}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Time */}
-                      <td className="px-4 py-3 text-right">
-                        <div className="text-sm text-[var(--bb-color-text-primary)]">
-                          {formatDateTime(log.created_at)}
-                        </div>
-                        {log.duration_ms && (
-                          <div className="text-xs text-[var(--bb-color-text-tertiary)]">
-                            {log.duration_ms}ms
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-
-                    {/* Expanded Details Row */}
-                    {isExpanded && (
-                      <tr key={`${log.id}-details`}>
-                        <td colSpan={5} className="px-4 py-3 bg-[var(--bb-color-bg-body)]">
-                          <div className="grid grid-cols-3 gap-4 text-sm">
-                            <div>
-                              <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
-                                Execution ID
-                              </div>
-                              <div className="font-mono text-xs text-[var(--bb-color-text-secondary)]">
-                                {log.execution_id}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
-                                Step ID
-                              </div>
-                              <div className="font-mono text-xs text-[var(--bb-color-text-secondary)]">
-                                {log.step_id || '-'}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
-                                Duration
-                              </div>
-                              <div className="text-[var(--bb-color-text-secondary)]">
-                                {log.duration_ms ? `${log.duration_ms}ms` : '-'}
-                              </div>
-                            </div>
-                            {log.error_message && (
-                              <div className="col-span-3">
-                                <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
-                                  Error
-                                </div>
-                                <div className="text-[var(--bb-color-status-negative)] font-mono text-xs p-2 bg-[var(--bb-color-bg-elevated)] rounded">
-                                  {log.error_message}
-                                </div>
-                              </div>
-                            )}
-                            {log.result && (
-                              <div className="col-span-3">
-                                <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
-                                  Result
-                                </div>
-                                <pre className="text-xs font-mono text-[var(--bb-color-text-secondary)] p-2 bg-[var(--bb-color-bg-elevated)] rounded overflow-auto max-h-32">
-                                  {JSON.stringify(log.result, null, 2)}
-                                </pre>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </>
+                    {/* Time */}
+                    <td className="px-4 py-3 text-right">
+                      <div className="text-sm text-[var(--bb-color-text-primary)]">
+                        {formatDateTime(log.created_at)}
+                      </div>
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>
