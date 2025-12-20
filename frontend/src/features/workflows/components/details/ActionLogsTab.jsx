@@ -1,24 +1,38 @@
 /**
  * ActionLogsTab - Execution logs tab for workflow details
- * Shows detailed action logs with date range and status filters
+ * Shows detailed action logs in a table format like HubSpot
  */
 import { useState } from 'react';
-import { ChevronRight, CheckCircle, XCircle, Clock, Filter, X, Calendar } from 'lucide-react';
+import { ExternalLink, Filter, X, Calendar } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import LoadingState from '@/components/ui/LoadingState';
 import { useWorkflowHistory } from '../../hooks';
 
 const EVENT_TYPE_CONFIG = {
-  enrolled: { label: 'Enrolled', icon: Clock, color: '#3B82F6' },
-  step_started: { label: 'Step Started', icon: Clock, color: '#F59E0B' },
-  step_completed: { label: 'Step Completed', icon: CheckCircle, color: '#10B981' },
-  step_failed: { label: 'Step Failed', icon: XCircle, color: '#EF4444' },
-  step_skipped: { label: 'Step Skipped', icon: XCircle, color: '#6B7280' },
-  unenrolled: { label: 'Unenrolled', icon: XCircle, color: '#6B7280' },
-  goal_met: { label: 'Goal Met', icon: CheckCircle, color: '#8B5CF6' },
-  completed: { label: 'Completed', icon: CheckCircle, color: '#10B981' },
-  failed: { label: 'Failed', icon: XCircle, color: '#EF4444' },
-  cancelled: { label: 'Cancelled', icon: XCircle, color: '#6B7280' },
+  enrolled: { label: 'Enrolled', color: '#3B82F6' },
+  step_started: { label: 'Step Started', color: '#F59E0B' },
+  step_completed: { label: 'Completed', color: '#10B981' },
+  step_failed: { label: 'Failed', color: '#EF4444' },
+  step_skipped: { label: 'Skipped', color: '#6B7280' },
+  unenrolled: { label: 'Unenrolled', color: '#6B7280' },
+  goal_reached: { label: 'Goal Reached', color: '#8B5CF6' },
+  goal_met: { label: 'Goal Met', color: '#8B5CF6' },
+  completed: { label: 'Completed', color: '#10B981' },
+  failed: { label: 'Failed', color: '#EF4444' },
+  cancelled: { label: 'Cancelled', color: '#6B7280' },
+  pending: { label: 'Pending', color: '#F59E0B' },
+};
+
+const ACTION_TYPE_LABELS = {
+  send_email: 'Send email',
+  send_sms: 'Send SMS',
+  create_task: 'Create task',
+  update_property: 'Update property',
+  add_tag: 'Add tag',
+  remove_tag: 'Remove tag',
+  webhook: 'Trigger webhook',
+  delay: 'Delay',
+  enroll_in_workflow: 'Enroll in workflow',
 };
 
 const STATUS_OPTIONS = [
@@ -139,7 +153,7 @@ export default function ActionLogsTab({ workflowId }) {
         </div>
       </div>
 
-      {/* Logs List */}
+      {/* Logs Table */}
       <div className="bg-[var(--bb-color-bg-surface)] rounded-lg border border-[var(--bb-color-border-subtle)] overflow-hidden">
         {isLoading ? (
           <div className="p-8">
@@ -150,130 +164,173 @@ export default function ActionLogsTab({ workflowId }) {
             {hasFilters ? 'No logs match the current filters' : 'No logs found'}
           </div>
         ) : (
-          <div className="divide-y divide-[var(--bb-color-border-subtle)]">
-            {logs.map((log) => {
-              const eventConfig = EVENT_TYPE_CONFIG[log.event_type] || {
-                label: log.event_type,
-                icon: Clock,
-                color: '#6B7280',
-              };
-              const Icon = eventConfig.icon;
-              const isExpanded = expandedLog === log.id;
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-[var(--bb-color-border-subtle)]">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--bb-color-text-tertiary)] uppercase tracking-wider">
+                  Record
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--bb-color-text-tertiary)] uppercase tracking-wider">
+                  Diagnose
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--bb-color-text-tertiary)] uppercase tracking-wider">
+                  Action
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--bb-color-text-tertiary)] uppercase tracking-wider">
+                  Event
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-[var(--bb-color-text-tertiary)] uppercase tracking-wider">
+                  Time
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--bb-color-border-subtle)]">
+              {logs.map((log) => {
+                const eventConfig = EVENT_TYPE_CONFIG[log.event_type] || {
+                  label: log.event_type || 'Unknown',
+                  color: '#6B7280',
+                };
+                const actionLabel = ACTION_TYPE_LABELS[log.action_type] || log.action_type || '-';
+                const isExpanded = expandedLog === log.id;
 
-              return (
-                <div key={log.id}>
-                  <button
-                    onClick={() => setExpandedLog(isExpanded ? null : log.id)}
-                    className={cn(
-                      'w-full px-4 py-3 flex items-center gap-4 text-left',
-                      'hover:bg-[var(--bb-color-bg-elevated)]'
-                    )}
-                  >
-                    {/* Event icon */}
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: `${eventConfig.color}20` }}
+                return (
+                  <>
+                    <tr
+                      key={log.id}
+                      className="hover:bg-[var(--bb-color-bg-elevated)] cursor-pointer"
+                      onClick={() => setExpandedLog(isExpanded ? null : log.id)}
                     >
-                      <Icon size={16} style={{ color: eventConfig.color }} />
-                    </div>
-
-                    {/* Event info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">
-                          {eventConfig.label}
-                        </span>
-                        {log.step_name && (
-                          <span className="text-sm text-[var(--bb-color-text-secondary)]">
-                            - {log.step_name}
+                      {/* Record Name */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm font-medium text-[var(--bb-color-accent)]">
+                            {log.record_name || 'Unknown'}
                           </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 text-xs text-[var(--bb-color-text-tertiary)]">
-                        <span>{log.record_name || log.record_id}</span>
-                        <span>{formatDateTime(log.created_at)}</span>
-                        {log.duration_ms && (
-                          <span className="text-[var(--bb-color-text-secondary)]">
-                            {log.duration_ms}ms
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Error indicator */}
-                    {log.error_message && (
-                      <span className="px-2 py-0.5 rounded text-xs bg-[rgba(239,68,68,0.1)] text-[#EF4444]">
-                        Error
-                      </span>
-                    )}
-
-                    {/* Expand indicator */}
-                    <ChevronRight
-                      size={16}
-                      className={cn(
-                        'text-[var(--bb-color-text-tertiary)] transition-transform',
-                        isExpanded && 'rotate-90'
-                      )}
-                    />
-                  </button>
-
-                  {/* Expanded details */}
-                  {isExpanded && (
-                    <div className="px-4 py-3 bg-[var(--bb-color-bg-body)] border-t border-[var(--bb-color-border-subtle)]">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
-                            Execution ID
-                          </div>
-                          <div className="font-mono text-[var(--bb-color-text-secondary)]">
-                            {log.execution_id}
-                          </div>
+                          <ExternalLink size={12} className="text-[var(--bb-color-accent)]" />
                         </div>
-                        <div>
-                          <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
-                            Duration
-                          </div>
-                          <div className="text-[var(--bb-color-text-secondary)]">
-                            {log.duration_ms ? `${log.duration_ms}ms` : '-'}
-                          </div>
+                        <div className="text-xs text-[var(--bb-color-text-tertiary)]">
+                          {log.record_type || 'Record'}
                         </div>
-                        {log.action_type && (
+                      </td>
+
+                      {/* Diagnose */}
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedLog(isExpanded ? null : log.id);
+                          }}
+                          className="text-xs text-[var(--bb-color-accent)] hover:underline"
+                        >
+                          Why enrolled?
+                        </button>
+                      </td>
+
+                      {/* Action */}
+                      <td className="px-4 py-3">
+                        {log.step_name ? (
                           <div>
-                            <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
-                              Action Type
+                            <div className="text-sm font-medium text-[var(--bb-color-accent)]">
+                              {log.step_name}
                             </div>
-                            <div className="text-[var(--bb-color-text-secondary)]">
-                              {log.action_type}
+                            <div className="text-xs text-[var(--bb-color-text-tertiary)]">
+                              {actionLabel}
                             </div>
                           </div>
+                        ) : (
+                          <span className="text-sm text-[var(--bb-color-text-tertiary)]">-</span>
                         )}
+                      </td>
+
+                      {/* Event */}
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: eventConfig.color }}
+                          />
+                          <span className="text-sm text-[var(--bb-color-text-primary)]">
+                            {eventConfig.label}
+                          </span>
+                        </div>
                         {log.error_message && (
-                          <div className="col-span-2">
-                            <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
-                              Error
-                            </div>
-                            <div className="text-[var(--bb-color-status-negative)] font-mono text-xs p-2 bg-[var(--bb-color-bg-elevated)] rounded">
-                              {log.error_message}
-                            </div>
+                          <div className="text-xs text-[var(--bb-color-status-negative)] mt-1 truncate max-w-[200px]">
+                            {log.error_message}
                           </div>
                         )}
-                        {log.result && (
-                          <div className="col-span-2">
-                            <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
-                              Result
-                            </div>
-                            <pre className="text-xs font-mono text-[var(--bb-color-text-secondary)] p-2 bg-[var(--bb-color-bg-elevated)] rounded overflow-auto max-h-32">
-                              {JSON.stringify(log.result, null, 2)}
-                            </pre>
+                      </td>
+
+                      {/* Time */}
+                      <td className="px-4 py-3 text-right">
+                        <div className="text-sm text-[var(--bb-color-text-primary)]">
+                          {formatDateTime(log.created_at)}
+                        </div>
+                        {log.duration_ms && (
+                          <div className="text-xs text-[var(--bb-color-text-tertiary)]">
+                            {log.duration_ms}ms
                           </div>
                         )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                      </td>
+                    </tr>
+
+                    {/* Expanded Details Row */}
+                    {isExpanded && (
+                      <tr key={`${log.id}-details`}>
+                        <td colSpan={5} className="px-4 py-3 bg-[var(--bb-color-bg-body)]">
+                          <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
+                                Execution ID
+                              </div>
+                              <div className="font-mono text-xs text-[var(--bb-color-text-secondary)]">
+                                {log.execution_id}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
+                                Step ID
+                              </div>
+                              <div className="font-mono text-xs text-[var(--bb-color-text-secondary)]">
+                                {log.step_id || '-'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
+                                Duration
+                              </div>
+                              <div className="text-[var(--bb-color-text-secondary)]">
+                                {log.duration_ms ? `${log.duration_ms}ms` : '-'}
+                              </div>
+                            </div>
+                            {log.error_message && (
+                              <div className="col-span-3">
+                                <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
+                                  Error
+                                </div>
+                                <div className="text-[var(--bb-color-status-negative)] font-mono text-xs p-2 bg-[var(--bb-color-bg-elevated)] rounded">
+                                  {log.error_message}
+                                </div>
+                              </div>
+                            )}
+                            {log.result && (
+                              <div className="col-span-3">
+                                <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">
+                                  Result
+                                </div>
+                                <pre className="text-xs font-mono text-[var(--bb-color-text-secondary)] p-2 bg-[var(--bb-color-bg-elevated)] rounded overflow-auto max-h-32">
+                                  {JSON.stringify(log.result, null, 2)}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
+            </tbody>
+          </table>
         )}
 
         {/* Pagination */}
@@ -324,7 +381,9 @@ function formatDateTime(dateString) {
   return new Date(dateString).toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
+    year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    hour12: true,
   });
 }
