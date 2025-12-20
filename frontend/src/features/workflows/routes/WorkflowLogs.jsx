@@ -508,16 +508,65 @@ function SummaryItem({ label, value }) {
   );
 }
 
-// Log row component - no expandable functionality
+// Log row component - HubSpot style
 function LogRow({ log }) {
   // API returns camelCase field names
   const eventType = log.eventType || log.event_type;
+  const recordType = log.recordType || log.record_type || '';
+  const recordName = log.recordName || log.record_name || 'Unknown';
+  const recordId = log.recordId || log.record_id;
+  const stepName = log.stepName || log.step_name;
+  const stepNumber = log.stepNumber || log.step_number;
+  const stepDescription = log.stepDescription || log.step_description;
+  const actionType = log.actionType || log.action_type;
+
   const eventConfig = EVENT_TYPE_CONFIG[eventType] || {
     label: eventType,
     icon: Clock,
     color: '#6B7280',
     dotColor: 'bg-gray-500',
   };
+
+  // Generate event description based on event type and action
+  const getEventDescription = () => {
+    if (eventType === 'enrolled') {
+      return 'Enrolled through filter trigger.';
+    }
+    if (eventType === 'step_completed') {
+      if (actionType === 'create_task') return 'Created task successfully.';
+      if (actionType === 'send_email') return 'Sent email notification.';
+      if (actionType === 'send_sms') return 'Sent SMS message.';
+      if (actionType === 'update_field') return 'Updated field value.';
+      if (actionType === 'webhook') return 'Webhook executed successfully.';
+      return 'Step completed successfully.';
+    }
+    if (eventType === 'step_failed') {
+      return log.errorMessage || log.error_message || 'Step execution failed.';
+    }
+    if (eventType === 'completed') {
+      return 'Completed workflow.';
+    }
+    if (eventType === 'unenrolled') {
+      return 'Unenrolled from workflow.';
+    }
+    if (eventType === 'goal_met') {
+      return 'Goal condition met.';
+    }
+    return null;
+  };
+
+  // Get record link URL based on type
+  const getRecordUrl = () => {
+    if (!recordId) return null;
+    const type = recordType.toLowerCase();
+    if (type === 'pet') return `/pets/${recordId}`;
+    if (type === 'owner' || type === 'contact') return `/owners/${recordId}`;
+    if (type === 'booking') return `/bookings/${recordId}`;
+    return null;
+  };
+
+  const recordUrl = getRecordUrl();
+  const eventDescription = getEventDescription();
 
   return (
     <div
@@ -526,11 +575,26 @@ function LogRow({ log }) {
         'hover:bg-[var(--bb-color-bg-elevated)]'
       )}
     >
-      {/* Record */}
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="text-sm text-[var(--bb-color-accent)] truncate">
-          {log.recordName || log.record_name || log.recordId || log.record_id}
-        </span>
+      {/* Record - name as link with type subtitle */}
+      <div className="min-w-0">
+        {recordUrl ? (
+          <Link
+            to={recordUrl}
+            className="text-sm text-[var(--bb-color-accent)] hover:underline truncate flex items-center gap-1"
+          >
+            {recordName}
+            <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3.5 2.5H2.5C1.94772 2.5 1.5 2.94772 1.5 3.5V9.5C1.5 10.0523 1.94772 10.5 2.5 10.5H8.5C9.05228 10.5 9.5 10.0523 9.5 9.5V8.5M6.5 1.5H10.5M10.5 1.5V5.5M10.5 1.5L5 7" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </Link>
+        ) : (
+          <span className="text-sm text-[var(--bb-color-accent)] truncate">
+            {recordName}
+          </span>
+        )}
+        <div className="text-xs text-[var(--bb-color-text-tertiary)] capitalize">
+          {recordType}
+        </div>
       </div>
 
       {/* Diagnose */}
@@ -540,44 +604,58 @@ function LogRow({ log }) {
             // TODO: Show enrollment reason modal
           }}
           className={cn(
-            'text-xs px-2 py-1 rounded',
-            'text-[var(--bb-color-accent)]',
-            'hover:bg-[var(--bb-color-bg-body)]'
+            'text-xs px-2 py-1 rounded border border-[var(--bb-color-border-subtle)]',
+            'text-[var(--bb-color-text-secondary)]',
+            'hover:bg-[var(--bb-color-bg-body)] hover:text-[var(--bb-color-text-primary)]'
           )}
         >
-          Why enrolled?
+          Why did this enroll?
         </button>
       </div>
 
-      {/* Action */}
+      {/* Action - step number prefix, link style, description below */}
       <div className="min-w-0">
-        <div className="text-sm text-[var(--bb-color-text-primary)] truncate">
-          {log.stepName || log.step_name || '-'}
-        </div>
-        {(log.actionType || log.action_type) && (
-          <div className="text-xs text-[var(--bb-color-text-tertiary)]">
-            {formatActionType(log.actionType || log.action_type)}
-          </div>
+        {stepName ? (
+          <>
+            <div className="text-sm text-[var(--bb-color-accent)] truncate flex items-center gap-1">
+              {stepNumber ? `${stepNumber}. ` : ''}{stepName}
+              <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3.5 2.5H2.5C1.94772 2.5 1.5 2.94772 1.5 3.5V9.5C1.5 10.0523 1.94772 10.5 2.5 10.5H8.5C9.05228 10.5 9.5 10.0523 9.5 9.5V8.5M6.5 1.5H10.5M10.5 1.5V5.5M10.5 1.5L5 7" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            {stepDescription && (
+              <div className="text-xs text-[var(--bb-color-text-tertiary)] truncate">
+                {stepDescription}
+              </div>
+            )}
+            {!stepDescription && actionType && (
+              <div className="text-xs text-[var(--bb-color-text-tertiary)]">
+                {formatActionType(actionType)}
+              </div>
+            )}
+          </>
+        ) : (
+          <span className="text-sm text-[var(--bb-color-text-tertiary)]">--</span>
         )}
       </div>
 
-      {/* Event */}
-      <div className="flex items-center gap-2 min-w-0">
-        <span className={cn('w-2 h-2 rounded-full flex-shrink-0', eventConfig.dotColor)} />
-        <div className="min-w-0">
-          <div className="text-sm text-[var(--bb-color-text-primary)]">
-            {eventConfig.label}
+      {/* Event - description above, status dot with label below */}
+      <div className="min-w-0">
+        {eventDescription && (
+          <div className="text-sm text-[var(--bb-color-text-primary)] mb-1">
+            {eventDescription}
           </div>
-          {(log.errorMessage || log.error_message) && (
-            <div className="text-xs text-[var(--bb-color-status-negative)] truncate">
-              {log.errorMessage || log.error_message}
-            </div>
-          )}
+        )}
+        <div className="flex items-center gap-1.5">
+          <span className={cn('w-2 h-2 rounded-full flex-shrink-0', eventConfig.dotColor)} />
+          <span className="text-xs text-[var(--bb-color-text-tertiary)]">
+            {eventConfig.label}
+          </span>
         </div>
       </div>
 
       {/* Time */}
-      <div className="text-sm text-[var(--bb-color-text-secondary)]">
+      <div className="text-sm text-[var(--bb-color-text-secondary)] text-right">
         {formatDateTime(log.createdAt || log.created_at || log.startedAt || log.started_at)}
       </div>
     </div>

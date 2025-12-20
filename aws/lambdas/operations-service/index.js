@@ -8762,10 +8762,23 @@ async function enrollMatchingRecordsHelper(workflowId, tenantId, workflow) {
         [workflowId, tenantId, record.id, objectType, firstStepId]
       );
 
-      if (execResult.rows.length > 0 && firstStepId) {
+      if (execResult.rows.length > 0) {
         const executionId = execResult.rows[0].id;
-        // Queue the first step for execution
-        await queueStepExecution(executionId, workflowId, tenantId);
+
+        // Log the enrollment event
+        await query(
+          `INSERT INTO "WorkflowExecutionLog" (
+            id, execution_id, step_id, status, started_at, completed_at, result
+          ) VALUES (
+            uuid_generate_v4(), $1, NULL, 'enrolled', NOW(), NOW(), $2
+          )`,
+          [executionId, JSON.stringify({ trigger: 'filter', message: 'Enrolled through filter trigger' })]
+        );
+
+        // Queue the first step for execution if available
+        if (firstStepId) {
+          await queueStepExecution(executionId, workflowId, tenantId);
+        }
         enrolled++;
         enrolledIds.push(record.id);
       }
@@ -9028,6 +9041,7 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
     }
 
     // Get logs with step names, execution details, and record names
+    // Note: record_type is stored as lowercase (pet, owner, booking)
     const result = await query(
       `SELECT
          l.id,
@@ -9035,11 +9049,16 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
          l.step_id,
          s.name as step_name,
          s.action_type,
+         s.position as step_position,
+         s.config as step_config,
          CASE
+           WHEN l.status = 'enrolled' THEN 'enrolled'
            WHEN l.status = 'success' THEN 'step_completed'
            WHEN l.status = 'failed' THEN 'step_failed'
            WHEN l.status = 'skipped' THEN 'step_skipped'
            WHEN l.status = 'goal_reached' THEN 'goal_reached'
+           WHEN l.status = 'completed' THEN 'completed'
+           WHEN l.status = 'unenrolled' THEN 'unenrolled'
            ELSE l.status
          END as event_type,
          e.record_id,
@@ -9057,9 +9076,9 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
        FROM "WorkflowExecutionLog" l
        JOIN "WorkflowExecution" e ON e.id = l.execution_id
        LEFT JOIN "WorkflowStep" s ON s.id = l.step_id
-       LEFT JOIN "Pet" p ON e.record_type = 'Pet' AND e.record_id = p.id
-       LEFT JOIN "Owner" o ON e.record_type = 'Owner' AND e.record_id = o.id
-       LEFT JOIN "Booking" b ON e.record_type = 'Booking' AND e.record_id = b.id
+       LEFT JOIN "Pet" p ON LOWER(e.record_type) = 'pet' AND e.record_id = p.id
+       LEFT JOIN "Owner" o ON LOWER(e.record_type) IN ('owner', 'contact') AND e.record_id = o.id
+       LEFT JOIN "Booking" b ON LOWER(e.record_type) = 'booking' AND e.record_id = b.id
        WHERE e.workflow_id = $1 AND e.tenant_id = $2
        ORDER BY l.completed_at DESC NULLS LAST, l.started_at DESC
        LIMIT $3 OFFSET $4`,
@@ -9078,18 +9097,21 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
     // Transform rows to ensure proper types
     const logs = result.rows.map(row => ({
       id: row.id,
-      execution_id: row.execution_id,
-      step_id: row.step_id,
-      step_name: row.step_name || 'Unknown Step',
-      action_type: row.action_type,
-      event_type: row.event_type,
-      record_id: row.record_id,
-      record_name: row.record_name || row.record_type || 'Unknown',
-      created_at: row.created_at,
-      completed_at: row.completed_at,
-      duration_ms: row.duration_ms ? Math.round(row.duration_ms) : null,
+      executionId: row.execution_id,
+      stepId: row.step_id,
+      stepName: row.step_name || 'Unknown Step',
+      stepNumber: row.step_position != null ? row.step_position + 1 : null,
+      stepDescription: row.step_config?.description || row.step_config?.title || null,
+      actionType: row.action_type,
+      eventType: row.event_type,
+      recordId: row.record_id,
+      recordType: row.record_type,
+      recordName: row.record_name || 'Unknown',
+      createdAt: row.created_at,
+      completedAt: row.completed_at,
+      durationMs: row.duration_ms ? Math.round(row.duration_ms) : null,
       result: row.result,
-      error_message: row.error_message
+      errorMessage: row.error_message
     }));
 
     return createResponse(200, {
