@@ -522,20 +522,44 @@ async function processFilterWorkflow(workflow) {
     params
   );
 
+  // Get first step for this workflow
+  const firstStepResult = await query(
+    `SELECT id FROM "WorkflowStep"
+     WHERE workflow_id = $1 AND parent_step_id IS NULL
+     ORDER BY position ASC LIMIT 1`,
+    [workflowId]
+  );
+
+  if (firstStepResult.rows.length === 0) {
+    console.log('[ScheduledProcessor] Workflow has no steps:', workflowId);
+    return 0;
+  }
+
+  const firstStepId = firstStepResult.rows[0].id;
   let enrolled = 0;
 
   for (const record of recordsResult.rows) {
     try {
-      await queueTriggerEvent(
-        'filter_criteria.matched',
-        record.id,
-        objectType,
-        tenantId,
-        { workflowId, filterMatch: true }
+      // Create execution directly (bypass trigger queue)
+      const executionResult = await query(
+        `INSERT INTO "WorkflowExecution"
+         (workflow_id, tenant_id, record_id, record_type, status, current_step_id, enrolled_at, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, 'running', $5, NOW(), NOW(), NOW())
+         RETURNING id`,
+        [workflowId, tenantId, record.id, objectType, firstStepId]
       );
-      enrolled++;
+
+      if (executionResult.rows.length > 0) {
+        const executionId = executionResult.rows[0].id;
+
+        // Queue to STEP queue directly
+        await queueStepExecution(executionId, workflowId, tenantId);
+        enrolled++;
+
+        console.log('[ScheduledProcessor] Enrolled record:', record.id, 'execution:', executionId);
+      }
     } catch (error) {
-      console.error('[ScheduledProcessor] Error queueing record:', record.id, error);
+      console.error('[ScheduledProcessor] Error enrolling record:', record.id, error.message);
     }
   }
 
