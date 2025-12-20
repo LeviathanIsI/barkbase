@@ -284,7 +284,9 @@ async function processStepExecution(message) {
       console.log('[STEP EXECUTOR] Workflow COMPLETED');
       await completeExecution(executionId, workflowId, 'completed', null);
     } else {
-      console.log('[STEP EXECUTOR] No next step, no wait, no completed flag - workflow may be stuck!');
+      // No more steps - workflow is complete
+      console.log('[STEP EXECUTOR] No next step - completing workflow');
+      await completeExecution(executionId, workflowId, 'completed', null);
     }
   } else {
     // Step failed
