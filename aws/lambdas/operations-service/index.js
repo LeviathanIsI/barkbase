@@ -9040,57 +9040,139 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
       });
     }
 
-    // Get logs with step names, execution details, and record names
-    // Note: record_type is stored as lowercase (pet, owner, booking)
+    // UNION ALL approach: combine enrollment, step, and completion events
+    // 1. ENROLLMENT events from WorkflowExecution (enrolled_at)
+    // 2. STEP events from WorkflowExecutionLog
+    // 3. COMPLETION events from WorkflowExecution (completed_at)
     const result = await query(
-      `SELECT
-         l.id,
-         l.execution_id,
-         l.step_id,
-         s.name as step_name,
-         s.action_type,
-         s.position as step_position,
-         s.config as step_config,
-         CASE
-           WHEN l.status = 'enrolled' THEN 'enrolled'
-           WHEN l.status = 'success' THEN 'step_completed'
-           WHEN l.status = 'failed' THEN 'step_failed'
-           WHEN l.status = 'skipped' THEN 'step_skipped'
-           WHEN l.status = 'goal_reached' THEN 'goal_reached'
-           WHEN l.status = 'completed' THEN 'completed'
-           WHEN l.status = 'unenrolled' THEN 'unenrolled'
-           ELSE l.status
-         END as event_type,
-         e.record_id,
-         e.record_type,
-         COALESCE(p.name, o.first_name || ' ' || o.last_name, b.id::text) as record_name,
-         l.started_at as created_at,
-         l.completed_at,
-         CASE
-           WHEN l.started_at IS NOT NULL AND l.completed_at IS NOT NULL
-           THEN EXTRACT(EPOCH FROM (l.completed_at - l.started_at)) * 1000
-           ELSE NULL
-         END as duration_ms,
-         l.result,
-         l.result->>'error' as error_message
-       FROM "WorkflowExecutionLog" l
-       JOIN "WorkflowExecution" e ON e.id = l.execution_id
-       LEFT JOIN "WorkflowStep" s ON s.id = l.step_id
-       LEFT JOIN "Pet" p ON LOWER(e.record_type) = 'pet' AND e.record_id = p.id
-       LEFT JOIN "Owner" o ON LOWER(e.record_type) IN ('owner', 'contact') AND e.record_id = o.id
-       LEFT JOIN "Booking" b ON LOWER(e.record_type) = 'booking' AND e.record_id = b.id
-       WHERE e.workflow_id = $1 AND e.tenant_id = $2
-       ORDER BY l.completed_at DESC NULLS LAST, l.started_at DESC
-       LIMIT $3 OFFSET $4`,
+      `WITH combined_events AS (
+        -- ENROLLMENT events from WorkflowExecution
+        SELECT
+          e.id as id,
+          e.id as execution_id,
+          NULL::uuid as step_id,
+          NULL as step_name,
+          NULL as action_type,
+          NULL::integer as step_position,
+          NULL::jsonb as step_config,
+          'enrolled' as event_type,
+          e.record_id,
+          e.record_type,
+          COALESCE(p.name, o.first_name || ' ' || o.last_name, b.id::text) as record_name,
+          e.enrolled_at as created_at,
+          e.enrolled_at as completed_at,
+          NULL::numeric as duration_ms,
+          jsonb_build_object('event', 'enrolled', 'message', 'Record enrolled in workflow') as result,
+          NULL as error_message
+        FROM "WorkflowExecution" e
+        LEFT JOIN "Pet" p ON LOWER(e.record_type) = 'pet' AND e.record_id = p.id
+        LEFT JOIN "Owner" o ON LOWER(e.record_type) IN ('owner', 'contact') AND e.record_id = o.id
+        LEFT JOIN "Booking" b ON LOWER(e.record_type) = 'booking' AND e.record_id = b.id
+        WHERE e.workflow_id = $1 AND e.tenant_id = $2
+
+        UNION ALL
+
+        -- STEP events from WorkflowExecutionLog
+        SELECT
+          l.id,
+          l.execution_id,
+          l.step_id,
+          s.name as step_name,
+          COALESCE(l.action_type, s.action_type) as action_type,
+          s.position as step_position,
+          s.config as step_config,
+          COALESCE(l.event_type,
+            CASE
+              WHEN l.status = 'success' THEN 'step_completed'
+              WHEN l.status = 'failed' THEN 'step_failed'
+              WHEN l.status = 'skipped' THEN 'step_skipped'
+              WHEN l.status = 'goal_reached' THEN 'goal_reached'
+              ELSE l.status
+            END
+          ) as event_type,
+          e.record_id,
+          e.record_type,
+          COALESCE(p.name, o.first_name || ' ' || o.last_name, b.id::text) as record_name,
+          l.started_at as created_at,
+          l.completed_at,
+          COALESCE(l.duration_ms::numeric,
+            CASE
+              WHEN l.started_at IS NOT NULL AND l.completed_at IS NOT NULL
+              THEN EXTRACT(EPOCH FROM (l.completed_at - l.started_at)) * 1000
+              ELSE NULL
+            END
+          ) as duration_ms,
+          l.result,
+          COALESCE(l.error_details::text, l.result->>'error') as error_message
+        FROM "WorkflowExecutionLog" l
+        JOIN "WorkflowExecution" e ON e.id = l.execution_id
+        LEFT JOIN "WorkflowStep" s ON s.id = l.step_id
+        LEFT JOIN "Pet" p ON LOWER(e.record_type) = 'pet' AND e.record_id = p.id
+        LEFT JOIN "Owner" o ON LOWER(e.record_type) IN ('owner', 'contact') AND e.record_id = o.id
+        LEFT JOIN "Booking" b ON LOWER(e.record_type) = 'booking' AND e.record_id = b.id
+        WHERE e.workflow_id = $1 AND e.tenant_id = $2
+          AND (l.event_type IS NULL OR l.event_type NOT IN ('enrolled', 'completed', 'goal_met'))
+
+        UNION ALL
+
+        -- COMPLETION events from WorkflowExecution
+        SELECT
+          e.id as id,
+          e.id as execution_id,
+          NULL::uuid as step_id,
+          NULL as step_name,
+          NULL as action_type,
+          NULL::integer as step_position,
+          NULL::jsonb as step_config,
+          CASE
+            WHEN e.completion_reason = 'goal_reached' THEN 'goal_met'
+            ELSE 'completed'
+          END as event_type,
+          e.record_id,
+          e.record_type,
+          COALESCE(p.name, o.first_name || ' ' || o.last_name, b.id::text) as record_name,
+          e.completed_at as created_at,
+          e.completed_at as completed_at,
+          CASE
+            WHEN e.enrolled_at IS NOT NULL AND e.completed_at IS NOT NULL
+            THEN EXTRACT(EPOCH FROM (e.completed_at - e.enrolled_at)) * 1000
+            ELSE NULL
+          END as duration_ms,
+          CASE
+            WHEN e.completion_reason = 'goal_reached'
+            THEN jsonb_build_object('event', 'goal_met', 'message', 'Workflow completed - goal conditions met', 'goalResult', e.goal_result)
+            ELSE jsonb_build_object('event', 'completed', 'message', 'Workflow completed successfully')
+          END as result,
+          NULL as error_message
+        FROM "WorkflowExecution" e
+        LEFT JOIN "Pet" p ON LOWER(e.record_type) = 'pet' AND e.record_id = p.id
+        LEFT JOIN "Owner" o ON LOWER(e.record_type) IN ('owner', 'contact') AND e.record_id = o.id
+        LEFT JOIN "Booking" b ON LOWER(e.record_type) = 'booking' AND e.record_id = b.id
+        WHERE e.workflow_id = $1 AND e.tenant_id = $2
+          AND e.completed_at IS NOT NULL
+      )
+      SELECT * FROM combined_events
+      ORDER BY created_at DESC
+      LIMIT $3 OFFSET $4`,
       [workflowId, tenantId, parseInt(limit), parseInt(offset)]
     );
 
-    // Get total count
+    // Get total count (sum of all three event types)
     const countResult = await query(
-      `SELECT COUNT(*) as total
-       FROM "WorkflowExecutionLog" l
-       JOIN "WorkflowExecution" e ON e.id = l.execution_id
-       WHERE e.workflow_id = $1 AND e.tenant_id = $2`,
+      `SELECT (
+        -- Enrollment count
+        (SELECT COUNT(*) FROM "WorkflowExecution" WHERE workflow_id = $1 AND tenant_id = $2)
+        +
+        -- Step log count (excluding enrollment/completion logs that might exist)
+        (SELECT COUNT(*)
+         FROM "WorkflowExecutionLog" l
+         JOIN "WorkflowExecution" e ON e.id = l.execution_id
+         WHERE e.workflow_id = $1 AND e.tenant_id = $2
+           AND (l.event_type IS NULL OR l.event_type NOT IN ('enrolled', 'completed', 'goal_met')))
+        +
+        -- Completion count
+        (SELECT COUNT(*) FROM "WorkflowExecution" WHERE workflow_id = $1 AND tenant_id = $2 AND completed_at IS NOT NULL)
+      ) as total`,
       [workflowId, tenantId]
     );
 
@@ -9099,7 +9181,7 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
       id: row.id,
       executionId: row.execution_id,
       stepId: row.step_id,
-      stepName: row.step_name || 'Unknown Step',
+      stepName: row.step_name || null,
       stepNumber: row.step_position != null ? row.step_position + 1 : null,
       stepDescription: row.step_config?.description || row.step_config?.title || null,
       actionType: row.action_type,

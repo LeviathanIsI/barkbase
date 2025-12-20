@@ -173,6 +173,7 @@ async function processStepExecution(message) {
 
   // Execute step based on type
   let stepResult2;
+  const stepStartedAt = new Date();
   console.log('[STEP EXECUTOR] Executing step type:', step.step_type);
   try {
     switch (step.step_type) {
@@ -235,9 +236,9 @@ async function processStepExecution(message) {
 
   console.log('[STEP EXECUTOR] Step result:', JSON.stringify(stepResult2, null, 2));
 
-  // Log step execution
+  // Log step execution with full details
   console.log('[STEP EXECUTOR] Logging step execution...');
-  await logStepExecution(executionId, step.id, stepResult2);
+  await logStepExecution(executionId, step, stepResult2, stepStartedAt);
 
   // Handle result and queue next step if needed
   if (stepResult2.success) {
@@ -1107,21 +1108,56 @@ function getAllowedUpdateFields(objectType) {
 }
 
 /**
- * Log step execution to database
+ * Log step execution to database with full details
+ * @param {string} executionId - Execution ID
+ * @param {object} step - Full step object from WorkflowStep table
+ * @param {object} result - Step execution result
+ * @param {Date} startedAt - When the step started
  */
-async function logStepExecution(executionId, stepId, result) {
+async function logStepExecution(executionId, step, result, startedAt) {
   try {
+    const completedAt = new Date();
+    const durationMs = startedAt ? completedAt.getTime() - startedAt.getTime() : null;
+    const status = result.success ? 'success' : 'failed';
+    const eventType = result.success ? 'step_completed' : 'step_failed';
+
     await query(
-      `INSERT INTO "WorkflowExecutionLog"
-         (execution_id, step_id, status, completed_at, result)
-       VALUES ($1, $2, $3, NOW(), $4)`,
+      `INSERT INTO "WorkflowExecutionLog" (
+        id,
+        execution_id,
+        step_id,
+        status,
+        event_type,
+        step_type,
+        action_type,
+        started_at,
+        completed_at,
+        duration_ms,
+        input_data,
+        output_data,
+        error_details,
+        result
+      ) VALUES (
+        gen_random_uuid(),
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+      )`,
       [
         executionId,
-        stepId,
-        result.success ? 'success' : 'failed',
+        step.id,
+        status,
+        eventType,
+        step.step_type,
+        step.action_type,
+        startedAt?.toISOString() || completedAt.toISOString(),
+        completedAt.toISOString(),
+        durationMs,
+        JSON.stringify(step.config || {}),
+        result.success ? JSON.stringify(result.result || {}) : null,
+        result.success ? null : result.error,
         JSON.stringify(result.result || { error: result.error }),
       ]
     );
+    console.log('[StepExecutor] Logged step execution:', step.id, 'status:', status, 'duration:', durationMs, 'ms');
   } catch (error) {
     console.error('[StepExecutor] Error logging step execution:', error);
   }
@@ -1245,6 +1281,35 @@ async function completeExecution(executionId, workflowId, completionReason = 'co
       completionReason,
       goalResult ? JSON.stringify(goalResult) : null,
       executionId,
+    ]
+  );
+
+  // Log the completion event
+  await query(
+    `INSERT INTO "WorkflowExecutionLog" (
+      id,
+      execution_id,
+      step_id,
+      status,
+      event_type,
+      started_at,
+      completed_at,
+      output_data,
+      result
+    ) VALUES (
+      gen_random_uuid(),
+      $1, NULL, 'success', $2, NOW(), NOW(), $3, $3
+    )`,
+    [
+      executionId,
+      completionReason === 'goal_reached' ? 'goal_met' : 'completed',
+      JSON.stringify({
+        completionReason,
+        message: completionReason === 'goal_reached'
+          ? 'Workflow completed - goal conditions met'
+          : 'Workflow completed successfully',
+        goalResult,
+      }),
     ]
   );
 

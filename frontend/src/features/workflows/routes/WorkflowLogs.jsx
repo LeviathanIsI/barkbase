@@ -406,11 +406,14 @@ export default function WorkflowLogs() {
             {/* Logs Table */}
             <div className="bg-[var(--bb-color-bg-surface)] rounded-lg border border-[var(--bb-color-border-subtle)] overflow-hidden">
               {/* Table Header */}
-              <div className="grid grid-cols-[1fr_120px_200px_250px_150px] gap-4 px-4 py-3 border-b border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)]">
+              <div
+                className="grid gap-3 px-4 py-3 border-b border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)]"
+                style={{ gridTemplateColumns: 'minmax(100px, 1fr) minmax(120px, 0.8fr) minmax(150px, 1.5fr) minmax(200px, 2fr) minmax(120px, 1fr)' }}
+              >
                 <div className="text-xs font-medium text-[var(--bb-color-text-tertiary)] uppercase">
                   Record
                 </div>
-                <div className="text-xs font-medium text-[var(--bb-color-text-tertiary)] uppercase">
+                <div className="text-xs font-medium text-[var(--bb-color-text-tertiary)] uppercase text-center">
                   Diagnose
                 </div>
                 <div className="text-xs font-medium text-[var(--bb-color-text-tertiary)] uppercase">
@@ -419,7 +422,7 @@ export default function WorkflowLogs() {
                 <div className="text-xs font-medium text-[var(--bb-color-text-tertiary)] uppercase">
                   Event
                 </div>
-                <div className="text-xs font-medium text-[var(--bb-color-text-tertiary)] uppercase">
+                <div className="text-xs font-medium text-[var(--bb-color-text-tertiary)] uppercase text-right">
                   Time
                 </div>
               </div>
@@ -571,34 +574,35 @@ function LogRow({ log }) {
   return (
     <div
       className={cn(
-        'w-full grid grid-cols-[1fr_120px_200px_250px_150px] gap-4 px-4 py-3 text-left',
+        'w-full grid gap-3 px-4 py-3 text-left',
         'hover:bg-[var(--bb-color-bg-elevated)]'
       )}
+      style={{ gridTemplateColumns: 'minmax(100px, 1fr) minmax(120px, 0.8fr) minmax(150px, 1.5fr) minmax(200px, 2fr) minmax(120px, 1fr)' }}
     >
       {/* Record - name as link with type subtitle */}
-      <div className="min-w-0">
+      <div className="min-w-0 overflow-hidden">
         {recordUrl ? (
           <Link
             to={recordUrl}
             className="text-sm text-[var(--bb-color-accent)] hover:underline truncate flex items-center gap-1"
           >
-            {recordName}
+            <span className="truncate">{recordName}</span>
             <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M3.5 2.5H2.5C1.94772 2.5 1.5 2.94772 1.5 3.5V9.5C1.5 10.0523 1.94772 10.5 2.5 10.5H8.5C9.05228 10.5 9.5 10.0523 9.5 9.5V8.5M6.5 1.5H10.5M10.5 1.5V5.5M10.5 1.5L5 7" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </Link>
         ) : (
-          <span className="text-sm text-[var(--bb-color-accent)] truncate">
+          <span className="text-sm text-[var(--bb-color-accent)] truncate block">
             {recordName}
           </span>
         )}
-        <div className="text-xs text-[var(--bb-color-text-tertiary)] capitalize">
+        <div className="text-xs text-[var(--bb-color-text-tertiary)] capitalize truncate">
           {recordType}
         </div>
       </div>
 
-      {/* Diagnose */}
-      <div>
+      {/* Diagnose - centered */}
+      <div className="flex justify-center">
         <button
           onClick={() => {
             // TODO: Show enrollment reason modal
@@ -606,7 +610,8 @@ function LogRow({ log }) {
           className={cn(
             'text-xs px-2 py-1 rounded border border-[var(--bb-color-border-subtle)]',
             'text-[var(--bb-color-text-secondary)]',
-            'hover:bg-[var(--bb-color-bg-body)] hover:text-[var(--bb-color-text-primary)]'
+            'hover:bg-[var(--bb-color-bg-body)] hover:text-[var(--bb-color-text-primary)]',
+            'whitespace-nowrap'
           )}
         >
           Why did this enroll?
@@ -614,11 +619,11 @@ function LogRow({ log }) {
       </div>
 
       {/* Action - step number prefix, link style, description below */}
-      <div className="min-w-0">
+      <div className="min-w-0 overflow-hidden">
         {stepName ? (
           <>
             <div className="text-sm text-[var(--bb-color-accent)] truncate flex items-center gap-1">
-              {stepNumber ? `${stepNumber}. ` : ''}{stepName}
+              <span className="truncate">{stepNumber ? `${stepNumber}. ` : ''}{stepName}</span>
               <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M3.5 2.5H2.5C1.94772 2.5 1.5 2.94772 1.5 3.5V9.5C1.5 10.0523 1.94772 10.5 2.5 10.5H8.5C9.05228 10.5 9.5 10.0523 9.5 9.5V8.5M6.5 1.5H10.5M10.5 1.5V5.5M10.5 1.5L5 7" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -629,7 +634,7 @@ function LogRow({ log }) {
               </div>
             )}
             {!stepDescription && actionType && (
-              <div className="text-xs text-[var(--bb-color-text-tertiary)]">
+              <div className="text-xs text-[var(--bb-color-text-tertiary)] truncate">
                 {formatActionType(actionType)}
               </div>
             )}
@@ -640,15 +645,15 @@ function LogRow({ log }) {
       </div>
 
       {/* Event - description above, status dot with label below */}
-      <div className="min-w-0">
+      <div className="min-w-0 overflow-hidden">
         {eventDescription && (
-          <div className="text-sm text-[var(--bb-color-text-primary)] mb-1">
+          <div className="text-sm text-[var(--bb-color-text-primary)] mb-1 truncate">
             {eventDescription}
           </div>
         )}
         <div className="flex items-center gap-1.5">
           <span className={cn('w-2 h-2 rounded-full flex-shrink-0', eventConfig.dotColor)} />
-          <span className="text-xs text-[var(--bb-color-text-tertiary)]">
+          <span className="text-xs text-[var(--bb-color-text-tertiary)] truncate">
             {eventConfig.label}
           </span>
         </div>
