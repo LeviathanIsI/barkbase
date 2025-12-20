@@ -90,7 +90,6 @@ export default function WorkflowLogs() {
   const [actionTypeFilter, setActionTypeFilter] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [currentPage, setCurrentPage] = useState(1);
-  const [expandedLog, setExpandedLog] = useState(null);
   const pageSize = 50;
 
   // Queries
@@ -440,8 +439,6 @@ export default function WorkflowLogs() {
                     <LogRow
                       key={log.id}
                       log={log}
-                      isExpanded={expandedLog === log.id}
-                      onToggle={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
                     />
                   ))}
                 </div>
@@ -511,124 +508,77 @@ function SummaryItem({ label, value }) {
   );
 }
 
-// Log row component
-function LogRow({ log, isExpanded, onToggle }) {
+// Log row component - no expandable functionality
+function LogRow({ log }) {
   const eventConfig = EVENT_TYPE_CONFIG[log.event_type] || {
     label: log.event_type,
     icon: Clock,
     color: '#6B7280',
     dotColor: 'bg-gray-500',
   };
-  const Icon = eventConfig.icon;
 
   return (
-    <>
-      <button
-        onClick={onToggle}
-        className={cn(
-          'w-full grid grid-cols-[1fr_120px_200px_250px_150px] gap-4 px-4 py-3 text-left',
-          'hover:bg-[var(--bb-color-bg-elevated)]'
-        )}
-      >
-        {/* Record */}
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm text-[var(--bb-color-accent)] truncate">
-            {log.record_name || log.record_id}
-          </span>
-        </div>
+    <div
+      className={cn(
+        'w-full grid grid-cols-[1fr_120px_200px_250px_150px] gap-4 px-4 py-3 text-left',
+        'hover:bg-[var(--bb-color-bg-elevated)]'
+      )}
+    >
+      {/* Record */}
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-sm text-[var(--bb-color-accent)] truncate">
+          {log.record_name || log.record_id}
+        </span>
+      </div>
 
-        {/* Diagnose */}
-        <div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              // TODO: Show enrollment reason modal
-            }}
-            className={cn(
-              'text-xs px-2 py-1 rounded',
-              'text-[var(--bb-color-accent)]',
-              'hover:bg-[var(--bb-color-bg-body)]'
-            )}
-          >
-            Why enrolled?
-          </button>
-        </div>
+      {/* Diagnose */}
+      <div>
+        <button
+          onClick={() => {
+            // TODO: Show enrollment reason modal
+          }}
+          className={cn(
+            'text-xs px-2 py-1 rounded',
+            'text-[var(--bb-color-accent)]',
+            'hover:bg-[var(--bb-color-bg-body)]'
+          )}
+        >
+          Why enrolled?
+        </button>
+      </div>
 
-        {/* Action */}
-        <div className="min-w-0">
-          <div className="text-sm text-[var(--bb-color-text-primary)] truncate">
-            {log.step_name || '-'}
+      {/* Action */}
+      <div className="min-w-0">
+        <div className="text-sm text-[var(--bb-color-text-primary)] truncate">
+          {log.step_name || '-'}
+        </div>
+        {log.action_type && (
+          <div className="text-xs text-[var(--bb-color-text-tertiary)]">
+            {formatActionType(log.action_type)}
           </div>
-          {log.action_type && (
-            <div className="text-xs text-[var(--bb-color-text-tertiary)]">
-              {formatActionType(log.action_type)}
+        )}
+      </div>
+
+      {/* Event */}
+      <div className="flex items-center gap-2 min-w-0">
+        <span className={cn('w-2 h-2 rounded-full flex-shrink-0', eventConfig.dotColor)} />
+        <div className="min-w-0">
+          <div className="text-sm text-[var(--bb-color-text-primary)]">
+            {eventConfig.label}
+          </div>
+          {log.error_message && (
+            <div className="text-xs text-[var(--bb-color-status-negative)] truncate">
+              {log.error_message}
             </div>
           )}
         </div>
+      </div>
 
-        {/* Event */}
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={cn('w-2 h-2 rounded-full flex-shrink-0', eventConfig.dotColor)} />
-          <div className="min-w-0">
-            <div className="text-sm text-[var(--bb-color-text-primary)]">
-              {eventConfig.label}
-            </div>
-            {log.error_message && (
-              <div className="text-xs text-[var(--bb-color-status-negative)] truncate">
-                {log.error_message}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Time */}
-        <div className="text-sm text-[var(--bb-color-text-secondary)]">
-          {formatDateTime(log.created_at || log.started_at)}
-        </div>
-      </button>
-
-      {/* Expanded details */}
-      {isExpanded && (
-        <div className="px-4 py-4 bg-[var(--bb-color-bg-body)] border-t border-[var(--bb-color-border-subtle)]">
-          <div className="grid grid-cols-3 gap-6 text-sm">
-            <div>
-              <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">Execution ID</div>
-              <div className="font-mono text-[var(--bb-color-text-secondary)]">
-                {log.execution_id}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">Duration</div>
-              <div className="text-[var(--bb-color-text-secondary)]">
-                {log.duration_ms ? `${log.duration_ms}ms` : '-'}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">Step ID</div>
-              <div className="font-mono text-[var(--bb-color-text-secondary)]">
-                {log.step_id}
-              </div>
-            </div>
-            {log.error_message && (
-              <div className="col-span-3">
-                <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">Error</div>
-                <div className="text-[var(--bb-color-status-negative)] font-mono text-xs p-2 bg-[var(--bb-color-bg-elevated)] rounded">
-                  {log.error_message}
-                </div>
-              </div>
-            )}
-            {log.result && (
-              <div className="col-span-3">
-                <div className="text-xs text-[var(--bb-color-text-tertiary)] mb-1">Result</div>
-                <pre className="text-xs font-mono text-[var(--bb-color-text-secondary)] p-2 bg-[var(--bb-color-bg-elevated)] rounded overflow-auto max-h-32">
-                  {JSON.stringify(log.result, null, 2)}
-                </pre>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </>
+      {/* Time */}
+      <div className="text-sm text-[var(--bb-color-text-secondary)]">
+        {formatDateTime(log.created_at || log.started_at)}
+      </div>
+    </div>
   );
 }
 
