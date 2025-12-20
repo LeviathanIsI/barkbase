@@ -271,6 +271,7 @@ router.put('/workflows/:id', async (req, res) => {
       start_step_id,
     } = req.body || {};
 
+    console.log("[WORKFLOW PUT] Settings:", JSON.stringify(settings));
     // Build dynamic update query
     const updates = [];
     const params = [];

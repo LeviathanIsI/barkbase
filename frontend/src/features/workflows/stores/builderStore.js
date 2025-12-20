@@ -80,6 +80,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
    * Load an existing workflow from API data
    */
   loadWorkflow: (workflowData, stepsData = []) => {
+    console.log("[STORE] loadWorkflow called with settings:", JSON.stringify(workflowData?.settings));
     // Convert API format to store format
     const workflow = {
       id: workflowData.id,
@@ -242,6 +243,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
    * Update workflow settings
    */
   setWorkflowSettings: (settings) => {
+    console.log("[STORE] setWorkflowSettings called:", JSON.stringify(settings));
     set((state) => ({
       workflow: {
         ...state.workflow,
@@ -480,6 +482,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
    * Convert store state to API format
    */
   toAPIFormat: () => {
+    console.log("[STORE] toAPIFormat - settings:", JSON.stringify(get().workflow.settings));
     const state = get();
 
     return {

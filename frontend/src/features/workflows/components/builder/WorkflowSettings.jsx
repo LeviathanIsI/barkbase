@@ -53,6 +53,7 @@ export default function WorkflowSettings() {
   };
 
   // Save settings
+    console.log('[SETTINGS] Saving:', JSON.stringify(localSettings));
   const handleSave = () => {
     setWorkflowSettings(localSettings);
     setHasChanges(false);
