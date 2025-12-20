@@ -26,7 +26,7 @@ export default function BuilderCanvas() {
     selectedStepId,
     selectStep,
     deleteStep,
-    openSettings,
+    openTriggerConfig,
   } = useWorkflowBuilderStore();
 
   // Pan and zoom state
@@ -197,7 +197,7 @@ export default function BuilderCanvas() {
             settings={workflow.settings}
             isSelected={selectedStepId === 'trigger'}
             onClick={() => selectStep('trigger')}
-            onSettingsClick={openSettings}
+            onSettingsClick={() => openTriggerConfig('settings')}
           />
 
           {/* First connector with add button */}

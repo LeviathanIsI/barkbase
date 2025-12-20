@@ -2,7 +2,7 @@
  * BuilderLeftPanel - Left panel for the workflow builder
  * Shows trigger selection when no trigger is set, action categories otherwise
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Search,
   Hand,
@@ -62,6 +62,7 @@ export default function BuilderLeftPanel({ onCreateWorkflow, onActiveTriggerChan
     panelMode,
     pendingTriggerType,
     pendingStepContext,
+    triggerConfigTab,
     setEntryCondition,
     setObjectType,
     setPendingTriggerType,
@@ -107,6 +108,7 @@ export default function BuilderLeftPanel({ onCreateWorkflow, onActiveTriggerChan
       <TriggerConfigPanel
         workflow={workflow}
         pendingTriggerType={pendingTriggerType}
+        initialTab={triggerConfigTab}
         setEntryCondition={setEntryCondition}
         setObjectType={setObjectType}
         onCancel={clearSelection}
@@ -796,12 +798,47 @@ function TriggerTypeButton({ icon, label, onClick }) {
 function TriggerConfigPanel({
   workflow,
   pendingTriggerType,
+  initialTab = 'triggers',
   setEntryCondition,
   setObjectType,
   onCancel,
   onCreateWorkflow,
   onActiveTriggerChange,
 }) {
+  // Tab state - 'triggers' or 'settings'
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Sync activeTab when initialTab changes
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  // Get settings from store for the Settings tab
+  const { setWorkflowSettings } = useWorkflowBuilderStore();
+  const settings = workflow?.settings || {};
+
+  // Local state for settings tab
+  const [localSettings, setLocalSettings] = useState(settings);
+  const [settingsHasChanges, setSettingsHasChanges] = useState(false);
+
+  // Sync local settings when store settings change
+  useEffect(() => {
+    setLocalSettings(settings);
+    setSettingsHasChanges(false);
+  }, [settings]);
+
+  // Update a local setting
+  const updateLocalSetting = (key, value) => {
+    setLocalSettings((prev) => ({ ...prev, [key]: value }));
+    setSettingsHasChanges(true);
+  };
+
+  // Save settings
+  const handleSaveSettings = () => {
+    setWorkflowSettings(localSettings);
+    setSettingsHasChanges(false);
+  };
+
   // Get saved entry condition for pre-populating forms
   const savedEntryCondition = workflow?.entryCondition;
   const savedFilterConfig = savedEntryCondition?.filterConfig || {};
@@ -1072,7 +1109,7 @@ function TriggerConfigPanel({
           <ChevronLeft size={16} />
           Back
         </button>
-        {needsSaveButton && (
+        {activeTab === 'triggers' && needsSaveButton && (
           <button
             onClick={getSaveHandler()}
             className="px-3 py-1.5 rounded text-sm font-medium bg-[var(--bb-color-accent)] text-white hover:bg-[var(--bb-color-accent-hover)]"
@@ -1080,10 +1117,46 @@ function TriggerConfigPanel({
             Save
           </button>
         )}
+        {activeTab === 'settings' && settingsHasChanges && (
+          <button
+            onClick={handleSaveSettings}
+            className="px-3 py-1.5 rounded text-sm font-medium bg-[var(--bb-color-accent)] text-white hover:bg-[var(--bb-color-accent-hover)]"
+          >
+            Save
+          </button>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-[var(--bb-color-border-subtle)]">
+        <button
+          onClick={() => setActiveTab('triggers')}
+          className={cn(
+            "flex-1 px-4 py-2.5 text-sm font-medium transition-colors",
+            activeTab === 'triggers'
+              ? "text-[var(--bb-color-accent)] border-b-2 border-[var(--bb-color-accent)]"
+              : "text-[var(--bb-color-text-tertiary)] hover:text-[var(--bb-color-text-secondary)]"
+          )}
+        >
+          Start triggers
+        </button>
+        <button
+          onClick={() => setActiveTab('settings')}
+          className={cn(
+            "flex-1 px-4 py-2.5 text-sm font-medium transition-colors",
+            activeTab === 'settings'
+              ? "text-[var(--bb-color-accent)] border-b-2 border-[var(--bb-color-accent)]"
+              : "text-[var(--bb-color-text-tertiary)] hover:text-[var(--bb-color-text-secondary)]"
+          )}
+        >
+          Settings
+        </button>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-4">
+      {activeTab === 'triggers' && (
+        <>
         {isPropertyChange ? (
           // Property change configuration
           <>
@@ -1445,6 +1518,159 @@ function TriggerConfigPanel({
             Unknown trigger configuration type: {JSON.stringify(pendingTriggerType)}
           </div>
         )}
+        </>
+      )}
+
+      {/* Settings Tab Content */}
+      {activeTab === 'settings' && (
+        <div className="space-y-6">
+          {/* Re-enrollment Section */}
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)] mb-3">
+              Re-enroll
+            </h3>
+            <div className="p-4 border border-[var(--bb-color-border-subtle)] rounded-lg bg-[var(--bb-color-bg-elevated)]">
+              <div className="flex items-start gap-3">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={localSettings.allowReenrollment || false}
+                  onClick={() => updateLocalSetting('allowReenrollment', !localSettings.allowReenrollment)}
+                  className={cn(
+                    'relative flex-shrink-0 w-11 h-6 rounded-full transition-colors',
+                    localSettings.allowReenrollment ? 'bg-[var(--bb-color-status-positive)]' : 'bg-[var(--bb-color-border-subtle)]'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow',
+                      localSettings.allowReenrollment ? 'left-6' : 'left-1'
+                    )}
+                  />
+                  {!localSettings.allowReenrollment && (
+                    <span className="absolute top-0 right-0 w-6 h-6 flex items-center justify-center text-[9px] font-bold uppercase text-[var(--bb-color-text-tertiary)]">
+                      OFF
+                    </span>
+                  )}
+                </button>
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">
+                    Allow contacts to re-enroll after completing the workflow
+                  </span>
+                  <p className="text-xs text-[var(--bb-color-text-secondary)] mt-0.5">
+                    Records that have completed or been unenrolled can be enrolled again.
+                  </p>
+                </div>
+              </div>
+
+              {localSettings.allowReenrollment && (
+                <div className="mt-4 pl-14">
+                  <p className="text-sm text-[var(--bb-color-text-secondary)] mb-3">
+                    Contacts will re-enroll when:
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-[var(--bb-color-text-tertiary)] space-y-1">
+                    <li>They are manually re-enrolled</li>
+                    <li>Or they meet the eligible record conditions when any of the following conditions become true again</li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Unenrollment Section */}
+          <div>
+            <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)] mb-3">
+              Unenroll if contacts meet the following conditions
+            </h3>
+            <p className="text-xs text-[var(--bb-color-text-tertiary)] mb-3">
+              If eligible records meet any of the following conditions before starting the workflow, they won't enroll. If they meet these conditions after starting, they will be unenrolled.
+            </p>
+
+            <div className="space-y-3">
+              {/* Suppression list toggle */}
+              <div className="p-4 border border-[var(--bb-color-border-subtle)] rounded-lg bg-[var(--bb-color-bg-elevated)]">
+                <div className="flex items-start gap-3">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={localSettings.suppressionEnabled || false}
+                    onClick={() => {
+                      updateLocalSetting('suppressionEnabled', !localSettings.suppressionEnabled);
+                      if (localSettings.suppressionEnabled) {
+                        updateLocalSetting('suppressionSegmentIds', []);
+                      }
+                    }}
+                    className={cn(
+                      'relative flex-shrink-0 w-11 h-6 rounded-full transition-colors',
+                      localSettings.suppressionEnabled ? 'bg-[var(--bb-color-status-positive)]' : 'bg-[var(--bb-color-border-subtle)]'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow',
+                        localSettings.suppressionEnabled ? 'left-6' : 'left-1'
+                      )}
+                    />
+                    {!localSettings.suppressionEnabled && (
+                      <span className="absolute top-0 right-0 w-6 h-6 flex items-center justify-center text-[9px] font-bold uppercase text-[var(--bb-color-text-tertiary)]">
+                        OFF
+                      </span>
+                    )}
+                  </button>
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">
+                      Added to a suppression segment
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Goal toggle */}
+              <div className="p-4 border border-[var(--bb-color-border-subtle)] rounded-lg bg-[var(--bb-color-bg-elevated)]">
+                <div className="flex items-start gap-3">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={localSettings.goalConfig?.enabled || false}
+                    onClick={() => {
+                      const newEnabled = !localSettings.goalConfig?.enabled;
+                      setLocalSettings((prev) => ({
+                        ...prev,
+                        goalConfig: { ...prev.goalConfig, enabled: newEnabled },
+                      }));
+                      setSettingsHasChanges(true);
+                    }}
+                    className={cn(
+                      'relative flex-shrink-0 w-11 h-6 rounded-full transition-colors',
+                      localSettings.goalConfig?.enabled ? 'bg-[var(--bb-color-status-positive)]' : 'bg-[var(--bb-color-border-subtle)]'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow',
+                        localSettings.goalConfig?.enabled ? 'left-6' : 'left-1'
+                      )}
+                    />
+                    {!localSettings.goalConfig?.enabled && (
+                      <span className="absolute top-0 right-0 w-6 h-6 flex items-center justify-center text-[9px] font-bold uppercase text-[var(--bb-color-text-tertiary)]">
+                        OFF
+                      </span>
+                    )}
+                  </button>
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">
+                      Met a workflow goal
+                    </span>
+                    <p className="text-xs text-[var(--bb-color-text-secondary)] mt-0.5">
+                      Automatically unenroll records when they meet certain conditions.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );
