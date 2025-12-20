@@ -464,7 +464,10 @@ async function processFilterWorkflows() {
  */
 async function processFilterWorkflow(workflow) {
   const { id: workflowId, tenant_id: tenantId, object_type: objectType, entry_condition: entryCondition, settings } = workflow;
-  const filter = entryCondition?.filter || {};
+  // Filter config can be in 'filterConfig' (new) or 'filter' (legacy)
+  const filterConfig = entryCondition?.filterConfig || entryCondition?.filter || {};
+
+  console.log('[ScheduledProcessor] Processing filter workflow:', workflow.name, 'id:', workflowId);
 
   const tableName = getTableName(objectType);
   if (!tableName) {
@@ -472,40 +475,70 @@ async function processFilterWorkflow(workflow) {
   }
 
   // Build WHERE clause from filter criteria
-  // TODO: Implement proper filter parsing when filter builder is finalized
-  // For now, use simple property checks if specified
-
   let whereClause = `r.tenant_id = $1`;
   const params = [tenantId];
   let paramIndex = 2;
 
-  // Add filter conditions if present
-  if (filter.conditions && filter.conditions.length > 0) {
-    for (const condition of filter.conditions) {
+  // Parse filter groups (new format: groups[].conditions[])
+  const groups = filterConfig.groups || [];
+  const groupLogic = filterConfig.groupLogic || 'or'; // Groups are ORed together by default
+
+  if (groups.length > 0) {
+    const groupClauses = [];
+
+    for (const group of groups) {
+      const conditions = group.conditions || [];
+      const groupInternalLogic = group.logic || 'and'; // Conditions within group are ANDed by default
+
+      if (conditions.length === 0) continue;
+
+      const conditionClauses = [];
+
+      for (const condition of conditions) {
+        const columnName = sanitizeColumnName(condition.field);
+        if (!columnName) continue;
+
+        const clause = buildConditionClause(columnName, condition.operator, condition.value, params, paramIndex);
+        if (clause) {
+          conditionClauses.push(clause.sql);
+          paramIndex = clause.nextParamIndex;
+        }
+      }
+
+      if (conditionClauses.length > 0) {
+        const joinedConditions = conditionClauses.join(` ${groupInternalLogic.toUpperCase()} `);
+        groupClauses.push(`(${joinedConditions})`);
+      }
+    }
+
+    if (groupClauses.length > 0) {
+      const joinedGroups = groupClauses.join(` ${groupLogic.toUpperCase()} `);
+      whereClause += ` AND (${joinedGroups})`;
+    }
+  }
+
+  // Also support flat conditions format (filterConfig.conditions[])
+  if (filterConfig.conditions && filterConfig.conditions.length > 0 && groups.length === 0) {
+    const flatLogic = filterConfig.logic || 'and';
+    const flatClauses = [];
+    for (const condition of filterConfig.conditions) {
       const columnName = sanitizeColumnName(condition.field);
       if (!columnName) continue;
 
-      switch (condition.operator) {
-        case 'equals':
-          whereClause += ` AND r."${columnName}" = $${paramIndex}`;
-          params.push(condition.value);
-          paramIndex++;
-          break;
-        case 'not_equals':
-          whereClause += ` AND r."${columnName}" != $${paramIndex}`;
-          params.push(condition.value);
-          paramIndex++;
-          break;
-        case 'is_empty':
-          whereClause += ` AND (r."${columnName}" IS NULL OR r."${columnName}" = '')`;
-          break;
-        case 'is_not_empty':
-          whereClause += ` AND r."${columnName}" IS NOT NULL AND r."${columnName}" != ''`;
-          break;
-        // Add more operators as needed
+      const clause = buildConditionClause(columnName, condition.operator, condition.value, params, paramIndex);
+      if (clause) {
+        flatClauses.push(clause.sql);
+        paramIndex = clause.nextParamIndex;
       }
     }
+    if (flatClauses.length > 0) {
+      const joinedFlat = flatClauses.join(` ${flatLogic.toUpperCase()} `);
+      whereClause += ` AND (${joinedFlat})`;
+    }
   }
+
+  console.log('[ScheduledProcessor] Filter WHERE clause:', whereClause);
+  console.log('[ScheduledProcessor] Filter params:', params);
 
   // Exclude records already enrolled in running executions
   whereClause += ` AND NOT EXISTS (
@@ -574,6 +607,100 @@ function sanitizeColumnName(name) {
   // Only allow alphanumeric and underscore
   const sanitized = name.replace(/[^a-zA-Z0-9_]/g, '');
   return sanitized.length > 0 ? sanitized : null;
+}
+
+/**
+ * Build SQL condition clause for a filter condition
+ * Returns { sql: string, nextParamIndex: number } or null if invalid
+ */
+function buildConditionClause(columnName, operator, value, params, paramIndex) {
+  switch (operator) {
+    case 'equals':
+    case 'is':
+      params.push(value);
+      return { sql: `r."${columnName}" = $${paramIndex}`, nextParamIndex: paramIndex + 1 };
+
+    case 'not_equals':
+    case 'is_not':
+      params.push(value);
+      return { sql: `r."${columnName}" != $${paramIndex}`, nextParamIndex: paramIndex + 1 };
+
+    case 'equals_any':
+    case 'is_any_of':
+    case 'is_equal_to_any':
+      // Value can be an array or a single value
+      const arrayValue = Array.isArray(value) ? value : [value];
+      if (arrayValue.length > 0) {
+        const placeholders = arrayValue.map((_, i) => `$${paramIndex + i}`).join(', ');
+        params.push(...arrayValue);
+        return { sql: `r."${columnName}" IN (${placeholders})`, nextParamIndex: paramIndex + arrayValue.length };
+      }
+      return null;
+
+    case 'not_any_of':
+    case 'is_none_of':
+      if (Array.isArray(value) && value.length > 0) {
+        const placeholders = value.map((_, i) => `$${paramIndex + i}`).join(', ');
+        params.push(...value);
+        return { sql: `r."${columnName}" NOT IN (${placeholders})`, nextParamIndex: paramIndex + value.length };
+      }
+      return null;
+
+    case 'contains':
+      params.push(`%${value}%`);
+      return { sql: `r."${columnName}" ILIKE $${paramIndex}`, nextParamIndex: paramIndex + 1 };
+
+    case 'not_contains':
+    case 'does_not_contain':
+      params.push(`%${value}%`);
+      return { sql: `r."${columnName}" NOT ILIKE $${paramIndex}`, nextParamIndex: paramIndex + 1 };
+
+    case 'starts_with':
+      params.push(`${value}%`);
+      return { sql: `r."${columnName}" ILIKE $${paramIndex}`, nextParamIndex: paramIndex + 1 };
+
+    case 'ends_with':
+      params.push(`%${value}`);
+      return { sql: `r."${columnName}" ILIKE $${paramIndex}`, nextParamIndex: paramIndex + 1 };
+
+    case 'is_empty':
+    case 'is_unknown':
+      return { sql: `(r."${columnName}" IS NULL OR r."${columnName}" = '')`, nextParamIndex: paramIndex };
+
+    case 'is_not_empty':
+    case 'is_known':
+      return { sql: `(r."${columnName}" IS NOT NULL AND r."${columnName}" != '')`, nextParamIndex: paramIndex };
+
+    case 'greater_than':
+    case 'is_greater_than':
+      params.push(value);
+      return { sql: `r."${columnName}" > $${paramIndex}`, nextParamIndex: paramIndex + 1 };
+
+    case 'less_than':
+    case 'is_less_than':
+      params.push(value);
+      return { sql: `r."${columnName}" < $${paramIndex}`, nextParamIndex: paramIndex + 1 };
+
+    case 'greater_than_or_equal':
+    case 'is_greater_than_or_equal':
+      params.push(value);
+      return { sql: `r."${columnName}" >= $${paramIndex}`, nextParamIndex: paramIndex + 1 };
+
+    case 'less_than_or_equal':
+    case 'is_less_than_or_equal':
+      params.push(value);
+      return { sql: `r."${columnName}" <= $${paramIndex}`, nextParamIndex: paramIndex + 1 };
+
+    case 'is_true':
+      return { sql: `r."${columnName}" = true`, nextParamIndex: paramIndex };
+
+    case 'is_false':
+      return { sql: `r."${columnName}" = false`, nextParamIndex: paramIndex };
+
+    default:
+      console.warn('[ScheduledProcessor] Unknown operator:', operator);
+      return null;
+  }
 }
 
 /**
