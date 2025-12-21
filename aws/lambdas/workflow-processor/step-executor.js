@@ -498,6 +498,9 @@ async function executeAction(step, execution, recordData, tenantId, retryContext
     case 'enroll_in_workflow':
       result = await executeEnrollInWorkflow(config, execution, recordData, tenantId);
       break;
+    case 'webhook':
+      result = await executeWebhook(config, execution, recordData, tenantId);
+      break;
     default:
       result = { success: false, error: `Unknown action type: ${actionType}`, retryable: false, httpStatus: 400 };
   }
@@ -860,6 +863,349 @@ async function executeEnrollInWorkflow(config, execution, recordData, tenantId) 
       httpStatus,
     };
   }
+}
+
+/**
+ * Execute webhook action
+ * HubSpot-aligned: 30-second timeout, proper error handling, retry headers
+ */
+async function executeWebhook(config, execution, recordData, tenantId) {
+  const WEBHOOK_TIMEOUT_MS = 30000; // 30 seconds (HubSpot spec)
+
+  try {
+    const url = config.url;
+    if (!url) {
+      return { success: false, error: 'No webhook URL configured', retryable: false, httpStatus: 400 };
+    }
+
+    // Validate URL
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return { success: false, error: `Invalid webhook URL: ${url}`, retryable: false, httpStatus: 400 };
+    }
+
+    const method = (config.method || 'POST').toUpperCase();
+    const onFailure = config.onFailure || 'fail'; // 'fail', 'continue', 'retry'
+
+    // Build headers
+    const headers = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'BarkBase-Workflow/1.0',
+      'X-BarkBase-Workflow-Id': execution.workflow_id,
+      'X-BarkBase-Execution-Id': execution.id,
+      'X-BarkBase-Tenant-Id': tenantId,
+    };
+
+    // Add authentication headers
+    if (config.authType === 'api_key' && config.apiKeyValue) {
+      const headerName = config.apiKeyHeader || 'X-API-Key';
+      headers[headerName] = config.apiKeyValue;
+    } else if (config.authType === 'bearer' && config.bearerToken) {
+      headers['Authorization'] = `Bearer ${config.bearerToken}`;
+    } else if (config.authType === 'basic' && config.basicUsername) {
+      const credentials = Buffer.from(`${config.basicUsername}:${config.basicPassword || ''}`).toString('base64');
+      headers['Authorization'] = `Basic ${credentials}`;
+    }
+
+    // Add custom headers from config (JSON string)
+    if (config.headers) {
+      try {
+        const customHeaders = typeof config.headers === 'string' ? JSON.parse(config.headers) : config.headers;
+        Object.assign(headers, customHeaders);
+      } catch (e) {
+        console.warn('[StepExecutor] Invalid custom headers JSON:', e.message);
+      }
+    }
+
+    // Build request body
+    let body = null;
+    if (method !== 'GET' && method !== 'HEAD') {
+      if (config.payload) {
+        // Use custom payload if provided
+        try {
+          const customPayload = typeof config.payload === 'string' ? JSON.parse(config.payload) : config.payload;
+          // Interpolate template variables in payload
+          body = JSON.stringify(interpolatePayload(customPayload, recordData, execution));
+        } catch (e) {
+          console.warn('[StepExecutor] Invalid custom payload JSON, using default:', e.message);
+          body = JSON.stringify(buildDefaultPayload(recordData, execution, tenantId));
+        }
+      } else {
+        body = JSON.stringify(buildDefaultPayload(recordData, execution, tenantId));
+      }
+    }
+
+    console.log('[StepExecutor] Webhook request:', {
+      url,
+      method,
+      headersCount: Object.keys(headers).length,
+      bodyLength: body?.length || 0,
+    });
+
+    // Make HTTP request with timeout
+    const response = await makeHttpRequest({
+      url: parsedUrl,
+      method,
+      headers,
+      body,
+      timeoutMs: WEBHOOK_TIMEOUT_MS,
+    });
+
+    console.log('[StepExecutor] Webhook response:', {
+      statusCode: response.statusCode,
+      statusMessage: response.statusMessage,
+      bodyLength: response.body?.length || 0,
+    });
+
+    // Handle response based on status code
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      // SUCCESS: Continue workflow
+      return {
+        success: true,
+        result: {
+          statusCode: response.statusCode,
+          body: response.body?.substring(0, 1000), // Truncate for logging
+        },
+      };
+    }
+
+    // Handle 429 Too Many Requests
+    if (response.statusCode === 429) {
+      const retryAfterMs = parseRetryAfterHeader(response.headers);
+      console.log('[StepExecutor] Webhook rate limited (429). Retry-After:', retryAfterMs, 'ms');
+      return {
+        success: false,
+        error: `Webhook rate limited (429): ${response.body?.substring(0, 200) || 'Too Many Requests'}`,
+        retryable: true,
+        httpStatus: 429,
+        retryAfterMs,
+      };
+    }
+
+    // Handle 5XX server errors - retryable
+    if (response.statusCode >= 500) {
+      return {
+        success: false,
+        error: `Webhook server error (${response.statusCode}): ${response.body?.substring(0, 200) || response.statusMessage}`,
+        retryable: true,
+        httpStatus: response.statusCode,
+      };
+    }
+
+    // Handle 4XX client errors - NOT retryable (except 429 handled above)
+    if (response.statusCode >= 400) {
+      // Check onFailure config
+      if (onFailure === 'continue') {
+        console.log('[StepExecutor] Webhook failed with 4XX but onFailure=continue, proceeding');
+        return {
+          success: true, // Treat as success to continue workflow
+          result: {
+            statusCode: response.statusCode,
+            body: response.body?.substring(0, 1000),
+            failedButContinued: true,
+          },
+        };
+      }
+
+      return {
+        success: false,
+        error: `Webhook client error (${response.statusCode}): ${response.body?.substring(0, 200) || response.statusMessage}`,
+        retryable: false,
+        httpStatus: response.statusCode,
+      };
+    }
+
+    // Unexpected status code
+    return {
+      success: false,
+      error: `Unexpected webhook response (${response.statusCode}): ${response.statusMessage}`,
+      retryable: false,
+      httpStatus: response.statusCode,
+    };
+
+  } catch (error) {
+    console.error('[StepExecutor] Webhook error:', error);
+
+    // Timeout errors are retryable
+    if (error.code === 'ETIMEDOUT' || error.code === 'ESOCKETTIMEDOUT' || error.message?.includes('timeout')) {
+      return {
+        success: false,
+        error: `Webhook timeout after 30 seconds: ${error.message}`,
+        retryable: true,
+        httpStatus: 504,
+      };
+    }
+
+    // Network errors are generally retryable
+    if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET' || error.code === 'ENOTFOUND') {
+      return {
+        success: false,
+        error: `Webhook network error: ${error.message}`,
+        retryable: true,
+        httpStatus: 503,
+      };
+    }
+
+    // DNS resolution errors - may be permanent
+    if (error.code === 'ENOTFOUND') {
+      return {
+        success: false,
+        error: `Webhook DNS error: ${error.message}`,
+        retryable: false,
+        httpStatus: 400,
+      };
+    }
+
+    // Other errors - assume retryable
+    return {
+      success: false,
+      error: error.message,
+      retryable: true,
+      httpStatus: 500,
+    };
+  }
+}
+
+/**
+ * Make HTTP/HTTPS request with timeout
+ */
+function makeHttpRequest({ url, method, headers, body, timeoutMs }) {
+  return new Promise((resolve, reject) => {
+    const protocol = url.protocol === 'https:' ? require('https') : require('http');
+
+    const options = {
+      hostname: url.hostname,
+      port: url.port || (url.protocol === 'https:' ? 443 : 80),
+      path: url.pathname + url.search,
+      method,
+      headers,
+      timeout: timeoutMs,
+    };
+
+    const req = protocol.request(options, (res) => {
+      let responseBody = '';
+      res.on('data', (chunk) => {
+        responseBody += chunk;
+      });
+      res.on('end', () => {
+        resolve({
+          statusCode: res.statusCode,
+          statusMessage: res.statusMessage,
+          headers: res.headers,
+          body: responseBody,
+        });
+      });
+    });
+
+    req.on('error', (error) => {
+      reject(error);
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
+
+    if (body) {
+      req.write(body);
+    }
+    req.end();
+  });
+}
+
+/**
+ * Parse Retry-After header (can be seconds or HTTP date)
+ */
+function parseRetryAfterHeader(headers) {
+  const retryAfter = headers['retry-after'];
+  if (!retryAfter) {
+    return null;
+  }
+
+  // Try parsing as number of seconds
+  const seconds = parseInt(retryAfter, 10);
+  if (!isNaN(seconds)) {
+    return seconds * 1000;
+  }
+
+  // Try parsing as HTTP date
+  try {
+    const date = new Date(retryAfter);
+    if (!isNaN(date.getTime())) {
+      return Math.max(0, date.getTime() - Date.now());
+    }
+  } catch {
+    // Ignore parsing errors
+  }
+
+  return null;
+}
+
+/**
+ * Build default webhook payload with record and execution data
+ */
+function buildDefaultPayload(recordData, execution, tenantId) {
+  return {
+    event: 'workflow.webhook',
+    timestamp: new Date().toISOString(),
+    workflow: {
+      id: execution.workflow_id,
+      name: execution.workflow_name,
+      executionId: execution.id,
+    },
+    tenant: {
+      id: tenantId,
+    },
+    record: recordData.record || {},
+    recordType: recordData.recordType,
+    relatedData: {
+      owner: recordData.owner || null,
+      pet: recordData.pet || null,
+    },
+  };
+}
+
+/**
+ * Interpolate template variables in webhook payload
+ * Supports {{record.field}}, {{owner.field}}, {{pet.field}} patterns
+ */
+function interpolatePayload(payload, recordData, execution) {
+  const jsonStr = JSON.stringify(payload);
+
+  const interpolated = jsonStr.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+    const value = getNestedValueForWebhook(recordData, path.trim());
+    if (value === undefined || value === null) {
+      return '';
+    }
+    // Escape for JSON string context
+    return String(value).replace(/"/g, '\\"');
+  });
+
+  try {
+    return JSON.parse(interpolated);
+  } catch {
+    // If parsing fails, return original payload
+    return payload;
+  }
+}
+
+/**
+ * Get nested value from object using dot notation
+ */
+function getNestedValueForWebhook(obj, path) {
+  const parts = path.split('.');
+  let current = obj;
+
+  for (const part of parts) {
+    if (current === null || current === undefined) {
+      return undefined;
+    }
+    current = current[part];
+  }
+
+  return current;
 }
 
 /**
