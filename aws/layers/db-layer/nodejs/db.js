@@ -368,6 +368,7 @@ async function softDeleteBatch(tableName, ids, tenantId, deletedBy = null) {
  * These match the codes in backend/src/constants/objectTypes.js
  */
 const OBJECT_TYPE_CODES = {
+  // Core CRM Objects (1-19)
   Owner: 1,
   Pet: 2,
   Booking: 3,
@@ -379,6 +380,7 @@ const OBJECT_TYPE_CODES = {
   Vaccination: 9,
   Incident: 10,
   Veterinarian: 11,
+  // Workflow Objects (20-29)
   Workflow: 20,
   WorkflowStep: 21,
   WorkflowExecution: 22,
@@ -389,12 +391,15 @@ const OBJECT_TYPE_CODES = {
   Segment: 27,
   SegmentMember: 28,
   SegmentActivity: 29,
+  // Service Objects (30-39)
   Service: 30,
   Package: 31,
+  // Facility Objects (40-49)
   Run: 40,
   Kennel: 41,
   RunTemplate: 42,
   RunAssignment: 43,
+  // User/Staff Objects (50-59)
   User: 50,
   Staff: 51,
   Role: 52,
@@ -402,10 +407,15 @@ const OBJECT_TYPE_CODES = {
   UserSession: 54,
   TimeEntry: 55,
   TimePunch: 56,
+  Shift: 57,
+  ShiftTemplate: 58,
+  // Communication Objects (60-69)
   Conversation: 60,
   Message: 61,
   Notification: 62,
   EmailTemplate: 63,
+  Communication: 64,
+  // Configuration Objects (70-79)
   CustomProperty: 70,
   ObjectSettings: 71,
   ObjectAssociation: 72,
@@ -414,16 +424,25 @@ const OBJECT_TYPE_CODES = {
   ObjectStatus: 75,
   SavedView: 76,
   AssociationLabel: 77,
+  ObjectIndexSettings: 78,
+  ObjectRecordLayout: 79,
+  // Property System Objects (80-89)
   Property: 80,
   PropertyGroup: 81,
   PropertyLogicRule: 82,
   PropertyValue: 83,
   PropertyTemplate: 84,
   PropertyHistory: 85,
+  // System Objects (90-99)
   AuditLog: 90,
   DeletedRecord: 91,
   Import: 92,
   Activity: 93,
+  SegmentSnapshot: 94,
+  ObjectPreviewLayout: 95,
+  // Booking Extensions (100-109)
+  RecurringBooking: 100,
+  RecurringBookingInstance: 101,
 };
 
 /**

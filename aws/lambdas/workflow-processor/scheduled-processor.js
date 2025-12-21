@@ -410,7 +410,7 @@ async function getRecordsForScheduleWorkflow(workflow) {
        AND NOT EXISTS (
          SELECT 1 FROM "WorkflowExecution" we
          WHERE we.workflow_id = $2
-           AND we.record_id = r.id
+           AND we.enrolled_record_id = r.id
            AND we.status IN ('running', 'paused')
        )
      LIMIT 100`,
@@ -525,7 +525,7 @@ async function processFilterWorkflow(workflow) {
   whereClause += ` AND NOT EXISTS (
     SELECT 1 FROM "WorkflowExecution" we
     WHERE we.workflow_id = $${paramIndex}
-      AND we.record_id = r.id
+      AND we.enrolled_record_id = r.id
       AND we.status IN ('running', 'paused')
   )`;
   params.push(workflowId);
@@ -557,7 +557,7 @@ async function processFilterWorkflow(workflow) {
       // Create execution directly (bypass trigger queue)
       const executionResult = await query(
         `INSERT INTO "WorkflowExecution"
-         (workflow_id, tenant_id, record_id, record_type, status, current_step_id, enrolled_at, created_at, updated_at)
+         (workflow_id, tenant_id, enrolled_record_id, record_type, status, current_step_id, enrolled_at, created_at, updated_at)
          VALUES ($1, $2, $3, $4, 'running', $5, NOW(), NOW(), NOW())
          RETURNING id`,
         [workflowId, tenantId, record.id, objectType, firstStepId]

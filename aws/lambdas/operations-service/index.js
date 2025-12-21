@@ -10622,16 +10622,17 @@ async function handleCreateShift(tenantId, user, body) {
   try {
     await getPoolAsync();
 
+    const shiftRecordId = await getNextRecordId(tenantId, 'Shift');
     const result = await query(
       `INSERT INTO "Shift" (
-         tenant_id, staff_id, start_time, end_time, role, department, location,
+         tenant_id, record_id, staff_id, start_time, end_time, role, department, location,
          notes, is_recurring, recurrence_pattern, recurrence_end_date,
          status, created_by
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'SCHEDULED', $12)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'SCHEDULED', $13)
        RETURNING *`,
       [
-        tenantId, staffId, startTime, endTime,
+        tenantId, shiftRecordId, staffId, startTime, endTime,
         role || null, department || null, location || null,
         notes || null, isRecurring || false, recurrencePattern || null,
         recurrenceEndDate || null, user?.id
@@ -10822,11 +10823,12 @@ async function handleBulkCreateShifts(tenantId, user, body) {
       }
 
       try {
+        const shiftRecordId = await getNextRecordId(tenantId, 'Shift');
         const result = await query(
-          `INSERT INTO "Shift" (tenant_id, staff_id, start_time, end_time, role, notes, status, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, 'SCHEDULED', $7)
+          `INSERT INTO "Shift" (tenant_id, record_id, staff_id, start_time, end_time, role, notes, status, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'SCHEDULED', $8)
            RETURNING id`,
-          [tenantId, shift.staffId, shift.startTime, shift.endTime, shift.role || null, shift.notes || null, user?.id]
+          [tenantId, shiftRecordId, shift.staffId, shift.startTime, shift.endTime, shift.role || null, shift.notes || null, user?.id]
         );
         createdIds.push(result.rows[0].id);
       } catch (err) {
@@ -11029,11 +11031,12 @@ async function handleCreateShiftTemplate(tenantId, user, body) {
   try {
     await getPoolAsync();
 
+    const stRecordId = await getNextRecordId(tenantId, 'ShiftTemplate');
     const result = await query(
-      `INSERT INTO "ShiftTemplate" (tenant_id, name, description, start_time, end_time, role, department, days_of_week)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO "ShiftTemplate" (tenant_id, record_id, name, description, start_time, end_time, role, department, days_of_week)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [tenantId, name, description || null, startTime, endTime, role || null, department || null, daysOfWeek || null]
+      [tenantId, stRecordId, name, description || null, startTime, endTime, role || null, department || null, daysOfWeek || null]
     );
 
     return createResponse(201, {
@@ -11244,17 +11247,18 @@ async function handleCreateRecurringBooking(tenantId, user, body) {
     // Calculate next occurrence
     const nextOccurrence = calculateNextOccurrence(startDate, frequency, daysOfWeek, dayOfMonth);
 
+    const rbRecordId = await getNextRecordId(tenantId, 'RecurringBooking');
     const result = await query(
       `INSERT INTO "RecurringBooking" (
-         tenant_id, owner_id, pet_ids, service_id, service_type, frequency,
+         tenant_id, record_id, owner_id, pet_ids, service_id, service_type, frequency,
          days_of_week, day_of_month, start_time, end_time, duration_days,
          start_date, end_date, preferred_kennel_id, notes, special_instructions,
          price_per_occurrence_cents, is_active, next_occurrence_date, created_by
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, true, $18, $19)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, true, $19, $20)
        RETURNING *`,
       [
-        tenantId, ownerId, petIds, serviceId || null, serviceType || 'boarding',
+        tenantId, rbRecordId, ownerId, petIds, serviceId || null, serviceType || 'boarding',
         frequency.toLowerCase(), daysOfWeek || null, dayOfMonth || null,
         startTime || null, endTime || null, durationDays || 1,
         startDate, endDate || null, preferredKennelId || null,

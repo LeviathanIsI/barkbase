@@ -51,7 +51,7 @@ try {
   sharedLayer = require('../../layers/shared-layer/nodejs/index');
 }
 
-const { getPoolAsync, query, softDelete, softDeleteBatch } = dbLayer;
+const { getPoolAsync, query, softDelete, softDeleteBatch, getNextRecordId } = dbLayer;
 const {
   authenticateRequest,
   createResponse,
@@ -3070,15 +3070,16 @@ async function handleCreateProperty(user, body) {
     }
 
     // Insert property
+    const recordId = await getNextRecordId(tenantId, 'Property');
     const result = await query(
       `INSERT INTO "Property" (
-        tenant_id, name, label, description, field_type, entity_type,
+        tenant_id, record_id, name, label, description, field_type, entity_type,
         options, required, default_value, validation_rules,
         sort_order, property_group, show_in_list, show_in_form
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *`,
       [
-        tenantId, name, label, description || null, fieldType, entityType,
+        tenantId, recordId, name, label, description || null, fieldType, entityType,
         JSON.stringify(options || []), required, defaultValue ? JSON.stringify(defaultValue) : null,
         JSON.stringify(validationRules || {}), finalSortOrder, propertyGroup, showInList, showInForm
       ]
@@ -3579,12 +3580,13 @@ async function handleUpsertPropertyValues(user, entityType, entityId, body) {
       }
 
       // Upsert the value
+      const pvRecordId = await getNextRecordId(ctx.tenantId, 'PropertyValue');
       await query(
-        `INSERT INTO "PropertyValue" (tenant_id, property_id, entity_type, entity_id, value)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO "PropertyValue" (tenant_id, record_id, property_id, entity_type, entity_id, value)
+         VALUES ($1, $2, $3, $4, $5, $6)
          ON CONFLICT (property_id, entity_id)
-         DO UPDATE SET value = $5, updated_at = NOW()`,
-        [ctx.tenantId, property.id, entityType, entityId, JSON.stringify(value)]
+         DO UPDATE SET value = $6, updated_at = NOW()`,
+        [ctx.tenantId, pvRecordId, property.id, entityType, entityId, JSON.stringify(value)]
       );
 
       upserted.push(propertyName);
@@ -6127,10 +6129,11 @@ async function handleUpdateEmailTemplate(user, templateType, body) {
     if (!DEFAULT_EMAIL_TEMPLATES[templateType]) return createResponse(404, { error: 'Not Found', message: 'Invalid template type' });
     const { subject, body: templateBody, name, isActive = true } = body;
     if (!subject || !templateBody) return createResponse(400, { error: 'Bad Request', message: 'Subject and body are required' });
+    const etRecordId = await getNextRecordId(ctx.tenantId, 'EmailTemplate');
     const result = await query(
-      `INSERT INTO "EmailTemplate" (tenant_id, type, name, subject, body, is_active) VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO "EmailTemplate" (tenant_id, record_id, type, name, subject, body, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (tenant_id, type) DO UPDATE SET name = EXCLUDED.name, subject = EXCLUDED.subject, body = EXCLUDED.body, is_active = EXCLUDED.is_active, updated_at = NOW() RETURNING *`,
-      [ctx.tenantId, templateType, name || DEFAULT_EMAIL_TEMPLATES[templateType].name, subject, templateBody, isActive]
+      [ctx.tenantId, etRecordId, templateType, name || DEFAULT_EMAIL_TEMPLATES[templateType].name, subject, templateBody, isActive]
     );
     const row = result.rows[0];
     return createResponse(200, { success: true, template: { id: row.id, type: row.type, name: row.name, description: DEFAULT_EMAIL_TEMPLATES[templateType].description, subject: row.subject, body: row.body, isActive: row.is_active, isCustom: true, updatedAt: row.updated_at }, message: 'Template saved successfully.' });
@@ -12430,12 +12433,13 @@ async function handleUpdateObjectSettings(user, objectType, body) {
       defaultStatus, autoAssignOwner, sendNotificationOnCreate
     } = body;
 
+    const osRecordId = await getNextRecordId(tenantId, 'ObjectSettings');
     const result = await query(
       `INSERT INTO "ObjectSettings" (
-        tenant_id, object_type, singular_name, plural_name, description, icon,
+        tenant_id, record_id, object_type, singular_name, plural_name, description, icon,
         primary_display_property, secondary_display_properties,
         default_status, auto_assign_owner, send_notification_on_create
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       ON CONFLICT (tenant_id, object_type) DO UPDATE SET
         singular_name = COALESCE(EXCLUDED.singular_name, "ObjectSettings".singular_name),
         plural_name = COALESCE(EXCLUDED.plural_name, "ObjectSettings".plural_name),
@@ -12449,7 +12453,7 @@ async function handleUpdateObjectSettings(user, objectType, body) {
         updated_at = NOW()
       RETURNING *`,
       [
-        ctx.tenantId, objectType.toLowerCase(),
+        ctx.tenantId, osRecordId, objectType.toLowerCase(),
         singularName, pluralName, description, icon,
         primaryDisplayProperty, JSON.stringify(secondaryDisplayProperties || []),
         defaultStatus, autoAssignOwner, sendNotificationOnCreate
@@ -12534,14 +12538,15 @@ async function handleCreateAssociationLabel(user, objectType, body) {
       return createResponse(400, { error: 'Bad Request', message: 'Target object and label are required' });
     }
 
+    const alRecordId = await getNextRecordId(ctx.tenantId, 'AssociationLabel');
     const result = await query(
       `INSERT INTO "AssociationLabel" (
-        tenant_id, source_object, target_object, label,
+        tenant_id, record_id, source_object, target_object, label,
         inverse_label, max_associations, description
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`,
       [
-        ctx.tenantId, objectType.toLowerCase(), targetObject.toLowerCase(),
+        ctx.tenantId, alRecordId, objectType.toLowerCase(), targetObject.toLowerCase(),
         label, inverseLabel || null, maxAssociations || null, description || null
       ]
     );
@@ -12690,14 +12695,15 @@ async function handleCreateObjectAssociation(user, objectType, body) {
       return createResponse(400, { error: 'Bad Request', message: 'Target object is required' });
     }
 
+    const oaRecordId = await getNextRecordId(ctx.tenantId, 'ObjectAssociation');
     const result = await query(
       `INSERT INTO "ObjectAssociation" (
-        tenant_id, source_object, target_object, cardinality,
+        tenant_id, record_id, source_object, target_object, cardinality,
         source_label, target_label, association_limit, is_system
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, false)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, false)
       RETURNING *`,
       [
-        ctx.tenantId, objectType.toLowerCase(), targetObject.toLowerCase(),
+        ctx.tenantId, oaRecordId, objectType.toLowerCase(), targetObject.toLowerCase(),
         cardinality || 'many_to_many', sourceLabel, targetLabel, associationLimit
       ]
     );
@@ -12904,11 +12910,12 @@ async function handleCreateObjectPipeline(user, objectType, body) {
       );
     }
 
+    const opRecordId = await getNextRecordId(ctx.tenantId, 'ObjectPipeline');
     const result = await query(
-      `INSERT INTO "ObjectPipeline" (tenant_id, object_type, name, display_order, is_default)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO "ObjectPipeline" (tenant_id, record_id, object_type, name, display_order, is_default)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [ctx.tenantId, objectType.toLowerCase(), name, displayOrder, isDefault || false]
+      [ctx.tenantId, opRecordId, objectType.toLowerCase(), name, displayOrder, isDefault || false]
     );
 
     const row = result.rows[0];
@@ -13089,13 +13096,14 @@ async function handleCreatePipelineStage(user, objectType, pipelineId, body) {
     );
     const displayOrder = orderResult.rows[0].next_order;
 
+    const psRecordId = await getNextRecordId(ctx.tenantId, 'PipelineStage');
     const result = await query(
       `INSERT INTO "PipelineStage" (
-        tenant_id, pipeline_id, name, display_order, stage_type, color, probability, conditional_properties
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        tenant_id, record_id, pipeline_id, name, display_order, stage_type, color, probability, conditional_properties
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *`,
       [
-        ctx.tenantId, pipelineId, name, displayOrder,
+        ctx.tenantId, psRecordId, pipelineId, name, displayOrder,
         stageType || 'open', color || '#6b7280', probability,
         JSON.stringify(conditionalProperties || [])
       ]
@@ -13303,11 +13311,12 @@ async function handleCreateObjectStatus(user, objectType, body) {
       );
     }
 
+    const osRecordId = await getNextRecordId(ctx.tenantId, 'ObjectStatus');
     const result = await query(
-      `INSERT INTO "ObjectStatus" (tenant_id, object_type, name, display_order, color, is_default)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO "ObjectStatus" (tenant_id, record_id, object_type, name, display_order, color, is_default)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [ctx.tenantId, objectType.toLowerCase(), name, displayOrder, color || '#6b7280', isDefault || false]
+      [ctx.tenantId, osRecordId, objectType.toLowerCase(), name, displayOrder, color || '#6b7280', isDefault || false]
     );
 
     const row = result.rows[0];
@@ -13506,15 +13515,16 @@ async function handleCreateRecordLayout(user, objectType, body) {
       );
     }
 
+    const orlRecordId = await getNextRecordId(ctx.tenantId, 'ObjectRecordLayout');
     const result = await query(
       `INSERT INTO "ObjectRecordLayout" (
-        tenant_id, object_type, name, layout_type, team_id,
+        tenant_id, record_id, object_type, name, layout_type, team_id,
         left_sidebar_config, middle_column_config, right_sidebar_config,
         assigned_to, is_default, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *`,
       [
-        ctx.tenantId, objectType.toLowerCase(), name, layoutType || 'default', teamId,
+        ctx.tenantId, orlRecordId, objectType.toLowerCase(), name, layoutType || 'default', teamId,
         JSON.stringify(leftSidebarConfig || []),
         JSON.stringify(middleColumnConfig || { tabs: ['overview', 'activities'] }),
         JSON.stringify(rightSidebarConfig || []),
@@ -13749,14 +13759,15 @@ async function handleUpdatePreviewLayout(user, objectType, body) {
       // Create new layout
       if (!name) return createResponse(400, { error: 'Bad Request', message: 'Name is required' });
 
+      const oplRecordId = await getNextRecordId(ctx.tenantId, 'ObjectPreviewLayout');
       const result = await query(
         `INSERT INTO "ObjectPreviewLayout" (
-          tenant_id, object_type, name, properties, show_quick_info,
+          tenant_id, record_id, object_type, name, properties, show_quick_info,
           show_quick_actions, show_recent_activity, assigned_to, is_default, created_by
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *`,
         [
-          ctx.tenantId, objectType.toLowerCase(), name,
+          ctx.tenantId, oplRecordId, objectType.toLowerCase(), name,
           JSON.stringify(properties || []),
           showQuickInfo !== false, showQuickActions !== false, showRecentActivity || false,
           JSON.stringify(assignedTo || []), isDefault || false, ctx.userId
@@ -13860,12 +13871,13 @@ async function handleUpdateIndexSettings(user, objectType, body) {
       rowsPerPage, enableBulkActions, enableInlineEditing, enableRowSelection
     } = body;
 
+    const oisRecordId = await getNextRecordId(ctx.tenantId, 'ObjectIndexSettings');
     const result = await query(
       `INSERT INTO "ObjectIndexSettings" (
-        tenant_id, object_type, default_columns, default_sort_column,
+        tenant_id, record_id, object_type, default_columns, default_sort_column,
         default_sort_direction, default_filters, rows_per_page,
         enable_bulk_actions, enable_inline_editing, enable_row_selection
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       ON CONFLICT (tenant_id, object_type) DO UPDATE SET
         default_columns = COALESCE(EXCLUDED.default_columns, "ObjectIndexSettings".default_columns),
         default_sort_column = COALESCE(EXCLUDED.default_sort_column, "ObjectIndexSettings".default_sort_column),
@@ -13878,7 +13890,7 @@ async function handleUpdateIndexSettings(user, objectType, body) {
         updated_at = NOW()
       RETURNING *`,
       [
-        ctx.tenantId, objectType.toLowerCase(),
+        ctx.tenantId, oisRecordId, objectType.toLowerCase(),
         JSON.stringify(defaultColumns || []),
         defaultSortColumn || 'created_at',
         defaultSortDirection || 'desc',
@@ -13977,14 +13989,15 @@ async function handleCreateSavedView(user, objectType, body) {
       );
     }
 
+    const svRecordId = await getNextRecordId(ctx.tenantId, 'SavedView');
     const result = await query(
       `INSERT INTO "SavedView" (
-        tenant_id, object_type, name, owner_id, columns, filters,
+        tenant_id, record_id, object_type, name, owner_id, columns, filters,
         sort_column, sort_direction, assigned_to, is_default
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
       [
-        ctx.tenantId, objectType.toLowerCase(), name, ctx.userId,
+        ctx.tenantId, svRecordId, objectType.toLowerCase(), name, ctx.userId,
         JSON.stringify(columns || []), JSON.stringify(filters || {}),
         sortColumn, sortDirection || 'asc',
         JSON.stringify(assignedTo || []), isDefault || false
@@ -14381,11 +14394,12 @@ async function handleCreatePropertyGroup(user, body) {
       });
     }
 
+    const pgRecordId = await getNextRecordId(ctx.tenantId, 'PropertyGroup');
     const result = await query(
-      `INSERT INTO "PropertyGroup" (tenant_id, entity_type, name, description, icon, display_order, is_collapsed_default)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO "PropertyGroup" (tenant_id, record_id, entity_type, name, description, icon, display_order, is_collapsed_default)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [ctx.tenantId, entityType, name, description, icon, displayOrder, isCollapsedDefault]
+      [ctx.tenantId, pgRecordId, entityType, name, description, icon, displayOrder, isCollapsedDefault]
     );
 
     const group = result.rows[0];
@@ -14656,11 +14670,12 @@ async function handleCreatePropertyLogicRule(user, body) {
       });
     }
 
+    const plrRecordId = await getNextRecordId(ctx.tenantId, 'PropertyLogicRule');
     const result = await query(
-      `INSERT INTO "PropertyLogicRule" (tenant_id, entity_type, name, trigger_property, condition_operator, condition_value, affected_properties, action)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO "PropertyLogicRule" (tenant_id, record_id, entity_type, name, trigger_property, condition_operator, condition_value, affected_properties, action)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [ctx.tenantId, entityType, name, triggerProperty, conditionOperator, conditionValue, JSON.stringify(affectedProperties), action]
+      [ctx.tenantId, plrRecordId, entityType, name, triggerProperty, conditionOperator, conditionValue, JSON.stringify(affectedProperties), action]
     );
 
     const rule = result.rows[0];

@@ -1153,7 +1153,7 @@ async function enrollInWorkflow(workflow, recordId, recordType, tenantId, eventD
     `SELECT id, enrolled_at, status
      FROM "WorkflowExecution"
      WHERE workflow_id = $1
-       AND record_id = $2
+       AND enrolled_record_id = $2
        AND tenant_id = $3
      ORDER BY enrolled_at DESC
      LIMIT 1`,
@@ -1233,7 +1233,7 @@ async function enrollInWorkflow(workflow, recordId, recordType, tenantId, eventD
   const currentRevision = workflow.revision || 1;
   const enrollmentResult = await query(
     `INSERT INTO "WorkflowExecution"
-       (workflow_id, tenant_id, record_id, record_type, status, current_step_id, workflow_revision)
+       (workflow_id, tenant_id, enrolled_record_id, record_type, status, current_step_id, workflow_revision)
      VALUES ($1, $2, $3, $4, 'running', $5, $6)
      RETURNING id`,
     [workflow.id, tenantId, recordId, recordType, firstStepId, currentRevision]
@@ -1487,7 +1487,7 @@ async function processFilterWorkflow(workflow) {
        AND NOT EXISTS (
          SELECT 1 FROM "WorkflowExecution" we
          WHERE we.workflow_id = $2
-           AND we.record_id = r.id
+           AND we.enrolled_record_id = r.id
            AND we.status IN ('running', 'paused')
        )
      LIMIT 100`;

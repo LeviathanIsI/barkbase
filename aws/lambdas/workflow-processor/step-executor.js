@@ -307,8 +307,8 @@ async function processStepExecution(message) {
   }
 
   // Get record data for template interpolation
-  console.log('[STEP EXECUTOR] Fetching record data. Record ID:', execution.record_id, '| Type:', execution.object_type);
-  const recordData = await getRecordData(execution.record_id, execution.object_type, tenantId);
+  console.log('[STEP EXECUTOR] Fetching record data. Record ID:', execution.enrolled_record_id, '| Type:', execution.object_type);
+  const recordData = await getRecordData(execution.enrolled_record_id, execution.object_type, tenantId);
   console.log('[STEP EXECUTOR] Record data:', JSON.stringify(recordData, null, 2));
 
   // Execute step based on type
@@ -395,7 +395,7 @@ async function processStepExecution(message) {
     if (execution.goal_config) {
       console.log('[STEP EXECUTOR] Checking goal conditions...');
       // Refresh record data to get latest state
-      const freshRecordData = await getRecordData(execution.record_id, execution.object_type, tenantId);
+      const freshRecordData = await getRecordData(execution.enrolled_record_id, execution.object_type, tenantId);
       const goalResult = evaluateGoalConditions(execution.goal_config, freshRecordData);
 
       if (goalResult.met) {
@@ -831,7 +831,7 @@ async function executeUpdateField(config, execution, recordData, tenantId) {
 
     await query(
       `UPDATE "${tableName}" SET "${field}" = $1 WHERE id = $2 AND tenant_id = $3`,
-      [interpolatedValue, execution.record_id, tenantId]
+      [interpolatedValue, execution.enrolled_record_id, tenantId]
     );
 
     return {
@@ -866,7 +866,7 @@ async function executeInternalNote(config, execution, recordData, tenantId) {
       `INSERT INTO "Note"
          (tenant_id, record_id, entity_type, entity_id, content, note_type, created_by)
        VALUES ($1, $2, $3, $4, $5, 'internal', NULL)`,
-      [tenantId, noteRecordId, execution.object_type, execution.record_id, content]
+      [tenantId, noteRecordId, execution.object_type, execution.enrolled_record_id, content]
     );
 
     return {
@@ -951,7 +951,7 @@ async function executeSendNotification(config, execution, recordData, tenantId) 
         message,
         priority,
         execution.object_type,
-        execution.record_id,
+        execution.enrolled_record_id,
         recipientType,
         recipientId,
         JSON.stringify(metadata),
@@ -1008,7 +1008,7 @@ async function executeEnrollInWorkflow(config, execution, recordData, tenantId) 
       QueueUrl: process.env.WORKFLOW_TRIGGER_QUEUE_URL,
       MessageBody: JSON.stringify({
         eventType: 'workflow.enroll_action',
-        recordId: execution.record_id,
+        recordId: execution.enrolled_record_id,
         recordType: execution.object_type,
         tenantId,
         eventData: {
@@ -1417,7 +1417,7 @@ async function executeAddToSegment(config, execution, recordData, tenantId) {
     // Otherwise, get the owner_id from the related owner data
     let memberId;
     if (execution.object_type === 'owner') {
-      memberId = execution.record_id;
+      memberId = execution.enrolled_record_id;
     } else if (recordData.owner?.id) {
       memberId = recordData.owner.id;
     } else if (recordData.record?.owner_id) {
@@ -1478,7 +1478,7 @@ async function executeRemoveFromSegment(config, execution, recordData, tenantId)
     // Determine member ID (owner_id)
     let memberId;
     if (execution.object_type === 'owner') {
-      memberId = execution.record_id;
+      memberId = execution.enrolled_record_id;
     } else if (recordData.owner?.id) {
       memberId = recordData.owner.id;
     } else if (recordData.record?.owner_id) {
@@ -1806,7 +1806,7 @@ async function checkEventWaiters(eventType, recordId, tenantId) {
     `SELECT we.id, we.workflow_id, we.current_step_id, we.metadata
      FROM "WorkflowExecution" we
      WHERE we.tenant_id = $1
-       AND we.record_id = $2
+       AND we.enrolled_record_id = $2
        AND we.status = 'waiting_for_event'
        AND we.metadata->'eventWait'->>'eventType' = $3`,
     [tenantId, recordId, eventType]
