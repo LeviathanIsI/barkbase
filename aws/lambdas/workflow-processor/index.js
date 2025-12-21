@@ -486,11 +486,29 @@ async function evaluateConditionGroup(conditions, logic, record, historyContext 
  * @param {object} historyContext - Context for historical queries { tenantId, entityType, entityId }
  */
 async function evaluateFilterCondition(condition, record, historyContext = null) {
-  const { field, operator, value, highValue, values } = condition;
+  const { field, operator, value, highValue, values, includeObjectsWithNoValueSet } = condition;
   const actualValue = record[field];
 
   // Normalize operator to uppercase for comparison
   const op = (operator || '').toUpperCase().replace(/-/g, '_');
+
+  // HubSpot includeObjectsWithNoValueSet handling
+  // When a field value is null/undefined:
+  // - If includeObjectsWithNoValueSet === true: include the record (return true)
+  // - If includeObjectsWithNoValueSet === false (default): exclude the record (return false)
+  // Skip this check for emptiness operators which explicitly test for null/empty
+  const emptinessOperators = ['IS_EMPTY', 'IS_NOT_EMPTY', 'IS_KNOWN', 'IS_UNKNOWN', 'HAS_EVER_BEEN_ANY'];
+  const isEmptinessOperator = emptinessOperators.includes(op);
+
+  if (!isEmptinessOperator && (actualValue === null || actualValue === undefined)) {
+    // Field has no value - check includeObjectsWithNoValueSet setting
+    if (includeObjectsWithNoValueSet === true) {
+      // Include records with no value for this field
+      return true;
+    }
+    // Default behavior: exclude records with no value (return false for the condition)
+    return false;
+  }
 
   switch (op) {
     // Equality operators
