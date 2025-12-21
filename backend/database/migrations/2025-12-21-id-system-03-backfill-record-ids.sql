@@ -22,6 +22,8 @@ DECLARE
     v_sql TEXT;
     v_count INTEGER;
     v_column_type TEXT;
+    v_has_created_at BOOLEAN;
+    v_order_by TEXT;
 BEGIN
     -- Check if table exists
     IF NOT EXISTS (SELECT FROM pg_tables WHERE tablename = p_table_name) THEN
@@ -54,13 +56,26 @@ BEGIN
         RETURN;
     END IF;
 
+    -- Check if created_at column exists
+    SELECT EXISTS (
+        SELECT FROM information_schema.columns
+        WHERE table_name = p_table_name AND column_name = 'created_at'
+    ) INTO v_has_created_at;
+
+    -- Determine ORDER BY clause
+    IF v_has_created_at THEN
+        v_order_by := 'created_at, id';
+    ELSE
+        v_order_by := 'id';
+    END IF;
+
     -- Backfill record_id with per-tenant sequential values
     v_sql := format(
         'WITH numbered AS (
             SELECT
                 id,
                 tenant_id,
-                ROW_NUMBER() OVER (PARTITION BY tenant_id ORDER BY created_at, id) as rn
+                ROW_NUMBER() OVER (PARTITION BY tenant_id ORDER BY %s) as rn
             FROM %I
             WHERE record_id IS NULL
         )
@@ -68,7 +83,7 @@ BEGIN
         SET record_id = n.rn
         FROM numbered n
         WHERE t.id = n.id',
-        p_table_name, p_table_name
+        v_order_by, p_table_name, p_table_name
     );
 
     EXECUTE v_sql;
@@ -105,6 +120,8 @@ DECLARE
     v_sql TEXT;
     v_count INTEGER;
     v_column_type TEXT;
+    v_has_created_at BOOLEAN;
+    v_order_by TEXT;
 BEGIN
     -- Check if table exists
     IF NOT EXISTS (SELECT FROM pg_tables WHERE tablename = p_table_name) THEN
@@ -128,13 +145,26 @@ BEGIN
         RETURN;
     END IF;
 
+    -- Check if created_at column exists
+    SELECT EXISTS (
+        SELECT FROM information_schema.columns
+        WHERE table_name = p_table_name AND column_name = 'created_at'
+    ) INTO v_has_created_at;
+
+    -- Determine ORDER BY clause
+    IF v_has_created_at THEN
+        v_order_by := 'created_at, id';
+    ELSE
+        v_order_by := 'id';
+    END IF;
+
     -- Backfill record_id with per-parent sequential values
     v_sql := format(
         'WITH numbered AS (
             SELECT
                 id,
                 %I as parent_id,
-                ROW_NUMBER() OVER (PARTITION BY %I ORDER BY created_at, id) as rn
+                ROW_NUMBER() OVER (PARTITION BY %I ORDER BY %s) as rn
             FROM %I
             WHERE record_id IS NULL
         )
@@ -142,7 +172,7 @@ BEGIN
         SET record_id = n.rn
         FROM numbered n
         WHERE t.id = n.id',
-        p_parent_fk_column, p_parent_fk_column, p_table_name, p_table_name
+        p_parent_fk_column, p_parent_fk_column, v_order_by, p_table_name, p_table_name
     );
 
     EXECUTE v_sql;
