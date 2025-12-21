@@ -5,8 +5,9 @@ import { resolvePlanFeatures } from '@/features';
 import apiClient from '@/lib/apiClient';
 import getStorage from '@/lib/storage';
 
-const defaultTenant = { 
+const defaultTenant = {
   recordId: null,
+  accountCode: null, // BK-XXXXXX format for URLs/display
   slug: process.env.NODE_ENV === 'development' ? 'testing' : 'default',
   name: 'BarkBase',
   plan: process.env.NODE_ENV === 'development' ? 'ENTERPRISE' : 'FREE',

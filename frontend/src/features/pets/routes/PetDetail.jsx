@@ -5,7 +5,8 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { usePetParams } from '@/lib/useRecordParams';
 import {
   PawPrint,
   Edit,
@@ -127,7 +128,8 @@ const calculateDays = (start, end) => {
 // ============================================================================
 
 const PetDetail = () => {
-  const { petId } = useParams();
+  // Extract petId from either old (/pets/:petId) or new (/pets/:accountCode/record/:typeCode/:recordId) URL pattern
+  const { id: petId } = usePetParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const tenantId = useTenantStore((state) => state.tenant?.recordId ?? 'unknown');

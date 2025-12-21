@@ -76,22 +76,25 @@ const TenantLoader = () => {
             throw new Error('No tenant config returned');
           }
 
-          // Extract canonical tenantId
+          // Extract canonical tenantId and accountCode
           const tenantId = data.tenantId || data.recordId || data.id;
+          const accountCode = data.accountCode || data.tenant?.accountCode;
 
           if (!tenantId) {
             throw new Error('No tenantId in config response');
           }
 
-          // Update auth store with tenantId (for API headers)
+          // Update auth store with tenantId and accountCode (for API headers/URLs)
           updateTokens({
             tenantId,
+            accountCode,
             role: data.user?.role,
           });
 
           // Update tenant store with full tenant data (for UI)
           setTenant({
             recordId: tenantId,
+            accountCode,
             slug: data.slug,
             name: data.name,
             plan: data.plan || 'FREE',

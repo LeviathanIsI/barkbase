@@ -6,7 +6,8 @@
  */
 
 import { useMemo, useState, useRef, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { useOwnerParams } from '@/lib/useRecordParams';
 import {
   Users as UsersIcon,
   Mail,
@@ -82,7 +83,8 @@ const safeFormatDistance = (dateStr) => {
 };
 
 const OwnerDetail = () => {
-  const { ownerId } = useParams();
+  // Extract ownerId from either old (/owners/:ownerId) or new (/owners/:accountCode/record/:typeCode/:recordId) URL pattern
+  const { id: ownerId } = useOwnerParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const tenantId = useTenantStore((state) => state.tenant?.recordId ?? 'unknown');

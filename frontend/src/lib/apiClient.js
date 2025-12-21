@@ -320,8 +320,9 @@ const buildHeaders = async (path = "") => {
 
   const authState = useAuthStore.getState();
   const accessToken = authState.accessToken;
-  // Get tenantId from auth store - this is THE canonical source
+  // Get tenantId and accountCode from auth store
   const tenantId = authState.tenantId;
+  const accountCode = authState.accountCode;
 
   // Check if this endpoint is exempt from tenant header requirement
   const isExempt = isTenantHeaderExempt(path);
@@ -336,10 +337,12 @@ const buildHeaders = async (path = "") => {
     headers: {
       "Content-Type": "application/json",
       ...(accessToken && { "Authorization": `Bearer ${accessToken}` }),
-      // Only include X-Tenant-Id if we have one (exempt endpoints don't need it)
+      // Include both for backward compatibility - backend can use either
       ...(tenantId && { "X-Tenant-Id": tenantId }),
+      ...(accountCode && { "X-Account-Code": accountCode }),
     },
     tenantId,
+    accountCode,
   };
 };
 

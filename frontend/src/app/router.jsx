@@ -250,9 +250,15 @@ export const router = createBrowserRouter([
               { path: "kennels", element: <Kennels /> },
               { path: "pets", element: <Pets /> },
               { path: "pets/:petId", element: <PetDetail /> },
+              // New ID system: /pets/{account_code}/record/{type_code}/{record_id}
+              { path: "pets/:accountCode/record/:typeCode/:recordId", element: <PetDetail /> },
               { path: "owners", element: <Owners /> },
               { path: "owners/:ownerId", element: <OwnerDetail /> },
+              // New ID system: /owners/{account_code}/record/{type_code}/{record_id}
+              { path: "owners/:accountCode/record/:typeCode/:recordId", element: <OwnerDetail /> },
               { path: "customers/:ownerId", element: <CustomerDetail /> },
+              // New ID system: /customers/{account_code}/record/{type_code}/{record_id}
+              { path: "customers/:accountCode/record/:typeCode/:recordId", element: <CustomerDetail /> },
               { path: "segments", element: <Segments /> },
               { path: "segments/new", element: <SegmentBuilder /> },
               { path: "segments/:id", element: <SegmentDetail /> },

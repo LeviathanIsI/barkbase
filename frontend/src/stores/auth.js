@@ -10,6 +10,7 @@ const initialState = {
   memberships: [],
   role: null,
   tenantId: null,
+  accountCode: null, // BK-XXXXXX format for URLs/display
   accessToken: null, // Needed for API Gateway Authorization header
   // refreshToken stays in httpOnly cookies for security
   // REMOVED: expiresAt, sessionStartTime, sessionExpiryTime (server handles session validation)
@@ -21,28 +22,31 @@ export const useAuthStore = create(
       ...initialState,
       // Store user data and accessToken (needed for API Gateway Authorization header)
       setAuth: (payload = {}) => {
-        const { user, role, tenantId, memberships, accessToken } = payload;
+        const { user, role, tenantId, accountCode, memberships, accessToken } = payload;
 
         const resolvedRoleRaw = role ?? user?.role ?? null;
         const resolvedRole = resolvedRoleRaw ? String(resolvedRoleRaw).toUpperCase() : null;
         const resolvedTenantId = tenantId ?? user?.tenantId ?? null;
+        const resolvedAccountCode = accountCode ?? user?.accountCode ?? null;
         const resolvedMemberships = memberships ?? user?.memberships ?? [];
 
         set({
           user: user ?? null,
           role: resolvedRole,
           tenantId: resolvedTenantId,
+          accountCode: resolvedAccountCode,
           memberships: resolvedMemberships,
           accessToken: accessToken ?? null, // Store for API Gateway Authorization header
         });
       },
       // Update tokens and user metadata
-      updateTokens: ({ role, tenantId, accessToken }) => {
+      updateTokens: ({ role, tenantId, accountCode, accessToken }) => {
         const resolvedRole = role ? String(role).toUpperCase() : undefined;
 
         set((state) => ({
           role: resolvedRole ?? state.role,
           tenantId: tenantId ?? state.tenantId,
+          accountCode: accountCode ?? state.accountCode,
           accessToken: accessToken ?? state.accessToken, // Update accessToken for API Gateway
         }));
       },
@@ -112,10 +116,11 @@ export const useAuthStore = create(
       name: 'barkbase-auth',
       storage: createJSONStorage(getStorage),
       // Persist user metadata and accessToken (needed for API Gateway)
-      partialize: ({ user, role, tenantId, memberships, accessToken }) => ({
+      partialize: ({ user, role, tenantId, accountCode, memberships, accessToken }) => ({
         user,
         role,
         tenantId,
+        accountCode,
         memberships,
         accessToken, // Persist for API Gateway Authorization header
       }),

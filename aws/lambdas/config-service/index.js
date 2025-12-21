@@ -1391,6 +1391,7 @@ async function handleGetTenantConfig(user, event) {
          r.name as role,
          u.tenant_id,
          t.id as tenant_record_id,
+         t.account_code as tenant_account_code,
          t.name as tenant_name,
          t.slug as tenant_slug,
          t.plan as tenant_plan,
@@ -1507,6 +1508,7 @@ async function handleGetTenantConfig(user, event) {
       id: row.tenant_id,
       recordId: row.tenant_id,
       tenantId: row.tenant_id,
+      accountCode: row.tenant_account_code,  // BK-XXXXXX format for URLs/display
       userId: row.user_id,
       hasOnboardingCompleted,
       name: row.tenant_name,
@@ -1528,6 +1530,7 @@ async function handleGetTenantConfig(user, event) {
       tenant: {
         id: row.tenant_id,
         recordId: row.tenant_id,
+        accountCode: row.tenant_account_code,
         name: row.tenant_name,
         slug: row.tenant_slug,
         plan: row.tenant_plan || 'FREE',

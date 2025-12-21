@@ -6,7 +6,8 @@
  */
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { useCustomerParams } from '@/lib/useRecordParams';
 import {
   ArrowLeft,
   Mail,
@@ -106,7 +107,8 @@ const copyToClipboard = (text) => {
 // ============================================================================
 
 export default function CustomerDetail() {
-  const { ownerId } = useParams();
+  // Extract ownerId from either old (/customers/:ownerId) or new (/customers/:accountCode/record/:typeCode/:recordId) URL pattern
+  const { id: ownerId } = useCustomerParams();
   const navigate = useNavigate();
   const { openSlideout } = useSlideout();
   const [activeTab, setActiveTab] = useState('overview');
