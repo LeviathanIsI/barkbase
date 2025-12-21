@@ -337,17 +337,24 @@ async function evaluateSegmentFilters(recordId, recordType, filters, tenantId) {
 
     const record = recordResult.rows[0];
 
+    // Build history context for historical operators
+    const historyContext = {
+      tenantId,
+      entityType: recordType,
+      entityId: recordId,
+    };
+
     // Detect format and evaluate accordingly
     if (filters.filterBranchType || filters.filterBranches) {
       // HubSpot-style format
-      return evaluateHubSpotFilters(filters, record);
+      return await evaluateHubSpotFilters(filters, record, historyContext);
     } else if (filters.groups && filters.groups.length > 0) {
       // Legacy BarkBase format
-      return evaluateLegacyFilters(filters, record);
+      return await evaluateLegacyFilters(filters, record, historyContext);
     } else if (filters.conditions && filters.conditions.length > 0) {
       // Flat conditions format
       const logic = filters.logic || 'AND';
-      return evaluateConditionGroup(filters.conditions, logic, record);
+      return await evaluateConditionGroup(filters.conditions, logic, record, historyContext);
     }
 
     return false;
@@ -361,20 +368,21 @@ async function evaluateSegmentFilters(recordId, recordType, filters, tenantId) {
 /**
  * Evaluate HubSpot-style filter branches
  * Root level is OR, sub-branches are AND containing filters
+ * Now async to support historical operators
  */
-function evaluateHubSpotFilters(filterConfig, record) {
+async function evaluateHubSpotFilters(filterConfig, record, historyContext = null) {
   const rootType = (filterConfig.filterBranchType || 'OR').toUpperCase();
   const branches = filterConfig.filterBranches || [];
 
   if (branches.length === 0) {
     // If no branches but has filters at root level, evaluate directly
     if (filterConfig.filters && filterConfig.filters.length > 0) {
-      return evaluateHubSpotConditionGroup(filterConfig.filters, record);
+      return await evaluateHubSpotConditionGroup(filterConfig.filters, record, historyContext);
     }
     return false;
   }
 
-  const branchResults = branches.map(branch => {
+  const branchResults = await Promise.all(branches.map(async branch => {
     const branchType = (branch.filterBranchType || 'AND').toUpperCase();
     const filters = branch.filters || [];
     const nestedBranches = branch.filterBranches || [];
@@ -382,13 +390,13 @@ function evaluateHubSpotFilters(filterConfig, record) {
     // Evaluate filters in this branch
     let filtersResult = true;
     if (filters.length > 0) {
-      filtersResult = evaluateHubSpotConditionGroup(filters, record);
+      filtersResult = await evaluateHubSpotConditionGroup(filters, record, historyContext);
     }
 
     // Recursively evaluate nested branches
     let nestedResult = true;
     if (nestedBranches.length > 0) {
-      nestedResult = evaluateHubSpotFilters({ filterBranchType: branchType, filterBranches: nestedBranches }, record);
+      nestedResult = await evaluateHubSpotFilters({ filterBranchType: branchType, filterBranches: nestedBranches }, record, historyContext);
     }
 
     // Combine based on branch type
@@ -396,7 +404,7 @@ function evaluateHubSpotFilters(filterConfig, record) {
       return filtersResult || nestedResult;
     }
     return filtersResult && nestedResult;
-  });
+  }));
 
   // Combine branch results based on root type
   if (rootType === 'AND') {
@@ -407,13 +415,14 @@ function evaluateHubSpotFilters(filterConfig, record) {
 
 /**
  * Evaluate a group of HubSpot-style filters (ANDed together)
+ * Now async to support historical operators
  */
-function evaluateHubSpotConditionGroup(filters, record) {
+async function evaluateHubSpotConditionGroup(filters, record, historyContext = null) {
   if (!filters || filters.length === 0) {
     return true;
   }
 
-  return filters.every(filter => {
+  const results = await Promise.all(filters.map(async filter => {
     // HubSpot uses 'property' instead of 'field'
     const condition = {
       field: filter.property || filter.field,
@@ -422,17 +431,20 @@ function evaluateHubSpotConditionGroup(filters, record) {
       highValue: filter.highValue, // For IS_BETWEEN
       values: filter.values, // For IS_ANY_OF, IS_NONE_OF
     };
-    return evaluateFilterCondition(condition, record);
-  });
+    return evaluateFilterCondition(condition, record, historyContext);
+  }));
+
+  return results.every(r => r);
 }
 
 /**
  * Evaluate legacy BarkBase filter format
+ * Now async to support historical operators
  */
-function evaluateLegacyFilters(filters, record) {
+async function evaluateLegacyFilters(filters, record, historyContext = null) {
   const groupLogic = (filters.groupLogic || 'OR').toUpperCase();
 
-  const groupResults = filters.groups.map(group => {
+  const groupResults = await Promise.all(filters.groups.map(async group => {
     const conditionLogic = (group.logic || 'AND').toUpperCase();
     const conditions = group.conditions || [];
 
@@ -440,8 +452,8 @@ function evaluateLegacyFilters(filters, record) {
       return false;
     }
 
-    return evaluateConditionGroup(conditions, conditionLogic, record);
-  });
+    return evaluateConditionGroup(conditions, conditionLogic, record, historyContext);
+  }));
 
   if (groupLogic === 'AND') {
     return groupResults.every(r => r);
@@ -451,9 +463,12 @@ function evaluateLegacyFilters(filters, record) {
 
 /**
  * Evaluate a group of conditions with specified logic
+ * Now async to support historical operators
  */
-function evaluateConditionGroup(conditions, logic, record) {
-  const results = conditions.map(condition => evaluateFilterCondition(condition, record));
+async function evaluateConditionGroup(conditions, logic, record, historyContext = null) {
+  const results = await Promise.all(
+    conditions.map(condition => evaluateFilterCondition(condition, record, historyContext))
+  );
 
   if (logic === 'OR') {
     return results.some(r => r);
@@ -464,8 +479,13 @@ function evaluateConditionGroup(conditions, logic, record) {
 /**
  * Evaluate a single filter condition against a record
  * Supports both HubSpot-style operators (IS_EQUAL_TO) and legacy (equals)
+ * Now async to support historical operators that query PropertyHistory
+ *
+ * @param {object} condition - Filter condition with field, operator, value
+ * @param {object} record - The record to evaluate against
+ * @param {object} historyContext - Context for historical queries { tenantId, entityType, entityId }
  */
-function evaluateFilterCondition(condition, record) {
+async function evaluateFilterCondition(condition, record, historyContext = null) {
   const { field, operator, value, highValue, values } = condition;
   const actualValue = record[field];
 
@@ -588,6 +608,62 @@ function evaluateFilterCondition(condition, record) {
     case 'IS_FALSE':
       return actualValue === false || actualValue === 'false' || actualValue === 0;
 
+    // ==========================================================================
+    // HISTORICAL OPERATORS (require PropertyHistory table)
+    // ==========================================================================
+
+    case 'HAS_EVER_BEEN_EQUAL_TO':
+    case 'HAS_EVER_BEEN':
+      // True if the field has ever had the specified value (current or historical)
+      if (!historyContext) {
+        console.warn('[WorkflowTrigger] HAS_EVER_BEEN_EQUAL_TO requires historyContext');
+        return false;
+      }
+      return await checkHasEverBeenEqualTo(historyContext, field, value, actualValue);
+
+    case 'HAS_NEVER_BEEN_EQUAL_TO':
+    case 'HAS_NEVER_BEEN':
+      // True if the field has NEVER had the specified value
+      if (!historyContext) {
+        console.warn('[WorkflowTrigger] HAS_NEVER_BEEN_EQUAL_TO requires historyContext');
+        return true; // Default to true if no history context
+      }
+      return !(await checkHasEverBeenEqualTo(historyContext, field, value, actualValue));
+
+    case 'HAS_NEVER_CONTAINED':
+      // True if the field has never contained the value (string matching)
+      if (!historyContext) {
+        console.warn('[WorkflowTrigger] HAS_NEVER_CONTAINED requires historyContext');
+        return true;
+      }
+      return await checkHasNeverContained(historyContext, field, value, actualValue);
+
+    case 'HAS_EVER_CONTAINED':
+      // True if the field has ever contained the value
+      if (!historyContext) {
+        console.warn('[WorkflowTrigger] HAS_EVER_CONTAINED requires historyContext');
+        return false;
+      }
+      return !(await checkHasNeverContained(historyContext, field, value, actualValue));
+
+    case 'UPDATED_IN_LAST_X_DAYS':
+    case 'WAS_UPDATED_IN_LAST':
+      // True if the field was changed within the last X days
+      if (!historyContext) {
+        console.warn('[WorkflowTrigger] UPDATED_IN_LAST_X_DAYS requires historyContext');
+        return false;
+      }
+      return await checkUpdatedInLastXDays(historyContext, field, value);
+
+    case 'NOT_UPDATED_IN_LAST_X_DAYS':
+    case 'WAS_NOT_UPDATED_IN_LAST':
+      // True if the field was NOT changed in the last X days
+      if (!historyContext) {
+        console.warn('[WorkflowTrigger] NOT_UPDATED_IN_LAST_X_DAYS requires historyContext');
+        return true;
+      }
+      return !(await checkUpdatedInLastXDays(historyContext, field, value));
+
     default:
       console.warn('[WorkflowTrigger] Unknown filter operator:', operator);
       return false;
@@ -705,6 +781,105 @@ function isLessThanDaysAgo(dateValue, days) {
   const now = new Date();
   const threshold = new Date(now.getTime() - (Number(days) * 24 * 60 * 60 * 1000));
   return date >= threshold && date <= now;
+}
+
+// =============================================================================
+// HISTORICAL OPERATOR HELPERS (query PropertyHistory table)
+// =============================================================================
+
+/**
+ * Check if field has ever been equal to the specified value
+ * Checks both current value and PropertyHistory
+ */
+async function checkHasEverBeenEqualTo(historyContext, field, expectedValue, currentValue) {
+  const { tenantId, entityType, entityId } = historyContext;
+
+  // First check current value
+  if (compareValues(currentValue, expectedValue)) {
+    return true;
+  }
+
+  // Then check history
+  try {
+    const result = await query(
+      `SELECT 1 FROM "PropertyHistory"
+       WHERE tenant_id = $1
+         AND entity_type = $2
+         AND entity_id = $3
+         AND property_name = $4
+         AND (new_value = $5 OR old_value = $5)
+       LIMIT 1`,
+      [tenantId, entityType, entityId, field, String(expectedValue)]
+    );
+
+    return result.rows.length > 0;
+  } catch (error) {
+    console.error('[WorkflowTrigger] Error checking HAS_EVER_BEEN_EQUAL_TO:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Check if field has never contained the specified value
+ * Checks both current value and PropertyHistory
+ */
+async function checkHasNeverContained(historyContext, field, searchValue, currentValue) {
+  const { tenantId, entityType, entityId } = historyContext;
+  const searchLower = String(searchValue || '').toLowerCase();
+
+  // First check current value
+  if (String(currentValue || '').toLowerCase().includes(searchLower)) {
+    return false; // Current value contains it, so NOT never contained
+  }
+
+  // Then check history for any value that contained the search string
+  try {
+    const result = await query(
+      `SELECT 1 FROM "PropertyHistory"
+       WHERE tenant_id = $1
+         AND entity_type = $2
+         AND entity_id = $3
+         AND property_name = $4
+         AND (LOWER(new_value) LIKE $5 OR LOWER(old_value) LIKE $5)
+       LIMIT 1`,
+      [tenantId, entityType, entityId, field, `%${searchLower}%`]
+    );
+
+    return result.rows.length === 0; // True if no historical value contained it
+  } catch (error) {
+    console.error('[WorkflowTrigger] Error checking HAS_NEVER_CONTAINED:', error.message);
+    return true; // Default to true (never contained) on error
+  }
+}
+
+/**
+ * Check if field was updated within the last X days
+ */
+async function checkUpdatedInLastXDays(historyContext, field, days) {
+  const { tenantId, entityType, entityId } = historyContext;
+  const numDays = Number(days) || 0;
+
+  if (numDays <= 0) {
+    return false;
+  }
+
+  try {
+    const result = await query(
+      `SELECT 1 FROM "PropertyHistory"
+       WHERE tenant_id = $1
+         AND entity_type = $2
+         AND entity_id = $3
+         AND property_name = $4
+         AND changed_at >= NOW() - INTERVAL '1 day' * $5
+       LIMIT 1`,
+      [tenantId, entityType, entityId, field, numDays]
+    );
+
+    return result.rows.length > 0;
+  } catch (error) {
+    console.error('[WorkflowTrigger] Error checking UPDATED_IN_LAST_X_DAYS:', error.message);
+    return false;
+  }
 }
 
 /**
