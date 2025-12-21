@@ -359,6 +359,238 @@ async function softDeleteBatch(tableName, ids, tenantId, deletedBy = null) {
   }
 }
 
+// ============================================================================
+// New ID System Functions
+// ============================================================================
+
+/**
+ * Object type codes for the new record_id system
+ * These match the codes in backend/src/constants/objectTypes.js
+ */
+const OBJECT_TYPE_CODES = {
+  Owner: 1,
+  Pet: 2,
+  Booking: 3,
+  Payment: 4,
+  Invoice: 5,
+  InvoiceLine: 6,
+  Task: 7,
+  Note: 8,
+  Vaccination: 9,
+  Incident: 10,
+  Veterinarian: 11,
+  Workflow: 20,
+  WorkflowStep: 21,
+  WorkflowExecution: 22,
+  WorkflowExecutionLog: 23,
+  WorkflowFolder: 24,
+  WorkflowRevision: 25,
+  WorkflowTemplate: 26,
+  Segment: 27,
+  SegmentMember: 28,
+  SegmentActivity: 29,
+  Service: 30,
+  Package: 31,
+  Run: 40,
+  Kennel: 41,
+  RunTemplate: 42,
+  RunAssignment: 43,
+  User: 50,
+  Staff: 51,
+  Role: 52,
+  UserRole: 53,
+  UserSession: 54,
+  TimeEntry: 55,
+  TimePunch: 56,
+  Conversation: 60,
+  Message: 61,
+  Notification: 62,
+  EmailTemplate: 63,
+  CustomProperty: 70,
+  ObjectSettings: 71,
+  ObjectAssociation: 72,
+  ObjectPipeline: 73,
+  PipelineStage: 74,
+  ObjectStatus: 75,
+  SavedView: 76,
+  AssociationLabel: 77,
+  Property: 80,
+  PropertyGroup: 81,
+  PropertyLogicRule: 82,
+  PropertyValue: 83,
+  PropertyTemplate: 84,
+  PropertyHistory: 85,
+  AuditLog: 90,
+  DeletedRecord: 91,
+  Import: 92,
+  Activity: 93,
+};
+
+/**
+ * Get the object type code for a table name
+ * @param {string} tableName - Database table name
+ * @returns {number|null} Object type code or null if not found
+ */
+function getObjectTypeCode(tableName) {
+  return OBJECT_TYPE_CODES[tableName] || null;
+}
+
+/**
+ * Get the next record_id for a given tenant and table
+ * Uses the database function next_record_id() for atomic operation
+ *
+ * @param {string} tenantId - Tenant UUID
+ * @param {string} tableName - Database table name (e.g., "Pet", "Owner")
+ * @returns {Promise<number>} Next record_id (BIGINT)
+ * @throws {Error} If table name is not registered
+ */
+async function getNextRecordId(tenantId, tableName) {
+  const objectTypeCode = getObjectTypeCode(tableName);
+  if (!objectTypeCode) {
+    throw new Error(
+      `Unknown table "${tableName}" - not registered in OBJECT_TYPE_CODES. ` +
+      'Ensure the table is defined in the db-layer.'
+    );
+  }
+
+  const result = await query(
+    'SELECT next_record_id($1, $2) as record_id',
+    [tenantId, objectTypeCode]
+  );
+
+  const recordId = result.rows[0].record_id;
+  console.log(`[DB] Generated record_id ${recordId} for ${tableName} in tenant ${tenantId}`);
+
+  return recordId;
+}
+
+/**
+ * Get tenant by account code
+ *
+ * @param {string} accountCode - Account code (e.g., "BK-7X3M9P")
+ * @returns {Promise<object|null>} Tenant record or null
+ */
+async function getTenantByAccountCode(accountCode) {
+  const result = await query(
+    `SELECT id as tenant_id, account_code, name, slug, plan, feature_flags, created_at
+     FROM "Tenant"
+     WHERE account_code = $1`,
+    [accountCode.toUpperCase()]
+  );
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  return result.rows[0];
+}
+
+/**
+ * Resolve tenant_id from account_code
+ *
+ * @param {string} accountCode - Account code (e.g., "BK-7X3M9P")
+ * @returns {Promise<string|null>} tenant_id UUID or null
+ */
+async function resolveTenantId(accountCode) {
+  const tenant = await getTenantByAccountCode(accountCode);
+  return tenant ? tenant.tenant_id : null;
+}
+
+/**
+ * Generate a unique account code for a new tenant
+ *
+ * @returns {Promise<string>} Unique account code (e.g., "BK-7X3M9P")
+ * @throws {Error} If unable to generate unique code after max attempts
+ */
+async function generateUniqueAccountCode() {
+  const CHARSET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const MAX_ATTEMPTS = 10;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    // Generate random 6-character code
+    let code = 'BK-';
+    for (let i = 0; i < 6; i++) {
+      const randomIndex = Math.floor(Math.random() * CHARSET.length);
+      code += CHARSET[randomIndex];
+    }
+
+    // Check if code already exists
+    const result = await query(
+      'SELECT 1 FROM "Tenant" WHERE account_code = $1 LIMIT 1',
+      [code]
+    );
+
+    if (result.rows.length === 0) {
+      console.log(`[DB] Generated unique account code on attempt ${attempt}: ${code}`);
+      return code;
+    }
+
+    console.log(`[DB] Account code collision on attempt ${attempt}: ${code}, retrying...`);
+  }
+
+  throw new Error(
+    `Failed to generate unique account code after ${MAX_ATTEMPTS} attempts.`
+  );
+}
+
+/**
+ * Soft delete a record using the new record_id system
+ *
+ * @param {string} tableName - The table name (e.g., "Booking", "Task")
+ * @param {number} recordId - Record ID (BIGINT)
+ * @param {string} tenantId - Tenant ID (UUID)
+ * @param {number|null} deletedByRecordId - User record_id who performed deletion (optional)
+ * @returns {Promise<object|null>} - The archived record or null if not found
+ */
+async function softDeleteByRecordId(tableName, recordId, tenantId, deletedByRecordId = null) {
+  const client = await getClient();
+
+  try {
+    await client.query('BEGIN');
+
+    // Fetch the record to archive
+    const fetchResult = await client.query(
+      `SELECT * FROM "${tableName}" WHERE record_id = $1 AND tenant_id = $2`,
+      [recordId, tenantId]
+    );
+
+    if (fetchResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+
+    const record = fetchResult.rows[0];
+
+    // Get next record_id for DeletedRecord table
+    const deletedRecordId = await getNextRecordId(tenantId, 'DeletedRecord');
+
+    // Archive to DeletedRecord table
+    await client.query(
+      `INSERT INTO "DeletedRecord" (record_id, tenant_id, original_table, original_id, data, deleted_at, deleted_by_record_id)
+       VALUES ($1, $2, $3, $4, $5, NOW(), $6)`,
+      [deletedRecordId, tenantId, tableName, record.id, JSON.stringify(record), deletedByRecordId]
+    );
+
+    // Hard delete the original record
+    await client.query(
+      `DELETE FROM "${tableName}" WHERE record_id = $1 AND tenant_id = $2`,
+      [recordId, tenantId]
+    );
+
+    await client.query('COMMIT');
+
+    console.log(`[DB] Soft deleted ${tableName} record_id=${recordId} for tenant ${tenantId}`);
+    return record;
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error(`[DB] Soft delete failed for ${tableName}:`, error.message);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   getPool,
   getPoolAsync,
@@ -368,5 +600,13 @@ module.exports = {
   closePool,
   softDelete,
   softDeleteBatch,
+  // New ID system functions
+  getNextRecordId,
+  getTenantByAccountCode,
+  resolveTenantId,
+  generateUniqueAccountCode,
+  softDeleteByRecordId,
+  getObjectTypeCode,
+  OBJECT_TYPE_CODES,
 };
 
