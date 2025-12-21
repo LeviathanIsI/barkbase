@@ -137,6 +137,16 @@ async function processEvent(message) {
   // Try to enroll in each matching workflow
   for (const workflow of matchingWorkflows) {
     console.log('[WORKFLOW TRIGGER] Processing workflow:', workflow.id, workflow.name);
+
+    // INFINITE LOOP PREVENTION: Skip if this record was enrolled by the same workflow
+    // This matches HubSpot's behavior where records created/modified by a workflow
+    // cannot trigger enrollment in that same workflow
+    if (eventData?.sourceWorkflowId && eventData.sourceWorkflowId === workflow.id) {
+      console.log('[WORKFLOW TRIGGER] INFINITE LOOP PREVENTED: Record from workflow', workflow.id, 'cannot re-enroll in same workflow');
+      skipped++;
+      continue;
+    }
+
     try {
       const result = await enrollInWorkflow(workflow, recordId, recordType, tenantId, eventData);
       console.log('[WORKFLOW TRIGGER] Enrollment result:', JSON.stringify(result, null, 2));

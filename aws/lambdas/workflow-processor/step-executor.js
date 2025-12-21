@@ -829,6 +829,7 @@ async function executeEnrollInWorkflow(config, execution, recordData, tenantId) 
     }
 
     // Queue enrollment event
+    // Include sourceWorkflowId to prevent infinite loops (record enrolling back into same workflow)
     await sqs.send(new SendMessageCommand({
       QueueUrl: process.env.WORKFLOW_TRIGGER_QUEUE_URL,
       MessageBody: JSON.stringify({
@@ -839,6 +840,7 @@ async function executeEnrollInWorkflow(config, execution, recordData, tenantId) 
         eventData: {
           targetWorkflowId,
           sourceExecutionId: execution.id,
+          sourceWorkflowId: execution.workflow_id, // Used for infinite loop prevention
         },
       }),
     }));
