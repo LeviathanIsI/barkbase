@@ -196,13 +196,57 @@ SELECT safe_drop_constraint('SegmentActivity', 'segmentactivity_segment_id_fkey'
 SELECT safe_drop_constraint('SegmentSnapshot', 'SegmentSnapshot_segment_id_fkey');
 SELECT safe_drop_constraint('SegmentSnapshot', 'segmentsnapshot_segment_id_fkey');
 
+-- Conversation
+SELECT safe_drop_constraint('Conversation', 'Conversation_owner_id_fkey');
+SELECT safe_drop_constraint('Conversation', 'conversation_owner_id_fkey');
+
+-- Message
+SELECT safe_drop_constraint('Message', 'Message_conversation_id_fkey');
+SELECT safe_drop_constraint('Message', 'message_conversation_id_fkey');
+
+-- Activity
+SELECT safe_drop_constraint('Activity', 'Activity_owner_id_fkey');
+SELECT safe_drop_constraint('Activity', 'activity_owner_id_fkey');
+SELECT safe_drop_constraint('Activity', 'Activity_pet_id_fkey');
+SELECT safe_drop_constraint('Activity', 'activity_pet_id_fkey');
+SELECT safe_drop_constraint('Activity', 'Activity_booking_id_fkey');
+SELECT safe_drop_constraint('Activity', 'activity_booking_id_fkey');
+SELECT safe_drop_constraint('Activity', 'Activity_user_id_fkey');
+SELECT safe_drop_constraint('Activity', 'activity_user_id_fkey');
+
+-- PropertyValue
+SELECT safe_drop_constraint('PropertyValue', 'PropertyValue_property_id_fkey');
+SELECT safe_drop_constraint('PropertyValue', 'propertyvalue_property_id_fkey');
+
+-- PropertyHistory
+SELECT safe_drop_constraint('PropertyHistory', 'PropertyHistory_property_id_fkey');
+SELECT safe_drop_constraint('PropertyHistory', 'propertyhistory_property_id_fkey');
+
+-- PipelineStage
+SELECT safe_drop_constraint('PipelineStage', 'PipelineStage_pipeline_id_fkey');
+SELECT safe_drop_constraint('PipelineStage', 'pipelinestage_pipeline_id_fkey');
+
+-- ObjectStatus
+SELECT safe_drop_constraint('ObjectStatus', 'ObjectStatus_pipeline_id_fkey');
+SELECT safe_drop_constraint('ObjectStatus', 'objectstatus_pipeline_id_fkey');
+
+-- TimeEntry
+SELECT safe_drop_constraint('TimeEntry', 'TimeEntry_user_id_fkey');
+SELECT safe_drop_constraint('TimeEntry', 'timeentry_user_id_fkey');
+
+-- TimePunch
+SELECT safe_drop_constraint('TimePunch', 'TimePunch_user_id_fkey');
+SELECT safe_drop_constraint('TimePunch', 'timepunch_user_id_fkey');
+SELECT safe_drop_constraint('TimePunch', 'TimePunch_time_entry_id_fkey');
+SELECT safe_drop_constraint('TimePunch', 'timepunch_time_entry_id_fkey');
+
 DROP FUNCTION IF EXISTS safe_drop_constraint(TEXT, TEXT);
 
 -- ============================================================================
 -- 2. Drop old UUID Foreign Key columns
 -- ============================================================================
 
--- Helper function to safely drop columns
+-- Helper function to safely drop columns (uses CASCADE for FK dependencies)
 CREATE OR REPLACE FUNCTION safe_drop_column(p_table TEXT, p_column TEXT)
 RETURNS VOID AS $$
 BEGIN
@@ -210,8 +254,8 @@ BEGIN
         SELECT 1 FROM information_schema.columns
         WHERE table_name = p_table AND column_name = p_column
     ) THEN
-        EXECUTE format('ALTER TABLE %I DROP COLUMN %I', p_table, p_column);
-        RAISE NOTICE 'Dropped %.%', p_table, p_column;
+        EXECUTE format('ALTER TABLE %I DROP COLUMN %I CASCADE', p_table, p_column);
+        RAISE NOTICE 'Dropped %.% (CASCADE)', p_table, p_column;
     END IF;
 EXCEPTION WHEN undefined_table THEN
     RAISE NOTICE 'Table % does not exist', p_table;
@@ -331,6 +375,38 @@ SELECT safe_drop_column('WorkflowExecutionLog', 'step_id');
 -- WorkflowRevision FK columns
 SELECT safe_drop_column('WorkflowRevision', 'workflow_id');
 
+-- Conversation FK columns
+SELECT safe_drop_column('Conversation', 'owner_id');
+
+-- Message FK columns
+SELECT safe_drop_column('Message', 'conversation_id');
+
+-- Activity FK columns
+SELECT safe_drop_column('Activity', 'owner_id');
+SELECT safe_drop_column('Activity', 'pet_id');
+SELECT safe_drop_column('Activity', 'booking_id');
+SELECT safe_drop_column('Activity', 'user_id');
+
+-- PropertyValue FK columns
+SELECT safe_drop_column('PropertyValue', 'property_id');
+
+-- PropertyHistory FK columns
+SELECT safe_drop_column('PropertyHistory', 'property_id');
+SELECT safe_drop_column('PropertyHistory', 'changed_by');
+
+-- PipelineStage FK columns
+SELECT safe_drop_column('PipelineStage', 'pipeline_id');
+
+-- ObjectStatus FK columns
+SELECT safe_drop_column('ObjectStatus', 'pipeline_id');
+
+-- TimeEntry FK columns
+SELECT safe_drop_column('TimeEntry', 'user_id');
+
+-- TimePunch FK columns
+SELECT safe_drop_column('TimePunch', 'user_id');
+SELECT safe_drop_column('TimePunch', 'time_entry_id');
+
 -- ============================================================================
 -- 3. Drop old UUID primary key columns
 -- ============================================================================
@@ -338,7 +414,7 @@ SELECT safe_drop_column('WorkflowRevision', 'workflow_id');
 -- First, drop the primary key constraints, then drop the id columns
 -- Note: We keep tenant_id as it's still used for tenant isolation
 
--- Helper to drop PK and id column
+-- Helper to drop PK and id column - uses CASCADE to handle dependent FK constraints
 CREATE OR REPLACE FUNCTION drop_uuid_id_column(p_table TEXT)
 RETURNS VOID AS $$
 DECLARE
@@ -349,7 +425,7 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Check if id column exists and is UUID type
+    -- Check if id column exists
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = p_table AND column_name = 'id'
@@ -358,18 +434,18 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Find and drop primary key constraint
+    -- Find and drop primary key constraint WITH CASCADE to drop dependent FKs
     SELECT constraint_name INTO v_pk_name
     FROM information_schema.table_constraints
     WHERE table_name = p_table AND constraint_type = 'PRIMARY KEY';
 
     IF v_pk_name IS NOT NULL THEN
-        EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I', p_table, v_pk_name);
-        RAISE NOTICE 'Dropped PK constraint % on %', v_pk_name, p_table;
+        EXECUTE format('ALTER TABLE %I DROP CONSTRAINT %I CASCADE', p_table, v_pk_name);
+        RAISE NOTICE 'Dropped PK constraint % on % (CASCADE)', v_pk_name, p_table;
     END IF;
 
-    -- Drop the id column
-    EXECUTE format('ALTER TABLE %I DROP COLUMN id', p_table);
+    -- Drop the id column CASCADE to handle any remaining dependencies
+    EXECUTE format('ALTER TABLE %I DROP COLUMN id CASCADE', p_table);
     RAISE NOTICE 'Dropped id column from %', p_table;
 
     -- Create new primary key on (tenant_id, record_id) if both exist
@@ -617,6 +693,54 @@ SELECT safe_rename_column('Workflow', 'folder_record_id', 'folder_id');
 
 -- WorkflowExecution
 SELECT safe_rename_column('WorkflowExecution', 'workflow_record_id', 'workflow_id');
+
+-- WorkflowStep
+SELECT safe_rename_column('WorkflowStep', 'workflow_record_id', 'workflow_id');
+
+-- WorkflowExecutionLog
+SELECT safe_rename_column('WorkflowExecutionLog', 'execution_record_id', 'execution_id');
+SELECT safe_rename_column('WorkflowExecutionLog', 'step_record_id', 'step_id');
+
+-- WorkflowRevision
+SELECT safe_rename_column('WorkflowRevision', 'workflow_record_id', 'workflow_id');
+
+-- Conversation
+SELECT safe_rename_column('Conversation', 'owner_record_id', 'owner_id');
+
+-- Message
+SELECT safe_rename_column('Message', 'conversation_record_id', 'conversation_id');
+
+-- Activity
+SELECT safe_rename_column('Activity', 'owner_record_id', 'owner_id');
+SELECT safe_rename_column('Activity', 'pet_record_id', 'pet_id');
+SELECT safe_rename_column('Activity', 'booking_record_id', 'booking_id');
+SELECT safe_rename_column('Activity', 'user_record_id', 'user_id');
+
+-- PropertyValue
+SELECT safe_rename_column('PropertyValue', 'property_record_id', 'property_id');
+
+-- PropertyHistory
+SELECT safe_rename_column('PropertyHistory', 'property_record_id', 'property_id');
+SELECT safe_rename_column('PropertyHistory', 'changed_by_record_id', 'changed_by');
+
+-- PipelineStage
+SELECT safe_rename_column('PipelineStage', 'pipeline_record_id', 'pipeline_id');
+
+-- ObjectStatus
+SELECT safe_rename_column('ObjectStatus', 'pipeline_record_id', 'pipeline_id');
+
+-- TimeEntry
+SELECT safe_rename_column('TimeEntry', 'user_record_id', 'user_id');
+
+-- TimePunch
+SELECT safe_rename_column('TimePunch', 'user_record_id', 'user_id');
+SELECT safe_rename_column('TimePunch', 'time_entry_record_id', 'time_entry_id');
+
+-- SegmentActivity
+SELECT safe_rename_column('SegmentActivity', 'segment_record_id', 'segment_id');
+
+-- SegmentSnapshot
+SELECT safe_rename_column('SegmentSnapshot', 'segment_record_id', 'segment_id');
 
 DROP FUNCTION IF EXISTS safe_rename_column(TEXT, TEXT, TEXT);
 
