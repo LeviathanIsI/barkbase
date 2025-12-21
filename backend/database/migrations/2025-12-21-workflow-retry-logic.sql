@@ -18,13 +18,13 @@ ADD COLUMN IF NOT EXISTS retry_context JSONB;
 
 COMMENT ON COLUMN "WorkflowExecution".retry_context IS 'Tracks retry state: firstAttemptTime, attemptNumber, lastError';
 
--- Update status constraint to allow 'retrying' status
+-- Update status constraint to allow 'retrying' and 'waiting_for_event' statuses
 ALTER TABLE "WorkflowExecution"
 DROP CONSTRAINT IF EXISTS execution_status_check;
 
 ALTER TABLE "WorkflowExecution"
 ADD CONSTRAINT execution_status_check CHECK (
-  status IN ('pending', 'running', 'paused', 'retrying', 'completed', 'failed', 'cancelled')
+  status IN ('pending', 'running', 'paused', 'retrying', 'waiting_for_event', 'completed', 'failed', 'cancelled')
 );
 
 -- =============================================================================
@@ -75,3 +75,8 @@ WHERE status = 'retrying';
 CREATE INDEX IF NOT EXISTS idx_execution_retry_context
 ON "WorkflowExecution"(tenant_id)
 WHERE retry_context IS NOT NULL AND status = 'retrying';
+
+-- Index for event wait monitoring (find executions waiting for events)
+CREATE INDEX IF NOT EXISTS idx_execution_waiting_for_event
+ON "WorkflowExecution"(tenant_id, record_id)
+WHERE status = 'waiting_for_event';

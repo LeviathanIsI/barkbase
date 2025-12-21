@@ -1367,6 +1367,11 @@ async function executeWait(step, execution, recordData, tenantId) {
 
   console.log('[StepExecutor] Executing wait:', waitType);
 
+  // Handle event-based wait separately (different flow)
+  if (waitType === 'event') {
+    return executeEventWait(step, execution, config, tenantId);
+  }
+
   let waitUntil;
 
   switch (waitType) {
@@ -1377,7 +1382,14 @@ async function executeWait(step, execution, recordData, tenantId) {
       waitUntil = calculateTimeOfDayWait(config);
       break;
     case 'until_date':
+    case 'date_property':
       waitUntil = calculateDateFieldWait(config, recordData);
+      break;
+    case 'calendar_date':
+      waitUntil = calculateCalendarDateWait(config);
+      break;
+    case 'day_of_week':
+      waitUntil = calculateDayOfWeekWait(config);
       break;
     default:
       return { success: false, error: `Unknown wait type: ${waitType}` };
@@ -1404,7 +1416,65 @@ async function executeWait(step, execution, recordData, tenantId) {
   return {
     success: true,
     waitUntil,
-    result: { waitUntil: waitUntil.toISOString() },
+    result: { waitType, waitUntil: waitUntil.toISOString() },
+  };
+}
+
+/**
+ * Execute event-based wait
+ * Waits until a specific event occurs OR max timeout is reached
+ * Config: { eventType: 'booking.confirmed', maxWaitDays: 7 }
+ */
+async function executeEventWait(step, execution, config, tenantId) {
+  const eventType = config.eventType;
+  const maxWaitDays = parseInt(config.maxWaitDays) || 7;
+
+  if (!eventType) {
+    return { success: false, error: 'Event wait requires eventType' };
+  }
+
+  console.log('[StepExecutor] Setting up event wait:', eventType, 'max days:', maxWaitDays);
+
+  // Calculate max wait timeout
+  const maxWaitUntil = new Date();
+  maxWaitUntil.setDate(maxWaitUntil.getDate() + maxWaitDays);
+
+  // Store event wait metadata in execution
+  const eventWaitMetadata = {
+    eventType,
+    stepId: step.id,
+    startedAt: new Date().toISOString(),
+    maxWaitUntil: maxWaitUntil.toISOString(),
+  };
+
+  // Update execution to waiting_for_event status with metadata
+  await query(
+    `UPDATE "WorkflowExecution"
+     SET status = 'waiting_for_event',
+         resume_at = $1,
+         metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
+     WHERE id = $3`,
+    [
+      maxWaitUntil.toISOString(),
+      JSON.stringify({ eventWait: eventWaitMetadata }),
+      execution.id,
+    ]
+  );
+
+  console.log('[StepExecutor] Execution set to waiting_for_event:', {
+    executionId: execution.id,
+    eventType,
+    maxWaitUntil: maxWaitUntil.toISOString(),
+  });
+
+  return {
+    success: true,
+    waitingForEvent: true,
+    result: {
+      waitType: 'event',
+      eventType,
+      maxWaitUntil: maxWaitUntil.toISOString(),
+    },
   };
 }
 
@@ -1468,6 +1538,168 @@ function calculateDateFieldWait(config, recordData) {
   }
 
   return new Date(value);
+}
+
+/**
+ * Calculate wait time for specific calendar date
+ * Config: { date: '2025-03-15T09:00:00Z' }
+ */
+function calculateCalendarDateWait(config) {
+  const dateString = config.date;
+
+  if (!dateString) {
+    console.warn('[StepExecutor] Calendar date wait missing date');
+    return null;
+  }
+
+  const targetDate = new Date(dateString);
+
+  if (isNaN(targetDate.getTime())) {
+    console.warn('[StepExecutor] Invalid calendar date:', dateString);
+    return null;
+  }
+
+  return targetDate;
+}
+
+/**
+ * Calculate wait time for next occurrence of specific day of week
+ * Config: { dayOfWeek: 'monday', time: '09:00' }
+ */
+function calculateDayOfWeekWait(config) {
+  const dayOfWeek = (config.dayOfWeek || 'monday').toLowerCase();
+  const timeOfDay = config.time || '09:00';
+
+  // Map day names to JS day numbers (0 = Sunday, 1 = Monday, etc.)
+  const dayMap = {
+    sunday: 0,
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+  };
+
+  const targetDayNum = dayMap[dayOfWeek];
+  if (targetDayNum === undefined) {
+    console.warn('[StepExecutor] Invalid day of week:', dayOfWeek);
+    return null;
+  }
+
+  // Parse time
+  const [hours, minutes] = timeOfDay.split(':').map(Number);
+  if (isNaN(hours) || isNaN(minutes)) {
+    console.warn('[StepExecutor] Invalid time format:', timeOfDay);
+    return null;
+  }
+
+  const now = new Date();
+  const currentDayNum = now.getDay();
+
+  // Calculate days until next occurrence
+  let daysUntil = targetDayNum - currentDayNum;
+
+  // If target day is today, check if time has passed
+  if (daysUntil === 0) {
+    const todayTarget = new Date();
+    todayTarget.setHours(hours, minutes, 0, 0);
+    if (todayTarget <= now) {
+      // Time has passed today, wait until next week
+      daysUntil = 7;
+    }
+  } else if (daysUntil < 0) {
+    // Target day already passed this week, go to next week
+    daysUntil += 7;
+  }
+
+  // Calculate target date
+  const target = new Date();
+  target.setDate(target.getDate() + daysUntil);
+  target.setHours(hours, minutes, 0, 0);
+
+  console.log('[StepExecutor] Day of week wait:', {
+    dayOfWeek,
+    time: timeOfDay,
+    daysUntil,
+    target: target.toISOString(),
+  });
+
+  return target;
+}
+
+/**
+ * Check and resume executions waiting for a specific event
+ * Called by event processor when events fire
+ */
+async function checkEventWaiters(eventType, recordId, tenantId) {
+  console.log('[StepExecutor] Checking event waiters:', { eventType, recordId, tenantId });
+
+  // Find executions waiting for this event type and record
+  const waitersResult = await query(
+    `SELECT we.id, we.workflow_id, we.current_step_id, we.metadata
+     FROM "WorkflowExecution" we
+     WHERE we.tenant_id = $1
+       AND we.record_id = $2
+       AND we.status = 'waiting_for_event'
+       AND we.metadata->'eventWait'->>'eventType' = $3`,
+    [tenantId, recordId, eventType]
+  );
+
+  if (waitersResult.rows.length === 0) {
+    console.log('[StepExecutor] No executions waiting for event:', eventType);
+    return { resumed: 0 };
+  }
+
+  console.log('[StepExecutor] Found', waitersResult.rows.length, 'executions waiting for event');
+
+  let resumed = 0;
+
+  for (const execution of waitersResult.rows) {
+    try {
+      // Resume the execution - find next step after the wait step
+      const stepId = execution.metadata?.eventWait?.stepId;
+      if (!stepId) {
+        console.warn('[StepExecutor] Event wait missing stepId in metadata:', execution.id);
+        continue;
+      }
+
+      // Get step info to find next step
+      const stepResult = await query(
+        `SELECT workflow_id, parent_step_id, branch_path FROM "WorkflowStep" WHERE id = $1`,
+        [stepId]
+      );
+
+      if (stepResult.rows.length === 0) {
+        console.warn('[StepExecutor] Event wait step not found:', stepId);
+        continue;
+      }
+
+      const step = stepResult.rows[0];
+      const nextStepId = await findNextStep(step.workflow_id, stepId, step.parent_step_id, step.branch_path);
+
+      // Update execution to running and set next step
+      await query(
+        `UPDATE "WorkflowExecution"
+         SET status = 'running',
+             current_step_id = $1,
+             resume_at = NULL,
+             metadata = metadata - 'eventWait'
+         WHERE id = $2`,
+        [nextStepId, execution.id]
+      );
+
+      // Queue next step for execution
+      await queueNextStep(execution.id, execution.workflow_id, tenantId);
+
+      resumed++;
+      console.log('[StepExecutor] Resumed execution after event:', execution.id);
+    } catch (error) {
+      console.error('[StepExecutor] Error resuming execution:', execution.id, error);
+    }
+  }
+
+  return { resumed, total: waitersResult.rows.length };
 }
 
 /**
@@ -2584,3 +2816,6 @@ async function pauseForTiming(executionId, workflowId, tenantId, resumeAt, stepI
 
   console.log('[StepExecutor] Execution paused and resumption scheduled');
 }
+
+// Export additional functions for use by other processors
+exports.checkEventWaiters = checkEventWaiters;
