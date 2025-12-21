@@ -546,6 +546,9 @@ async function executeAction(step, execution, recordData, tenantId, retryContext
     case 'internal_note':
       result = await executeInternalNote(config, execution, recordData, tenantId);
       break;
+    case 'send_notification':
+      result = await executeSendNotification(config, execution, recordData, tenantId);
+      break;
     case 'enroll_in_workflow':
       result = await executeEnrollInWorkflow(config, execution, recordData, tenantId);
       break;
@@ -870,6 +873,109 @@ async function executeInternalNote(config, execution, recordData, tenantId) {
   } catch (error) {
     console.error('[StepExecutor] Internal note error:', error);
     // Database errors are generally retryable
+    const isConstraintViolation = error.code === '23505' || error.code === '23503';
+    return {
+      success: false,
+      error: error.message,
+      retryable: !isConstraintViolation,
+      httpStatus: isConstraintViolation ? 400 : 500,
+    };
+  }
+}
+
+/**
+ * Execute send_notification action
+ * Creates in-app notification for staff or owners
+ *
+ * Config:
+ * - title: Notification title (supports template interpolation)
+ * - message: Notification body (supports template interpolation)
+ * - recipientType: 'staff' or 'owner'
+ * - recipientId: Optional specific recipient ID (null for broadcast)
+ * - priority: 'low', 'normal', 'high', or 'urgent'
+ */
+async function executeSendNotification(config, execution, recordData, tenantId) {
+  try {
+    // Validate required fields
+    if (!config.title) {
+      return { success: false, error: 'Notification title is required', retryable: false, httpStatus: 400 };
+    }
+
+    const recipientType = config.recipientType || 'staff';
+    if (!['staff', 'owner'].includes(recipientType)) {
+      return { success: false, error: `Invalid recipient type: ${recipientType}`, retryable: false, httpStatus: 400 };
+    }
+
+    // Interpolate title and message with record data
+    const title = interpolateTemplate(config.title, recordData);
+    const message = config.message ? interpolateTemplate(config.message, recordData) : null;
+
+    // Normalize priority
+    const priority = ['low', 'normal', 'high', 'urgent'].includes(config.priority)
+      ? config.priority
+      : 'normal';
+
+    // Determine recipient ID
+    let recipientId = config.recipientId || null;
+
+    // If no specific recipient and recipientType is 'owner', use the record's owner
+    if (!recipientId && recipientType === 'owner') {
+      if (recordData.owner?.id) {
+        recipientId = recordData.owner.id;
+      } else if (recordData.record?.owner_id) {
+        recipientId = recordData.record.owner_id;
+      }
+    }
+
+    // Build metadata
+    const metadata = {
+      workflowId: execution.workflow_id,
+      executionId: execution.id,
+      stepId: config.stepId,
+    };
+
+    // Insert notification
+    const result = await query(
+      `INSERT INTO "Notification"
+         (tenant_id, title, message, type, priority, entity_type, entity_id, recipient_type, recipient_id, metadata)
+       VALUES ($1, $2, $3, 'workflow', $4, $5, $6, $7, $8, $9)
+       RETURNING id`,
+      [
+        tenantId,
+        title,
+        message,
+        priority,
+        execution.object_type,
+        execution.record_id,
+        recipientType,
+        recipientId,
+        JSON.stringify(metadata),
+      ]
+    );
+
+    const notificationId = result.rows[0]?.id;
+
+    console.log('[StepExecutor] Notification created:', {
+      notificationId,
+      title,
+      recipientType,
+      recipientId,
+      priority,
+    });
+
+    return {
+      success: true,
+      result: {
+        notificationId,
+        title,
+        recipientType,
+        recipientId,
+        priority,
+      },
+    };
+  } catch (error) {
+    console.error('[StepExecutor] Send notification error:', error);
+    // Database errors are generally retryable, except constraint violations
     const isConstraintViolation = error.code === '23505' || error.code === '23503';
     return {
       success: false,
