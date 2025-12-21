@@ -498,9 +498,14 @@ export const useWorkflowBuilderStore = create((set, get) => ({
 
   /**
    * Convert store state to API format
+   * Computes explicit step connections (next_step_id, yes_step_id, no_step_id)
+   * for HubSpot-style workflow execution
    */
   toAPIFormat: () => {
     const state = get();
+
+    // Build step connections map
+    const stepConnections = computeStepConnections(state.steps);
 
     return {
       workflow: {
@@ -520,6 +525,10 @@ export const useWorkflowBuilderStore = create((set, get) => ({
         position: s.position,
         parent_step_id: s.parentStepId,
         branch_id: s.branchId,
+        // Explicit step connections (HubSpot-style)
+        next_step_id: stepConnections[s.id]?.next_step_id || null,
+        yes_step_id: stepConnections[s.id]?.yes_step_id || null,
+        no_step_id: stepConnections[s.id]?.no_step_id || null,
       })),
     };
   },
@@ -656,6 +665,134 @@ function recalculatePositions(steps) {
     const index = group.indexOf(step);
     return { ...step, position: index };
   });
+}
+
+/**
+ * Compute explicit step connections (HubSpot-style)
+ * This enables GO-TO connections and explicit branch targeting
+ *
+ * For each step, determines:
+ * - next_step_id: The next step in linear flow
+ * - yes_step_id: First step in YES branch (for determinators)
+ * - no_step_id: First step in NO branch (for determinators)
+ *
+ * @param {Array} steps - All workflow steps
+ * @returns {Object} Map of stepId -> { next_step_id, yes_step_id, no_step_id }
+ */
+function computeStepConnections(steps) {
+  const connections = {};
+
+  // Group steps by parent and branch for easy lookup
+  const stepsByParentAndBranch = {};
+  steps.forEach((step) => {
+    const key = `${step.parentStepId || 'root'}-${step.branchId || 'main'}`;
+    if (!stepsByParentAndBranch[key]) {
+      stepsByParentAndBranch[key] = [];
+    }
+    stepsByParentAndBranch[key].push(step);
+  });
+
+  // Sort each group by position
+  Object.keys(stepsByParentAndBranch).forEach((key) => {
+    stepsByParentAndBranch[key].sort((a, b) => a.position - b.position);
+  });
+
+  // Helper to find steps in a specific branch of a determinator
+  const findBranchSteps = (parentId, branchId) => {
+    const key = `${parentId}-${branchId}`;
+    return stepsByParentAndBranch[key] || [];
+  };
+
+  // Helper to find the next step after current in the same branch
+  const findNextSibling = (step) => {
+    const key = `${step.parentStepId || 'root'}-${step.branchId || 'main'}`;
+    const siblings = stepsByParentAndBranch[key] || [];
+    const currentIndex = siblings.findIndex((s) => s.id === step.id);
+    if (currentIndex >= 0 && currentIndex < siblings.length - 1) {
+      return siblings[currentIndex + 1];
+    }
+    return null;
+  };
+
+  // Helper to find where to go after a branch ends (parent's next sibling)
+  const findAfterBranch = (parentId) => {
+    const parent = steps.find((s) => s.id === parentId);
+    if (!parent) return null;
+
+    // Find parent's next sibling
+    const nextSibling = findNextSibling(parent);
+    if (nextSibling) return nextSibling;
+
+    // If parent has no next sibling, recursively check grandparent
+    if (parent.parentStepId) {
+      return findAfterBranch(parent.parentStepId);
+    }
+
+    return null;
+  };
+
+  // Process each step
+  steps.forEach((step) => {
+    connections[step.id] = {
+      next_step_id: null,
+      yes_step_id: null,
+      no_step_id: null,
+    };
+
+    // For determinators, set yes_step_id and no_step_id
+    if (step.stepType === STEP_TYPES.DETERMINATOR) {
+      // Find first step in each branch
+      const branches = step.config?.branches || [];
+
+      branches.forEach((branch) => {
+        const branchSteps = findBranchSteps(step.id, branch.id);
+        if (branchSteps.length > 0) {
+          const firstStepId = branchSteps[0].id;
+          const branchName = branch.name?.toLowerCase() || '';
+
+          // Check for legacy yes/no branch IDs or names
+          const isYesBranch = branch.id === 'yes' || branchName === 'yes';
+          const isNoBranch = branch.id === 'no' || branchName === 'no';
+
+          if (isYesBranch) {
+            connections[step.id].yes_step_id = firstStepId;
+          } else if (isNoBranch || branch.isDefault) {
+            // Default/fallback branch maps to no_step_id
+            connections[step.id].no_step_id = firstStepId;
+          } else if (!connections[step.id].yes_step_id) {
+            // For multi-branch: first non-default branch -> yes_step_id
+            connections[step.id].yes_step_id = firstStepId;
+          }
+        }
+      });
+
+      // If no branches have steps, next_step_id is the step after determinator
+      if (!connections[step.id].yes_step_id && !connections[step.id].no_step_id) {
+        const nextSibling = findNextSibling(step);
+        if (nextSibling) {
+          connections[step.id].next_step_id = nextSibling.id;
+        }
+      }
+    } else if (step.stepType === STEP_TYPES.TERMINUS) {
+      // Terminus steps don't connect to anything
+      connections[step.id].next_step_id = null;
+    } else {
+      // Regular steps: connect to next sibling
+      const nextSibling = findNextSibling(step);
+      if (nextSibling) {
+        connections[step.id].next_step_id = nextSibling.id;
+      } else if (step.parentStepId) {
+        // End of a branch - go to after the parent determinator
+        const afterBranch = findAfterBranch(step.parentStepId);
+        if (afterBranch) {
+          connections[step.id].next_step_id = afterBranch.id;
+        }
+      }
+      // If no next sibling and no parent, this is the last step (null is correct)
+    }
+  });
+
+  return connections;
 }
 
 export default useWorkflowBuilderStore;

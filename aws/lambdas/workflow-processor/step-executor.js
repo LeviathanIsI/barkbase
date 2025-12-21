@@ -1973,7 +1973,8 @@ async function executeStaticBranching(step, config, recordData) {
 
 /**
  * Execute list branching (if/then conditional routing)
- * Evaluates conditions to determine yes/no branch
+ * HubSpot-aligned: Uses yes_step_id/no_step_id for explicit connections,
+ * falls back to branch_path query for backwards compatibility
  * Config: { conditions: [...], conditionLogic: 'and'|'or' }
  */
 async function executeListBranching(step, config, recordData) {
@@ -1987,8 +1988,30 @@ async function executeListBranching(step, config, recordData) {
 
   console.log('[StepExecutor] Conditions met:', conditionsMet);
 
-  // Find the first step in the appropriate branch
   const branchPath = conditionsMet ? 'yes' : 'no';
+
+  // First, check for explicit branch step connections (HubSpot approach)
+  // These are stored directly on the determinator step
+  if (conditionsMet && step.yes_step_id) {
+    console.log('[StepExecutor] Using explicit yes_step_id:', step.yes_step_id);
+    return {
+      success: true,
+      nextStepId: step.yes_step_id,
+      result: { branchType: 'list', conditionsMet, branchPath, connectionType: 'explicit' },
+    };
+  }
+
+  if (!conditionsMet && step.no_step_id) {
+    console.log('[StepExecutor] Using explicit no_step_id:', step.no_step_id);
+    return {
+      success: true,
+      nextStepId: step.no_step_id,
+      result: { branchType: 'list', conditionsMet, branchPath, connectionType: 'explicit' },
+    };
+  }
+
+  // Fallback: Find the first step in the appropriate branch (legacy approach)
+  console.log('[StepExecutor] No explicit branch connection, falling back to branch_path query');
   const nextStepResult = await query(
     `SELECT id FROM "WorkflowStep"
      WHERE workflow_id = $1
@@ -2005,14 +2028,14 @@ async function executeListBranching(step, config, recordData) {
     return {
       success: true,
       nextStepId,
-      result: { branchType: 'list', conditionsMet, branchPath },
+      result: { branchType: 'list', conditionsMet, branchPath, connectionType: 'position' },
     };
   }
 
   return {
     success: true,
     nextStepId: nextStepResult.rows[0].id,
-    result: { branchType: 'list', conditionsMet, branchPath },
+    result: { branchType: 'list', conditionsMet, branchPath, connectionType: 'position' },
   };
 }
 
@@ -2166,22 +2189,34 @@ function evaluateCondition(condition, recordData) {
 
 /**
  * Find the next step after the current one
+ * HubSpot-aligned: Uses explicit step connections (next_step_id) first,
+ * falls back to position-based lookup for backwards compatibility
  */
 async function findNextStep(workflowId, currentStepId, parentStepId, branchPath) {
-  // Get current step position
-  const currentResult = await query(
-    `SELECT position FROM "WorkflowStep" WHERE id = $1`,
+  // First, check for explicit next_step_id connection (HubSpot approach)
+  const stepResult = await query(
+    `SELECT position, next_step_id FROM "WorkflowStep" WHERE id = $1`,
     [currentStepId]
   );
 
-  if (currentResult.rows.length === 0) {
+  if (stepResult.rows.length === 0) {
     return null;
   }
 
-  const currentPosition = currentResult.rows[0].position;
+  const currentStep = stepResult.rows[0];
+
+  // If explicit next_step_id is set, use it (enables GO-TO connections)
+  if (currentStep.next_step_id) {
+    console.log('[findNextStep] Using explicit next_step_id:', currentStep.next_step_id);
+    return currentStep.next_step_id;
+  }
+
+  // Fallback to position-based lookup for backwards compatibility
+  console.log('[findNextStep] No explicit connection, falling back to position-based lookup');
+
+  const currentPosition = currentStep.position;
 
   // Build query dynamically based on which parameters are provided
-  // to ensure placeholder numbers match the parameter array
   const params = [workflowId];
   let paramIndex = 2;
 
