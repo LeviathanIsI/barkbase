@@ -501,6 +501,12 @@ async function executeAction(step, execution, recordData, tenantId, retryContext
     case 'webhook':
       result = await executeWebhook(config, execution, recordData, tenantId);
       break;
+    case 'add_to_segment':
+      result = await executeAddToSegment(config, execution, recordData, tenantId);
+      break;
+    case 'remove_from_segment':
+      result = await executeRemoveFromSegment(config, execution, recordData, tenantId);
+      break;
     default:
       result = { success: false, error: `Unknown action type: ${actionType}`, retryable: false, httpStatus: 400 };
   }
@@ -1206,6 +1212,150 @@ function getNestedValueForWebhook(obj, path) {
   }
 
   return current;
+}
+
+/**
+ * Execute add_to_segment action
+ * Adds an owner to a static segment
+ */
+async function executeAddToSegment(config, execution, recordData, tenantId) {
+  try {
+    const segmentId = config.segmentId;
+    if (!segmentId) {
+      return { success: false, error: 'No segment specified', retryable: false, httpStatus: 400 };
+    }
+
+    // Verify segment exists and is static type
+    const segmentResult = await query(
+      `SELECT id, name, type FROM "Segment" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [segmentId, tenantId]
+    );
+
+    if (segmentResult.rows.length === 0) {
+      return { success: false, error: `Segment not found: ${segmentId}`, retryable: false, httpStatus: 404 };
+    }
+
+    const segment = segmentResult.rows[0];
+
+    // Can only add to static segments (not dynamic/smart segments)
+    if (segment.type !== 'static') {
+      return {
+        success: false,
+        error: `Cannot add to ${segment.type} segment "${segment.name}". Only static segments support manual membership.`,
+        retryable: false,
+        httpStatus: 400,
+      };
+    }
+
+    // Determine member ID (owner_id)
+    // If workflow object_type is 'owner', use the record_id directly
+    // Otherwise, get the owner_id from the related owner data
+    let memberId;
+    if (execution.object_type === 'owner') {
+      memberId = execution.record_id;
+    } else if (recordData.owner?.id) {
+      memberId = recordData.owner.id;
+    } else if (recordData.record?.owner_id) {
+      memberId = recordData.record.owner_id;
+    }
+
+    if (!memberId) {
+      return {
+        success: false,
+        error: 'Cannot determine owner ID for segment membership. Record has no associated owner.',
+        retryable: false,
+        httpStatus: 400,
+      };
+    }
+
+    // Add to segment (ON CONFLICT DO NOTHING handles duplicates)
+    await query(
+      `INSERT INTO "SegmentMember" (segment_id, owner_id, added_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (segment_id, owner_id) DO NOTHING`,
+      [segmentId, memberId]
+    );
+
+    console.log('[StepExecutor] Added to segment:', { segmentId, segmentName: segment.name, memberId });
+
+    return {
+      success: true,
+      result: {
+        segmentId,
+        segmentName: segment.name,
+        memberId,
+      },
+    };
+  } catch (error) {
+    console.error('[StepExecutor] Add to segment error:', error);
+    const httpStatus = error.code === '23503' ? 400 : 500; // Foreign key violation = bad request
+    return {
+      success: false,
+      error: error.message,
+      retryable: httpStatus >= 500,
+      httpStatus,
+    };
+  }
+}
+
+/**
+ * Execute remove_from_segment action
+ * Removes an owner from a segment
+ */
+async function executeRemoveFromSegment(config, execution, recordData, tenantId) {
+  try {
+    const segmentId = config.segmentId;
+    if (!segmentId) {
+      return { success: false, error: 'No segment specified', retryable: false, httpStatus: 400 };
+    }
+
+    // Determine member ID (owner_id)
+    let memberId;
+    if (execution.object_type === 'owner') {
+      memberId = execution.record_id;
+    } else if (recordData.owner?.id) {
+      memberId = recordData.owner.id;
+    } else if (recordData.record?.owner_id) {
+      memberId = recordData.record.owner_id;
+    }
+
+    if (!memberId) {
+      return {
+        success: false,
+        error: 'Cannot determine owner ID for segment membership. Record has no associated owner.',
+        retryable: false,
+        httpStatus: 400,
+      };
+    }
+
+    // Remove from segment
+    const deleteResult = await query(
+      `DELETE FROM "SegmentMember"
+       WHERE segment_id = $1 AND owner_id = $2`,
+      [segmentId, memberId]
+    );
+
+    const removed = deleteResult.rowCount > 0;
+
+    console.log('[StepExecutor] Removed from segment:', { segmentId, memberId, removed });
+
+    return {
+      success: true,
+      result: {
+        segmentId,
+        memberId,
+        removed,
+      },
+    };
+  } catch (error) {
+    console.error('[StepExecutor] Remove from segment error:', error);
+    return {
+      success: false,
+      error: error.message,
+      retryable: true,
+      httpStatus: 500,
+    };
+  }
 }
 
 /**
