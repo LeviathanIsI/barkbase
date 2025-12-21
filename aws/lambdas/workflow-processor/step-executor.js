@@ -1475,10 +1475,120 @@ function calculateDateFieldWait(config, recordData) {
  */
 async function executeDeterminator(step, execution, recordData, tenantId) {
   const config = step.config || {};
+  const branchType = config.branchType || 'list'; // 'list' (if/then) or 'static' (value-equals)
+
+  console.log('[StepExecutor] Executing determinator. Branch type:', branchType);
+
+  // Handle static branches (value-equals routing)
+  // HubSpot supports up to 250 branches for static branching
+  if (branchType === 'static') {
+    return executeStaticBranching(step, config, recordData);
+  }
+
+  // Handle list branches (if/then conditional routing)
+  // HubSpot supports up to 20 branches for list branching
+  return executeListBranching(step, config, recordData);
+}
+
+/**
+ * Execute static branching (value-equals routing)
+ * Routes based on exact match of a single property value
+ * Config: { branchType: 'static', property: 'status', branches: [...], defaultNextStepId }
+ */
+async function executeStaticBranching(step, config, recordData) {
+  const property = config.property;
+  const branches = config.branches || [];
+  const defaultNextStepId = config.defaultNextStepId;
+
+  if (!property) {
+    console.warn('[StepExecutor] Static branch missing property field');
+    return {
+      success: false,
+      error: 'Static branch requires a property field',
+    };
+  }
+
+  // Get the property value from record data
+  const actualValue = getNestedValue(recordData, property);
+  const normalizedValue = actualValue !== null && actualValue !== undefined
+    ? String(actualValue).toLowerCase().trim()
+    : null;
+
+  console.log('[StepExecutor] Static branch - Property:', property, 'Value:', actualValue);
+
+  // Find matching branch by exact value match
+  let matchedBranch = null;
+  for (const branch of branches) {
+    const branchValue = branch.value !== null && branch.value !== undefined
+      ? String(branch.value).toLowerCase().trim()
+      : null;
+
+    if (normalizedValue === branchValue) {
+      matchedBranch = branch;
+      break;
+    }
+  }
+
+  let nextStepId;
+  let matchedValue;
+
+  if (matchedBranch) {
+    // Use the matched branch's next step
+    // Branch can specify nextStepId directly or use branchPath to find child steps
+    if (matchedBranch.nextStepId) {
+      nextStepId = matchedBranch.nextStepId;
+    } else if (matchedBranch.branchPath) {
+      // Find first step in the branch path
+      const branchStepResult = await query(
+        `SELECT id FROM "WorkflowStep"
+         WHERE workflow_id = $1
+           AND parent_step_id = $2
+           AND branch_path = $3
+         ORDER BY position ASC
+         LIMIT 1`,
+        [step.workflow_id, step.id, matchedBranch.branchPath]
+      );
+      nextStepId = branchStepResult.rows[0]?.id;
+    }
+    matchedValue = matchedBranch.value;
+    console.log('[StepExecutor] Static branch matched:', matchedValue, '-> nextStepId:', nextStepId);
+  }
+
+  // If no match found, use default
+  if (!nextStepId) {
+    if (defaultNextStepId) {
+      nextStepId = defaultNextStepId;
+      console.log('[StepExecutor] Static branch using default:', nextStepId);
+    } else {
+      // No default specified, find next sibling/parent step
+      nextStepId = await findNextStep(step.workflow_id, step.id, step.parent_step_id, step.branch_path);
+      console.log('[StepExecutor] Static branch no match, continuing to:', nextStepId);
+    }
+  }
+
+  return {
+    success: true,
+    nextStepId,
+    result: {
+      branchType: 'static',
+      property,
+      actualValue,
+      matchedValue: matchedValue || null,
+      matched: !!matchedBranch,
+    },
+  };
+}
+
+/**
+ * Execute list branching (if/then conditional routing)
+ * Evaluates conditions to determine yes/no branch
+ * Config: { conditions: [...], conditionLogic: 'and'|'or' }
+ */
+async function executeListBranching(step, config, recordData) {
   const conditions = config.conditions || [];
   const conditionLogic = config.conditionLogic || 'and';
 
-  console.log('[StepExecutor] Executing determinator with', conditions.length, 'conditions');
+  console.log('[StepExecutor] List branch with', conditions.length, 'conditions');
 
   // Evaluate conditions
   const conditionsMet = evaluateConditions(conditions, conditionLogic, recordData);
@@ -1503,14 +1613,14 @@ async function executeDeterminator(step, execution, recordData, tenantId) {
     return {
       success: true,
       nextStepId,
-      result: { conditionsMet, branchPath },
+      result: { branchType: 'list', conditionsMet, branchPath },
     };
   }
 
   return {
     success: true,
     nextStepId: nextStepResult.rows[0].id,
-    result: { conditionsMet, branchPath },
+    result: { branchType: 'list', conditionsMet, branchPath },
   };
 }
 
