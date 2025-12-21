@@ -26,7 +26,7 @@ try {
   sharedLayer = require('../../layers/shared-layer/nodejs/index');
 }
 
-const { getPoolAsync, query } = dbLayer;
+const { getPoolAsync, query, getNextRecordId } = dbLayer;
 const { 
   authenticateRequest, 
   createResponse, 
@@ -351,15 +351,16 @@ async function handleLogin(event) {
         // NEW SCHEMA: Create new active session
         // - No cognito_sub column
         // - Column names: session_start, last_activity (not *_time)
+        const sessionRecordId = await getNextRecordId(dbUser.tenant_id, 'UserSession');
         const sessionResult = await query(
           `INSERT INTO "UserSession" (
-            user_id, tenant_id, session_token,
+            tenant_id, record_id, user_id, session_token,
             session_start, last_activity,
             ip_address, user_agent, is_active
           )
-          VALUES ($1, $2, $3, NOW(), NOW(), $4, $5, true)
+          VALUES ($1, $2, $3, $4, NOW(), NOW(), $5, $6, true)
           RETURNING id, session_start, session_token`,
-          [dbUser.id, dbUser.tenant_id, sessionToken, sourceIp, userAgent]
+          [dbUser.tenant_id, sessionRecordId, dbUser.id, sessionToken, sourceIp, userAgent]
         );
 
         session = sessionResult.rows[0];
@@ -510,22 +511,24 @@ async function handleRegister(event) {
       // NEW SCHEMA: Create user WITHOUT role column
       console.log('[AuthBootstrap] Creating user for tenant_id:', tenant.id, 'cognito_sub:', payload.sub);
 
+      const userRecordId = await getNextRecordId(tenant.id, 'User');
       const userResult = await query(
-        `INSERT INTO "User" (tenant_id, cognito_sub, email, first_name, last_name, is_active, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, TRUE, NOW(), NOW())
+        `INSERT INTO "User" (tenant_id, record_id, cognito_sub, email, first_name, last_name, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, TRUE, NOW(), NOW())
          RETURNING id, email, first_name, last_name, tenant_id`,
-        [tenant.id, payload.sub, userEmail, firstName, lastName]
+        [tenant.id, userRecordId, payload.sub, userEmail, firstName, lastName]
       );
       user = userResult.rows[0];
       console.log('[AuthBootstrap] User created:', { id: user.id, email: user.email });
 
       // NEW SCHEMA: Assign OWNER role via UserRole junction table
       if (ownerRole) {
+        const userRoleRecordId = await getNextRecordId(tenant.id, 'UserRole');
         await query(
-          `INSERT INTO "UserRole" (user_id, role_id, tenant_id, assigned_at)
-           VALUES ($1, $2, $3, NOW())
+          `INSERT INTO "UserRole" (tenant_id, record_id, user_id, role_id, assigned_at)
+           VALUES ($1, $2, $3, $4, NOW())
            ON CONFLICT (user_id, role_id) DO NOTHING`,
-          [user.id, ownerRole.id, tenant.id]
+          [tenant.id, userRoleRecordId, user.id, ownerRole.id]
         );
         console.log('[AuthBootstrap] OWNER role assigned to user:', user.id);
       }

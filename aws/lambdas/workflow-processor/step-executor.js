@@ -34,7 +34,7 @@ const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
 const { DynamoDBDocumentClient, UpdateCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { CloudWatchClient, PutMetricDataCommand } = require('@aws-sdk/client-cloudwatch');
 
-const { getPoolAsync, query } = dbLayer;
+const { getPoolAsync, query, getNextRecordId } = dbLayer;
 const {
   sendSMS,
   sendEmail,
@@ -764,14 +764,16 @@ async function executeCreateTask(config, recordData, tenantId) {
     // Get pet_id from record data
     const petId = recordData.record?.id;
 
+    const taskRecordId = await getNextRecordId(tenantId, 'Task');
     const taskResult = await query(
       `INSERT INTO "Task" (
-         id, tenant_id, title, description, task_type, priority, status, due_at, pet_id, created_at, updated_at
+         id, tenant_id, record_id, title, description, task_type, priority, status, due_at, pet_id, created_at, updated_at
        )
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
        RETURNING id`,
       [
         tenantId,
+        taskRecordId,
         title,
         description || null,
         'OTHER',  // task_type for workflow-generated tasks
@@ -859,11 +861,12 @@ async function executeInternalNote(config, execution, recordData, tenantId) {
   try {
     const content = interpolateTemplate(config.content || '', recordData);
 
+    const noteRecordId = await getNextRecordId(tenantId, 'Note');
     await query(
       `INSERT INTO "Note"
-         (tenant_id, entity_type, entity_id, content, note_type, created_by)
-       VALUES ($1, $2, $3, $4, 'internal', NULL)`,
-      [tenantId, execution.object_type, execution.record_id, content]
+         (tenant_id, record_id, entity_type, entity_id, content, note_type, created_by)
+       VALUES ($1, $2, $3, $4, $5, 'internal', NULL)`,
+      [tenantId, noteRecordId, execution.object_type, execution.record_id, content]
     );
 
     return {
@@ -935,13 +938,15 @@ async function executeSendNotification(config, execution, recordData, tenantId) 
     };
 
     // Insert notification
+    const notificationRecordId = await getNextRecordId(tenantId, 'Notification');
     const result = await query(
       `INSERT INTO "Notification"
-         (tenant_id, title, message, type, priority, entity_type, entity_id, recipient_type, recipient_id, metadata)
-       VALUES ($1, $2, $3, 'workflow', $4, $5, $6, $7, $8, $9)
+         (tenant_id, record_id, title, message, type, priority, entity_type, entity_id, recipient_type, recipient_id, metadata)
+       VALUES ($1, $2, $3, $4, 'workflow', $5, $6, $7, $8, $9, $10)
        RETURNING id`,
       [
         tenantId,
+        notificationRecordId,
         title,
         message,
         priority,
@@ -1429,11 +1434,12 @@ async function executeAddToSegment(config, execution, recordData, tenantId) {
     }
 
     // Add to segment (ON CONFLICT DO NOTHING handles duplicates)
+    const segmentMemberRecordId = await getNextRecordId(tenantId, 'SegmentMember');
     await query(
-      `INSERT INTO "SegmentMember" (segment_id, owner_id, added_at)
-       VALUES ($1, $2, NOW())
+      `INSERT INTO "SegmentMember" (tenant_id, record_id, segment_id, owner_id, added_at)
+       VALUES ($1, $2, $3, $4, NOW())
        ON CONFLICT (segment_id, owner_id) DO NOTHING`,
-      [segmentId, memberId]
+      [tenantId, segmentMemberRecordId, segmentId, memberId]
     );
 
     console.log('[StepExecutor] Added to segment:', { segmentId, segmentName: segment.name, memberId });

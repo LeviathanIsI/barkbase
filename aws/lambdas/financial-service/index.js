@@ -25,7 +25,7 @@ try {
   sharedLayer = require('../../layers/shared-layer/nodejs/index');
 }
 
-const { getPoolAsync, query, softDelete, softDeleteBatch } = dbLayer;
+const { getPoolAsync, query, softDelete, softDeleteBatch, getNextRecordId } = dbLayer;
 const {
   authenticateRequest,
   createResponse,
@@ -864,16 +864,18 @@ async function handleCreateInvoice(tenantId, body) {
     const invoiceNumber = `INV-${Date.now()}`;
 
     // Schema: subtotal_cents, tax_cents, discount_cents, total_cents, paid_cents (NOT amount)
+    const invoiceRecordId = await getNextRecordId(tenantId, 'Invoice');
     const result = await query(
       `INSERT INTO "Invoice" (
-        tenant_id, owner_id, booking_id, invoice_number,
+        tenant_id, record_id, owner_id, booking_id, invoice_number,
         subtotal_cents, tax_cents, discount_cents, total_cents, paid_cents,
         due_date, notes, line_items, status, created_at, updated_at
       )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $10, $11, 'DRAFT', NOW(), NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, $10, $11, $12, 'DRAFT', NOW(), NOW())
        RETURNING *`,
       [
         tenantId,
+        invoiceRecordId,
         ownerId,
         bookingId || null,
         invoiceNumber,
@@ -1057,17 +1059,19 @@ async function handleGenerateInvoiceFromBooking(tenantId, bookingId) {
     ].filter(Boolean).join('\n');
 
     // Create invoice record
+    const bookingInvoiceRecordId = await getNextRecordId(tenantId, 'Invoice');
     const result = await query(
       `INSERT INTO "Invoice" (
-         tenant_id, owner_id, booking_id, invoice_number,
+         tenant_id, record_id, owner_id, booking_id, invoice_number,
          subtotal_cents, tax_cents, total_cents, amount_due_cents,
          due_date, notes, line_items, status,
          created_at, updated_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'DRAFT', NOW(), NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'DRAFT', NOW(), NOW())
        RETURNING *`,
       [
         tenantId,
+        bookingInvoiceRecordId,
         booking.owner_id,
         bookingId,
         invoiceNumber,
@@ -1561,11 +1565,12 @@ async function handleCreatePayment(tenantId, body) {
     const paymentMethodValue = (method || paymentMethod || 'CARD').toUpperCase();
     const statusValue = (body.status || 'CAPTURED').toUpperCase();
 
+    const paymentRecordId = await getNextRecordId(tenantId, 'Payment');
     const result = await query(
-      `INSERT INTO "Payment" (tenant_id, owner_id, invoice_id, amount_cents, method, status, idempotency_key, processed_at, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), NOW())
+      `INSERT INTO "Payment" (tenant_id, record_id, owner_id, invoice_id, amount_cents, method, status, idempotency_key, processed_at, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW(), NOW())
        RETURNING *`,
-      [tenantId, ownerId || null, invoiceId || null, cents, paymentMethodValue, statusValue, idempotencyKey]
+      [tenantId, paymentRecordId, ownerId || null, invoiceId || null, cents, paymentMethodValue, statusValue, idempotencyKey]
     );
 
     const payment = result.rows[0];
@@ -2074,11 +2079,12 @@ async function handleCreatePriceItem(tenantId, body) {
     await getPoolAsync();
 
     // Schema uses price_in_cents (BIGINT), NOT price
+    const serviceRecordId = await getNextRecordId(tenantId, 'Service');
     const result = await query(
-      `INSERT INTO "Service" (tenant_id, name, description, price_in_cents, unit, is_active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
+      `INSERT INTO "Service" (tenant_id, record_id, name, description, price_in_cents, unit, is_active, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, true, NOW(), NOW())
        RETURNING *`,
-      [tenantId, name, description, priceInCentsValue, unit || 'per day']
+      [tenantId, serviceRecordId, name, description, priceInCentsValue, unit || 'per day']
     );
 
     const service = result.rows[0];
@@ -2981,14 +2987,16 @@ async function handleConfirmPayment(tenantId, body) {
     }
 
     // Record the payment in our database
+    const stripePaymentRecordId = await getNextRecordId(tenantId, 'Payment');
     const result = await query(
       `INSERT INTO "Payment" (
-        tenant_id, owner_id, invoice_id, amount_cents, method, processor,
+        tenant_id, record_id, owner_id, invoice_id, amount_cents, method, processor,
         processor_transaction_id, stripe_payment_intent_id, status, processed_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
       RETURNING *`,
       [
         tenantId,
+        stripePaymentRecordId,
         ownerId || paymentIntent.metadata?.owner_id || null,
         invoiceId || paymentIntent.metadata?.invoice_id || null,
         paymentIntent.amount,
@@ -3548,14 +3556,16 @@ async function handleStripeWebhook(event) {
 
         if (existing.rows.length === 0) {
           // Record the payment
+          const webhookPaymentRecordId = await getNextRecordId(tenantId, 'Payment');
           const paymentResult = await query(
             `INSERT INTO "Payment" (
-              tenant_id, owner_id, invoice_id, amount_cents, method, processor,
+              tenant_id, record_id, owner_id, invoice_id, amount_cents, method, processor,
               processor_transaction_id, stripe_payment_intent_id, status, processed_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
             RETURNING id`,
             [
               tenantId,
+              webhookPaymentRecordId,
               paymentIntent.metadata?.owner_id || null,
               paymentIntent.metadata?.invoice_id || null,
               paymentIntent.amount,
@@ -3594,11 +3604,12 @@ async function handleStripeWebhook(event) {
         if (!tenantId) break;
 
         // Record the failed payment attempt
+        const failedPaymentRecordId = await getNextRecordId(tenantId, 'Payment');
         const failedPaymentResult = await query(
           `INSERT INTO "Payment" (
-            tenant_id, owner_id, invoice_id, amount_cents, method, processor,
+            tenant_id, record_id, owner_id, invoice_id, amount_cents, method, processor,
             stripe_payment_intent_id, status, failure_code, failure_message, processed_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
           ON CONFLICT (stripe_payment_intent_id) WHERE stripe_payment_intent_id IS NOT NULL
           DO UPDATE SET
             status = 'failed',
@@ -3608,6 +3619,7 @@ async function handleStripeWebhook(event) {
           RETURNING id`,
           [
             tenantId,
+            failedPaymentRecordId,
             paymentIntent.metadata?.owner_id || null,
             paymentIntent.metadata?.invoice_id || null,
             paymentIntent.amount,
@@ -3856,14 +3868,15 @@ async function handleCreatePackage(tenantId, body) {
   try {
     await getPoolAsync();
 
+    const packageRecordId = await getNextRecordId(tenantId, 'Package');
     const result = await query(
       `INSERT INTO "Package" (
-         tenant_id, owner_id, name, description, total_credits, used_credits,
+         tenant_id, record_id, owner_id, name, description, total_credits, used_credits,
          price_in_cents, purchased_at, expires_at, is_active
        )
-       VALUES ($1, $2, $3, $4, $5, 0, $6, NOW(), $7, true)
+       VALUES ($1, $2, $3, $4, $5, $6, 0, $7, NOW(), $8, true)
        RETURNING *`,
-      [tenantId, ownerId, name, description || null, totalCredits, priceInCents || 0, expiresAt || null]
+      [tenantId, packageRecordId, ownerId, name, description || null, totalCredits, priceInCents || 0, expiresAt || null]
     );
 
     const pkg = result.rows[0];

@@ -15,7 +15,7 @@ try {
   sharedLayer = require('../../layers/shared-layer/nodejs/index');
 }
 
-const { getPoolAsync, query, softDelete, softDeleteBatch } = dbLayer;
+const { getPoolAsync, query, softDelete, softDeleteBatch, getNextRecordId } = dbLayer;
 const { createResponse, authenticateRequest, parseBody, getQueryParams, getPathParams } = sharedLayer;
 const { enforceLimit, getLimit, getTenantPlan, createTierErrorResponse } = sharedLayer;
 
@@ -661,14 +661,18 @@ async function createFacility(event) {
       throw tierError;
     }
 
-    // Schema: id, tenant_id, name, size, location, max_occupancy, is_active, created_at, updated_at
+    // Get next record_id for Kennel table
+    const recordId = await getNextRecordId(tenantId, 'Kennel');
+
+    // Schema: id, tenant_id, record_id, name, size, location, max_occupancy, is_active, created_at, updated_at
     // size must be: SMALL, MEDIUM, LARGE, XLARGE or null
     const result = await query(
-      `INSERT INTO "Kennel" (tenant_id, name, size, location, max_occupancy, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO "Kennel" (tenant_id, record_id, name, size, location, max_occupancy, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [
         tenantId,
+        recordId,
         body.name,
         body.size || null, // SMALL, MEDIUM, LARGE, XLARGE
         body.location || null,
@@ -677,7 +681,7 @@ async function createFacility(event) {
       ]
     );
 
-    console.log('[Facilities][create] created:', result.rows[0].id);
+    console.log('[Facilities][create] created:', result.rows[0].id, 'record_id:', recordId);
     return createResponse(201, { data: result.rows[0] });
   } catch (error) {
     console.error('[ENTITY-SERVICE] createFacility error:', error);
@@ -971,26 +975,31 @@ async function createPet(event) {
           vetId = existingVet.rows[0].id;
         } else {
           // Create new Veterinarian record
+          const vetRecordId = await getNextRecordId(tenantId, 'Veterinarian');
           const newVet = await query(
-            `INSERT INTO "Veterinarian" (tenant_id, clinic_name, vet_name, phone, email, is_active)
-             VALUES ($1, $2, $3, $4, $5, true)
+            `INSERT INTO "Veterinarian" (tenant_id, record_id, clinic_name, vet_name, phone, email, is_active)
+             VALUES ($1, $2, $3, $4, $5, $6, true)
              RETURNING id`,
-            [tenantId, vetClinic, vetName, vetPhone, vetEmail]
+            [tenantId, vetRecordId, vetClinic, vetName, vetPhone, vetEmail]
           );
           vetId = newVet.rows[0].id;
         }
       }
     }
 
+    // Get next record_id for Pet table
+    const recordId = await getNextRecordId(tenantId, 'Pet');
+
     // Schema: Pet table has vet_id FK, NOT embedded vet fields
     const result = await query(
-      `INSERT INTO "Pet" (tenant_id, name, species, breed, gender, color, weight, date_of_birth,
+      `INSERT INTO "Pet" (tenant_id, record_id, name, species, breed, gender, color, weight, date_of_birth,
                          microchip_number, medical_notes, behavior_notes, dietary_notes,
                          status, photo_url, is_active, vet_id, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
        RETURNING *`,
       [
         tenantId,
+        recordId,
         body.name,
         body.species || 'Dog',
         body.breed || null,
@@ -1023,7 +1032,7 @@ async function createPet(event) {
       );
     }
 
-    console.log('[ENTITY-SERVICE] Created pet:', petId);
+    console.log('[ENTITY-SERVICE] Created pet:', petId, 'record_id:', recordId);
 
     // Publish workflow event
     try {
@@ -1135,11 +1144,12 @@ async function updatePet(event) {
             [vetId, vetClinic, vetName, vetPhone, vetEmail]
           );
         } else {
+          const vetRecordId = await getNextRecordId(tenantId, 'Veterinarian');
           const newVet = await query(
-            `INSERT INTO "Veterinarian" (tenant_id, clinic_name, vet_name, phone, email, is_active)
-             VALUES ($1, $2, $3, $4, $5, true)
+            `INSERT INTO "Veterinarian" (tenant_id, record_id, clinic_name, vet_name, phone, email, is_active)
+             VALUES ($1, $2, $3, $4, $5, $6, true)
              RETURNING id`,
-            [tenantId, vetClinic, vetName, vetPhone, vetEmail]
+            [tenantId, vetRecordId, vetClinic, vetName, vetPhone, vetEmail]
           );
           vetId = newVet.rows[0].id;
         }
@@ -1372,15 +1382,20 @@ async function createOwner(event) {
 
   try {
     await getPoolAsync();
+
+    // Get next record_id for Owner table
+    const recordId = await getNextRecordId(tenantId, 'Owner');
+
     // Schema: Owner has tags (TEXT[]), stripe_customer_id, created_by, updated_by
     const result = await query(
-      `INSERT INTO "Owner" (tenant_id, first_name, last_name, email, phone,
+      `INSERT INTO "Owner" (tenant_id, record_id, first_name, last_name, email, phone,
                            address_street, address_city, address_state, address_zip, address_country,
                            emergency_contact_name, emergency_contact_phone, notes, tags, is_active, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING *`,
       [
         tenantId,
+        recordId,
         body.firstName || body.first_name || null,
         body.lastName || body.last_name || null,
         body.email || null,
@@ -1399,7 +1414,7 @@ async function createOwner(event) {
       ]
     );
 
-    console.log('[ENTITY-SERVICE] Created owner:', result.rows[0].id);
+    console.log('[ENTITY-SERVICE] Created owner:', result.rows[0].id, 'record_id:', recordId);
 
     // Publish workflow event
     try {
@@ -2038,12 +2053,14 @@ async function createStaffMember(event) {
       return createResponse(409, { error: 'Conflict', message: 'Staff record already exists for this user' });
     }
 
+    const recordId = await getNextRecordId(tenantId, 'Staff');
     const result = await query(
-      `INSERT INTO "Staff" (tenant_id, user_id, title, department, hire_date, is_active, permissions)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO "Staff" (tenant_id, record_id, user_id, title, department, hire_date, is_active, permissions)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         tenantId,
+        recordId,
         userId,
         body.title || null,
         body.department || null,
@@ -2473,16 +2490,17 @@ async function createPetVaccination(event) {
     }
 
     // Use correct column names from actual schema
+    const vaccinationRecordId = await getNextRecordId(tenantId, 'Vaccination');
     const result = await query(
       `INSERT INTO "Vaccination" (
-         tenant_id, pet_id, type, administered_at, expires_at,
+         tenant_id, record_id, pet_id, type, administered_at, expires_at,
          provider, lot_number, notes, document_url,
          created_at, updated_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
        RETURNING *`,
       [
-        tenantId, petId, vaccineType,
+        tenantId, vaccinationRecordId, petId, vaccineType,
         administeredAt || administeredDate || null,
         expiresAt || expirationDate || null,
         provider || null, lotNumber || null,
@@ -3322,16 +3340,18 @@ async function createActivity(event) {
   try {
     await getPoolAsync();
 
+    const activityRecordId = await getNextRecordId(tenantId, 'Activity');
     const result = await query(
       `INSERT INTO "Activity" (
-        tenant_id, entity_type, entity_id, activity_type,
+        tenant_id, record_id, entity_type, entity_id, activity_type,
         subject, content,
         call_duration_seconds, call_direction, call_outcome,
         recipient, is_pinned, created_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
       [
         tenantId,
+        activityRecordId,
         entityType,
         entityId,
         activityType,

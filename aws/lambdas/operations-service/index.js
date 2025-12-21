@@ -32,7 +32,7 @@ try {
   sharedLayer = require('../../layers/shared-layer/nodejs/index');
 }
 
-const { getPoolAsync, query, softDelete, softDeleteBatch } = dbLayer;
+const { getPoolAsync, query, softDelete, softDeleteBatch, getNextRecordId } = dbLayer;
 const {
   authenticateRequest,
   createResponse,
@@ -1514,12 +1514,13 @@ async function handleCreateBooking(tenantId, user, body) {
 
     // Create booking using correct schema columns
     // Note: Booking table does NOT have pet_id - pets are linked via BookingPet junction table
+    const bookingRecordId = await getNextRecordId(tenantId, 'Booking');
     const result = await query(
-      `INSERT INTO "Booking" (tenant_id, owner_id, kennel_id, service_id, check_in, check_out,
+      `INSERT INTO "Booking" (tenant_id, record_id, owner_id, kennel_id, service_id, check_in, check_out,
                               notes, special_instructions, total_price_cents, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING')
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'PENDING')
        RETURNING *`,
-      [tenantId, ownerId || null, kennelId || null, serviceId || null,
+      [tenantId, bookingRecordId, ownerId || null, kennelId || null, serviceId || null,
        startDate, endDate, notes || null, specialInstructions || null, priceInCents]
     );
 
@@ -2937,11 +2938,12 @@ async function handleCreateTask(tenantId, user, body) {
     // Support both type (frontend) and taskType - column is task_type
     const taskTypeValue = taskType || type || 'OTHER';
 
+    const taskRecordId = await getNextRecordId(tenantId, 'Task');
     const result = await query(
-      `INSERT INTO "Task" (tenant_id, title, description, priority, due_at, scheduled_for, task_type, assigned_to, booking_id, pet_id, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'PENDING', NOW(), NOW())
+      `INSERT INTO "Task" (tenant_id, record_id, title, description, priority, due_at, scheduled_for, task_type, assigned_to, booking_id, pet_id, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'PENDING', NOW(), NOW())
        RETURNING *`,
-      [tenantId, title, description, priority || 'NORMAL', dueDateValue, scheduledFor || null, taskTypeValue, assignedTo, bookingId, petId]
+      [tenantId, taskRecordId, title, description, priority || 'NORMAL', dueDateValue, scheduledFor || null, taskTypeValue, assignedTo, bookingId, petId]
     );
 
     const task = result.rows[0];
@@ -3398,12 +3400,13 @@ async function handleCreateNotification(tenantId, body) {
   try {
     await getPoolAsync();
 
+    const notificationRecordId = await getNextRecordId(tenantId, 'Notification');
     const result = await query(
       `INSERT INTO "Notification" (
-         tenant_id, user_id, type, title, message, link, metadata, is_read, created_at, updated_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, false, NOW(), NOW())
+         tenant_id, record_id, user_id, type, title, message, link, metadata, is_read, created_at, updated_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, false, NOW(), NOW())
        RETURNING id, type, title, message, link, metadata, is_read, created_at`,
-      [tenantId, userId || null, type, title, message || null, link || null, metadata ? JSON.stringify(metadata) : null]
+      [tenantId, notificationRecordId, userId || null, type, title, message || null, link || null, metadata ? JSON.stringify(metadata) : null]
     );
 
     const notification = result.rows[0];
@@ -3589,15 +3592,17 @@ async function handleCreateRunTemplate(tenantId, body) {
   try {
     await getPoolAsync();
 
+    const runTemplateRecordId = await getNextRecordId(tenantId, 'RunTemplate');
     const result = await query(
       `INSERT INTO "RunTemplate" (
-         tenant_id, name, description, capacity, start_time, end_time,
+         tenant_id, record_id, name, description, capacity, start_time, end_time,
          days_of_week, run_type, is_active, created_at, updated_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, NOW(), NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, NOW(), NOW())
        RETURNING *`,
       [
         tenantId,
+        runTemplateRecordId,
         name,
         description || null,
         capacity || 10,
@@ -4254,11 +4259,12 @@ async function handleSaveRunAssignments(tenantId, body, user) {
         }
 
         try {
+          const runAssignmentRecordId = await getNextRecordId(tenantId, 'RunAssignment');
           const result = await query(
-            `INSERT INTO "RunAssignment" (tenant_id, run_id, pet_id, booking_id, assigned_date, start_time, end_time, notes, created_by)
-             VALUES ($1, $2, $3, $4, $5::date, $6::time, $7::time, $8, $9)
+            `INSERT INTO "RunAssignment" (tenant_id, record_id, run_id, pet_id, booking_id, assigned_date, start_time, end_time, notes, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6::date, $7::time, $8::time, $9, $10)
              RETURNING id`,
-            [tenantId, runId, petId, finalBookingId, date, startTime || null, endTime || null, notes || null, userId]
+            [tenantId, runAssignmentRecordId, runId, petId, finalBookingId, date, startTime || null, endTime || null, notes || null, userId]
           );
 
           created.push({
@@ -4537,12 +4543,13 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
         console.log('[RunAssignments][assignToRun] Found RunTemplate:', template.name, '- creating Run record');
 
         // Create a Run record from the template (using same ID for consistency)
+        const runRecordId = await getNextRecordId(tenantId, 'Run');
         const createRun = await query(
-          `INSERT INTO "Run" (id, tenant_id, name, description, capacity, run_type, is_active)
-           VALUES ($1, $2, $3, $4, $5, $6, true)
+          `INSERT INTO "Run" (id, tenant_id, record_id, name, description, capacity, run_type, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, true)
            ON CONFLICT (id) DO NOTHING
            RETURNING id`,
-          [template.id, tenantId, template.name, template.description, template.capacity, template.run_type]
+          [template.id, tenantId, runRecordId, template.name, template.description, template.capacity, template.run_type]
         );
 
         if (createRun.rows.length > 0) {
@@ -4589,11 +4596,12 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
           );
         } else {
           // Insert new
+          const assignmentRecordId = await getNextRecordId(tenantId, 'RunAssignment');
           result = await query(
-            `INSERT INTO "RunAssignment" (tenant_id, run_id, pet_id, booking_id, assigned_date, start_time, end_time)
-             VALUES ($1, $2, $3, $4, $5::date, $6::time, $7::time)
+            `INSERT INTO "RunAssignment" (tenant_id, record_id, run_id, pet_id, booking_id, assigned_date, start_time, end_time)
+             VALUES ($1, $2, $3, $4, $5, $6::date, $7::time, $8::time)
              RETURNING id`,
-            [tenantId, actualRunId, petId, bookingId, date, startTimeVal, endTimeVal]
+            [tenantId, assignmentRecordId, actualRunId, petId, bookingId, date, startTimeVal, endTimeVal]
           );
         }
 
@@ -4803,15 +4811,17 @@ async function handleCreateRun(tenantId, body) {
   try {
     await getPoolAsync();
 
+    const runRecordId = await getNextRecordId(tenantId, 'Run');
     const result = await query(
       `INSERT INTO "Run" (
-         tenant_id, template_id, facility_id, name, code, size, species,
+         tenant_id, record_id, template_id, facility_id, name, code, size, species,
          sort_order, is_active, created_at, updated_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
        RETURNING *`,
       [
         tenantId,
+        runRecordId,
         templateId || null,
         facilityId || null,
         name,
@@ -6997,17 +7007,19 @@ async function handleCreateIncident(tenantId, user, body) {
       resolvedOwnerId = ownerResult.rows[0]?.owner_id || null;
     }
 
+    const incidentRecordId = await getNextRecordId(tenantId, 'Incident');
     const result = await query(
       `INSERT INTO "Incident" (
-         tenant_id, pet_id, booking_id, owner_id, incident_type, severity,
+         tenant_id, record_id, pet_id, booking_id, owner_id, incident_type, severity,
          title, description, incident_date, location, staff_involved, staff_witness,
          immediate_actions, vet_contacted, vet_name, medical_treatment,
          photos, documents, status, created_by, created_at, updated_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'OPEN', $19, NOW(), NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, 'OPEN', $20, NOW(), NOW())
        RETURNING *`,
       [
         tenantId,
+        incidentRecordId,
         petId || null,
         bookingId || null,
         resolvedOwnerId || null,
@@ -7490,11 +7502,12 @@ async function handleCreateWorkflow(tenantId, user, body) {
       ? JSON.stringify(settings.goalConfig.conditions)
       : null;
 
+    const workflowRecordId = await getNextRecordId(tenantId, 'Workflow');
     const result = await query(
-      `INSERT INTO "Workflow" (tenant_id, name, description, object_type, status, entry_condition, settings, created_by, suppression_segment_ids, goal_config)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO "Workflow" (tenant_id, record_id, name, description, object_type, status, entry_condition, settings, created_by, suppression_segment_ids, goal_config)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
-      [tenantId, name, description || null, object_type, status, JSON.stringify(entry_condition), JSON.stringify(settings), user?.userId || null, suppressionSegmentIds, goalConfig]
+      [tenantId, workflowRecordId, name, description || null, object_type, status, JSON.stringify(entry_condition), JSON.stringify(settings), user?.userId || null, suppressionSegmentIds, goalConfig]
     );
 
     const workflow = result.rows[0];
@@ -7672,11 +7685,12 @@ async function handleCloneWorkflow(tenantId, user, workflowId) {
     const original = originalResult.rows[0];
 
     // Create clone
+    const clonedWorkflowRecordId = await getNextRecordId(tenantId, 'Workflow');
     const cloneResult = await query(
-      `INSERT INTO "Workflow" (tenant_id, name, description, object_type, status, entry_condition, settings, folder_id, created_by)
-       VALUES ($1, $2, $3, $4, 'draft', $5, $6, $7, $8)
+      `INSERT INTO "Workflow" (tenant_id, record_id, name, description, object_type, status, entry_condition, settings, folder_id, created_by)
+       VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9)
        RETURNING *`,
-      [tenantId, `${original.name} (Copy)`, original.description, original.object_type,
+      [tenantId, clonedWorkflowRecordId, `${original.name} (Copy)`, original.description, original.object_type,
        JSON.stringify(original.entry_condition), JSON.stringify(original.settings), original.folder_id, user?.userId || null]
     );
 
@@ -7689,10 +7703,11 @@ async function handleCloneWorkflow(tenantId, user, workflowId) {
     );
 
     for (const step of stepsResult.rows) {
+      const stepRecordId = await getNextRecordId(tenantId, 'WorkflowStep');
       await query(
-        `INSERT INTO "WorkflowStep" (workflow_id, parent_step_id, branch_path, position, step_type, action_type, config)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [clonedWorkflow.id, null, step.branch_path, step.position, step.step_type, step.action_type, JSON.stringify(step.config)]
+        `INSERT INTO "WorkflowStep" (workflow_id, record_id, parent_step_id, branch_path, position, step_type, action_type, config)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [clonedWorkflow.id, stepRecordId, null, step.branch_path, step.position, step.step_type, step.action_type, JSON.stringify(step.config)]
       );
     }
 
@@ -8892,11 +8907,12 @@ async function handleUpdateWorkflowSteps(tenantId, user, workflowId, body) {
 
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i];
+      const stepRecordId = await getNextRecordId(tenantId, 'WorkflowStep');
       const result = await query(
-        `INSERT INTO "WorkflowStep" (workflow_id, parent_step_id, branch_path, position, step_type, action_type, name, config)
-         VALUES ($1, NULL, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO "WorkflowStep" (workflow_id, record_id, parent_step_id, branch_path, position, step_type, action_type, name, config)
+         VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [workflowId, step.branch_path || null, i, step.step_type, step.action_type || null, step.name || null, JSON.stringify(step.config || {})]
+        [workflowId, stepRecordId, step.branch_path || null, i, step.step_type, step.action_type || null, step.name || null, JSON.stringify(step.config || {})]
       );
       const newStep = result.rows[0];
       insertedSteps.push(newStep);
@@ -9605,11 +9621,12 @@ async function handleCreateWorkflowFolder(tenantId, user, body) {
   try {
     await getPoolAsync();
 
+    const folderRecordId = await getNextRecordId(tenantId, 'WorkflowFolder');
     const result = await query(
-      `INSERT INTO "WorkflowFolder" (tenant_id, name, parent_id)
-       VALUES ($1, $2, $3)
+      `INSERT INTO "WorkflowFolder" (tenant_id, record_id, name, parent_id)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [tenantId, name, parent_id || null]
+      [tenantId, folderRecordId, name, parent_id || null]
     );
 
     return createResponse(201, result.rows[0]);
@@ -9765,11 +9782,12 @@ async function handleClockIn(tenantId, user, body) {
     }
 
     // Create new time entry
+    const timeEntryRecordId = await getNextRecordId(tenantId, 'TimeEntry');
     const result = await query(
-      `INSERT INTO "TimeEntry" (tenant_id, user_id, clock_in, notes, location, status)
-       VALUES ($1, $2, NOW(), $3, $4, 'ACTIVE')
+      `INSERT INTO "TimeEntry" (tenant_id, record_id, user_id, clock_in, notes, location, status)
+       VALUES ($1, $2, $3, NOW(), $4, $5, 'ACTIVE')
        RETURNING *`,
-      [tenantId, userId, notes || null, location || null]
+      [tenantId, timeEntryRecordId, userId, notes || null, location || null]
     );
 
     const entry = result.rows[0];
@@ -11535,15 +11553,16 @@ async function handleGenerateRecurringInstances(tenantId, recurringId, body) {
           }
 
           // Create single booking (Schema: total_price_cents not total_price_in_cents)
+          const recurringBookingRecordId = await getNextRecordId(tenantId, 'Booking');
           const bookingResult = await query(
             `INSERT INTO "Booking" (
-               tenant_id, owner_id, kennel_id, service_id, check_in, check_out,
+               tenant_id, record_id, owner_id, kennel_id, service_id, check_in, check_out,
                notes, special_instructions, total_price_cents, status
              )
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING')
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'PENDING')
              RETURNING id`,
             [
-              tenantId, rb.owner_id, rb.preferred_kennel_id,
+              tenantId, recurringBookingRecordId, rb.owner_id, rb.preferred_kennel_id,
               rb.service_id, checkIn, checkOut, rb.notes,
               rb.special_instructions, rb.price_per_occurrence_cents
             ]
@@ -12111,15 +12130,17 @@ async function handleCustomerCreateBooking(tenantId, user, body) {
     // Create booking with PENDING status (requires staff approval)
     // Schema: check_in, check_out (not start_date/end_date), total_price_cents (not total_price)
     // Use BookingPet junction table instead of pet_ids array
+    const portalBookingRecordId = await getNextRecordId(tenantId, 'Booking');
     const bookingResult = await query(
       `INSERT INTO "Booking" (
-         tenant_id, owner_id, service_id, kennel_id,
+         tenant_id, record_id, owner_id, service_id, kennel_id,
          check_in, check_out, status, total_price_cents, notes,
          created_at, updated_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', $7, $8, NOW(), NOW())
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', $8, $9, NOW(), NOW())
        RETURNING *`,
       [
         tenantId,
+        portalBookingRecordId,
         ownerId,
         serviceId || null,
         kennelId || null,
@@ -12736,11 +12757,12 @@ async function handleCreateStaffMember(tenantId, user, body) {
   try {
     await getPoolAsync();
 
+    const staffRecordId = await getNextRecordId(tenantId, 'Staff');
     const result = await query(
-      `INSERT INTO "Staff" (tenant_id, user_id, title, role, hourly_rate, hire_date, notes, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+      `INSERT INTO "Staff" (tenant_id, record_id, user_id, title, role, hourly_rate, hire_date, notes, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
        RETURNING *`,
-      [tenantId, userId || null, title || null, role || 'STAFF', hourlyRate || null, hireDate || null, notes || null]
+      [tenantId, staffRecordId, userId || null, title || null, role || 'STAFF', hourlyRate || null, hireDate || null, notes || null]
     );
 
     const staff = result.rows[0];
