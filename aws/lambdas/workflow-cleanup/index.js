@@ -56,9 +56,12 @@ exports.handler = async (event) => {
     // Initialize database connection
     await getPoolAsync();
 
-    // Get all tenants with their retention settings
+    // Get all tenants with their retention settings from TenantSettings table
     const tenantsResult = await query(
-      `SELECT id, name, settings FROM "Tenant" WHERE deleted_at IS NULL`
+      `SELECT t.id, t.name, ts.workflow_log_retention_days, ts.workflow_execution_retention_days
+       FROM "Tenant" t
+       LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
+       WHERE t.deleted_at IS NULL`
     );
 
     console.log('[CLEANUP] Found', tenantsResult.rows.length, 'tenants');
@@ -117,11 +120,9 @@ exports.handler = async (event) => {
  * Clean up workflow data for a single tenant
  */
 async function cleanupTenantData(tenant) {
-  const settings = tenant.settings || {};
-
   // Get tenant-specific retention periods or use defaults
-  const logRetentionDays = settings.workflow_log_retention_days || DEFAULT_LOG_RETENTION_DAYS;
-  const executionRetentionDays = settings.workflow_execution_retention_days || DEFAULT_EXECUTION_RETENTION_DAYS;
+  const logRetentionDays = tenant.workflow_log_retention_days || DEFAULT_LOG_RETENTION_DAYS;
+  const executionRetentionDays = tenant.workflow_execution_retention_days || DEFAULT_EXECUTION_RETENTION_DAYS;
 
   console.log('[CLEANUP] Processing tenant:', tenant.name);
   console.log('[CLEANUP] Log retention:', logRetentionDays, 'days');
@@ -275,7 +276,10 @@ exports.manualCleanup = async (tenantId, logRetentionDays, executionRetentionDay
   if (tenantId) {
     // Clean specific tenant
     const tenantResult = await query(
-      `SELECT id, name, settings FROM "Tenant" WHERE id = $1`,
+      `SELECT t.id, t.name, ts.workflow_log_retention_days, ts.workflow_execution_retention_days
+       FROM "Tenant" t
+       LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
+       WHERE t.id = $1`,
       [tenantId]
     );
 
@@ -284,8 +288,9 @@ exports.manualCleanup = async (tenantId, logRetentionDays, executionRetentionDay
     }
 
     const tenant = tenantResult.rows[0];
-    if (logRetentionDays) tenant.settings = { ...tenant.settings, workflow_log_retention_days: logRetentionDays };
-    if (executionRetentionDays) tenant.settings = { ...tenant.settings, workflow_execution_retention_days: executionRetentionDays };
+    // Override with manual values if provided
+    if (logRetentionDays) tenant.workflow_log_retention_days = logRetentionDays;
+    if (executionRetentionDays) tenant.workflow_execution_retention_days = executionRetentionDays;
 
     return cleanupTenantData(tenant);
   }

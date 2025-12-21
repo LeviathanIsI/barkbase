@@ -219,7 +219,10 @@ async function sendFailureNotification(tenantId, executionId, workflowId, errorD
   try {
     // Check if tenant has workflow failure notifications enabled
     const tenantResult = await query(
-      `SELECT name, settings FROM "Tenant" WHERE id = $1`,
+      `SELECT t.name, ts.workflow_failure_notifications, ts.workflow_failure_notification_emails
+       FROM "Tenant" t
+       LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
+       WHERE t.id = $1`,
       [tenantId]
     );
 
@@ -229,16 +232,15 @@ async function sendFailureNotification(tenantId, executionId, workflowId, errorD
     }
 
     const tenant = tenantResult.rows[0];
-    const settings = tenant.settings || {};
 
     // Check if notifications are enabled
-    if (!settings.workflow_failure_notifications) {
+    if (!tenant.workflow_failure_notifications) {
       console.log('[DLQ PROCESSOR] Workflow failure notifications not enabled for tenant');
       return;
     }
 
     // Get notification recipients (admin emails)
-    const notifyEmails = settings.workflow_failure_notification_emails || [];
+    const notifyEmails = tenant.workflow_failure_notification_emails || [];
 
     if (notifyEmails.length === 0) {
       // Fall back to tenant admin users
