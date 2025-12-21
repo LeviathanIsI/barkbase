@@ -47,6 +47,9 @@ const {
   publishBookingCheckedIn,
   publishBookingCheckedOut,
   publishBookingCancelled,
+  // Account code resolver (New ID System)
+  resolveAccountContext,
+  rewritePathToLegacy,
 } = sharedLayer;
 
 // SQS for workflow step queuing and trigger events
@@ -213,7 +216,7 @@ exports.handler = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
 
   const method = event.requestContext?.http?.method || event.httpMethod || 'GET';
-  const path = event.requestContext?.http?.path || event.path || '/';
+  let path = event.requestContext?.http?.path || event.path || '/';
 
   console.log('[OPERATIONS-SERVICE] Request:', { method, path, headers: Object.keys(event.headers || {}) });
 
@@ -223,6 +226,35 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    // =========================================================================
+    // NEW ID SYSTEM: Resolve account_code to tenant_id
+    // Supports both new URL pattern and X-Account-Code header
+    // =========================================================================
+    const accountContext = await resolveAccountContext(event);
+    if (!accountContext.valid) {
+      console.error('[OPERATIONS-SERVICE] Account context invalid:', accountContext.error);
+      return createResponse(400, {
+        error: 'BadRequest',
+        message: accountContext.error || 'Invalid account context',
+      });
+    }
+
+    // If using new ID pattern, rewrite path to legacy format for handler compatibility
+    if (accountContext.isNewPattern) {
+      rewritePathToLegacy(event, accountContext);
+      path = event.requestContext?.http?.path || event.path || '/';
+      console.log('[OPERATIONS-SERVICE] New ID pattern detected:', {
+        accountCode: accountContext.accountCode,
+        tenantId: accountContext.tenantId,
+        typeId: accountContext.typeId,
+        recordId: accountContext.recordId,
+      });
+    }
+
+    // Store resolved tenant_id for later use
+    event.resolvedTenantId = accountContext.tenantId;
+    event.accountContext = accountContext;
+
     // Authenticate request
     const authResult = await authenticateRequest(event);
     if (!authResult.authenticated) {
@@ -234,8 +266,8 @@ exports.handler = async (event, context) => {
 
     const user = authResult.user;
 
-    // Get tenantId - prefer X-Tenant-Id header from frontend, fallback to database lookup
-    let tenantId = getTenantIdFromHeader(event);
+    // Get tenantId - prefer account context, then X-Tenant-Id header, fallback to database lookup
+    let tenantId = accountContext.tenantId || getTenantIdFromHeader(event);
 
     if (!tenantId) {
       // Fallback to database lookup

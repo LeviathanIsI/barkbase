@@ -18,6 +18,7 @@ try {
 const { getPoolAsync, query, softDelete, softDeleteBatch, getNextRecordId } = dbLayer;
 const { createResponse, authenticateRequest, parseBody, getQueryParams, getPathParams } = sharedLayer;
 const { enforceLimit, getLimit, getTenantPlan, createTierErrorResponse } = sharedLayer;
+const { resolveAccountContext, rewritePathToLegacy, OBJECT_TYPE_CODES } = sharedLayer;
 
 // SQS for workflow trigger events
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
@@ -129,14 +130,18 @@ function getTenantIdFromHeader(event) {
  * tenant's data by manipulating the X-Tenant-Id header.
  *
  * Precedence:
- * 1. JWT claims (authorizer) - most trusted source
- * 2. event.user.tenantId (from authenticateRequest)
- * 3. X-Tenant-Id header - only if matches JWT or no JWT available
+ * 1. Account context (from new ID system URL pattern or X-Account-Code header)
+ * 2. JWT claims (authorizer) - most trusted source
+ * 3. event.user.tenantId (from authenticateRequest)
+ * 4. X-Tenant-Id header - only if matches JWT or no JWT available
  *
  * @param {object} event - Lambda event
  * @returns {string|null} - Resolved tenant ID or null if validation fails
  */
 function resolveTenantId(event) {
+  // NEW ID SYSTEM: Check for resolved tenant from account_code first
+  const accountTenantId = event.resolvedTenantId || event.accountContext?.tenantId;
+
   // Extract tenant ID from all sources
   const headers = event.headers || {};
   const headerTenantId =
@@ -151,6 +156,20 @@ function resolveTenantId(event) {
     event.requestContext?.authorizer?.tenantId;
 
   const userTenantId = event.user?.tenantId;
+
+  // SECURITY: If account_code resolved to a tenant, validate it matches JWT/user
+  if (accountTenantId) {
+    if (jwtTenantId && accountTenantId !== jwtTenantId) {
+      console.error('[ENTITY-SERVICE][SECURITY] Account tenant mismatch - account:', accountTenantId, 'jwt:', jwtTenantId);
+      return null;
+    }
+    if (userTenantId && accountTenantId !== userTenantId) {
+      console.error('[ENTITY-SERVICE][SECURITY] Account tenant mismatch - account:', accountTenantId, 'user:', userTenantId);
+      return null;
+    }
+    console.log('[ENTITY-SERVICE] Resolved tenantId:', accountTenantId, '(source: account_code)');
+    return accountTenantId;
+  }
 
   // SECURITY: If both header and JWT exist, they MUST match
   if (headerTenantId && jwtTenantId && headerTenantId !== jwtTenantId) {
@@ -252,7 +271,7 @@ exports.handler = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
 
   const method = event.requestContext?.http?.method || event.httpMethod || 'GET';
-  const path = event.requestContext?.http?.path || event.path || '/';
+  let path = event.requestContext?.http?.path || event.path || '/';
 
   console.log('[ENTITY-SERVICE] Request:', { method, path, headers: Object.keys(event.headers || {}) });
 
@@ -262,6 +281,35 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    // =========================================================================
+    // NEW ID SYSTEM: Resolve account_code to tenant_id
+    // Supports both new URL pattern and X-Account-Code header
+    // =========================================================================
+    const accountContext = await resolveAccountContext(event);
+    if (!accountContext.valid) {
+      console.error('[ENTITY-SERVICE] Account context invalid:', accountContext.error);
+      return createResponse(400, {
+        error: 'BadRequest',
+        message: accountContext.error || 'Invalid account context',
+      });
+    }
+
+    // If using new ID pattern, rewrite path to legacy format for handler compatibility
+    if (accountContext.isNewPattern) {
+      rewritePathToLegacy(event, accountContext);
+      path = event.requestContext?.http?.path || event.path || '/';
+      console.log('[ENTITY-SERVICE] New ID pattern detected:', {
+        accountCode: accountContext.accountCode,
+        tenantId: accountContext.tenantId,
+        typeId: accountContext.typeId,
+        recordId: accountContext.recordId,
+      });
+    }
+
+    // Store resolved tenant_id for later use
+    event.resolvedTenantId = accountContext.tenantId;
+    event.accountContext = accountContext;
+
     // Authenticate request
     const authResult = await authenticateRequest(event);
     if (!authResult.authenticated) {

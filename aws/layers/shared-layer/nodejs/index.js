@@ -24,6 +24,7 @@ const vaccinationRules = require('./vaccination-rules');
 const auditUtils = require('./audit-utils');
 const tierEnforcement = require('./tier-enforcement');
 const workflowEvents = require('./workflow-events');
+const accountResolver = require('./account-resolver');
 
 
 /**
@@ -305,4 +306,16 @@ module.exports = {
   // Task events
   publishTaskCreated: workflowEvents.publishTaskCreated,
   publishTaskCompleted: workflowEvents.publishTaskCompleted,
+
+  // Account Code Resolver exports (New ID System)
+  accountResolver,
+  getTenantByAccountCode: accountResolver.getTenantByAccountCode,
+  resolveAccountContext: accountResolver.resolveAccountContext,
+  rewritePathToLegacy: accountResolver.rewritePathToLegacy,
+  validateTypeId: accountResolver.validateTypeId,
+  parseNewIdPattern: accountResolver.parseNewIdPattern,
+  getAccountCodeFromHeader: accountResolver.getAccountCodeFromHeader,
+  getEntityTypeFromId: accountResolver.getEntityTypeFromId,
+  OBJECT_TYPE_CODES: accountResolver.OBJECT_TYPE_CODES,
+  TYPE_CODE_TO_ENTITY: accountResolver.TYPE_CODE_TO_ENTITY,
 };

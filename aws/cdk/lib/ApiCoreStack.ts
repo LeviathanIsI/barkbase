@@ -85,6 +85,7 @@ export class ApiCoreStack extends cdk.Stack {
           'X-Api-Key',
           'X-Amz-Security-Token',
           'X-Tenant-Id',
+          'X-Account-Code',
           'X-Request-Id',
         ],
         allowCredentials: true,
