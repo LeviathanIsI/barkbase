@@ -279,7 +279,24 @@ async function processStepExecution(message) {
   console.log('[STEP EXECUTOR] Step found:', JSON.stringify(step, null, 2));
   console.log('[STEP EXECUTOR] Step type:', step.step_type);
   console.log('[STEP EXECUTOR] Action type:', step.action_type);
-  console.log('[STEP EXECUTOR] Step config:', JSON.stringify(step.config, null, 2));
+  console.log('[STEP EXECUTOR] Step config (live):', JSON.stringify(step.config, null, 2));
+
+  // If execution has workflow_revision, use snapshotted step config
+  // This ensures in-progress executions use the version they enrolled under
+  if (execution.workflow_revision) {
+    console.log('[STEP EXECUTOR] Execution has workflow_revision:', execution.workflow_revision);
+    const snapshotConfig = await getStepConfigFromRevision(
+      execution.workflow_id,
+      targetStepId,
+      execution.workflow_revision
+    );
+    if (snapshotConfig) {
+      step.config = snapshotConfig;
+      console.log('[STEP EXECUTOR] Step config (from revision snapshot):', JSON.stringify(step.config, null, 2));
+    } else {
+      console.log('[STEP EXECUTOR] No snapshot config found, using live config');
+    }
+  }
 
   // Get record data for template interpolation
   console.log('[STEP EXECUTOR] Fetching record data. Record ID:', execution.record_id, '| Type:', execution.object_type);
@@ -2081,6 +2098,45 @@ async function findNextStep(workflowId, currentStepId, parentStepId, branchPath)
 
   // No more steps
   return null;
+}
+
+/**
+ * Get step config from workflow revision snapshot
+ * When an execution has workflow_revision set, we use the snapshotted step config
+ * to ensure in-progress executions use the version they enrolled under
+ */
+async function getStepConfigFromRevision(workflowId, stepId, revisionNumber) {
+  try {
+    const revisionResult = await query(
+      `SELECT workflow_snapshot FROM "WorkflowRevision"
+       WHERE workflow_id = $1 AND revision_number = $2`,
+      [workflowId, revisionNumber]
+    );
+
+    if (revisionResult.rows.length === 0) {
+      console.log('[STEP EXECUTOR] No revision found for workflow:', workflowId, 'revision:', revisionNumber);
+      return null;
+    }
+
+    const snapshot = revisionResult.rows[0].workflow_snapshot;
+    if (!snapshot || !snapshot.steps) {
+      console.log('[STEP EXECUTOR] Revision has no steps snapshot');
+      return null;
+    }
+
+    // Find the step in the snapshot by ID
+    const snapshotStep = snapshot.steps.find(s => s.id === stepId);
+    if (!snapshotStep) {
+      console.log('[STEP EXECUTOR] Step not found in revision snapshot:', stepId);
+      return null;
+    }
+
+    console.log('[STEP EXECUTOR] Using snapshotted step config from revision', revisionNumber);
+    return snapshotStep.config;
+  } catch (error) {
+    console.error('[STEP EXECUTOR] Error loading revision snapshot:', error);
+    return null;
+  }
 }
 
 /**

@@ -503,6 +503,10 @@ router.post('/workflows/:id/activate', async (req, res) => {
     );
     console.log('[WORKFLOW API] Workflow BEFORE update:', JSON.stringify(beforeRows[0], null, 2));
 
+    // Create revision snapshot before activating
+    const revisionResult = await createWorkflowRevision(pool, id, tenantId, req.userId, 'Workflow activated');
+    console.log('[WORKFLOW API] Revision created:', revisionResult);
+
     const { rows } = await pool.query(
       `UPDATE "Workflow"
        SET status = 'active', updated_at = NOW()
@@ -524,7 +528,7 @@ router.post('/workflows/:id/activate', async (req, res) => {
     console.log('[WORKFLOW API] Settings:', JSON.stringify(workflow.settings, null, 2));
     console.log('[WORKFLOW API] ========== ACTIVATE COMPLETE ==========');
 
-    return ok(res, rows[0]);
+    return ok(res, { ...rows[0], revision: revisionResult });
   } catch (error) {
     console.error('[WORKFLOW API] activateWorkflow FAILED:', error);
     return fail(res, 500, { message: 'Failed to activate workflow' });
@@ -1136,6 +1140,10 @@ router.post('/workflows/:id/activate-with-enrollment', async (req, res) => {
 
     const workflow = beforeRows[0];
 
+    // Create revision snapshot before activating
+    const revisionResult = await createWorkflowRevision(pool, id, tenantId, req.userId, 'Workflow activated with enrollment');
+    console.log('[WORKFLOW API] Revision created:', revisionResult);
+
     // Activate the workflow
     const { rows } = await pool.query(
       `UPDATE "Workflow"
@@ -1169,6 +1177,113 @@ router.post('/workflows/:id/activate-with-enrollment', async (req, res) => {
     return fail(res, 500, { message: 'Failed to activate workflow' });
   }
 });
+
+/**
+ * Helper: Create a workflow revision snapshot
+ * Called when workflow is activated to preserve the version for in-progress executions
+ */
+async function createWorkflowRevision(pool, workflowId, tenantId, userId = null, changeSummary = 'Workflow activated') {
+  try {
+    // Get current workflow
+    const { rows: workflowRows } = await pool.query(
+      `SELECT * FROM "Workflow" WHERE id = $1 AND tenant_id = $2`,
+      [workflowId, tenantId],
+    );
+
+    if (workflowRows.length === 0) {
+      throw new Error('Workflow not found');
+    }
+
+    const workflow = workflowRows[0];
+
+    // Get all steps for this workflow
+    const { rows: stepRows } = await pool.query(
+      `SELECT * FROM "WorkflowStep" WHERE workflow_id = $1 ORDER BY position`,
+      [workflowId],
+    );
+
+    // Build snapshot with full workflow definition
+    const snapshot = {
+      workflow: {
+        id: workflow.id,
+        name: workflow.name,
+        description: workflow.description,
+        object_type: workflow.object_type,
+        entry_condition: workflow.entry_condition,
+        settings: workflow.settings,
+        goal_config: workflow.goal_config,
+        suppression_segment_ids: workflow.suppression_segment_ids,
+        timing_config: workflow.timing_config,
+      },
+      steps: stepRows.map(step => ({
+        id: step.id,
+        parent_step_id: step.parent_step_id,
+        branch_path: step.branch_path,
+        position: step.position,
+        step_type: step.step_type,
+        action_type: step.action_type,
+        name: step.name,
+        config: step.config,
+        next_step_id: step.next_step_id,
+        yes_step_id: step.yes_step_id,
+        no_step_id: step.no_step_id,
+      })),
+      created_at: new Date().toISOString(),
+    };
+
+    // Get current revision number and increment
+    const currentRevision = workflow.revision || 1;
+    const newRevisionNumber = currentRevision;
+
+    // Check if revision already exists for this number
+    const { rows: existingRevision } = await pool.query(
+      `SELECT id FROM "WorkflowRevision"
+       WHERE workflow_id = $1 AND revision_number = $2`,
+      [workflowId, newRevisionNumber],
+    );
+
+    let revisionId;
+
+    if (existingRevision.length > 0) {
+      // Update existing revision
+      const { rows: updatedRows } = await pool.query(
+        `UPDATE "WorkflowRevision"
+         SET workflow_snapshot = $1, created_at = NOW(), created_by = $2, change_summary = $3
+         WHERE workflow_id = $4 AND revision_number = $5
+         RETURNING id`,
+        [JSON.stringify(snapshot), userId, changeSummary, workflowId, newRevisionNumber],
+      );
+      revisionId = updatedRows[0].id;
+      console.log('[WORKFLOW API] Updated existing revision:', revisionId);
+    } else {
+      // Create new revision
+      const { rows: insertedRows } = await pool.query(
+        `INSERT INTO "WorkflowRevision" (workflow_id, revision_number, workflow_snapshot, created_by, change_summary)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id`,
+        [workflowId, newRevisionNumber, JSON.stringify(snapshot), userId, changeSummary],
+      );
+      revisionId = insertedRows[0].id;
+      console.log('[WORKFLOW API] Created new revision:', revisionId);
+    }
+
+    console.log('[WORKFLOW API] Workflow revision created:', {
+      workflowId,
+      revisionNumber: newRevisionNumber,
+      revisionId,
+      stepCount: stepRows.length,
+    });
+
+    return {
+      revisionId,
+      revisionNumber: newRevisionNumber,
+      stepCount: stepRows.length,
+    };
+  } catch (error) {
+    console.error('[WORKFLOW API] Failed to create workflow revision:', error);
+    throw error;
+  }
+}
 
 /**
  * Helper: Enroll all matching records into a workflow

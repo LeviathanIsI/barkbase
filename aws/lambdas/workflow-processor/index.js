@@ -1001,13 +1001,15 @@ async function enrollInWorkflow(workflow, recordId, recordType, tenantId, eventD
 
   const firstStepId = firstStepResult.rows[0].id;
 
-  // Create enrollment
+  // Create enrollment with workflow revision for versioning
+  // This ensures the execution uses the step config from the version it enrolled under
+  const currentRevision = workflow.revision || 1;
   const enrollmentResult = await query(
     `INSERT INTO "WorkflowExecution"
-       (workflow_id, tenant_id, record_id, record_type, status, current_step_id)
-     VALUES ($1, $2, $3, $4, 'running', $5)
+       (workflow_id, tenant_id, record_id, record_type, status, current_step_id, workflow_revision)
+     VALUES ($1, $2, $3, $4, 'running', $5, $6)
      RETURNING id`,
-    [workflow.id, tenantId, recordId, recordType, firstStepId]
+    [workflow.id, tenantId, recordId, recordType, firstStepId, currentRevision]
   );
 
   const executionId = enrollmentResult.rows[0].id;
