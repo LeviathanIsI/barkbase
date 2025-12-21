@@ -2302,44 +2302,36 @@ async function getRecordData(recordId, recordType, tenantId) {
       }
     }
 
-    // Get related owner
-    if (data.record?.owner_id) {
-      const ownerResult = await query(
-        `SELECT * FROM "Owner" WHERE id = $1`,
-        [data.record.owner_id]
-      );
-      if (ownerResult.rows.length > 0) {
-        data.owner = ownerResult.rows[0];
-        data.owner.full_name = `${data.owner.first_name} ${data.owner.last_name}`.trim();
-      }
+    // Fetch related entities based on record type
+    switch (recordType) {
+      case 'booking':
+        await fetchBookingRelatedData(data, tenantId);
+        break;
+      case 'pet':
+        await fetchPetRelatedData(data, tenantId);
+        break;
+      case 'owner':
+        await fetchOwnerRelatedData(data, tenantId);
+        break;
+      case 'payment':
+        await fetchPaymentRelatedData(data, tenantId);
+        break;
+      case 'invoice':
+        await fetchInvoiceRelatedData(data, tenantId);
+        break;
+      case 'task':
+        await fetchTaskRelatedData(data, tenantId);
+        break;
+      default:
+        // For other types, try generic owner/pet lookup
+        await fetchGenericRelatedData(data);
     }
 
-    // Get related pet
-    if (data.record?.pet_id) {
-      const petResult = await query(
-        `SELECT * FROM "Pet" WHERE id = $1`,
-        [data.record.pet_id]
-      );
-      if (petResult.rows.length > 0) {
-        data.pet = petResult.rows[0];
-      }
-    }
-
-    // For pet records, get owner
-    if (recordType === 'pet' && data.pet?.owner_id) {
-      const ownerResult = await query(
-        `SELECT * FROM "Owner" WHERE id = $1`,
-        [data.pet.owner_id]
-      );
-      if (ownerResult.rows.length > 0) {
-        data.owner = ownerResult.rows[0];
-        data.owner.full_name = `${data.owner.first_name} ${data.owner.last_name}`.trim();
-      }
-    }
-
-    // Get tenant info
+    // Get tenant info for {{tenant.name}}, {{tenant.phone}}, etc.
     const tenantResult = await query(
-      `SELECT * FROM "Tenant" WHERE id = $1`,
+      `SELECT id, name, phone, email, address, website,
+              business_hours, timezone, settings
+       FROM "Tenant" WHERE id = $1`,
       [tenantId]
     );
     if (tenantResult.rows.length > 0) {
@@ -2351,6 +2343,349 @@ async function getRecordData(recordId, recordType, tenantId) {
   }
 
   return data;
+}
+
+/**
+ * Fetch related data for booking records
+ * Bookings have: owner, multiple pets (via BookingPet junction), kennel
+ */
+async function fetchBookingRelatedData(data, tenantId) {
+  if (!data.booking) return;
+
+  // Get owner
+  if (data.booking.owner_id) {
+    const ownerResult = await query(
+      `SELECT * FROM "Owner" WHERE id = $1`,
+      [data.booking.owner_id]
+    );
+    if (ownerResult.rows.length > 0) {
+      data.owner = ownerResult.rows[0];
+      data.owner.full_name = `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim();
+    }
+  }
+
+  // Get all pets for this booking (via BookingPet junction table)
+  const petsResult = await query(
+    `SELECT p.* FROM "Pet" p
+     JOIN "BookingPet" bp ON bp.pet_id = p.id
+     WHERE bp.booking_id = $1
+     ORDER BY p.name`,
+    [data.booking.id]
+  );
+  if (petsResult.rows.length > 0) {
+    data.pets = petsResult.rows;
+    // Set first pet as data.pet for {{pet.name}} convenience
+    data.pet = petsResult.rows[0];
+    // Create comma-separated pet names for {{pets_names}}
+    data.pets_names = petsResult.rows.map(p => p.name).join(', ');
+  }
+
+  // Get kennel info if assigned
+  if (data.booking.kennel_id) {
+    const kennelResult = await query(
+      `SELECT * FROM "Kennel" WHERE id = $1`,
+      [data.booking.kennel_id]
+    );
+    if (kennelResult.rows.length > 0) {
+      data.kennel = kennelResult.rows[0];
+    }
+  }
+
+  // Format booking dates for easy interpolation
+  if (data.booking.start_date) {
+    data.booking.start_date_formatted = formatDate(data.booking.start_date);
+  }
+  if (data.booking.end_date) {
+    data.booking.end_date_formatted = formatDate(data.booking.end_date);
+  }
+}
+
+/**
+ * Fetch related data for pet records
+ * Pets have: owner (via PetOwner junction), vaccinations
+ */
+async function fetchPetRelatedData(data, tenantId) {
+  if (!data.pet) return;
+
+  // Get primary owner via PetOwner junction table
+  const ownerResult = await query(
+    `SELECT o.* FROM "Owner" o
+     JOIN "PetOwner" po ON po.owner_id = o.id
+     WHERE po.pet_id = $1 AND po.is_primary = true
+     LIMIT 1`,
+    [data.pet.id]
+  );
+  if (ownerResult.rows.length > 0) {
+    data.owner = ownerResult.rows[0];
+    data.owner.full_name = `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim();
+  } else if (data.pet.owner_id) {
+    // Fallback to direct owner_id if exists
+    const directOwnerResult = await query(
+      `SELECT * FROM "Owner" WHERE id = $1`,
+      [data.pet.owner_id]
+    );
+    if (directOwnerResult.rows.length > 0) {
+      data.owner = directOwnerResult.rows[0];
+      data.owner.full_name = `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim();
+    }
+  }
+
+  // Get vaccination status
+  const vaccResult = await query(
+    `SELECT type, expires_at,
+            CASE WHEN expires_at < NOW() THEN 'expired'
+                 WHEN expires_at < NOW() + INTERVAL '30 days' THEN 'expiring_soon'
+                 ELSE 'current' END as status
+     FROM "Vaccination"
+     WHERE pet_id = $1
+     ORDER BY expires_at DESC`,
+    [data.pet.id]
+  );
+  if (vaccResult.rows.length > 0) {
+    data.vaccinations = vaccResult.rows;
+    data.pet.vaccination_count = vaccResult.rows.length;
+    data.pet.vaccinations_expiring = vaccResult.rows.filter(v => v.status === 'expiring_soon').length;
+  }
+}
+
+/**
+ * Fetch related data for owner records
+ * Owners have: pets, bookings
+ */
+async function fetchOwnerRelatedData(data, tenantId) {
+  if (!data.owner) return;
+
+  // Get all pets for this owner
+  const petsResult = await query(
+    `SELECT p.* FROM "Pet" p
+     JOIN "PetOwner" po ON po.pet_id = p.id
+     WHERE po.owner_id = $1
+     ORDER BY p.name`,
+    [data.owner.id]
+  );
+  if (petsResult.rows.length > 0) {
+    data.pets = petsResult.rows;
+    data.pet = petsResult.rows[0]; // First pet for convenience
+    data.pets_names = petsResult.rows.map(p => p.name).join(', ');
+    data.owner.pet_count = petsResult.rows.length;
+  }
+
+  // Add full_name helper
+  data.owner.full_name = `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim();
+}
+
+/**
+ * Fetch related data for payment records
+ * Payments have: owner, invoice, possibly booking
+ */
+async function fetchPaymentRelatedData(data, tenantId) {
+  if (!data.payment) return;
+
+  // Get owner
+  if (data.payment.owner_id) {
+    const ownerResult = await query(
+      `SELECT * FROM "Owner" WHERE id = $1`,
+      [data.payment.owner_id]
+    );
+    if (ownerResult.rows.length > 0) {
+      data.owner = ownerResult.rows[0];
+      data.owner.full_name = `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim();
+    }
+  }
+
+  // Get invoice if payment is linked to one
+  if (data.payment.invoice_id) {
+    const invoiceResult = await query(
+      `SELECT * FROM "Invoice" WHERE id = $1`,
+      [data.payment.invoice_id]
+    );
+    if (invoiceResult.rows.length > 0) {
+      data.invoice = invoiceResult.rows[0];
+      // Format amounts
+      data.invoice.total_formatted = formatCurrency(data.invoice.total_cents);
+      data.invoice.balance_formatted = formatCurrency(data.invoice.balance_cents);
+    }
+  }
+
+  // Get booking if payment is linked to one
+  if (data.payment.booking_id) {
+    const bookingResult = await query(
+      `SELECT * FROM "Booking" WHERE id = $1`,
+      [data.payment.booking_id]
+    );
+    if (bookingResult.rows.length > 0) {
+      data.booking = bookingResult.rows[0];
+    }
+  }
+
+  // Format payment amount
+  if (data.payment.amount_cents) {
+    data.payment.amount_formatted = formatCurrency(data.payment.amount_cents);
+  }
+}
+
+/**
+ * Fetch related data for invoice records
+ * Invoices have: owner, line items, payments, possibly booking
+ */
+async function fetchInvoiceRelatedData(data, tenantId) {
+  if (!data.invoice) return;
+
+  // Get owner
+  if (data.invoice.owner_id) {
+    const ownerResult = await query(
+      `SELECT * FROM "Owner" WHERE id = $1`,
+      [data.invoice.owner_id]
+    );
+    if (ownerResult.rows.length > 0) {
+      data.owner = ownerResult.rows[0];
+      data.owner.full_name = `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim();
+    }
+  }
+
+  // Get line items
+  const lineItemsResult = await query(
+    `SELECT * FROM "InvoiceLineItem" WHERE invoice_id = $1 ORDER BY created_at`,
+    [data.invoice.id]
+  );
+  if (lineItemsResult.rows.length > 0) {
+    data.line_items = lineItemsResult.rows;
+    data.invoice.item_count = lineItemsResult.rows.length;
+  }
+
+  // Get booking if invoice is linked to one
+  if (data.invoice.booking_id) {
+    const bookingResult = await query(
+      `SELECT * FROM "Booking" WHERE id = $1`,
+      [data.invoice.booking_id]
+    );
+    if (bookingResult.rows.length > 0) {
+      data.booking = bookingResult.rows[0];
+    }
+  }
+
+  // Format amounts
+  if (data.invoice.total_cents !== undefined) {
+    data.invoice.total_formatted = formatCurrency(data.invoice.total_cents);
+  }
+  if (data.invoice.balance_cents !== undefined) {
+    data.invoice.balance_formatted = formatCurrency(data.invoice.balance_cents);
+  }
+  if (data.invoice.due_date) {
+    data.invoice.due_date_formatted = formatDate(data.invoice.due_date);
+  }
+}
+
+/**
+ * Fetch related data for task records
+ * Tasks may have: pet, owner, assigned user
+ */
+async function fetchTaskRelatedData(data, tenantId) {
+  if (!data.task) return;
+
+  // Get pet if task has one
+  if (data.task.pet_id) {
+    const petResult = await query(
+      `SELECT * FROM "Pet" WHERE id = $1`,
+      [data.task.pet_id]
+    );
+    if (petResult.rows.length > 0) {
+      data.pet = petResult.rows[0];
+    }
+  }
+
+  // Get owner if task has one, or get pet's owner
+  if (data.task.owner_id) {
+    const ownerResult = await query(
+      `SELECT * FROM "Owner" WHERE id = $1`,
+      [data.task.owner_id]
+    );
+    if (ownerResult.rows.length > 0) {
+      data.owner = ownerResult.rows[0];
+      data.owner.full_name = `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim();
+    }
+  } else if (data.pet) {
+    // Try to get owner from pet
+    const ownerResult = await query(
+      `SELECT o.* FROM "Owner" o
+       JOIN "PetOwner" po ON po.owner_id = o.id
+       WHERE po.pet_id = $1 AND po.is_primary = true
+       LIMIT 1`,
+      [data.pet.id]
+    );
+    if (ownerResult.rows.length > 0) {
+      data.owner = ownerResult.rows[0];
+      data.owner.full_name = `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim();
+    }
+  }
+
+  // Get assigned user if task has one
+  if (data.task.assigned_to) {
+    const userResult = await query(
+      `SELECT id, email, first_name, last_name, role FROM "User" WHERE id = $1`,
+      [data.task.assigned_to]
+    );
+    if (userResult.rows.length > 0) {
+      data.assigned_user = userResult.rows[0];
+      data.assigned_user.full_name = `${data.assigned_user.first_name || ''} ${data.assigned_user.last_name || ''}`.trim();
+    }
+  }
+
+  // Format due date
+  if (data.task.due_date) {
+    data.task.due_date_formatted = formatDate(data.task.due_date);
+  }
+}
+
+/**
+ * Fallback for generic record types - fetch owner and pet if IDs exist
+ */
+async function fetchGenericRelatedData(data) {
+  // Get related owner
+  if (data.record?.owner_id && !data.owner) {
+    const ownerResult = await query(
+      `SELECT * FROM "Owner" WHERE id = $1`,
+      [data.record.owner_id]
+    );
+    if (ownerResult.rows.length > 0) {
+      data.owner = ownerResult.rows[0];
+      data.owner.full_name = `${data.owner.first_name || ''} ${data.owner.last_name || ''}`.trim();
+    }
+  }
+
+  // Get related pet
+  if (data.record?.pet_id && !data.pet) {
+    const petResult = await query(
+      `SELECT * FROM "Pet" WHERE id = $1`,
+      [data.record.pet_id]
+    );
+    if (petResult.rows.length > 0) {
+      data.pet = petResult.rows[0];
+    }
+  }
+}
+
+/**
+ * Format cents to currency string
+ */
+function formatCurrency(cents) {
+  if (cents === null || cents === undefined) return '';
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+/**
+ * Format date to readable string
+ */
+function formatDate(dateValue) {
+  if (!dateValue) return '';
+  const date = new Date(dateValue);
+  if (isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-US', {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 /**
