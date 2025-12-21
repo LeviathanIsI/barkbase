@@ -26,7 +26,7 @@ try {
   sharedLayer = require('../../layers/shared-layer/nodejs/index');
 }
 
-const { getPoolAsync, query, getNextRecordId } = dbLayer;
+const { getPoolAsync, query, getNextRecordId, generateUniqueAccountCode } = dbLayer;
 const { 
   authenticateRequest, 
   createResponse, 
@@ -472,15 +472,19 @@ async function handleRegister(event) {
 
       console.log('[AuthBootstrap] Creating tenant:', { name: finalTenantName, slug: finalSlug });
 
+      // Generate unique account_code for new ID system (BK-XXXXXX format)
+      const accountCode = await generateUniqueAccountCode();
+      console.log('[AuthBootstrap] Generated account_code:', accountCode);
+
       // Create tenant first
       const tenantResult = await query(
-        `INSERT INTO "Tenant" (name, slug, plan, created_at, updated_at)
-         VALUES ($1, $2, 'FREE', NOW(), NOW())
-         RETURNING id, name, slug, plan`,
-        [finalTenantName, finalSlug]
+        `INSERT INTO "Tenant" (name, slug, plan, account_code, created_at, updated_at)
+         VALUES ($1, $2, 'FREE', $3, NOW(), NOW())
+         RETURNING id, name, slug, plan, account_code`,
+        [finalTenantName, finalSlug, accountCode]
       );
       tenant = tenantResult.rows[0];
-      console.log('[AuthBootstrap] Tenant created:', { id: tenant.id, slug: tenant.slug });
+      console.log('[AuthBootstrap] Tenant created:', { id: tenant.id, slug: tenant.slug, accountCode: tenant.account_code });
 
       // NEW SCHEMA: Create TenantSettings with defaults
       await query(
