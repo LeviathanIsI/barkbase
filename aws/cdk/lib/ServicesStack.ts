@@ -104,12 +104,14 @@ export class ServicesStack extends cdk.Stack {
     this.workflowTriggerDlq = new sqs.Queue(this, 'WorkflowTriggerDLQ', {
       queueName: `${config.stackPrefix}-workflow-triggers-dlq`,
       retentionPeriod: cdk.Duration.days(14),
+      visibilityTimeout: cdk.Duration.seconds(150), // Must be >= DLQ processor Lambda timeout (120s)
     });
 
     // Dead Letter Queue for workflow steps
     this.workflowStepDlq = new sqs.Queue(this, 'WorkflowStepDLQ', {
       queueName: `${config.stackPrefix}-workflow-steps-dlq`,
       retentionPeriod: cdk.Duration.days(14),
+      visibilityTimeout: cdk.Duration.seconds(150), // Must be >= DLQ processor Lambda timeout (120s)
     });
 
     // Workflow trigger queue - receives domain events (booking.created, pet.updated, etc.)
