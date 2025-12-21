@@ -26,14 +26,27 @@ try {
   sharedLayer = require('../../layers/shared-layer/nodejs/index');
 }
 
-const { getPoolAsync, query, getNextRecordId, generateUniqueAccountCode } = dbLayer;
-const { 
-  authenticateRequest, 
-  createResponse, 
+const { getPoolAsync, query, getNextRecordId, generateUniqueAccountCode, getClient } = dbLayer;
+const {
+  authenticateRequest,
+  createResponse,
   parseBody,
   validateToken,
   getAuthConfig,
 } = sharedLayer;
+
+// Cognito SDK for user creation
+const {
+  CognitoIdentityProviderClient,
+  SignUpCommand,
+  AdminConfirmSignUpCommand,
+  InitiateAuthCommand,
+  AdminDeleteUserCommand,
+} = require('@aws-sdk/client-cognito-identity-provider');
+
+const cognitoClient = new CognitoIdentityProviderClient({
+  region: process.env.AWS_REGION || 'us-east-2'
+});
 
 /**
  * Route requests to appropriate handlers
@@ -429,156 +442,289 @@ async function handleLogin(event) {
  */
 async function handleRegister(event) {
   const body = parseBody(event);
-  const { accessToken, email, name, tenantName, tenantSlug } = body;
+  const { email, password, name, tenantName, tenantSlug, accessToken } = body;
 
-  if (!accessToken) {
+  // Support both flows:
+  // 1. NEW: email + password (DB first, then Cognito)
+  // 2. LEGACY: accessToken (Cognito already created by frontend)
+  const isNewFlow = email && password && !accessToken;
+  const isLegacyFlow = accessToken;
+
+  if (!isNewFlow && !isLegacyFlow) {
     return createResponse(400, {
       error: 'Bad Request',
-      message: 'Access token is required',
+      message: 'Either (email + password) or accessToken is required',
     });
   }
 
-  try {
-    const config = getAuthConfig();
+  const config = getAuthConfig();
+  let cognitoSub = null;
+  let userEmail = email;
+  let displayName = name || email?.split('@')[0] || '';
 
-    const payload = await validateToken(accessToken, {
-      jwksUrl: config.jwksUrl,
-      issuer: config.issuer,
-      clientId: config.clientId,
-      tokenType: 'access',
-    });
-
-    const userEmail = email || payload.email;
-    const displayName = name || payload.name || payload['cognito:username'] || userEmail?.split('@')[0] || '';
-    const nameParts = displayName.split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
-
-    console.log('[AuthBootstrap] Starting registration for email:', userEmail, 'cognito_sub:', payload.sub);
-
-    // Create user and tenant in database
-    let user = null;
-    let tenant = null;
-    let ownerRole = null;
-
+  // ==========================================================================
+  // LEGACY FLOW: Frontend already created Cognito user
+  // ==========================================================================
+  if (isLegacyFlow) {
     try {
-      await getPoolAsync();
-
-      // Generate slug from tenant name or use provided slug
-      const finalTenantName = tenantName || `${firstName || userEmail?.split('@')[0]}'s Workspace`;
-      const finalSlug = tenantSlug ||
-        finalTenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') ||
-        `tenant-${payload.sub.substring(0, 8)}`;
-
-      console.log('[AuthBootstrap] Creating tenant:', { name: finalTenantName, slug: finalSlug });
-
-      // Generate unique account_code for new ID system (BK-XXXXXX format)
-      const accountCode = await generateUniqueAccountCode();
-      console.log('[AuthBootstrap] Generated account_code:', accountCode);
-
-      // Create tenant first
-      const tenantResult = await query(
-        `INSERT INTO "Tenant" (name, slug, plan, account_code, created_at, updated_at)
-         VALUES ($1, $2, 'FREE', $3, NOW(), NOW())
-         RETURNING id, name, slug, plan, account_code`,
-        [finalTenantName, finalSlug, accountCode]
-      );
-      tenant = tenantResult.rows[0];
-      console.log('[AuthBootstrap] Tenant created:', { id: tenant.id, slug: tenant.slug, accountCode: tenant.account_code });
-
-      // NEW SCHEMA: Create TenantSettings with defaults
-      await query(
-        `INSERT INTO "TenantSettings" (tenant_id)
-         VALUES ($1)
-         ON CONFLICT (tenant_id) DO NOTHING`,
-        [tenant.id]
-      );
-      console.log('[AuthBootstrap] TenantSettings created for tenant:', tenant.id);
-
-      // NEW SCHEMA: Create default roles for the tenant
-      const roleResult = await query(
-        `INSERT INTO "Role" (tenant_id, name, description, is_system, created_at, updated_at)
-         VALUES
-           ($1, 'OWNER', 'Business owner with full facility access', true, NOW(), NOW()),
-           ($1, 'MANAGER', 'Manages daily operations and staff', true, NOW(), NOW()),
-           ($1, 'STAFF', 'Regular staff member', true, NOW(), NOW()),
-           ($1, 'RECEPTIONIST', 'Front desk operations', true, NOW(), NOW()),
-           ($1, 'GROOMER', 'Grooming staff', true, NOW(), NOW()),
-           ($1, 'VIEWER', 'Read-only access', true, NOW(), NOW())
-         ON CONFLICT (tenant_id, name) DO UPDATE SET updated_at = NOW()
-         RETURNING id, name`,
-        [tenant.id]
-      );
-      ownerRole = roleResult.rows.find(r => r.name === 'OWNER');
-      console.log('[AuthBootstrap] Default roles created, OWNER role id:', ownerRole?.id);
-
-      // NEW SCHEMA: Create user WITHOUT role column
-      console.log('[AuthBootstrap] Creating user for tenant_id:', tenant.id, 'cognito_sub:', payload.sub);
-
-      const userRecordId = await getNextRecordId(tenant.id, 'User');
-      const userResult = await query(
-        `INSERT INTO "User" (tenant_id, record_id, cognito_sub, email, first_name, last_name, is_active, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, TRUE, NOW(), NOW())
-         RETURNING id, email, first_name, last_name, tenant_id`,
-        [tenant.id, userRecordId, payload.sub, userEmail, firstName, lastName]
-      );
-      user = userResult.rows[0];
-      console.log('[AuthBootstrap] User created:', { id: user.id, email: user.email });
-
-      // NEW SCHEMA: Assign OWNER role via UserRole junction table
-      if (ownerRole) {
-        const userRoleRecordId = await getNextRecordId(tenant.id, 'UserRole');
-        await query(
-          `INSERT INTO "UserRole" (tenant_id, record_id, user_id, role_id, assigned_at)
-           VALUES ($1, $2, $3, $4, NOW())
-           ON CONFLICT (user_id, role_id) DO NOTHING`,
-          [tenant.id, userRoleRecordId, user.id, ownerRole.id]
-        );
-        console.log('[AuthBootstrap] OWNER role assigned to user:', user.id);
-      }
-
-    } catch (dbError) {
-      console.error('[AuthBootstrap] DB error during registration:', dbError.message);
-      console.error('[AuthBootstrap] DB error details:', dbError);
-      // Return error to client since registration failed
-      return createResponse(500, {
-        error: 'Registration Failed',
-        message: 'Failed to create workspace. Please try again.',
-        details: process.env.NODE_ENV === 'production' ? undefined : dbError.message,
+      const payload = await validateToken(accessToken, {
+        jwksUrl: config.jwksUrl,
+        issuer: config.issuer,
+        clientId: config.clientId,
+        tokenType: 'access',
+      });
+      cognitoSub = payload.sub;
+      userEmail = email || payload.email;
+      displayName = name || payload.name || payload['cognito:username'] || userEmail?.split('@')[0] || '';
+    } catch (error) {
+      console.error('[AuthBootstrap] Token validation failed:', error.message);
+      return createResponse(401, {
+        error: 'Unauthorized',
+        message: 'Invalid or expired token',
       });
     }
-
-    console.log('[AuthBootstrap] Registration complete for:', userEmail);
-
-    return createResponse(201, {
-      success: true,
-      user: {
-        id: payload.sub,
-        recordId: user?.id,
-        email: userEmail,
-        firstName: user?.first_name,
-        lastName: user?.last_name,
-        name: displayName,
-        tenantId: tenant?.id,
-        roles: ['OWNER'],          // NEW: Array of roles
-        role: 'OWNER',             // BACKWARDS COMPAT: Primary role
-      },
-      tenant: tenant ? {
-        id: tenant.id,
-        recordId: tenant.id,
-        name: tenant.name,
-        slug: tenant.slug,
-        plan: tenant.plan,
-      } : null,
-    });
-
-  } catch (error) {
-    console.error('[AuthBootstrap] Token validation failed:', error.message);
-    return createResponse(401, {
-      error: 'Unauthorized',
-      message: 'Invalid or expired token',
-    });
   }
+
+  const nameParts = displayName.split(' ');
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
+  console.log('[AuthBootstrap] Starting registration for email:', userEmail, 'flow:', isNewFlow ? 'NEW' : 'LEGACY');
+
+  // ==========================================================================
+  // STEP 1: Create DB records in a transaction
+  // ==========================================================================
+  let user = null;
+  let tenant = null;
+  let ownerRole = null;
+  let dbClient = null;
+
+  try {
+    dbClient = await getClient();
+    await dbClient.query('BEGIN');
+
+    // Generate slug from tenant name or use provided slug
+    const finalTenantName = tenantName || `${firstName || userEmail?.split('@')[0]}'s Workspace`;
+    const finalSlug = tenantSlug ||
+      finalTenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') ||
+      `tenant-${Date.now().toString(36)}`;
+
+    console.log('[AuthBootstrap] Creating tenant:', { name: finalTenantName, slug: finalSlug });
+
+    // Generate unique account_code for new ID system (BK-XXXXXX format)
+    const accountCode = await generateUniqueAccountCode();
+    console.log('[AuthBootstrap] Generated account_code:', accountCode);
+
+    // Create tenant
+    const tenantResult = await dbClient.query(
+      `INSERT INTO "Tenant" (name, slug, plan, account_code, created_at, updated_at)
+       VALUES ($1, $2, 'FREE', $3, NOW(), NOW())
+       RETURNING id, name, slug, plan, account_code`,
+      [finalTenantName, finalSlug, accountCode]
+    );
+    tenant = tenantResult.rows[0];
+    console.log('[AuthBootstrap] Tenant created:', { id: tenant.id, slug: tenant.slug, accountCode: tenant.account_code });
+
+    // Create TenantSettings with defaults
+    await dbClient.query(
+      `INSERT INTO "TenantSettings" (tenant_id)
+       VALUES ($1)
+       ON CONFLICT (tenant_id) DO NOTHING`,
+      [tenant.id]
+    );
+
+    // Create default roles for the tenant
+    const roleResult = await dbClient.query(
+      `INSERT INTO "Role" (tenant_id, name, description, is_system, created_at, updated_at)
+       VALUES
+         ($1, 'OWNER', 'Business owner with full facility access', true, NOW(), NOW()),
+         ($1, 'MANAGER', 'Manages daily operations and staff', true, NOW(), NOW()),
+         ($1, 'STAFF', 'Regular staff member', true, NOW(), NOW()),
+         ($1, 'RECEPTIONIST', 'Front desk operations', true, NOW(), NOW()),
+         ($1, 'GROOMER', 'Grooming staff', true, NOW(), NOW()),
+         ($1, 'VIEWER', 'Read-only access', true, NOW(), NOW())
+       ON CONFLICT (tenant_id, name) DO UPDATE SET updated_at = NOW()
+       RETURNING id, name`,
+      [tenant.id]
+    );
+    ownerRole = roleResult.rows.find(r => r.name === 'OWNER');
+
+    // Get next record_id for User
+    const recordIdResult = await dbClient.query(
+      `INSERT INTO "_RecordIdSequence" (tenant_id, table_name, last_record_id)
+       VALUES ($1, 'User', 1)
+       ON CONFLICT (tenant_id, table_name)
+       DO UPDATE SET last_record_id = "_RecordIdSequence".last_record_id + 1
+       RETURNING last_record_id`,
+      [tenant.id]
+    );
+    const userRecordId = recordIdResult.rows[0].last_record_id;
+
+    // Create user - cognito_sub will be set after Cognito creation for new flow
+    const userResult = await dbClient.query(
+      `INSERT INTO "User" (tenant_id, record_id, cognito_sub, email, first_name, last_name, is_active, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, TRUE, NOW(), NOW())
+       RETURNING id, email, first_name, last_name, tenant_id`,
+      [tenant.id, userRecordId, cognitoSub || 'PENDING', userEmail, firstName, lastName]
+    );
+    user = userResult.rows[0];
+    console.log('[AuthBootstrap] User created:', { id: user.id, email: user.email });
+
+    // Assign OWNER role
+    if (ownerRole) {
+      const userRoleRecordIdResult = await dbClient.query(
+        `INSERT INTO "_RecordIdSequence" (tenant_id, table_name, last_record_id)
+         VALUES ($1, 'UserRole', 1)
+         ON CONFLICT (tenant_id, table_name)
+         DO UPDATE SET last_record_id = "_RecordIdSequence".last_record_id + 1
+         RETURNING last_record_id`,
+        [tenant.id]
+      );
+      const userRoleRecordId = userRoleRecordIdResult.rows[0].last_record_id;
+
+      await dbClient.query(
+        `INSERT INTO "UserRole" (tenant_id, record_id, user_id, role_id, assigned_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT (user_id, role_id) DO NOTHING`,
+        [tenant.id, userRoleRecordId, user.id, ownerRole.id]
+      );
+    }
+
+    await dbClient.query('COMMIT');
+    console.log('[AuthBootstrap] DB transaction committed');
+
+  } catch (dbError) {
+    console.error('[AuthBootstrap] DB error during registration:', dbError.message);
+    if (dbClient) {
+      await dbClient.query('ROLLBACK').catch(() => {});
+    }
+    return createResponse(500, {
+      error: 'Registration Failed',
+      message: 'Failed to create workspace. Please try again.',
+      details: process.env.NODE_ENV === 'production' ? undefined : dbError.message,
+    });
+  } finally {
+    if (dbClient) {
+      dbClient.release();
+    }
+  }
+
+  // ==========================================================================
+  // STEP 2: Create Cognito user (NEW FLOW ONLY)
+  // ==========================================================================
+  let tokens = null;
+
+  if (isNewFlow) {
+    try {
+      console.log('[AuthBootstrap] Creating Cognito user for:', userEmail);
+
+      // Create user in Cognito
+      const signUpResult = await cognitoClient.send(new SignUpCommand({
+        ClientId: config.clientId,
+        Username: userEmail,
+        Password: password,
+        UserAttributes: [
+          { Name: 'email', Value: userEmail },
+          { Name: 'name', Value: displayName },
+          { Name: 'custom:tenant_id', Value: tenant.id },
+        ],
+      }));
+
+      cognitoSub = signUpResult.UserSub;
+      console.log('[AuthBootstrap] Cognito user created:', cognitoSub);
+
+      // Auto-confirm the user (requires AdminConfirmSignUp permission)
+      try {
+        await cognitoClient.send(new AdminConfirmSignUpCommand({
+          UserPoolId: config.userPoolId,
+          Username: userEmail,
+        }));
+        console.log('[AuthBootstrap] Cognito user auto-confirmed');
+      } catch (confirmError) {
+        // If auto-confirm fails, user will need to verify email
+        console.warn('[AuthBootstrap] Auto-confirm failed (user may need email verification):', confirmError.message);
+      }
+
+      // Update User record with cognito_sub
+      await query(
+        `UPDATE "User" SET cognito_sub = $1, updated_at = NOW() WHERE id = $2`,
+        [cognitoSub, user.id]
+      );
+
+      // Sign in to get tokens
+      const authResult = await cognitoClient.send(new InitiateAuthCommand({
+        AuthFlow: 'USER_PASSWORD_AUTH',
+        ClientId: config.clientId,
+        AuthParameters: {
+          USERNAME: userEmail,
+          PASSWORD: password,
+        },
+      }));
+
+      tokens = {
+        accessToken: authResult.AuthenticationResult.AccessToken,
+        idToken: authResult.AuthenticationResult.IdToken,
+        refreshToken: authResult.AuthenticationResult.RefreshToken,
+        expiresIn: authResult.AuthenticationResult.ExpiresIn,
+      };
+
+    } catch (cognitoError) {
+      console.error('[AuthBootstrap] Cognito error:', cognitoError.message);
+
+      // ROLLBACK: Delete DB records since Cognito failed
+      console.log('[AuthBootstrap] Rolling back DB records due to Cognito failure');
+      try {
+        await query(`DELETE FROM "UserRole" WHERE user_id = $1`, [user.id]);
+        await query(`DELETE FROM "User" WHERE id = $1`, [user.id]);
+        await query(`DELETE FROM "Role" WHERE tenant_id = $1`, [tenant.id]);
+        await query(`DELETE FROM "TenantSettings" WHERE tenant_id = $1`, [tenant.id]);
+        await query(`DELETE FROM "Tenant" WHERE id = $1`, [tenant.id]);
+        console.log('[AuthBootstrap] DB rollback complete');
+      } catch (rollbackError) {
+        console.error('[AuthBootstrap] Rollback failed:', rollbackError.message);
+      }
+
+      return createResponse(500, {
+        error: 'Registration Failed',
+        message: cognitoError.message || 'Failed to create account. Please try again.',
+      });
+    }
+  }
+
+  console.log('[AuthBootstrap] Registration complete for:', userEmail);
+
+  // ==========================================================================
+  // STEP 3: Return success response
+  // ==========================================================================
+  const response = {
+    success: true,
+    user: {
+      id: cognitoSub,
+      recordId: user?.id,
+      email: userEmail,
+      firstName: user?.first_name,
+      lastName: user?.last_name,
+      name: displayName,
+      tenantId: tenant?.id,
+      roles: ['OWNER'],
+      role: 'OWNER',
+    },
+    tenant: {
+      id: tenant.id,
+      recordId: tenant.id,
+      name: tenant.name,
+      slug: tenant.slug,
+      plan: tenant.plan,
+      accountCode: tenant.account_code,
+    },
+  };
+
+  // Include tokens for new flow
+  if (tokens) {
+    response.tokens = tokens;
+  }
+
+  return createResponse(201, response);
 }
 
 /**
