@@ -549,34 +549,30 @@ async function handleRegister(event) {
       [tenant.id]
     );
 
-    // Create default roles for the tenant
+    // Create default roles for the tenant (object type code 52)
+    const roleRecordId1 = await getNextRecordId(tenant.id, 'Role');
+    const roleRecordId2 = await getNextRecordId(tenant.id, 'Role');
+    const roleRecordId3 = await getNextRecordId(tenant.id, 'Role');
+    const roleRecordId4 = await getNextRecordId(tenant.id, 'Role');
+    const roleRecordId5 = await getNextRecordId(tenant.id, 'Role');
+    const roleRecordId6 = await getNextRecordId(tenant.id, 'Role');
     const roleResult = await dbClient.query(
-      `INSERT INTO "Role" (tenant_id, name, description, is_system, created_at, updated_at)
+      `INSERT INTO "Role" (tenant_id, record_id, name, description, is_system, created_at, updated_at)
        VALUES
-         ($1, 'OWNER', 'Business owner with full facility access', true, NOW(), NOW()),
-         ($1, 'MANAGER', 'Manages daily operations and staff', true, NOW(), NOW()),
-         ($1, 'STAFF', 'Regular staff member', true, NOW(), NOW()),
-         ($1, 'RECEPTIONIST', 'Front desk operations', true, NOW(), NOW()),
-         ($1, 'GROOMER', 'Grooming staff', true, NOW(), NOW()),
-         ($1, 'VIEWER', 'Read-only access', true, NOW(), NOW())
+         ($1, $2, 'OWNER', 'Business owner with full facility access', true, NOW(), NOW()),
+         ($1, $3, 'MANAGER', 'Manages daily operations and staff', true, NOW(), NOW()),
+         ($1, $4, 'STAFF', 'Regular staff member', true, NOW(), NOW()),
+         ($1, $5, 'RECEPTIONIST', 'Front desk operations', true, NOW(), NOW()),
+         ($1, $6, 'GROOMER', 'Grooming staff', true, NOW(), NOW()),
+         ($1, $7, 'VIEWER', 'Read-only access', true, NOW(), NOW())
        ON CONFLICT (tenant_id, name) DO UPDATE SET updated_at = NOW()
        RETURNING id, name`,
-      [tenant.id]
+      [tenant.id, roleRecordId1, roleRecordId2, roleRecordId3, roleRecordId4, roleRecordId5, roleRecordId6]
     );
     ownerRole = roleResult.rows.find(r => r.name === 'OWNER');
 
-    // Get next record_id for User
-    const recordIdResult = await dbClient.query(
-      `INSERT INTO "_RecordIdSequence" (tenant_id, table_name, last_record_id)
-       VALUES ($1, 'User', 1)
-       ON CONFLICT (tenant_id, table_name)
-       DO UPDATE SET last_record_id = "_RecordIdSequence".last_record_id + 1
-       RETURNING last_record_id`,
-      [tenant.id]
-    );
-    const userRecordId = recordIdResult.rows[0].last_record_id;
-
     // Create user - cognito_sub will be set after Cognito creation for new flow
+    const userRecordId = await getNextRecordId(tenant.id, 'User');
     const userResult = await dbClient.query(
       `INSERT INTO "User" (tenant_id, record_id, cognito_sub, email, first_name, last_name, is_active, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, TRUE, NOW(), NOW())
@@ -588,16 +584,7 @@ async function handleRegister(event) {
 
     // Assign OWNER role
     if (ownerRole) {
-      const userRoleRecordIdResult = await dbClient.query(
-        `INSERT INTO "_RecordIdSequence" (tenant_id, table_name, last_record_id)
-         VALUES ($1, 'UserRole', 1)
-         ON CONFLICT (tenant_id, table_name)
-         DO UPDATE SET last_record_id = "_RecordIdSequence".last_record_id + 1
-         RETURNING last_record_id`,
-        [tenant.id]
-      );
-      const userRoleRecordId = userRoleRecordIdResult.rows[0].last_record_id;
-
+      const userRoleRecordId = await getNextRecordId(tenant.id, 'UserRole');
       await dbClient.query(
         `INSERT INTO "UserRole" (tenant_id, record_id, user_id, role_id, assigned_at)
          VALUES ($1, $2, $3, $4, NOW())
