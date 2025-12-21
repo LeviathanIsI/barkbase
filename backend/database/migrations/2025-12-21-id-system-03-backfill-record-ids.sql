@@ -21,6 +21,7 @@ CREATE OR REPLACE FUNCTION backfill_record_ids_with_tenant(
 DECLARE
     v_sql TEXT;
     v_count INTEGER;
+    v_column_type TEXT;
 BEGIN
     -- Check if table exists
     IF NOT EXISTS (SELECT FROM pg_tables WHERE tablename = p_table_name) THEN
@@ -28,12 +29,19 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Check if record_id column exists
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns
-        WHERE table_name = p_table_name AND column_name = 'record_id'
-    ) THEN
+    -- Check if record_id column exists and get its type
+    SELECT data_type INTO v_column_type
+    FROM information_schema.columns
+    WHERE table_name = p_table_name AND column_name = 'record_id';
+
+    IF v_column_type IS NULL THEN
         RAISE NOTICE 'Table % does not have record_id column, skipping', p_table_name;
+        RETURN;
+    END IF;
+
+    -- Check if record_id is BIGINT
+    IF v_column_type != 'bigint' THEN
+        RAISE NOTICE 'Table % has record_id as % (not BIGINT), skipping - run migration 02 first', p_table_name, v_column_type;
         RETURN;
     END IF;
 
@@ -96,6 +104,7 @@ CREATE OR REPLACE FUNCTION backfill_record_ids_no_tenant(
 DECLARE
     v_sql TEXT;
     v_count INTEGER;
+    v_column_type TEXT;
 BEGIN
     -- Check if table exists
     IF NOT EXISTS (SELECT FROM pg_tables WHERE tablename = p_table_name) THEN
@@ -103,12 +112,19 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Check if record_id column exists
-    IF NOT EXISTS (
-        SELECT FROM information_schema.columns
-        WHERE table_name = p_table_name AND column_name = 'record_id'
-    ) THEN
+    -- Check if record_id column exists and get its type
+    SELECT data_type INTO v_column_type
+    FROM information_schema.columns
+    WHERE table_name = p_table_name AND column_name = 'record_id';
+
+    IF v_column_type IS NULL THEN
         RAISE NOTICE 'Table % does not have record_id column, skipping', p_table_name;
+        RETURN;
+    END IF;
+
+    -- Check if record_id is BIGINT
+    IF v_column_type != 'bigint' THEN
+        RAISE NOTICE 'Table % has record_id as % (not BIGINT), skipping - run migration 02 first', p_table_name, v_column_type;
         RETURN;
     END IF;
 

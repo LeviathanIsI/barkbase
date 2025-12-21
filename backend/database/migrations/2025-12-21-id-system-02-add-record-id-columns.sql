@@ -7,439 +7,185 @@
 -- IMPORTANT: Some tables don't have tenant_id because they inherit tenant
 -- isolation through their parent FK (e.g., WorkflowStep -> Workflow).
 -- For these tables, we only add record_id without tenant-composite index.
+--
+-- NOTE: Some tables may already have record_id as UUID from Prisma.
+-- This migration will drop and recreate as BIGINT where needed.
 -- ============================================================================
+
+-- ============================================================================
+-- Helper function to ensure record_id column is BIGINT
+-- ============================================================================
+CREATE OR REPLACE FUNCTION ensure_record_id_bigint(
+    p_table_name TEXT,
+    p_index_columns TEXT  -- e.g., 'tenant_id' or 'workflow_id' or NULL for no composite
+) RETURNS VOID AS $$
+DECLARE
+    v_current_type TEXT;
+    v_index_name TEXT;
+BEGIN
+    -- Check if table exists
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE tablename = p_table_name) THEN
+        RAISE NOTICE 'Table % does not exist, skipping', p_table_name;
+        RETURN;
+    END IF;
+
+    -- Check if record_id column exists and get its type
+    SELECT data_type INTO v_current_type
+    FROM information_schema.columns
+    WHERE table_name = p_table_name AND column_name = 'record_id';
+
+    IF v_current_type IS NULL THEN
+        -- Column doesn't exist, add it
+        EXECUTE format('ALTER TABLE %I ADD COLUMN record_id BIGINT', p_table_name);
+        RAISE NOTICE 'Added record_id BIGINT column to %', p_table_name;
+    ELSIF v_current_type != 'bigint' THEN
+        -- Column exists but wrong type, drop and recreate
+        -- First drop any indexes that reference record_id
+        FOR v_index_name IN
+            SELECT indexname FROM pg_indexes
+            WHERE tablename = p_table_name
+            AND indexdef LIKE '%record_id%'
+        LOOP
+            EXECUTE format('DROP INDEX IF EXISTS %I', v_index_name);
+            RAISE NOTICE 'Dropped index % on %', v_index_name, p_table_name;
+        END LOOP;
+
+        -- Drop the column
+        EXECUTE format('ALTER TABLE %I DROP COLUMN record_id', p_table_name);
+        RAISE NOTICE 'Dropped % record_id column from %', v_current_type, p_table_name;
+
+        -- Add it back as BIGINT
+        EXECUTE format('ALTER TABLE %I ADD COLUMN record_id BIGINT', p_table_name);
+        RAISE NOTICE 'Added record_id BIGINT column to %', p_table_name;
+    ELSE
+        RAISE NOTICE 'Table % already has record_id as BIGINT', p_table_name;
+    END IF;
+
+    -- Create index if index_columns specified
+    IF p_index_columns IS NOT NULL AND p_index_columns != '' THEN
+        v_index_name := 'idx_' || lower(p_table_name) || '_record_id';
+        EXECUTE format(
+            'CREATE INDEX IF NOT EXISTS %I ON %I(%s, record_id)',
+            v_index_name, p_table_name, p_index_columns
+        );
+        RAISE NOTICE 'Created index % on %(%s, record_id)', v_index_name, p_table_name, p_index_columns;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
 
 -- ============================================================================
 -- Core CRM Objects (all have tenant_id)
 -- ============================================================================
 
--- Owner (code: 1)
-ALTER TABLE "Owner" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_owner_record_id ON "Owner"(tenant_id, record_id);
-
--- Pet (code: 2)
-ALTER TABLE "Pet" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_pet_record_id ON "Pet"(tenant_id, record_id);
-
--- Booking (code: 3)
-ALTER TABLE "Booking" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_booking_record_id ON "Booking"(tenant_id, record_id);
-
--- Payment (code: 4)
-ALTER TABLE "Payment" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_payment_record_id ON "Payment"(tenant_id, record_id);
-
--- Invoice (code: 5)
-ALTER TABLE "Invoice" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_invoice_record_id ON "Invoice"(tenant_id, record_id);
-
--- InvoiceLine (code: 6)
-ALTER TABLE "InvoiceLine" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_invoiceline_record_id ON "InvoiceLine"(tenant_id, record_id);
-
--- Task (code: 7)
-ALTER TABLE "Task" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_task_record_id ON "Task"(tenant_id, record_id);
-
--- Note (code: 8) - Check if table exists
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'Note') THEN
-    EXECUTE 'ALTER TABLE "Note" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_note_record_id ON "Note"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- Vaccination (code: 9)
-ALTER TABLE "Vaccination" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_vaccination_record_id ON "Vaccination"(tenant_id, record_id);
-
--- Incident (code: 10)
-ALTER TABLE "Incident" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_incident_record_id ON "Incident"(tenant_id, record_id);
-
--- Veterinarian (code: 11)
-ALTER TABLE "Veterinarian" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_veterinarian_record_id ON "Veterinarian"(tenant_id, record_id);
+SELECT ensure_record_id_bigint('Owner', 'tenant_id');
+SELECT ensure_record_id_bigint('Pet', 'tenant_id');
+SELECT ensure_record_id_bigint('Booking', 'tenant_id');
+SELECT ensure_record_id_bigint('Payment', 'tenant_id');
+SELECT ensure_record_id_bigint('Invoice', 'tenant_id');
+SELECT ensure_record_id_bigint('InvoiceLine', 'tenant_id');
+SELECT ensure_record_id_bigint('Task', 'tenant_id');
+SELECT ensure_record_id_bigint('Note', 'tenant_id');
+SELECT ensure_record_id_bigint('Vaccination', 'tenant_id');
+SELECT ensure_record_id_bigint('Incident', 'tenant_id');
+SELECT ensure_record_id_bigint('Veterinarian', 'tenant_id');
 
 -- ============================================================================
 -- Workflow Objects
 -- NOTE: WorkflowStep, WorkflowExecutionLog, WorkflowRevision do NOT have tenant_id
--- They inherit tenant isolation through their parent FK
 -- ============================================================================
 
--- Workflow (code: 20) - HAS tenant_id
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'Workflow') THEN
-    EXECUTE 'ALTER TABLE "Workflow" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_workflow_record_id ON "Workflow"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- WorkflowStep (code: 21) - NO tenant_id, references Workflow
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'WorkflowStep') THEN
-    EXECUTE 'ALTER TABLE "WorkflowStep" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_workflowstep_record_id ON "WorkflowStep"(workflow_id, record_id)';
-  END IF;
-END $$;
-
--- WorkflowExecution (code: 22) - HAS tenant_id
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'WorkflowExecution') THEN
-    EXECUTE 'ALTER TABLE "WorkflowExecution" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_workflowexecution_record_id ON "WorkflowExecution"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- WorkflowExecutionLog (code: 23) - NO tenant_id, references WorkflowExecution
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'WorkflowExecutionLog') THEN
-    EXECUTE 'ALTER TABLE "WorkflowExecutionLog" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_workflowexecutionlog_record_id ON "WorkflowExecutionLog"(execution_id, record_id)';
-  END IF;
-END $$;
-
--- WorkflowFolder (code: 24) - HAS tenant_id
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'WorkflowFolder') THEN
-    EXECUTE 'ALTER TABLE "WorkflowFolder" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_workflowfolder_record_id ON "WorkflowFolder"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- WorkflowRevision (code: 25) - NO tenant_id, references Workflow
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'WorkflowRevision') THEN
-    EXECUTE 'ALTER TABLE "WorkflowRevision" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_workflowrevision_record_id ON "WorkflowRevision"(workflow_id, record_id)';
-  END IF;
-END $$;
-
--- WorkflowTemplate (code: 26) - HAS tenant_id (nullable for system templates)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'WorkflowTemplate') THEN
-    EXECUTE 'ALTER TABLE "WorkflowTemplate" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_workflowtemplate_record_id ON "WorkflowTemplate"(record_id)';
-  END IF;
-END $$;
+SELECT ensure_record_id_bigint('Workflow', 'tenant_id');
+SELECT ensure_record_id_bigint('WorkflowStep', 'workflow_id');  -- NO tenant_id
+SELECT ensure_record_id_bigint('WorkflowExecution', 'tenant_id');
+SELECT ensure_record_id_bigint('WorkflowExecutionLog', 'execution_id');  -- NO tenant_id
+SELECT ensure_record_id_bigint('WorkflowFolder', 'tenant_id');
+SELECT ensure_record_id_bigint('WorkflowRevision', 'workflow_id');  -- NO tenant_id
+SELECT ensure_record_id_bigint('WorkflowTemplate', NULL);  -- tenant_id nullable for system templates
 
 -- ============================================================================
 -- Segment Objects
+-- NOTE: SegmentActivity, SegmentSnapshot do NOT have tenant_id
 -- ============================================================================
 
--- Segment (code: 27)
-ALTER TABLE "Segment" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_segment_record_id ON "Segment"(tenant_id, record_id);
-
--- SegmentMember (code: 28)
-ALTER TABLE "SegmentMember" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_segmentmember_record_id ON "SegmentMember"(tenant_id, record_id);
-
--- SegmentActivity (code: 29) - NO tenant_id, references Segment
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'SegmentActivity') THEN
-    EXECUTE 'ALTER TABLE "SegmentActivity" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_segmentactivity_record_id ON "SegmentActivity"(segment_id, record_id)';
-  END IF;
-END $$;
-
--- SegmentSnapshot (code: 94) - NO tenant_id, references Segment
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'SegmentSnapshot') THEN
-    EXECUTE 'ALTER TABLE "SegmentSnapshot" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_segmentsnapshot_record_id ON "SegmentSnapshot"(segment_id, record_id)';
-  END IF;
-END $$;
+SELECT ensure_record_id_bigint('Segment', 'tenant_id');
+SELECT ensure_record_id_bigint('SegmentMember', 'tenant_id');
+SELECT ensure_record_id_bigint('SegmentActivity', 'segment_id');  -- NO tenant_id
+SELECT ensure_record_id_bigint('SegmentSnapshot', 'segment_id');  -- NO tenant_id
 
 -- ============================================================================
 -- Service Objects
 -- ============================================================================
 
--- Service (code: 30)
-ALTER TABLE "Service" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_service_record_id ON "Service"(tenant_id, record_id);
-
--- Package (code: 31)
-ALTER TABLE "Package" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_package_record_id ON "Package"(tenant_id, record_id);
+SELECT ensure_record_id_bigint('Service', 'tenant_id');
+SELECT ensure_record_id_bigint('Package', 'tenant_id');
 
 -- ============================================================================
 -- Facility Objects
 -- ============================================================================
 
--- Run (code: 40)
-ALTER TABLE "Run" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_run_record_id ON "Run"(tenant_id, record_id);
-
--- Kennel (code: 41)
-ALTER TABLE "Kennel" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_kennel_record_id ON "Kennel"(tenant_id, record_id);
-
--- RunTemplate (code: 42)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'RunTemplate') THEN
-    EXECUTE 'ALTER TABLE "RunTemplate" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_runtemplate_record_id ON "RunTemplate"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- RunAssignment (code: 43)
-ALTER TABLE "RunAssignment" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_runassignment_record_id ON "RunAssignment"(tenant_id, record_id);
+SELECT ensure_record_id_bigint('Run', 'tenant_id');
+SELECT ensure_record_id_bigint('Kennel', 'tenant_id');
+SELECT ensure_record_id_bigint('RunTemplate', 'tenant_id');
+SELECT ensure_record_id_bigint('RunAssignment', 'tenant_id');
 
 -- ============================================================================
 -- User/Staff Objects
 -- ============================================================================
 
--- User (code: 50)
-ALTER TABLE "User" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_user_record_id ON "User"(tenant_id, record_id);
-
--- Staff (code: 51)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'Staff') THEN
-    EXECUTE 'ALTER TABLE "Staff" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_staff_record_id ON "Staff"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- Role (code: 52)
-ALTER TABLE "Role" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_role_record_id ON "Role"(tenant_id, record_id);
-
--- UserRole (code: 53)
-ALTER TABLE "UserRole" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_userrole_record_id ON "UserRole"(tenant_id, record_id);
-
--- UserSession (code: 54)
-ALTER TABLE "UserSession" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_usersession_record_id ON "UserSession"(tenant_id, record_id);
-
--- TimeEntry (code: 55)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'TimeEntry') THEN
-    EXECUTE 'ALTER TABLE "TimeEntry" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_timeentry_record_id ON "TimeEntry"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- TimePunch (code: 56)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'TimePunch') THEN
-    EXECUTE 'ALTER TABLE "TimePunch" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_timepunch_record_id ON "TimePunch"(tenant_id, record_id)';
-  END IF;
-END $$;
+SELECT ensure_record_id_bigint('User', 'tenant_id');
+SELECT ensure_record_id_bigint('Staff', 'tenant_id');
+SELECT ensure_record_id_bigint('Role', 'tenant_id');
+SELECT ensure_record_id_bigint('UserRole', 'tenant_id');
+SELECT ensure_record_id_bigint('UserSession', 'tenant_id');
+SELECT ensure_record_id_bigint('TimeEntry', 'tenant_id');
+SELECT ensure_record_id_bigint('TimePunch', 'tenant_id');
 
 -- ============================================================================
 -- Communication Objects
 -- ============================================================================
 
--- Conversation (code: 60)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'Conversation') THEN
-    EXECUTE 'ALTER TABLE "Conversation" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_conversation_record_id ON "Conversation"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- Message (code: 61)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'Message') THEN
-    EXECUTE 'ALTER TABLE "Message" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_message_record_id ON "Message"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- Notification (code: 62)
-ALTER TABLE "Notification" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_notification_record_id ON "Notification"(tenant_id, record_id);
-
--- EmailTemplate (code: 63)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'EmailTemplate') THEN
-    EXECUTE 'ALTER TABLE "EmailTemplate" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_emailtemplate_record_id ON "EmailTemplate"(tenant_id, record_id)';
-  END IF;
-END $$;
+SELECT ensure_record_id_bigint('Conversation', 'tenant_id');
+SELECT ensure_record_id_bigint('Message', 'tenant_id');
+SELECT ensure_record_id_bigint('Notification', 'tenant_id');
+SELECT ensure_record_id_bigint('EmailTemplate', 'tenant_id');
 
 -- ============================================================================
 -- Configuration Objects
 -- ============================================================================
 
--- CustomProperty (code: 70)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'CustomProperty') THEN
-    EXECUTE 'ALTER TABLE "CustomProperty" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_customproperty_record_id ON "CustomProperty"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- ObjectSettings (code: 71)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'ObjectSettings') THEN
-    EXECUTE 'ALTER TABLE "ObjectSettings" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_objectsettings_record_id ON "ObjectSettings"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- ObjectAssociation (code: 72)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'ObjectAssociation') THEN
-    EXECUTE 'ALTER TABLE "ObjectAssociation" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_objectassociation_record_id ON "ObjectAssociation"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- ObjectPipeline (code: 73)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'ObjectPipeline') THEN
-    EXECUTE 'ALTER TABLE "ObjectPipeline" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_objectpipeline_record_id ON "ObjectPipeline"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- PipelineStage (code: 74)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'PipelineStage') THEN
-    EXECUTE 'ALTER TABLE "PipelineStage" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_pipelinestage_record_id ON "PipelineStage"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- ObjectStatus (code: 75)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'ObjectStatus') THEN
-    EXECUTE 'ALTER TABLE "ObjectStatus" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_objectstatus_record_id ON "ObjectStatus"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- SavedView (code: 76)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'SavedView') THEN
-    EXECUTE 'ALTER TABLE "SavedView" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_savedview_record_id ON "SavedView"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- AssociationLabel (code: 77)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'AssociationLabel') THEN
-    EXECUTE 'ALTER TABLE "AssociationLabel" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_associationlabel_record_id ON "AssociationLabel"(tenant_id, record_id)';
-  END IF;
-END $$;
+SELECT ensure_record_id_bigint('CustomProperty', 'tenant_id');
+SELECT ensure_record_id_bigint('ObjectSettings', 'tenant_id');
+SELECT ensure_record_id_bigint('ObjectAssociation', 'tenant_id');
+SELECT ensure_record_id_bigint('ObjectPipeline', 'tenant_id');
+SELECT ensure_record_id_bigint('PipelineStage', 'tenant_id');
+SELECT ensure_record_id_bigint('ObjectStatus', 'tenant_id');
+SELECT ensure_record_id_bigint('SavedView', 'tenant_id');
+SELECT ensure_record_id_bigint('AssociationLabel', 'tenant_id');
+SELECT ensure_record_id_bigint('ObjectIndexSettings', 'tenant_id');
+SELECT ensure_record_id_bigint('ObjectRecordLayout', 'tenant_id');
+SELECT ensure_record_id_bigint('ObjectPreviewLayout', 'tenant_id');
 
 -- ============================================================================
 -- Property System Objects
 -- ============================================================================
 
--- Property (code: 80)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'Property') THEN
-    EXECUTE 'ALTER TABLE "Property" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_property_record_id ON "Property"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- PropertyGroup (code: 81)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'PropertyGroup') THEN
-    EXECUTE 'ALTER TABLE "PropertyGroup" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_propertygroup_record_id ON "PropertyGroup"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- PropertyLogicRule (code: 82)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'PropertyLogicRule') THEN
-    EXECUTE 'ALTER TABLE "PropertyLogicRule" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_propertylogicrule_record_id ON "PropertyLogicRule"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- PropertyValue (code: 83)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'PropertyValue') THEN
-    EXECUTE 'ALTER TABLE "PropertyValue" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_propertyvalue_record_id ON "PropertyValue"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- PropertyTemplate (code: 84)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'PropertyTemplate') THEN
-    EXECUTE 'ALTER TABLE "PropertyTemplate" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_propertytemplate_record_id ON "PropertyTemplate"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- PropertyHistory (code: 85)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'PropertyHistory') THEN
-    EXECUTE 'ALTER TABLE "PropertyHistory" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_propertyhistory_record_id ON "PropertyHistory"(tenant_id, record_id)';
-  END IF;
-END $$;
+SELECT ensure_record_id_bigint('Property', 'tenant_id');
+SELECT ensure_record_id_bigint('PropertyGroup', 'tenant_id');
+SELECT ensure_record_id_bigint('PropertyLogicRule', 'tenant_id');
+SELECT ensure_record_id_bigint('PropertyValue', 'tenant_id');
+SELECT ensure_record_id_bigint('PropertyTemplate', 'tenant_id');
+SELECT ensure_record_id_bigint('PropertyHistory', 'tenant_id');
 
 -- ============================================================================
 -- System Objects
 -- ============================================================================
 
--- AuditLog (code: 90)
-ALTER TABLE "AuditLog" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_auditlog_record_id ON "AuditLog"(tenant_id, record_id);
+SELECT ensure_record_id_bigint('AuditLog', 'tenant_id');
+SELECT ensure_record_id_bigint('DeletedRecord', 'tenant_id');
+SELECT ensure_record_id_bigint('Import', 'tenant_id');
+SELECT ensure_record_id_bigint('Activity', 'tenant_id');
 
--- DeletedRecord (code: 91)
-ALTER TABLE "DeletedRecord" ADD COLUMN IF NOT EXISTS record_id BIGINT;
-CREATE INDEX IF NOT EXISTS idx_deletedrecord_record_id ON "DeletedRecord"(tenant_id, record_id);
-
--- Import (code: 92)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'Import') THEN
-    EXECUTE 'ALTER TABLE "Import" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_import_record_id ON "Import"(tenant_id, record_id)';
-  END IF;
-END $$;
-
--- Activity (code: 93)
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM pg_tables WHERE tablename = 'Activity') THEN
-    EXECUTE 'ALTER TABLE "Activity" ADD COLUMN IF NOT EXISTS record_id BIGINT';
-    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_activity_record_id ON "Activity"(tenant_id, record_id)';
-  END IF;
-END $$;
+-- ============================================================================
+-- Clean up helper function
+-- ============================================================================
+DROP FUNCTION IF EXISTS ensure_record_id_bigint(TEXT, TEXT);
