@@ -55,6 +55,7 @@ export class ServicesStack extends cdk.Stack {
   public readonly workflowStepExecutorFunction: lambda.IFunction;
   public readonly workflowSchedulerFunction: lambda.IFunction;
   public readonly workflowSchedulerRole: iam.IRole;
+  public readonly workflowCleanupFunction: lambda.IFunction;
 
   constructor(scope: Construct, id: string, props: ServicesStackProps) {
     super(scope, id, props);
@@ -417,6 +418,47 @@ export class ServicesStack extends cdk.Stack {
     });
 
     // =========================================================================
+    // Workflow Cleanup Service (EventBridge-scheduled, NOT exposed via API Gateway)
+    // =========================================================================
+    // Cleans up old workflow data based on HubSpot-aligned retention policies:
+    // - WorkflowExecutionLog: 90 days (action logs)
+    // - WorkflowExecution: 180 days (enrollment history)
+    // Per-tenant customization via Tenant.settings.workflow_log_retention_days
+    // and Tenant.settings.workflow_execution_retention_days
+
+    this.workflowCleanupFunction = new lambda.Function(this, 'WorkflowCleanupFunction', {
+      ...commonLambdaConfig,
+      functionName: `${config.stackPrefix}-workflow-cleanup`,
+      description: 'BarkBase Workflow Cleanup - Scheduled data retention cleanup for workflow logs and executions',
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/workflow-cleanup')),
+      timeout: cdk.Duration.minutes(5), // Allow time for processing all tenants
+    });
+
+    // Grant CloudWatch metrics permissions for emitting cleanup metrics
+    this.workflowCleanupFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['cloudwatch:PutMetricData'],
+      resources: ['*'],
+    }));
+
+    // EventBridge rule to trigger cleanup service daily at 2am UTC (off-peak hours)
+    const workflowCleanupScheduleRule = new events.Rule(this, 'WorkflowCleanupScheduleRule', {
+      ruleName: `${config.stackPrefix}-workflow-cleanup`,
+      description: 'Triggers workflow cleanup service daily at 2am UTC for data retention',
+      schedule: events.Schedule.cron({
+        minute: '0',
+        hour: '2',
+        day: '*',
+        month: '*',
+        year: '*',
+      }),
+    });
+
+    workflowCleanupScheduleRule.addTarget(new targets.LambdaFunction(this.workflowCleanupFunction, {
+      retryAttempts: 2,
+    }));
+
+    // =========================================================================
     // Stack Outputs
     // =========================================================================
 
@@ -521,6 +563,12 @@ export class ServicesStack extends cdk.Stack {
       value: this.workflowSchedulerFunction.functionArn,
       description: 'Workflow Scheduler Lambda ARN',
       exportName: `${config.stackPrefix}-workflow-scheduler-arn`,
+    });
+
+    new cdk.CfnOutput(this, 'WorkflowCleanupArn', {
+      value: this.workflowCleanupFunction.functionArn,
+      description: 'Workflow Cleanup Lambda ARN',
+      exportName: `${config.stackPrefix}-workflow-cleanup-arn`,
     });
   }
 }
