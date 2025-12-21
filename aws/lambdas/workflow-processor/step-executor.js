@@ -570,7 +570,7 @@ async function executeAction(step, execution, recordData, tenantId, retryContext
     // Increment action count for rate limiting
     await incrementActionCount(tenantId);
 
-    const nextStepId = await findNextStep(step.workflow_id, step.id, step.parent_step_id, step.branch_path);
+    const nextStepId = await findNextStep(step.workflow_id, step.id, step.parent_step_id, step.branch_id);
     return { ...result, nextStepId };
   }
 
@@ -1561,7 +1561,7 @@ async function executeWait(step, execution, recordData, tenantId) {
 
   // If wait time is in the past, proceed immediately
   if (waitUntil <= new Date()) {
-    const nextStepId = await findNextStep(step.workflow_id, step.id, step.parent_step_id, step.branch_path);
+    const nextStepId = await findNextStep(step.workflow_id, step.id, step.parent_step_id, step.branch_id);
     return { success: true, nextStepId };
   }
 
@@ -1826,7 +1826,7 @@ async function checkEventWaiters(eventType, recordId, tenantId) {
 
       // Get step info to find next step
       const stepResult = await query(
-        `SELECT workflow_id, parent_step_id, branch_path FROM "WorkflowStep" WHERE id = $1`,
+        `SELECT workflow_id, parent_step_id, branch_id FROM "WorkflowStep" WHERE id = $1`,
         [stepId]
       );
 
@@ -1836,7 +1836,7 @@ async function checkEventWaiters(eventType, recordId, tenantId) {
       }
 
       const step = stepResult.rows[0];
-      const nextStepId = await findNextStep(step.workflow_id, stepId, step.parent_step_id, step.branch_path);
+      const nextStepId = await findNextStep(step.workflow_id, stepId, step.parent_step_id, step.branch_id);
 
       // Update execution to running and set next step
       await query(
@@ -1926,21 +1926,13 @@ async function executeStaticBranching(step, config, recordData) {
 
   if (matchedBranch) {
     // Use the matched branch's next step
-    // Branch can specify nextStepId directly or use branchPath to find child steps
+    // Branch can specify nextStepId directly or use branchId to find child steps
     if (matchedBranch.nextStepId) {
       nextStepId = matchedBranch.nextStepId;
-    } else if (matchedBranch.branchPath) {
-      // Find first step in the branch path
-      const branchStepResult = await query(
-        `SELECT id FROM "WorkflowStep"
-         WHERE workflow_id = $1
-           AND parent_step_id = $2
-           AND branch_path = $3
-         ORDER BY position ASC
-         LIMIT 1`,
-        [step.workflow_id, step.id, matchedBranch.branchPath]
-      );
-      nextStepId = branchStepResult.rows[0]?.id;
+    } else if (matchedBranch.branchId || matchedBranch.id) {
+      // Find first step in the branch by branch_id
+      const branchId = matchedBranch.branchId || matchedBranch.id;
+      nextStepId = await findFirstStepInBranch(step.workflow_id, step.id, branchId);
     }
     matchedValue = matchedBranch.value;
     console.log('[StepExecutor] Static branch matched:', matchedValue, '-> nextStepId:', nextStepId);
@@ -1953,7 +1945,7 @@ async function executeStaticBranching(step, config, recordData) {
       console.log('[StepExecutor] Static branch using default:', nextStepId);
     } else {
       // No default specified, find next sibling/parent step
-      nextStepId = await findNextStep(step.workflow_id, step.id, step.parent_step_id, step.branch_path);
+      nextStepId = await findNextStep(step.workflow_id, step.id, step.parent_step_id, step.branch_id);
       console.log('[StepExecutor] Static branch no match, continuing to:', nextStepId);
     }
   }
@@ -1973,31 +1965,41 @@ async function executeStaticBranching(step, config, recordData) {
 
 /**
  * Execute list branching (if/then conditional routing)
- * HubSpot-aligned: Uses yes_step_id/no_step_id for explicit connections,
- * falls back to branch_path query for backwards compatibility
- * Config: { conditions: [...], conditionLogic: 'and'|'or' }
+ * HubSpot-aligned: Supports up to 20 branches with conditions
+ * First matching branch wins, then falls back to default 'none-matched' branch
+ *
+ * Config formats:
+ * - Multi-branch: { branches: [{ id, name, conditions: { logic, conditions }, order, isDefault }, ...] }
+ * - Legacy binary: { conditions: [...], conditionLogic: 'and'|'or' }
  */
 async function executeListBranching(step, config, recordData) {
+  const branches = config.branches || [];
+
+  // Check if using new multi-branch format
+  if (branches.length > 0) {
+    return executeMultiBranching(step, branches, recordData);
+  }
+
+  // Legacy binary yes/no format - convert to multi-branch internally
   const conditions = config.conditions || [];
   const conditionLogic = config.conditionLogic || 'and';
 
-  console.log('[StepExecutor] List branch with', conditions.length, 'conditions');
+  console.log('[StepExecutor] Legacy binary branch with', conditions.length, 'conditions');
 
   // Evaluate conditions
   const conditionsMet = evaluateConditions(conditions, conditionLogic, recordData);
 
   console.log('[StepExecutor] Conditions met:', conditionsMet);
 
-  const branchPath = conditionsMet ? 'yes' : 'no';
+  const branchId = conditionsMet ? 'yes' : 'no';
 
-  // First, check for explicit branch step connections (HubSpot approach)
-  // These are stored directly on the determinator step
+  // First, check for explicit branch step connections
   if (conditionsMet && step.yes_step_id) {
     console.log('[StepExecutor] Using explicit yes_step_id:', step.yes_step_id);
     return {
       success: true,
       nextStepId: step.yes_step_id,
-      result: { branchType: 'list', conditionsMet, branchPath, connectionType: 'explicit' },
+      result: { branchType: 'list', branchId, branchName: 'Yes', conditionsMet, connectionType: 'explicit' },
     };
   }
 
@@ -2006,37 +2008,144 @@ async function executeListBranching(step, config, recordData) {
     return {
       success: true,
       nextStepId: step.no_step_id,
-      result: { branchType: 'list', conditionsMet, branchPath, connectionType: 'explicit' },
+      result: { branchType: 'list', branchId, branchName: 'No', conditionsMet, connectionType: 'explicit' },
     };
   }
 
-  // Fallback: Find the first step in the appropriate branch (legacy approach)
-  console.log('[StepExecutor] No explicit branch connection, falling back to branch_path query');
-  const nextStepResult = await query(
-    `SELECT id FROM "WorkflowStep"
-     WHERE workflow_id = $1
-       AND parent_step_id = $2
-       AND branch_path = $3
-     ORDER BY position ASC
-     LIMIT 1`,
-    [step.workflow_id, step.id, branchPath]
-  );
+  // Fallback: Find first step in branch by branch_id
+  const nextStepId = await findFirstStepInBranch(step.workflow_id, step.id, branchId);
 
-  if (nextStepResult.rows.length === 0) {
-    // No steps in branch, find next sibling/parent step
-    const nextStepId = await findNextStep(step.workflow_id, step.id, step.parent_step_id, step.branch_path);
+  if (!nextStepId) {
+    // No steps in branch, continue to next sibling/parent
+    const fallbackStepId = await findNextStep(step.workflow_id, step.id, step.parent_step_id, step.branch_id);
     return {
       success: true,
-      nextStepId,
-      result: { branchType: 'list', conditionsMet, branchPath, connectionType: 'position' },
+      nextStepId: fallbackStepId,
+      result: { branchType: 'list', branchId, branchName: conditionsMet ? 'Yes' : 'No', conditionsMet, connectionType: 'fallback' },
     };
   }
 
   return {
     success: true,
-    nextStepId: nextStepResult.rows[0].id,
-    result: { branchType: 'list', conditionsMet, branchPath, connectionType: 'position' },
+    nextStepId,
+    result: { branchType: 'list', branchId, branchName: conditionsMet ? 'Yes' : 'No', conditionsMet, connectionType: 'branch_id' },
   };
+}
+
+/**
+ * Execute multi-branch routing (HubSpot if/then with up to 20 branches)
+ * Evaluates each branch's conditions in order - first match wins
+ * Falls back to 'none-matched' / default branch if no conditions match
+ *
+ * @param {Object} step - The determinator step
+ * @param {Array} branches - Array of { id, name, conditions, order, isDefault, nextStepId }
+ * @param {Object} recordData - Record data for condition evaluation
+ */
+async function executeMultiBranching(step, branches, recordData) {
+  console.log('[StepExecutor] Multi-branch determinator with', branches.length, 'branches');
+
+  // Sort branches by order (non-default first, then default last)
+  const sortedBranches = [...branches].sort((a, b) => {
+    // Default branches always go last
+    if (a.isDefault && !b.isDefault) return 1;
+    if (!a.isDefault && b.isDefault) return -1;
+    // Otherwise sort by order
+    return (a.order || 0) - (b.order || 0);
+  });
+
+  let matchedBranch = null;
+
+  // Evaluate each non-default branch's conditions (first match wins - HubSpot behavior)
+  for (const branch of sortedBranches) {
+    // Skip default branch during condition evaluation
+    if (branch.isDefault) continue;
+
+    const branchConditions = branch.conditions;
+
+    // If branch has no conditions object, skip it
+    if (!branchConditions) continue;
+
+    // Extract conditions array and logic from nested structure
+    const conditionsArray = branchConditions.conditions || [];
+    const conditionLogic = branchConditions.logic || 'and';
+
+    // Empty conditions array means "always match" (like a catch-all)
+    if (conditionsArray.length === 0) {
+      console.log('[StepExecutor] Branch', branch.name, 'has empty conditions - treating as match');
+      matchedBranch = branch;
+      break;
+    }
+
+    // Evaluate this branch's conditions
+    const conditionsMet = evaluateConditions(conditionsArray, conditionLogic, recordData);
+
+    console.log('[StepExecutor] Branch', branch.name, '- conditions met:', conditionsMet);
+
+    if (conditionsMet) {
+      matchedBranch = branch;
+      break;
+    }
+  }
+
+  // If no branch matched, use the default branch
+  if (!matchedBranch) {
+    matchedBranch = sortedBranches.find(b => b.isDefault);
+    console.log('[StepExecutor] No branch matched, using default:', matchedBranch?.name || 'none');
+  }
+
+  // Determine next step ID
+  let nextStepId = null;
+
+  if (matchedBranch) {
+    // Option 1: Branch has explicit nextStepId
+    if (matchedBranch.nextStepId) {
+      nextStepId = matchedBranch.nextStepId;
+      console.log('[StepExecutor] Using branch nextStepId:', nextStepId);
+    } else {
+      // Option 2: Find first step in this branch by branch_id
+      nextStepId = await findFirstStepInBranch(step.workflow_id, step.id, matchedBranch.id);
+      console.log('[StepExecutor] Found first step in branch:', nextStepId);
+    }
+  }
+
+  // If still no next step, fall back to step after determinator
+  if (!nextStepId) {
+    nextStepId = await findNextStep(step.workflow_id, step.id, step.parent_step_id, step.branch_id);
+    console.log('[StepExecutor] No steps in branch, continuing to:', nextStepId);
+  }
+
+  return {
+    success: true,
+    nextStepId,
+    result: {
+      branchType: 'multi',
+      branchId: matchedBranch?.id || null,
+      branchName: matchedBranch?.name || null,
+      isDefaultBranch: matchedBranch?.isDefault || false,
+      branchesEvaluated: sortedBranches.filter(b => !b.isDefault).length,
+    },
+  };
+}
+
+/**
+ * Find the first step in a branch of a determinator
+ * @param {string} workflowId - Workflow ID
+ * @param {string} parentStepId - Determinator step ID
+ * @param {string} branchId - Branch ID to find steps in
+ * @returns {string|null} First step ID or null if branch is empty
+ */
+async function findFirstStepInBranch(workflowId, parentStepId, branchId) {
+  const result = await query(
+    `SELECT id FROM "WorkflowStep"
+     WHERE workflow_id = $1
+       AND parent_step_id = $2
+       AND branch_id = $3
+     ORDER BY position ASC
+     LIMIT 1`,
+    [workflowId, parentStepId, branchId]
+  );
+
+  return result.rows[0]?.id || null;
 }
 
 /**
@@ -2062,7 +2171,7 @@ async function executeGate(step, execution, recordData, tenantId) {
   }
 
   // Gate passed - continue to next step
-  const nextStepId = await findNextStep(step.workflow_id, step.id, step.parent_step_id, step.branch_path);
+  const nextStepId = await findNextStep(step.workflow_id, step.id, step.parent_step_id, step.branch_id);
   return {
     success: true,
     nextStepId,
@@ -2246,7 +2355,7 @@ async function findNextStep(workflowId, currentStepId, parentStepId, branchPath)
     `SELECT id FROM "WorkflowStep"
      WHERE workflow_id = $1
        AND parent_step_id ${parentCondition}
-       AND branch_path ${branchCondition}
+       AND branch_id ${branchCondition}
        AND position > ${positionPlaceholder}
      ORDER BY position ASC
      LIMIT 1`,
@@ -2260,7 +2369,7 @@ async function findNextStep(workflowId, currentStepId, parentStepId, branchPath)
   // No more siblings - if we're in a branch, go to parent's next sibling
   if (parentStepId) {
     const parentResult = await query(
-      `SELECT parent_step_id, branch_path FROM "WorkflowStep" WHERE id = $1`,
+      `SELECT parent_step_id, branch_id FROM "WorkflowStep" WHERE id = $1`,
       [parentStepId]
     );
 
@@ -2269,7 +2378,7 @@ async function findNextStep(workflowId, currentStepId, parentStepId, branchPath)
         workflowId,
         parentStepId,
         parentResult.rows[0].parent_step_id,
-        parentResult.rows[0].branch_path
+        parentResult.rows[0].branch_id
       );
     }
   }

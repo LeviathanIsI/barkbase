@@ -739,38 +739,47 @@ function computeStepConnections(steps) {
       no_step_id: null,
     };
 
-    // For determinators, set yes_step_id and no_step_id
+    // For determinators, handle branching connections
     if (step.stepType === STEP_TYPES.DETERMINATOR) {
-      // Find first step in each branch
       const branches = step.config?.branches || [];
 
-      branches.forEach((branch) => {
-        const branchSteps = findBranchSteps(step.id, branch.id);
-        if (branchSteps.length > 0) {
-          const firstStepId = branchSteps[0].id;
-          const branchName = branch.name?.toLowerCase() || '';
+      // Check if this is multi-branch (has branches with UUIDs) or legacy yes/no
+      const isMultiBranch = branches.length > 0 && branches.some((b) => !['yes', 'no'].includes(b.id));
 
-          // Check for legacy yes/no branch IDs or names
-          const isYesBranch = branch.id === 'yes' || branchName === 'yes';
-          const isNoBranch = branch.id === 'no' || branchName === 'no';
-
-          if (isYesBranch) {
-            connections[step.id].yes_step_id = firstStepId;
-          } else if (isNoBranch || branch.isDefault) {
-            // Default/fallback branch maps to no_step_id
-            connections[step.id].no_step_id = firstStepId;
-          } else if (!connections[step.id].yes_step_id) {
-            // For multi-branch: first non-default branch -> yes_step_id
-            connections[step.id].yes_step_id = firstStepId;
-          }
-        }
-      });
-
-      // If no branches have steps, next_step_id is the step after determinator
-      if (!connections[step.id].yes_step_id && !connections[step.id].no_step_id) {
+      if (isMultiBranch) {
+        // Multi-branch: Don't set yes_step_id/no_step_id
+        // The backend routes via branch_id + findFirstStepInBranch
+        // Set next_step_id to the step after the determinator (merge point)
         const nextSibling = findNextSibling(step);
         if (nextSibling) {
           connections[step.id].next_step_id = nextSibling.id;
+        }
+      } else {
+        // Legacy binary yes/no branching
+        branches.forEach((branch) => {
+          const branchSteps = findBranchSteps(step.id, branch.id);
+          if (branchSteps.length > 0) {
+            const firstStepId = branchSteps[0].id;
+            const branchName = branch.name?.toLowerCase() || '';
+
+            // Check for legacy yes/no branch IDs or names
+            const isYesBranch = branch.id === 'yes' || branchName === 'yes';
+            const isNoBranch = branch.id === 'no' || branchName === 'no';
+
+            if (isYesBranch) {
+              connections[step.id].yes_step_id = firstStepId;
+            } else if (isNoBranch || branch.isDefault) {
+              connections[step.id].no_step_id = firstStepId;
+            }
+          }
+        });
+
+        // If no branches have steps, next_step_id is the step after determinator
+        if (!connections[step.id].yes_step_id && !connections[step.id].no_step_id) {
+          const nextSibling = findNextSibling(step);
+          if (nextSibling) {
+            connections[step.id].next_step_id = nextSibling.id;
+          }
         }
       }
     } else if (step.stepType === STEP_TYPES.TERMINUS) {
