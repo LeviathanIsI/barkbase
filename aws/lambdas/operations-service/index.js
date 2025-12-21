@@ -713,6 +713,10 @@ exports.handler = async (event, context) => {
       if (subPath === '/history' && method === 'GET') {
         return handleGetWorkflowHistory(tenantId, workflowId, event.queryStringParameters || {});
       }
+      // Retry all failed executions
+      if (subPath === '/executions/retry-all' && method === 'POST') {
+        return handleRetryAllFailedExecutions(tenantId, user, workflowId);
+      }
       // Execution by ID
       const executionMatch = subPath.match(/\/executions\/([a-f0-9-]+)(\/.*)?$/i);
       if (executionMatch) {
@@ -720,6 +724,9 @@ exports.handler = async (event, context) => {
         const execSubPath = executionMatch[2] || '';
         if (execSubPath === '/cancel' && method === 'POST') {
           return handleCancelWorkflowExecution(tenantId, user, workflowId, executionId);
+        }
+        if (execSubPath === '/retry' && method === 'POST') {
+          return handleRetryExecution(tenantId, user, workflowId, executionId);
         }
         if (!execSubPath || execSubPath === '') {
           if (method === 'GET') {
@@ -8986,6 +8993,18 @@ async function handleGetWorkflowExecutions(tenantId, workflowId, queryParams) {
       [...params, parseInt(limit), parseInt(offset)]
     );
 
+    // Get total count and failed count for this workflow
+    const countResult = await query(
+      `SELECT
+         COUNT(*) as total,
+         COUNT(*) FILTER (WHERE status = 'failed') as failed_count
+       FROM "WorkflowExecution"
+       WHERE workflow_id = $1 AND tenant_id = $2`,
+      [workflowId, tenantId]
+    );
+
+    const counts = countResult.rows[0] || { total: 0, failed_count: 0 };
+
     // Enhance each execution with goal_reached boolean and timing status
     const executions = result.rows.map(execution => ({
       ...execution,
@@ -8996,7 +9015,8 @@ async function handleGetWorkflowExecutions(tenantId, workflowId, queryParams) {
 
     return createResponse(200, {
       executions,
-      total: result.rows.length,
+      total: parseInt(counts.total) || 0,
+      failedCount: parseInt(counts.failed_count) || 0,
       limit: parseInt(limit),
       offset: parseInt(offset),
     });
@@ -9308,6 +9328,177 @@ async function handleCancelWorkflowExecution(tenantId, user, workflowId, executi
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to cancel execution',
+    });
+  }
+}
+
+/**
+ * Retry a failed workflow execution
+ */
+async function handleRetryExecution(tenantId, user, workflowId, executionId) {
+  console.log('[Workflows][retryExecution] executionId:', executionId, 'workflowId:', workflowId);
+
+  try {
+    await getPoolAsync();
+
+    // Get the failed execution
+    const execResult = await query(
+      `SELECT we.*, w.name as workflow_name
+       FROM "WorkflowExecution" we
+       JOIN "Workflow" w ON we.workflow_id = w.id
+       WHERE we.id = $1 AND we.workflow_id = $2 AND we.tenant_id = $3 AND we.status = 'failed'`,
+      [executionId, workflowId, tenantId]
+    );
+
+    if (execResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Failed execution not found',
+      });
+    }
+
+    const execution = execResult.rows[0];
+
+    // Reset execution to running status
+    await query(
+      `UPDATE "WorkflowExecution"
+       SET status = 'running',
+           error_details = NULL,
+           completed_at = NULL,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [executionId]
+    );
+
+    // Update workflow counts
+    await query(
+      `UPDATE "Workflow"
+       SET failed_count = GREATEST(COALESCE(failed_count, 0) - 1, 0),
+           active_count = COALESCE(active_count, 0) + 1
+       WHERE id = $1`,
+      [workflowId]
+    );
+
+    // Re-enqueue the execution to continue from the failed step
+    const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+    const sqs = new SQSClient({ region: process.env.AWS_REGION_DEPLOY || 'us-east-2' });
+
+    await sqs.send(new SendMessageCommand({
+      QueueUrl: process.env.WORKFLOW_STEP_QUEUE_URL,
+      MessageBody: JSON.stringify({
+        executionId,
+        workflowId,
+        tenantId,
+        action: 'resume',
+        stepId: execution.current_step_id,
+        retriedAt: new Date().toISOString(),
+        retriedBy: user?.id || 'system',
+      }),
+    }));
+
+    console.log('[Workflows] Execution retried:', executionId);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Execution retried',
+      executionId,
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to retry execution:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retry execution',
+    });
+  }
+}
+
+/**
+ * Retry all failed executions for a workflow
+ */
+async function handleRetryAllFailedExecutions(tenantId, user, workflowId) {
+  console.log('[Workflows][retryAllFailed] workflowId:', workflowId);
+
+  try {
+    await getPoolAsync();
+
+    // Get all failed executions for this workflow
+    const failedResult = await query(
+      `SELECT id, current_step_id
+       FROM "WorkflowExecution"
+       WHERE workflow_id = $1 AND tenant_id = $2 AND status = 'failed'
+       LIMIT 100`,
+      [workflowId, tenantId]
+    );
+
+    if (failedResult.rows.length === 0) {
+      return createResponse(200, {
+        success: true,
+        message: 'No failed executions to retry',
+        retriedCount: 0,
+      });
+    }
+
+    const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+    const sqs = new SQSClient({ region: process.env.AWS_REGION_DEPLOY || 'us-east-2' });
+
+    let retriedCount = 0;
+
+    for (const execution of failedResult.rows) {
+      try {
+        // Reset execution to running
+        await query(
+          `UPDATE "WorkflowExecution"
+           SET status = 'running',
+               error_details = NULL,
+               completed_at = NULL,
+               updated_at = NOW()
+           WHERE id = $1`,
+          [execution.id]
+        );
+
+        // Enqueue for processing
+        await sqs.send(new SendMessageCommand({
+          QueueUrl: process.env.WORKFLOW_STEP_QUEUE_URL,
+          MessageBody: JSON.stringify({
+            executionId: execution.id,
+            workflowId,
+            tenantId,
+            action: 'resume',
+            stepId: execution.current_step_id,
+            retriedAt: new Date().toISOString(),
+            retriedBy: user?.id || 'system',
+          }),
+        }));
+
+        retriedCount++;
+      } catch (err) {
+        console.error('[Workflows] Failed to retry execution:', execution.id, err.message);
+      }
+    }
+
+    // Update workflow counts
+    await query(
+      `UPDATE "Workflow"
+       SET failed_count = GREATEST(COALESCE(failed_count, 0) - $2, 0),
+           active_count = COALESCE(active_count, 0) + $2
+       WHERE id = $1`,
+      [workflowId, retriedCount]
+    );
+
+    console.log('[Workflows] Retried', retriedCount, 'failed executions');
+
+    return createResponse(200, {
+      success: true,
+      message: `Retried ${retriedCount} failed executions`,
+      retriedCount,
+    });
+
+  } catch (error) {
+    console.error('[Workflows] Failed to retry all executions:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retry executions',
     });
   }
 }

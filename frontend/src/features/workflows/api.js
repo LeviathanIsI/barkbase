@@ -211,6 +211,19 @@ export async function unenrollRecord(workflowId, enrollmentId) {
 }
 
 /**
+ * Retry a failed execution
+ * @param {string} workflowId - The workflow ID
+ * @param {string} executionId - The execution ID (optional if retryAll is true)
+ * @param {boolean} retryAll - If true, retry all failed executions for this workflow
+ */
+export async function retryExecution(workflowId, executionId, retryAll = false) {
+  if (retryAll) {
+    return apiClient.post(`${BASE_URL}/${workflowId}/executions/retry-all`);
+  }
+  return apiClient.post(`${BASE_URL}/${workflowId}/executions/${executionId}/retry`);
+}
+
+/**
  * Get workflow history/logs
  */
 export async function getWorkflowHistory(workflowId, params = {}) {
@@ -284,6 +297,7 @@ export default {
   // Enrollments
   enrollRecord,
   unenrollRecord,
+  retryExecution,
   getWorkflowHistory,
   getWorkflowAnalytics,
   testWorkflow,

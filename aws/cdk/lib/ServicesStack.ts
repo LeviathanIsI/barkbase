@@ -20,6 +20,9 @@ import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as cloudwatchActions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as sns from 'aws-cdk-lib/aws-sns';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as dotenv from 'dotenv';
@@ -56,6 +59,9 @@ export class ServicesStack extends cdk.Stack {
   public readonly workflowSchedulerFunction: lambda.IFunction;
   public readonly workflowSchedulerRole: iam.IRole;
   public readonly workflowCleanupFunction: lambda.IFunction;
+  public readonly workflowDlqProcessorFunction: lambda.IFunction;
+  public readonly workflowStepDlq: sqs.IQueue;
+  public readonly workflowTriggerDlq: sqs.IQueue;
 
   constructor(scope: Construct, id: string, props: ServicesStackProps) {
     super(scope, id, props);
@@ -95,13 +101,13 @@ export class ServicesStack extends cdk.Stack {
     // =========================================================================
 
     // Dead Letter Queue for workflow triggers
-    const workflowTriggerDlq = new sqs.Queue(this, 'WorkflowTriggerDLQ', {
+    this.workflowTriggerDlq = new sqs.Queue(this, 'WorkflowTriggerDLQ', {
       queueName: `${config.stackPrefix}-workflow-triggers-dlq`,
       retentionPeriod: cdk.Duration.days(14),
     });
 
     // Dead Letter Queue for workflow steps
-    const workflowStepDlq = new sqs.Queue(this, 'WorkflowStepDLQ', {
+    this.workflowStepDlq = new sqs.Queue(this, 'WorkflowStepDLQ', {
       queueName: `${config.stackPrefix}-workflow-steps-dlq`,
       retentionPeriod: cdk.Duration.days(14),
     });
@@ -112,7 +118,7 @@ export class ServicesStack extends cdk.Stack {
       visibilityTimeout: cdk.Duration.seconds(60),
       retentionPeriod: cdk.Duration.days(14),
       deadLetterQueue: {
-        queue: workflowTriggerDlq,
+        queue: this.workflowTriggerDlq,
         maxReceiveCount: 3, // Retry 3 times before sending to DLQ
       },
     });
@@ -123,7 +129,7 @@ export class ServicesStack extends cdk.Stack {
       visibilityTimeout: cdk.Duration.seconds(300), // 5 min for step processing
       retentionPeriod: cdk.Duration.days(14),
       deadLetterQueue: {
-        queue: workflowStepDlq,
+        queue: this.workflowStepDlq,
         maxReceiveCount: 3,
       },
     });
@@ -459,6 +465,87 @@ export class ServicesStack extends cdk.Stack {
     }));
 
     // =========================================================================
+    // Workflow DLQ Processor (EventBridge-triggered from SQS DLQ)
+    // =========================================================================
+    // Processes messages that failed after max retries (3 attempts).
+    // - Logs failure details for debugging
+    // - Updates WorkflowExecution status to 'failed'
+    // - Increments workflow.failed_count
+    // - Sends notifications if configured
+
+    this.workflowDlqProcessorFunction = new lambda.Function(this, 'WorkflowDlqProcessorFunction', {
+      ...commonLambdaConfig,
+      functionName: `${config.stackPrefix}-workflow-dlq-processor`,
+      description: 'BarkBase Workflow DLQ Processor - Handles failed workflow messages after max retries',
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/workflow-dlq-processor')),
+      timeout: cdk.Duration.minutes(2),
+    });
+
+    // Grant CloudWatch metrics permissions
+    this.workflowDlqProcessorFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['cloudwatch:PutMetricData'],
+      resources: ['*'],
+    }));
+
+    // Wire DLQ processor to both DLQs
+    this.workflowDlqProcessorFunction.addEventSource(
+      new lambdaEventSources.SqsEventSource(this.workflowStepDlq as sqs.Queue, {
+        batchSize: 10,
+        maxBatchingWindow: cdk.Duration.seconds(10),
+      })
+    );
+
+    this.workflowDlqProcessorFunction.addEventSource(
+      new lambdaEventSources.SqsEventSource(this.workflowTriggerDlq as sqs.Queue, {
+        batchSize: 10,
+        maxBatchingWindow: cdk.Duration.seconds(10),
+      })
+    );
+
+    // =========================================================================
+    // CloudWatch Alarms for DLQ Monitoring
+    // =========================================================================
+
+    // SNS topic for DLQ alerts
+    const dlqAlertTopic = new sns.Topic(this, 'WorkflowDlqAlertTopic', {
+      topicName: `${config.stackPrefix}-workflow-dlq-alerts`,
+      displayName: 'BarkBase Workflow DLQ Alerts',
+    });
+
+    // Alarm when any message appears in the step DLQ
+    const stepDlqAlarm = new cloudwatch.Alarm(this, 'WorkflowStepDlqAlarm', {
+      alarmName: `${config.stackPrefix}-workflow-step-dlq-messages`,
+      alarmDescription: 'Alarm when workflow step messages appear in DLQ (failed after 3 retries)',
+      metric: this.workflowStepDlq.metricApproximateNumberOfMessagesVisible({
+        period: cdk.Duration.minutes(5),
+        statistic: 'Sum',
+      }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+
+    stepDlqAlarm.addAlarmAction(new cloudwatchActions.SnsAction(dlqAlertTopic));
+
+    // Alarm when any message appears in the trigger DLQ
+    const triggerDlqAlarm = new cloudwatch.Alarm(this, 'WorkflowTriggerDlqAlarm', {
+      alarmName: `${config.stackPrefix}-workflow-trigger-dlq-messages`,
+      alarmDescription: 'Alarm when workflow trigger messages appear in DLQ (failed after 3 retries)',
+      metric: this.workflowTriggerDlq.metricApproximateNumberOfMessagesVisible({
+        period: cdk.Duration.minutes(5),
+        statistic: 'Sum',
+      }),
+      threshold: 1,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+
+    triggerDlqAlarm.addAlarmAction(new cloudwatchActions.SnsAction(dlqAlertTopic));
+
+    // =========================================================================
     // Stack Outputs
     // =========================================================================
 
@@ -569,6 +656,24 @@ export class ServicesStack extends cdk.Stack {
       value: this.workflowCleanupFunction.functionArn,
       description: 'Workflow Cleanup Lambda ARN',
       exportName: `${config.stackPrefix}-workflow-cleanup-arn`,
+    });
+
+    new cdk.CfnOutput(this, 'WorkflowDlqProcessorArn', {
+      value: this.workflowDlqProcessorFunction.functionArn,
+      description: 'Workflow DLQ Processor Lambda ARN',
+      exportName: `${config.stackPrefix}-workflow-dlq-processor-arn`,
+    });
+
+    new cdk.CfnOutput(this, 'WorkflowStepDlqUrl', {
+      value: this.workflowStepDlq.queueUrl,
+      description: 'Workflow Step DLQ URL',
+      exportName: `${config.stackPrefix}-workflow-step-dlq-url`,
+    });
+
+    new cdk.CfnOutput(this, 'WorkflowTriggerDlqUrl', {
+      value: this.workflowTriggerDlq.queueUrl,
+      description: 'Workflow Trigger DLQ URL',
+      exportName: `${config.stackPrefix}-workflow-trigger-dlq-url`,
     });
   }
 }

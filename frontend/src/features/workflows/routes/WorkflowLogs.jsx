@@ -40,6 +40,7 @@ import {
   useActivateWorkflow,
   usePauseWorkflow,
 } from '../hooks';
+import EnrollmentHistoryTab from '../components/details/EnrollmentHistoryTab';
 import { WORKFLOW_STATUS_CONFIG, OBJECT_TYPE_CONFIG } from '../constants';
 
 // Event type configuration with icons and colors
@@ -490,9 +491,7 @@ export default function WorkflowLogs() {
         )}
 
         {activeTab === 'enrollment' && (
-          <div className="text-center py-12 text-[var(--bb-color-text-tertiary)]">
-            Enrollment history coming soon
-          </div>
+          <EnrollmentHistoryTab workflowId={workflowId} />
         )}
       </div>
     </div>

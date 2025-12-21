@@ -240,6 +240,23 @@ export function useUnenrollRecord() {
   });
 }
 
+/**
+ * Retry a failed execution
+ */
+export function useRetryExecution() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ workflowId, executionId, retryAll }) =>
+      api.retryExecution(workflowId, executionId, retryAll),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: WORKFLOW_QUERY_KEYS.executions(variables.workflowId, {}) });
+      queryClient.invalidateQueries({ queryKey: WORKFLOW_QUERY_KEYS.analytics(variables.workflowId, {}) });
+      queryClient.invalidateQueries({ queryKey: WORKFLOW_QUERY_KEYS.detail(variables.workflowId) });
+    },
+  });
+}
+
 // ===== ANALYTICS =====
 
 /**

@@ -1,0 +1,16 @@
+{
+  "name": "workflow-dlq-processor",
+  "version": "1.0.0",
+  "description": "BarkBase workflow DLQ processor - handles failed workflow messages",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.0.0",
+    "@aws-sdk/client-ses": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
