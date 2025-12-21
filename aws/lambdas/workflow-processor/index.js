@@ -712,6 +712,182 @@ function getTableName(recordType) {
 }
 
 /**
+ * Get nested value from object using dot notation path
+ */
+function getNestedValue(obj, path) {
+  if (!path) return undefined;
+  const parts = path.split('.');
+  let current = obj;
+
+  for (const part of parts) {
+    if (current === null || current === undefined) {
+      return undefined;
+    }
+    current = current[part];
+  }
+
+  return current;
+}
+
+/**
+ * Fetch record data for goal evaluation
+ */
+async function getRecordDataForGoal(recordId, recordType, tenantId) {
+  const data = { recordType };
+
+  try {
+    const tableName = getTableName(recordType);
+    if (tableName) {
+      const recordResult = await query(
+        `SELECT * FROM "${tableName}" WHERE id = $1 AND tenant_id = $2`,
+        [recordId, tenantId]
+      );
+      if (recordResult.rows.length > 0) {
+        data.record = recordResult.rows[0];
+        data[recordType] = recordResult.rows[0];
+      }
+    }
+
+    // Get related owner for non-owner records
+    if (data.record?.owner_id) {
+      const ownerResult = await query(
+        `SELECT * FROM "Owner" WHERE id = $1`,
+        [data.record.owner_id]
+      );
+      if (ownerResult.rows.length > 0) {
+        data.owner = ownerResult.rows[0];
+        data.owner.full_name = `${data.owner.first_name} ${data.owner.last_name}`.trim();
+      }
+    }
+
+    // Get related pet
+    if (data.record?.pet_id) {
+      const petResult = await query(
+        `SELECT * FROM "Pet" WHERE id = $1`,
+        [data.record.pet_id]
+      );
+      if (petResult.rows.length > 0) {
+        data.pet = petResult.rows[0];
+      }
+    }
+
+    // For pet records, get owner
+    if (recordType === 'pet' && data.pet?.owner_id) {
+      const ownerResult = await query(
+        `SELECT * FROM "Owner" WHERE id = $1`,
+        [data.pet.owner_id]
+      );
+      if (ownerResult.rows.length > 0) {
+        data.owner = ownerResult.rows[0];
+        data.owner.full_name = `${data.owner.first_name} ${data.owner.last_name}`.trim();
+      }
+    }
+  } catch (error) {
+    console.error('[WorkflowTrigger] Error fetching record data for goal check:', error);
+  }
+
+  return data;
+}
+
+/**
+ * Evaluate a single goal condition against record data
+ */
+function evaluateGoalCondition(condition, recordData) {
+  const { field, operator, value } = condition;
+  const actualValue = getNestedValue(recordData, field);
+
+  switch (operator) {
+    case 'equals':
+    case 'IS_EQUAL_TO':
+      return String(actualValue) === String(value);
+    case 'not_equals':
+    case 'IS_NOT_EQUAL_TO':
+      return String(actualValue) !== String(value);
+    case 'contains':
+    case 'CONTAINS':
+      return String(actualValue || '').toLowerCase().includes(String(value).toLowerCase());
+    case 'not_contains':
+    case 'DOES_NOT_CONTAIN':
+      return !String(actualValue || '').toLowerCase().includes(String(value).toLowerCase());
+    case 'starts_with':
+    case 'STARTS_WITH':
+      return String(actualValue || '').toLowerCase().startsWith(String(value).toLowerCase());
+    case 'ends_with':
+    case 'ENDS_WITH':
+      return String(actualValue || '').toLowerCase().endsWith(String(value).toLowerCase());
+    case 'is_empty':
+    case 'IS_EMPTY':
+    case 'IS_UNKNOWN':
+      return !actualValue || actualValue === '';
+    case 'is_not_empty':
+    case 'IS_NOT_EMPTY':
+    case 'IS_KNOWN':
+      return !!actualValue && actualValue !== '';
+    case 'greater_than':
+    case 'GREATER_THAN':
+      return Number(actualValue) > Number(value);
+    case 'less_than':
+    case 'LESS_THAN':
+      return Number(actualValue) < Number(value);
+    case 'is_true':
+    case 'IS_TRUE':
+      return actualValue === true || actualValue === 'true';
+    case 'is_false':
+    case 'IS_FALSE':
+      return actualValue === false || actualValue === 'false';
+    default:
+      console.warn('[WorkflowTrigger] Unknown goal condition operator:', operator);
+      return false;
+  }
+}
+
+/**
+ * Evaluate workflow goal conditions against record data
+ * Returns { met: boolean, reason: string, conditionResults?: array }
+ */
+function evaluateGoalConditions(goalConfig, recordData) {
+  if (!goalConfig) {
+    return { met: false, reason: 'No goal configured' };
+  }
+
+  const conditions = goalConfig.conditions || [];
+  const conditionLogic = goalConfig.conditionLogic || goalConfig.logic || 'and';
+
+  if (conditions.length === 0) {
+    return { met: false, reason: 'No goal conditions defined' };
+  }
+
+  // Evaluate each condition and track results
+  const conditionResults = conditions.map(condition => {
+    const result = evaluateGoalCondition(condition, recordData);
+    return {
+      field: condition.field,
+      operator: condition.operator,
+      expectedValue: condition.value,
+      actualValue: getNestedValue(recordData, condition.field),
+      met: result,
+    };
+  });
+
+  // Determine if goal is met based on logic
+  let goalMet;
+  if (conditionLogic === 'or') {
+    goalMet = conditionResults.some(r => r.met);
+  } else {
+    goalMet = conditionResults.every(r => r.met);
+  }
+
+  return {
+    met: goalMet,
+    conditionLogic,
+    conditionResults,
+    reason: goalMet
+      ? (conditionLogic === 'or' ? 'At least one goal condition satisfied' : 'All goal conditions satisfied')
+      : (conditionLogic === 'or' ? 'No goal conditions satisfied' : 'Not all goal conditions satisfied'),
+  };
+}
+
+/**
  * Attempt to enroll a record in a workflow
  */
 async function enrollInWorkflow(workflow, recordId, recordType, tenantId, eventData) {
@@ -783,6 +959,29 @@ async function enrollInWorkflow(workflow, recordId, recordType, tenantId, eventD
         return { enrolled: false, reason: 'reenrollment_delay' };
       }
     }
+  }
+
+  // Check if record already meets goal conditions (HubSpot behavior)
+  // Records that already satisfy the goal should not be enrolled
+  if (workflow.goal_config) {
+    console.log('[WorkflowTrigger] Checking if record already meets goal conditions...');
+    const recordData = await getRecordDataForGoal(recordId, recordType, tenantId);
+    const goalResult = evaluateGoalConditions(workflow.goal_config, recordData);
+
+    if (goalResult.met) {
+      console.log('[WorkflowTrigger] Record already meets goal conditions:', {
+        workflowId: workflow.id,
+        workflowName: workflow.name,
+        recordId,
+        goalResult,
+      });
+      return {
+        enrolled: false,
+        reason: 'already_meets_goal',
+        goalResult,
+      };
+    }
+    console.log('[WorkflowTrigger] Record does not meet goal conditions, proceeding with enrollment');
   }
 
   // Get the first step of the workflow (root level, position 0)
