@@ -23,7 +23,9 @@ DECLARE
     v_count INTEGER;
     v_column_type TEXT;
     v_has_created_at BOOLEAN;
+    v_has_id BOOLEAN;
     v_order_by TEXT;
+    v_pk_column TEXT;
 BEGIN
     -- Check if table exists
     IF NOT EXISTS (SELECT FROM pg_tables WHERE tablename = p_table_name) THEN
@@ -53,6 +55,17 @@ BEGIN
         WHERE table_name = p_table_name AND column_name = 'tenant_id'
     ) THEN
         RAISE NOTICE 'Table % does not have tenant_id column, use backfill_record_ids_no_tenant instead', p_table_name;
+        RETURN;
+    END IF;
+
+    -- Check if id column exists
+    SELECT EXISTS (
+        SELECT FROM information_schema.columns
+        WHERE table_name = p_table_name AND column_name = 'id'
+    ) INTO v_has_id;
+
+    IF NOT v_has_id THEN
+        RAISE NOTICE 'Table % does not have id column (composite PK?), skipping', p_table_name;
         RETURN;
     END IF;
 
@@ -121,6 +134,7 @@ DECLARE
     v_count INTEGER;
     v_column_type TEXT;
     v_has_created_at BOOLEAN;
+    v_has_id BOOLEAN;
     v_order_by TEXT;
 BEGIN
     -- Check if table exists
@@ -142,6 +156,17 @@ BEGIN
     -- Check if record_id is BIGINT
     IF v_column_type != 'bigint' THEN
         RAISE NOTICE 'Table % has record_id as % (not BIGINT), skipping - run migration 02 first', p_table_name, v_column_type;
+        RETURN;
+    END IF;
+
+    -- Check if id column exists
+    SELECT EXISTS (
+        SELECT FROM information_schema.columns
+        WHERE table_name = p_table_name AND column_name = 'id'
+    ) INTO v_has_id;
+
+    IF NOT v_has_id THEN
+        RAISE NOTICE 'Table % does not have id column (composite PK?), skipping', p_table_name;
         RETURN;
     END IF;
 
