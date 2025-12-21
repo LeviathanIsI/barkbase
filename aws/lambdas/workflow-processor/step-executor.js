@@ -53,6 +53,115 @@ const STEP_QUEUE_URL = process.env.WORKFLOW_STEP_QUEUE_URL;
 const STEP_EXECUTOR_ARN = process.env.WORKFLOW_STEP_EXECUTOR_ARN;
 const SCHEDULER_ROLE_ARN = process.env.WORKFLOW_SCHEDULER_ROLE_ARN;
 
+// =============================================================================
+// RETRY CONFIGURATION (HubSpot-aligned)
+// =============================================================================
+const RETRY_CONFIG = {
+  MAX_RETRY_WINDOW_MS: 3 * 24 * 60 * 60 * 1000, // 3 days in milliseconds
+  INITIAL_DELAY_MS: 60 * 1000, // 1 minute
+  MAX_DELAY_MS: 8 * 60 * 60 * 1000, // 8 hours
+  BACKOFF_MULTIPLIER: 2,
+  SQS_MAX_DELAY_SECONDS: 900, // 15 minutes (SQS maximum)
+};
+
+// =============================================================================
+// RETRY HELPER FUNCTIONS
+// =============================================================================
+
+/**
+ * Calculate retry delay using exponential backoff
+ * @param {number} attemptNumber - Current attempt number (1-based)
+ * @param {number} retryAfterMs - Optional Retry-After header value in milliseconds (for 429s)
+ * @returns {number} - Delay in milliseconds
+ */
+function calculateRetryDelay(attemptNumber, retryAfterMs = null) {
+  // If Retry-After header is provided (429 response), respect it
+  if (retryAfterMs && retryAfterMs > 0) {
+    // Cap the Retry-After value at MAX_DELAY_MS
+    return Math.min(retryAfterMs, RETRY_CONFIG.MAX_DELAY_MS);
+  }
+
+  // Exponential backoff: initial * (multiplier ^ (attempt - 1))
+  const delay = RETRY_CONFIG.INITIAL_DELAY_MS *
+    Math.pow(RETRY_CONFIG.BACKOFF_MULTIPLIER, attemptNumber - 1);
+
+  // Cap at maximum delay
+  return Math.min(delay, RETRY_CONFIG.MAX_DELAY_MS);
+}
+
+/**
+ * Determine if an error is retryable based on HTTP status code
+ * @param {number} httpStatus - HTTP status code
+ * @returns {boolean} - Whether the error is retryable
+ */
+function isRetryableError(httpStatus) {
+  // 5XX errors are retryable
+  if (httpStatus >= 500 && httpStatus < 600) {
+    return true;
+  }
+
+  // 429 Too Many Requests is retryable
+  if (httpStatus === 429) {
+    return true;
+  }
+
+  // 4XX errors (except 429) are permanent failures
+  if (httpStatus >= 400 && httpStatus < 500) {
+    return false;
+  }
+
+  // Network errors or unknown errors are retryable
+  // (httpStatus will be 0 or undefined for network failures)
+  if (!httpStatus || httpStatus === 0) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if retry is still within the allowed 3-day window
+ * @param {string} firstAttemptTime - ISO timestamp of first attempt
+ * @returns {boolean} - Whether we're still within retry window
+ */
+function isWithinRetryWindow(firstAttemptTime) {
+  if (!firstAttemptTime) {
+    return true; // First attempt, always allowed
+  }
+
+  const firstAttempt = new Date(firstAttemptTime);
+  const now = new Date();
+  const elapsed = now.getTime() - firstAttempt.getTime();
+
+  return elapsed < RETRY_CONFIG.MAX_RETRY_WINDOW_MS;
+}
+
+/**
+ * Create initial retry context for first execution attempt
+ * @returns {object} - Initial retry context
+ */
+function createInitialRetryContext() {
+  return {
+    firstAttemptTime: new Date().toISOString(),
+    attemptNumber: 1,
+    lastError: null,
+  };
+}
+
+/**
+ * Update retry context for next attempt
+ * @param {object} retryContext - Current retry context
+ * @param {string} errorMessage - Error message from failed attempt
+ * @returns {object} - Updated retry context
+ */
+function updateRetryContext(retryContext, errorMessage) {
+  return {
+    firstAttemptTime: retryContext.firstAttemptTime,
+    attemptNumber: retryContext.attemptNumber + 1,
+    lastError: errorMessage,
+  };
+}
+
 /**
  * Main handler for SQS step execution events
  */
@@ -114,13 +223,16 @@ exports.handler = async (event) => {
  * Process a step execution message
  */
 async function processStepExecution(message) {
-  const { executionId, workflowId, tenantId, action } = message;
+  const { executionId, workflowId, tenantId, action, retryContext, stepId: messageStepId } = message;
 
   console.log('[STEP EXECUTOR] ---------- PROCESS STEP EXECUTION ----------');
   console.log('[STEP EXECUTOR] Execution ID:', executionId);
   console.log('[STEP EXECUTOR] Workflow ID:', workflowId);
   console.log('[STEP EXECUTOR] Tenant ID:', tenantId);
   console.log('[STEP EXECUTOR] Action:', action);
+  if (retryContext) {
+    console.log('[STEP EXECUTOR] Retry Context:', JSON.stringify(retryContext, null, 2));
+  }
 
   // Get execution details including workflow goal_config and timing_config
   console.log('[STEP EXECUTOR] Fetching execution details...');
@@ -141,21 +253,24 @@ async function processStepExecution(message) {
   const execution = executionResult.rows[0];
   console.log('[STEP EXECUTOR] Execution found:', JSON.stringify(execution, null, 2));
 
-  // Check if execution is still running
-  if (execution.status !== 'running' && execution.status !== 'paused') {
+  // Check if execution is still running (allow 'retrying' status for retry attempts)
+  if (execution.status !== 'running' && execution.status !== 'paused' && execution.status !== 'retrying') {
     console.log('[STEP EXECUTOR] Execution not active. Status:', execution.status);
     return;
   }
 
-  // Get current step details
-  console.log('[STEP EXECUTOR] Fetching step details. Step ID:', execution.current_step_id);
+  // For retry_step actions, use the step ID from message; otherwise use execution's current step
+  const targetStepId = (action === 'retry_step' && messageStepId) ? messageStepId : execution.current_step_id;
+
+  // Get step details
+  console.log('[STEP EXECUTOR] Fetching step details. Step ID:', targetStepId);
   const stepResult = await query(
     `SELECT * FROM "WorkflowStep" WHERE id = $1`,
-    [execution.current_step_id]
+    [targetStepId]
   );
 
   if (stepResult.rows.length === 0) {
-    console.error('[STEP EXECUTOR] Step NOT FOUND:', execution.current_step_id);
+    console.error('[STEP EXECUTOR] Step NOT FOUND:', targetStepId);
     await failExecution(executionId, 'Step not found');
     return;
   }
@@ -206,7 +321,7 @@ async function processStepExecution(message) {
           console.log('[STEP EXECUTOR] Timing check passed');
         }
 
-        stepResult2 = await executeAction(step, execution, recordData, tenantId);
+        stepResult2 = await executeAction(step, execution, recordData, tenantId, retryContext);
         break;
       case 'wait':
         console.log('[STEP EXECUTOR] Executing WAIT step');
@@ -289,25 +404,78 @@ async function processStepExecution(message) {
       await completeExecution(executionId, workflowId, 'completed', null);
     }
   } else {
-    // Step failed
+    // Step failed - check if retry was scheduled or if it's a permanent failure
     console.error('[STEP EXECUTOR] Step FAILED:', stepResult2.error);
-    await failExecution(executionId, stepResult2.error);
+
+    if (stepResult2.retryScheduled) {
+      // Retry has been scheduled - update execution status to 'retrying'
+      console.log('[STEP EXECUTOR] Retry scheduled. Attempt:', stepResult2.nextRetryContext?.attemptNumber);
+      console.log('[STEP EXECUTOR] Next retry in:', stepResult2.retryDelayMs, 'ms');
+
+      await query(
+        `UPDATE "WorkflowExecution"
+         SET status = 'retrying',
+             retry_context = $1,
+             updated_at = NOW()
+         WHERE id = $2`,
+        [JSON.stringify(stepResult2.nextRetryContext), executionId]
+      );
+
+      // Log the retry event
+      await query(
+        `INSERT INTO "WorkflowExecutionLog" (
+          id, execution_id, step_id, status, event_type, started_at, completed_at, result
+        ) VALUES (
+          gen_random_uuid(), $1, $2, 'pending', 'retry_scheduled', NOW(), NOW(), $3
+        )`,
+        [
+          executionId,
+          step.id,
+          JSON.stringify({
+            error: stepResult2.error,
+            httpStatus: stepResult2.httpStatus,
+            attemptNumber: stepResult2.nextRetryContext?.attemptNumber,
+            retryDelayMs: stepResult2.retryDelayMs,
+            nextRetryAt: new Date(Date.now() + stepResult2.retryDelayMs).toISOString(),
+          }),
+        ]
+      );
+
+      console.log('[STEP EXECUTOR] Execution status updated to retrying');
+    } else {
+      // Permanent failure - no retry possible
+      console.log('[STEP EXECUTOR] Permanent failure - no retry possible');
+      if (stepResult2.retryWindowExceeded) {
+        console.log('[STEP EXECUTOR] Reason: Retry window (3 days) exceeded');
+      }
+      await failExecution(executionId, stepResult2.error);
+    }
   }
 
   console.log('[STEP EXECUTOR] ---------- PROCESS STEP EXECUTION COMPLETE ----------');
 }
 
 /**
- * Execute an action step
+ * Execute an action step with retry handling
+ * @param {object} step - Step configuration
+ * @param {object} execution - Execution details
+ * @param {object} recordData - Record data for template interpolation
+ * @param {string} tenantId - Tenant ID
+ * @param {object} retryContext - Retry context (firstAttemptTime, attemptNumber, lastError)
+ * @returns {object} - Result with success, nextStepId, or retry/failure info
  */
-async function executeAction(step, execution, recordData, tenantId) {
+async function executeAction(step, execution, recordData, tenantId, retryContext = null) {
   const config = step.config || {};
   const actionType = step.action_type;
+
+  // Initialize retry context if not provided (first attempt)
+  const currentRetryContext = retryContext || createInitialRetryContext();
 
   console.log('[STEP EXECUTOR] ===== EXECUTE ACTION =====');
   console.log('[STEP EXECUTOR] Action type:', actionType);
   console.log('[STEP EXECUTOR] Config:', JSON.stringify(config, null, 2));
   console.log('[STEP EXECUTOR] Record data:', JSON.stringify(recordData, null, 2));
+  console.log('[STEP EXECUTOR] Retry context:', JSON.stringify(currentRetryContext, null, 2));
 
   let result;
 
@@ -331,16 +499,80 @@ async function executeAction(step, execution, recordData, tenantId) {
       result = await executeEnrollInWorkflow(config, execution, recordData, tenantId);
       break;
     default:
-      result = { success: false, error: `Unknown action type: ${actionType}` };
+      result = { success: false, error: `Unknown action type: ${actionType}`, retryable: false, httpStatus: 400 };
   }
 
-  // Find next step
+  // Find next step on success
   if (result.success) {
     const nextStepId = await findNextStep(step.workflow_id, step.id, step.parent_step_id, step.branch_path);
     return { ...result, nextStepId };
   }
 
-  return result;
+  // Handle failure with retry logic
+  console.log('[STEP EXECUTOR] Action failed. Retryable:', result.retryable, 'HTTP Status:', result.httpStatus);
+
+  // Check if error is retryable
+  if (!result.retryable) {
+    console.log('[STEP EXECUTOR] Non-retryable error (4XX or config issue). Failing permanently.');
+    return {
+      success: false,
+      error: result.error,
+      permanentFailure: true,
+      httpStatus: result.httpStatus,
+    };
+  }
+
+  // Check if we're within the 3-day retry window
+  if (!isWithinRetryWindow(currentRetryContext.firstAttemptTime)) {
+    console.log('[STEP EXECUTOR] Retry window (3 days) exceeded. Failing permanently.');
+    return {
+      success: false,
+      error: `${result.error} (retry window exceeded after ${currentRetryContext.attemptNumber} attempts)`,
+      permanentFailure: true,
+      httpStatus: result.httpStatus,
+      retryWindowExceeded: true,
+    };
+  }
+
+  // Calculate retry delay with exponential backoff
+  const retryDelayMs = calculateRetryDelay(
+    currentRetryContext.attemptNumber,
+    result.retryAfterMs // For 429 responses with Retry-After header
+  );
+
+  // Update retry context for next attempt
+  const nextRetryContext = updateRetryContext(currentRetryContext, result.error);
+
+  console.log('[STEP EXECUTOR] Scheduling retry. Attempt:', nextRetryContext.attemptNumber, 'Delay:', retryDelayMs, 'ms');
+
+  // Schedule the retry
+  try {
+    await scheduleRetryExecution(
+      execution.id,
+      step.workflow_id,
+      tenantId,
+      step.id,
+      retryDelayMs,
+      nextRetryContext
+    );
+
+    return {
+      success: false,
+      error: result.error,
+      retryScheduled: true,
+      nextRetryContext,
+      retryDelayMs,
+      httpStatus: result.httpStatus,
+    };
+  } catch (scheduleError) {
+    console.error('[STEP EXECUTOR] Failed to schedule retry:', scheduleError);
+    return {
+      success: false,
+      error: `${result.error} (failed to schedule retry: ${scheduleError.message})`,
+      permanentFailure: true,
+      httpStatus: result.httpStatus,
+    };
+  }
 }
 
 /**
@@ -352,7 +584,8 @@ async function executeSendSMS(config, recordData, tenantId) {
     const recipient = getRecipientPhone(config.recipient, recordData);
 
     if (!recipient) {
-      return { success: false, error: 'No recipient phone number' };
+      // Missing recipient is a permanent failure (4XX equivalent)
+      return { success: false, error: 'No recipient phone number', retryable: false, httpStatus: 400 };
     }
 
     // Get tenant info for sender name
@@ -375,7 +608,17 @@ async function executeSendSMS(config, recordData, tenantId) {
     };
   } catch (error) {
     console.error('[StepExecutor] SMS error:', error);
-    return { success: false, error: error.message };
+    // Extract HTTP status from Twilio errors if available
+    const httpStatus = error.status || error.code || 0;
+    const retryAfterMs = error.retryAfter ? error.retryAfter * 1000 : null;
+    const retryable = isRetryableError(httpStatus);
+    return {
+      success: false,
+      error: error.message,
+      retryable,
+      httpStatus,
+      retryAfterMs,
+    };
   }
 }
 
@@ -388,7 +631,8 @@ async function executeSendEmail(config, recordData, tenantId) {
     const recipient = getRecipientEmail(config.recipient, recordData);
 
     if (!recipient) {
-      return { success: false, error: 'No recipient email address' };
+      // Missing recipient is a permanent failure (4XX equivalent)
+      return { success: false, error: 'No recipient email address', retryable: false, httpStatus: 400 };
     }
 
     // If template ID provided, use templated email
@@ -417,7 +661,15 @@ async function executeSendEmail(config, recordData, tenantId) {
     };
   } catch (error) {
     console.error('[StepExecutor] Email error:', error);
-    return { success: false, error: error.message };
+    // Extract HTTP status from SES errors if available
+    const httpStatus = error.$metadata?.httpStatusCode || error.statusCode || 0;
+    const retryable = isRetryableError(httpStatus);
+    return {
+      success: false,
+      error: error.message,
+      retryable,
+      httpStatus,
+    };
   }
 }
 
@@ -473,7 +725,15 @@ async function executeCreateTask(config, recordData, tenantId) {
     };
   } catch (error) {
     console.error('[StepExecutor] Create task error:', error);
-    return { success: false, error: error.message };
+    // Database errors are generally retryable (connection issues, deadlocks)
+    // but constraint violations are not
+    const isConstraintViolation = error.code === '23505' || error.code === '23503';
+    return {
+      success: false,
+      error: error.message,
+      retryable: !isConstraintViolation,
+      httpStatus: isConstraintViolation ? 400 : 500,
+    };
   }
 }
 
@@ -484,20 +744,21 @@ async function executeUpdateField(config, execution, recordData, tenantId) {
   try {
     const { field, value } = config;
     if (!field) {
-      return { success: false, error: 'No field specified' };
+      // Missing field is a permanent failure (config issue)
+      return { success: false, error: 'No field specified', retryable: false, httpStatus: 400 };
     }
 
     const interpolatedValue = interpolateTemplate(value || '', recordData);
     const tableName = getTableName(execution.object_type);
 
     if (!tableName) {
-      return { success: false, error: 'Invalid object type' };
+      return { success: false, error: 'Invalid object type', retryable: false, httpStatus: 400 };
     }
 
     // Only allow specific fields to be updated for security
     const allowedFields = getAllowedUpdateFields(execution.object_type);
     if (!allowedFields.includes(field)) {
-      return { success: false, error: `Field ${field} not allowed for update` };
+      return { success: false, error: `Field ${field} not allowed for update`, retryable: false, httpStatus: 400 };
     }
 
     await query(
@@ -514,7 +775,14 @@ async function executeUpdateField(config, execution, recordData, tenantId) {
     };
   } catch (error) {
     console.error('[StepExecutor] Update field error:', error);
-    return { success: false, error: error.message };
+    // Database errors are generally retryable (connection issues, deadlocks)
+    const isConstraintViolation = error.code === '23505' || error.code === '23503';
+    return {
+      success: false,
+      error: error.message,
+      retryable: !isConstraintViolation,
+      httpStatus: isConstraintViolation ? 400 : 500,
+    };
   }
 }
 
@@ -538,7 +806,14 @@ async function executeInternalNote(config, execution, recordData, tenantId) {
     };
   } catch (error) {
     console.error('[StepExecutor] Internal note error:', error);
-    return { success: false, error: error.message };
+    // Database errors are generally retryable
+    const isConstraintViolation = error.code === '23505' || error.code === '23503';
+    return {
+      success: false,
+      error: error.message,
+      retryable: !isConstraintViolation,
+      httpStatus: isConstraintViolation ? 400 : 500,
+    };
   }
 }
 
@@ -549,7 +824,8 @@ async function executeEnrollInWorkflow(config, execution, recordData, tenantId) 
   try {
     const targetWorkflowId = config.workflow_id;
     if (!targetWorkflowId) {
-      return { success: false, error: 'No target workflow specified' };
+      // Missing workflow ID is a config issue - permanent failure
+      return { success: false, error: 'No target workflow specified', retryable: false, httpStatus: 400 };
     }
 
     // Queue enrollment event
@@ -573,7 +849,14 @@ async function executeEnrollInWorkflow(config, execution, recordData, tenantId) 
     };
   } catch (error) {
     console.error('[StepExecutor] Enroll in workflow error:', error);
-    return { success: false, error: error.message };
+    // SQS errors are generally retryable (throttling, service issues)
+    const httpStatus = error.$metadata?.httpStatusCode || 500;
+    return {
+      success: false,
+      error: error.message,
+      retryable: isRetryableError(httpStatus),
+      httpStatus,
+    };
   }
 }
 
@@ -1234,6 +1517,78 @@ async function scheduleDelayedExecution(executionId, workflowId, tenantId, waitU
   } catch (error) {
     console.error('[StepExecutor] Error scheduling delayed execution:', error);
     throw error;
+  }
+}
+
+/**
+ * Schedule a retry execution with appropriate mechanism based on delay
+ * Uses SQS DelaySeconds for delays <= 15 minutes, EventBridge Scheduler for longer
+ * @param {string} executionId - Execution ID
+ * @param {string} workflowId - Workflow ID
+ * @param {string} tenantId - Tenant ID
+ * @param {string} stepId - Current step ID
+ * @param {number} delayMs - Delay in milliseconds
+ * @param {object} retryContext - Retry context to pass through
+ */
+async function scheduleRetryExecution(executionId, workflowId, tenantId, stepId, delayMs, retryContext) {
+  if (!STEP_QUEUE_URL) {
+    console.warn('[StepExecutor] WORKFLOW_STEP_QUEUE_URL not set, cannot schedule retry');
+    return;
+  }
+
+  const delaySeconds = Math.ceil(delayMs / 1000);
+  const retryPayload = {
+    executionId,
+    workflowId,
+    tenantId,
+    stepId,
+    action: 'retry_step',
+    retryContext,
+    timestamp: new Date().toISOString(),
+  };
+
+  console.log('[StepExecutor] Scheduling retry. Delay:', delaySeconds, 'seconds. Attempt:', retryContext.attemptNumber);
+
+  // If delay is within SQS limits, use SQS delay
+  if (delaySeconds <= RETRY_CONFIG.SQS_MAX_DELAY_SECONDS) {
+    console.log('[StepExecutor] Using SQS DelaySeconds for retry');
+    await sqs.send(new SendMessageCommand({
+      QueueUrl: STEP_QUEUE_URL,
+      MessageBody: JSON.stringify(retryPayload),
+      DelaySeconds: delaySeconds,
+    }));
+    console.log('[StepExecutor] Retry queued via SQS with delay:', delaySeconds, 'seconds');
+  } else {
+    // For longer delays, use EventBridge Scheduler
+    console.log('[StepExecutor] Using EventBridge Scheduler for retry (delay exceeds 15 min)');
+
+    if (!SCHEDULER_ROLE_ARN) {
+      console.warn('[StepExecutor] SCHEDULER_ROLE_ARN not configured for long delay retry');
+      return;
+    }
+
+    const retryAt = new Date(Date.now() + delayMs);
+    const scheduleName = `workflow-retry-${executionId}-${retryContext.attemptNumber}`;
+
+    try {
+      await scheduler.send(new CreateScheduleCommand({
+        Name: scheduleName,
+        GroupName: 'workflow-schedules',
+        ScheduleExpression: `at(${retryAt.toISOString().split('.')[0]})`,
+        ScheduleExpressionTimezone: 'UTC',
+        FlexibleTimeWindow: { Mode: 'OFF' },
+        Target: {
+          Arn: STEP_QUEUE_URL,
+          RoleArn: SCHEDULER_ROLE_ARN,
+          Input: JSON.stringify(retryPayload),
+        },
+        ActionAfterCompletion: 'DELETE',
+      }));
+      console.log('[StepExecutor] Retry scheduled via EventBridge at:', retryAt.toISOString());
+    } catch (error) {
+      console.error('[StepExecutor] Error scheduling retry via EventBridge:', error);
+      throw error;
+    }
   }
 }
 
