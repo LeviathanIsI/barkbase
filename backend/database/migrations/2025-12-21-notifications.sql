@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS "Notification" (
   -- NULL for broadcast to all of recipient_type
 
   -- Read status
-  read BOOLEAN NOT NULL DEFAULT false,
+  is_read BOOLEAN NOT NULL DEFAULT false,
   read_at TIMESTAMPTZ,
 
   -- Metadata
@@ -51,8 +51,8 @@ CREATE TABLE IF NOT EXISTS "Notification" (
 
 -- Primary query: unread notifications for a recipient
 CREATE INDEX IF NOT EXISTS idx_notification_unread
-ON "Notification"(tenant_id, recipient_type, recipient_id, read, created_at DESC)
-WHERE read = false;
+ON "Notification"(tenant_id, recipient_type, recipient_id, is_read, created_at DESC)
+WHERE is_read = false;
 
 -- All notifications for a recipient (with pagination)
 CREATE INDEX IF NOT EXISTS idx_notification_recipient
