@@ -61,14 +61,27 @@ BEGIN
         RAISE NOTICE 'Table % already has record_id as BIGINT', p_table_name;
     END IF;
 
-    -- Create index if index_columns specified
+    -- Create index if index_columns specified and the column exists
     IF p_index_columns IS NOT NULL AND p_index_columns != '' THEN
-        v_index_name := 'idx_' || lower(p_table_name) || '_record_id';
-        EXECUTE format(
-            'CREATE INDEX IF NOT EXISTS %I ON %I(%s, record_id)',
-            v_index_name, p_table_name, p_index_columns
-        );
-        RAISE NOTICE 'Created index % on %(%s, record_id)', v_index_name, p_table_name, p_index_columns;
+        -- Check if the index column exists
+        IF NOT EXISTS (
+            SELECT FROM information_schema.columns
+            WHERE table_name = p_table_name AND column_name = p_index_columns
+        ) THEN
+            RAISE NOTICE 'Table % does not have column %, creating index on record_id only', p_table_name, p_index_columns;
+            v_index_name := 'idx_' || lower(p_table_name) || '_record_id';
+            EXECUTE format(
+                'CREATE INDEX IF NOT EXISTS %I ON %I(record_id)',
+                v_index_name, p_table_name
+            );
+        ELSE
+            v_index_name := 'idx_' || lower(p_table_name) || '_record_id';
+            EXECUTE format(
+                'CREATE INDEX IF NOT EXISTS %I ON %I(%s, record_id)',
+                v_index_name, p_table_name, p_index_columns
+            );
+            RAISE NOTICE 'Created index % on %(%s, record_id)', v_index_name, p_table_name, p_index_columns;
+        END IF;
     END IF;
 END;
 $$ LANGUAGE plpgsql;
