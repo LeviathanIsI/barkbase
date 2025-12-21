@@ -461,6 +461,21 @@ async function processFilterWorkflows() {
 
 /**
  * Process a single filter-criteria workflow
+ * Supports both HubSpot-style and legacy BarkBase filter formats
+ *
+ * HubSpot format:
+ * {
+ *   filterBranchType: "OR",
+ *   filterBranches: [
+ *     { filterBranchType: "AND", filters: [{ property, operator, value }] }
+ *   ]
+ * }
+ *
+ * Legacy BarkBase format:
+ * {
+ *   groups: [{ conditions: [...], logic: 'AND' }],
+ *   groupLogic: 'OR'
+ * }
  */
 async function processFilterWorkflow(workflow) {
   const { id: workflowId, tenant_id: tenantId, object_type: objectType, entry_condition: entryCondition, settings } = workflow;
@@ -479,61 +494,27 @@ async function processFilterWorkflow(workflow) {
   const params = [tenantId];
   let paramIndex = 2;
 
-  // Parse filter groups (new format: groups[].conditions[])
-  const groups = filterConfig.groups || [];
-  const groupLogic = filterConfig.groupLogic || 'or'; // Groups are ORed together by default
-
-  if (groups.length > 0) {
-    const groupClauses = [];
-
-    for (const group of groups) {
-      const conditions = group.conditions || [];
-      const groupInternalLogic = group.logic || 'and'; // Conditions within group are ANDed by default
-
-      if (conditions.length === 0) continue;
-
-      const conditionClauses = [];
-
-      for (const condition of conditions) {
-        const columnName = sanitizeColumnName(condition.field);
-        if (!columnName) continue;
-
-        const clause = buildConditionClause(columnName, condition.operator, condition.value, params, paramIndex);
-        if (clause) {
-          conditionClauses.push(clause.sql);
-          paramIndex = clause.nextParamIndex;
-        }
-      }
-
-      if (conditionClauses.length > 0) {
-        const joinedConditions = conditionClauses.join(` ${groupInternalLogic.toUpperCase()} `);
-        groupClauses.push(`(${joinedConditions})`);
-      }
+  // Detect format and build WHERE clause accordingly
+  if (filterConfig.filterBranchType || filterConfig.filterBranches) {
+    // HubSpot-style format
+    const hubspotResult = buildHubSpotFilterClause(filterConfig, params, paramIndex);
+    if (hubspotResult.sql) {
+      whereClause += ` AND (${hubspotResult.sql})`;
+      paramIndex = hubspotResult.nextParamIndex;
     }
-
-    if (groupClauses.length > 0) {
-      const joinedGroups = groupClauses.join(` ${groupLogic.toUpperCase()} `);
-      whereClause += ` AND (${joinedGroups})`;
+  } else if (filterConfig.groups && filterConfig.groups.length > 0) {
+    // Legacy BarkBase format with groups
+    const groupsResult = buildLegacyGroupsClause(filterConfig, params, paramIndex);
+    if (groupsResult.sql) {
+      whereClause += ` AND (${groupsResult.sql})`;
+      paramIndex = groupsResult.nextParamIndex;
     }
-  }
-
-  // Also support flat conditions format (filterConfig.conditions[])
-  if (filterConfig.conditions && filterConfig.conditions.length > 0 && groups.length === 0) {
-    const flatLogic = filterConfig.logic || 'and';
-    const flatClauses = [];
-    for (const condition of filterConfig.conditions) {
-      const columnName = sanitizeColumnName(condition.field);
-      if (!columnName) continue;
-
-      const clause = buildConditionClause(columnName, condition.operator, condition.value, params, paramIndex);
-      if (clause) {
-        flatClauses.push(clause.sql);
-        paramIndex = clause.nextParamIndex;
-      }
-    }
-    if (flatClauses.length > 0) {
-      const joinedFlat = flatClauses.join(` ${flatLogic.toUpperCase()} `);
-      whereClause += ` AND (${joinedFlat})`;
+  } else if (filterConfig.conditions && filterConfig.conditions.length > 0) {
+    // Flat conditions format
+    const flatResult = buildFlatConditionsClause(filterConfig, params, paramIndex);
+    if (flatResult.sql) {
+      whereClause += ` AND (${flatResult.sql})`;
+      paramIndex = flatResult.nextParamIndex;
     }
   }
 
@@ -600,8 +581,195 @@ async function processFilterWorkflow(workflow) {
 }
 
 /**
- * Sanitize column name to prevent SQL injection
+ * Build SQL WHERE clause from HubSpot-style filter format
+ * Root level is OR, sub-branches are AND containing filters
  */
+function buildHubSpotFilterClause(filterConfig, params, paramIndex) {
+  const rootType = (filterConfig.filterBranchType || 'OR').toUpperCase();
+  const branches = filterConfig.filterBranches || [];
+
+  if (branches.length === 0) {
+    // If no branches but has filters at root level, evaluate directly
+    if (filterConfig.filters && filterConfig.filters.length > 0) {
+      return buildHubSpotFiltersClause(filterConfig.filters, params, paramIndex);
+    }
+    return { sql: null, nextParamIndex: paramIndex };
+  }
+
+  const branchClauses = [];
+
+  for (const branch of branches) {
+    const branchType = (branch.filterBranchType || 'AND').toUpperCase();
+    const filters = branch.filters || [];
+    const nestedBranches = branch.filterBranches || [];
+
+    const clauseParts = [];
+
+    // Build clause for filters in this branch
+    if (filters.length > 0) {
+      const filtersResult = buildHubSpotFiltersClause(filters, params, paramIndex);
+      if (filtersResult.sql) {
+        clauseParts.push(filtersResult.sql);
+        paramIndex = filtersResult.nextParamIndex;
+      }
+    }
+
+    // Recursively build clause for nested branches
+    if (nestedBranches.length > 0) {
+      const nestedResult = buildHubSpotFilterClause({ filterBranchType: branchType, filterBranches: nestedBranches }, params, paramIndex);
+      if (nestedResult.sql) {
+        clauseParts.push(nestedResult.sql);
+        paramIndex = nestedResult.nextParamIndex;
+      }
+    }
+
+    if (clauseParts.length > 0) {
+      const joinedParts = clauseParts.join(` ${branchType} `);
+      branchClauses.push(`(${joinedParts})`);
+    }
+  }
+
+  if (branchClauses.length === 0) {
+    return { sql: null, nextParamIndex: paramIndex };
+  }
+
+  const sql = branchClauses.join(` ${rootType} `);
+  return { sql, nextParamIndex: paramIndex };
+}
+
+/**
+ * Build SQL clause for a group of HubSpot-style filters (ANDed together)
+ */
+function buildHubSpotFiltersClause(filters, params, paramIndex) {
+  if (!filters || filters.length === 0) {
+    return { sql: null, nextParamIndex: paramIndex };
+  }
+
+  const clauses = [];
+
+  for (const filter of filters) {
+    // HubSpot uses 'property' instead of 'field'
+    const columnName = sanitizeColumnName(filter.property || filter.field);
+    if (!columnName) continue;
+
+    const clause = buildConditionClause(
+      columnName,
+      filter.operator,
+      filter.value,
+      params,
+      paramIndex,
+      filter.highValue,
+      filter.values
+    );
+
+    if (clause) {
+      clauses.push(clause.sql);
+      paramIndex = clause.nextParamIndex;
+    }
+  }
+
+  if (clauses.length === 0) {
+    return { sql: null, nextParamIndex: paramIndex };
+  }
+
+  // HubSpot filters within a branch are ANDed
+  return { sql: clauses.join(' AND '), nextParamIndex: paramIndex };
+}
+
+/**
+ * Build SQL clause from legacy BarkBase groups format
+ */
+function buildLegacyGroupsClause(filterConfig, params, paramIndex) {
+  const groups = filterConfig.groups || [];
+  const groupLogic = (filterConfig.groupLogic || 'OR').toUpperCase();
+
+  if (groups.length === 0) {
+    return { sql: null, nextParamIndex: paramIndex };
+  }
+
+  const groupClauses = [];
+
+  for (const group of groups) {
+    const conditions = group.conditions || [];
+    const groupInternalLogic = (group.logic || 'AND').toUpperCase();
+
+    if (conditions.length === 0) continue;
+
+    const conditionClauses = [];
+
+    for (const condition of conditions) {
+      const columnName = sanitizeColumnName(condition.field);
+      if (!columnName) continue;
+
+      const clause = buildConditionClause(
+        columnName,
+        condition.operator,
+        condition.value,
+        params,
+        paramIndex,
+        condition.highValue,
+        condition.values
+      );
+
+      if (clause) {
+        conditionClauses.push(clause.sql);
+        paramIndex = clause.nextParamIndex;
+      }
+    }
+
+    if (conditionClauses.length > 0) {
+      const joinedConditions = conditionClauses.join(` ${groupInternalLogic} `);
+      groupClauses.push(`(${joinedConditions})`);
+    }
+  }
+
+  if (groupClauses.length === 0) {
+    return { sql: null, nextParamIndex: paramIndex };
+  }
+
+  return { sql: groupClauses.join(` ${groupLogic} `), nextParamIndex: paramIndex };
+}
+
+/**
+ * Build SQL clause from flat conditions format
+ */
+function buildFlatConditionsClause(filterConfig, params, paramIndex) {
+  const conditions = filterConfig.conditions || [];
+  const logic = (filterConfig.logic || 'AND').toUpperCase();
+
+  if (conditions.length === 0) {
+    return { sql: null, nextParamIndex: paramIndex };
+  }
+
+  const clauses = [];
+
+  for (const condition of conditions) {
+    const columnName = sanitizeColumnName(condition.field);
+    if (!columnName) continue;
+
+    const clause = buildConditionClause(
+      columnName,
+      condition.operator,
+      condition.value,
+      params,
+      paramIndex,
+      condition.highValue,
+      condition.values
+    );
+
+    if (clause) {
+      clauses.push(clause.sql);
+      paramIndex = clause.nextParamIndex;
+    }
+  }
+
+  if (clauses.length === 0) {
+    return { sql: null, nextParamIndex: paramIndex };
+  }
+
+  return { sql: clauses.join(` ${logic} `), nextParamIndex: paramIndex };
+}
+
 function sanitizeColumnName(name) {
   if (!name || typeof name !== 'string') return null;
   // Only allow alphanumeric and underscore
@@ -611,95 +779,198 @@ function sanitizeColumnName(name) {
 
 /**
  * Build SQL condition clause for a filter condition
- * Returns { sql: string, nextParamIndex: number } or null if invalid
+ * Supports both HubSpot-style operators (IS_EQUAL_TO) and legacy (equals)
+ * @param {string} columnName - Sanitized column name
+ * @param {string} operator - Filter operator
+ * @param {*} value - Filter value
+ * @param {array} params - SQL params array to push values to
+ * @param {number} paramIndex - Current parameter index
+ * @param {*} highValue - High value for IS_BETWEEN operator
+ * @param {array} values - Array of values for IS_ANY_OF, IS_NONE_OF operators
+ * @returns {{ sql: string, nextParamIndex: number } | null}
  */
-function buildConditionClause(columnName, operator, value, params, paramIndex) {
-  switch (operator) {
-    case 'equals':
-    case 'is':
+function buildConditionClause(columnName, operator, value, params, paramIndex, highValue = null, values = null) {
+  // Normalize operator to uppercase for comparison
+  const op = (operator || '').toUpperCase().replace(/-/g, '_');
+
+  switch (op) {
+    // Equality operators
+    case 'EQUALS':
+    case 'IS':
+    case 'IS_EQUAL_TO':
+    case 'EQ':
       params.push(value);
       return { sql: `r."${columnName}" = $${paramIndex}`, nextParamIndex: paramIndex + 1 };
 
-    case 'not_equals':
-    case 'is_not':
+    case 'NOT_EQUALS':
+    case 'IS_NOT':
+    case 'IS_NOT_EQUAL_TO':
+    case 'NEQ':
       params.push(value);
       return { sql: `r."${columnName}" != $${paramIndex}`, nextParamIndex: paramIndex + 1 };
 
-    case 'equals_any':
-    case 'is_any_of':
-    case 'is_equal_to_any':
-      // Value can be an array or a single value
-      const arrayValue = Array.isArray(value) ? value : [value];
-      if (arrayValue.length > 0) {
-        const placeholders = arrayValue.map((_, i) => `$${paramIndex + i}`).join(', ');
-        params.push(...arrayValue);
-        return { sql: `r."${columnName}" IN (${placeholders})`, nextParamIndex: paramIndex + arrayValue.length };
+    // Multi-value operators
+    case 'EQUALS_ANY':
+    case 'IS_ANY_OF':
+    case 'IS_EQUAL_TO_ANY':
+    case 'IN':
+      const anyOfVals = values || (Array.isArray(value) ? value : [value]);
+      if (anyOfVals.length > 0) {
+        const placeholders = anyOfVals.map((_, i) => `$${paramIndex + i}`).join(', ');
+        params.push(...anyOfVals);
+        return { sql: `r."${columnName}" IN (${placeholders})`, nextParamIndex: paramIndex + anyOfVals.length };
       }
       return null;
 
-    case 'not_any_of':
-    case 'is_none_of':
-      if (Array.isArray(value) && value.length > 0) {
-        const placeholders = value.map((_, i) => `$${paramIndex + i}`).join(', ');
-        params.push(...value);
-        return { sql: `r."${columnName}" NOT IN (${placeholders})`, nextParamIndex: paramIndex + value.length };
+    case 'NOT_ANY_OF':
+    case 'IS_NONE_OF':
+    case 'NOT_IN':
+      const noneOfVals = values || (Array.isArray(value) ? value : [value]);
+      if (noneOfVals.length > 0) {
+        const placeholders = noneOfVals.map((_, i) => `$${paramIndex + i}`).join(', ');
+        params.push(...noneOfVals);
+        return { sql: `r."${columnName}" NOT IN (${placeholders})`, nextParamIndex: paramIndex + noneOfVals.length };
       }
       return null;
 
-    case 'contains':
+    // String operators
+    case 'CONTAINS':
       params.push(`%${value}%`);
       return { sql: `r."${columnName}" ILIKE $${paramIndex}`, nextParamIndex: paramIndex + 1 };
 
-    case 'not_contains':
-    case 'does_not_contain':
+    case 'NOT_CONTAINS':
+    case 'DOES_NOT_CONTAIN':
       params.push(`%${value}%`);
       return { sql: `r."${columnName}" NOT ILIKE $${paramIndex}`, nextParamIndex: paramIndex + 1 };
 
-    case 'starts_with':
+    case 'STARTS_WITH':
       params.push(`${value}%`);
       return { sql: `r."${columnName}" ILIKE $${paramIndex}`, nextParamIndex: paramIndex + 1 };
 
-    case 'ends_with':
+    case 'ENDS_WITH':
       params.push(`%${value}`);
       return { sql: `r."${columnName}" ILIKE $${paramIndex}`, nextParamIndex: paramIndex + 1 };
 
-    case 'is_empty':
-    case 'is_unknown':
+    // Empty/Known operators
+    case 'IS_EMPTY':
+    case 'IS_UNKNOWN':
       return { sql: `(r."${columnName}" IS NULL OR r."${columnName}" = '')`, nextParamIndex: paramIndex };
 
-    case 'is_not_empty':
-    case 'is_known':
+    case 'IS_NOT_EMPTY':
+    case 'IS_KNOWN':
+    case 'HAS_EVER_BEEN_ANY':
       return { sql: `(r."${columnName}" IS NOT NULL AND r."${columnName}" != '')`, nextParamIndex: paramIndex };
 
-    case 'greater_than':
-    case 'is_greater_than':
+    // Numeric comparison operators
+    case 'GREATER_THAN':
+    case 'IS_GREATER_THAN':
+    case 'GT':
       params.push(value);
       return { sql: `r."${columnName}" > $${paramIndex}`, nextParamIndex: paramIndex + 1 };
 
-    case 'less_than':
-    case 'is_less_than':
+    case 'LESS_THAN':
+    case 'IS_LESS_THAN':
+    case 'LT':
       params.push(value);
       return { sql: `r."${columnName}" < $${paramIndex}`, nextParamIndex: paramIndex + 1 };
 
-    case 'greater_than_or_equal':
-    case 'is_greater_than_or_equal':
+    case 'GREATER_THAN_OR_EQUAL':
+    case 'GREATER_OR_EQUAL':
+    case 'IS_GREATER_THAN_OR_EQUAL':
+    case 'GTE':
       params.push(value);
       return { sql: `r."${columnName}" >= $${paramIndex}`, nextParamIndex: paramIndex + 1 };
 
-    case 'less_than_or_equal':
-    case 'is_less_than_or_equal':
+    case 'LESS_THAN_OR_EQUAL':
+    case 'LESS_OR_EQUAL':
+    case 'IS_LESS_THAN_OR_EQUAL':
+    case 'LTE':
       params.push(value);
       return { sql: `r."${columnName}" <= $${paramIndex}`, nextParamIndex: paramIndex + 1 };
 
-    case 'is_true':
+    // Range operator
+    case 'IS_BETWEEN':
+    case 'BETWEEN':
+      params.push(value);
+      params.push(highValue);
+      return {
+        sql: `r."${columnName}" BETWEEN $${paramIndex} AND $${paramIndex + 1}`,
+        nextParamIndex: paramIndex + 2
+      };
+
+    // Date operators
+    case 'IS_BEFORE':
+    case 'BEFORE':
+      params.push(value);
+      return { sql: `r."${columnName}" < $${paramIndex}`, nextParamIndex: paramIndex + 1 };
+
+    case 'IS_AFTER':
+    case 'AFTER':
+      params.push(value);
+      return { sql: `r."${columnName}" > $${paramIndex}`, nextParamIndex: paramIndex + 1 };
+
+    case 'IS_BEFORE_DATE':
+      params.push(value);
+      return { sql: `r."${columnName}"::date < $${paramIndex}::date`, nextParamIndex: paramIndex + 1 };
+
+    case 'IS_AFTER_DATE':
+      params.push(value);
+      return { sql: `r."${columnName}"::date > $${paramIndex}::date`, nextParamIndex: paramIndex + 1 };
+
+    case 'IS_WITHIN_LAST':
+      // value should be { value: number, unit: 'days'|'weeks'|'months' } or just number of days
+      const daysAgo = typeof value === 'object' ? convertToDays(value) : Number(value);
+      return {
+        sql: `r."${columnName}" >= NOW() - INTERVAL '${daysAgo} days'`,
+        nextParamIndex: paramIndex
+      };
+
+    case 'IS_WITHIN_NEXT':
+      const daysAhead = typeof value === 'object' ? convertToDays(value) : Number(value);
+      return {
+        sql: `r."${columnName}" <= NOW() + INTERVAL '${daysAhead} days' AND r."${columnName}" >= NOW()`,
+        nextParamIndex: paramIndex
+      };
+
+    case 'IS_MORE_THAN_DAYS_AGO':
+      const moreThanDays = Number(value);
+      return {
+        sql: `r."${columnName}" < NOW() - INTERVAL '${moreThanDays} days'`,
+        nextParamIndex: paramIndex
+      };
+
+    case 'IS_LESS_THAN_DAYS_AGO':
+      const lessThanDays = Number(value);
+      return {
+        sql: `r."${columnName}" >= NOW() - INTERVAL '${lessThanDays} days'`,
+        nextParamIndex: paramIndex
+      };
+
+    // Boolean operators
+    case 'IS_TRUE':
       return { sql: `r."${columnName}" = true`, nextParamIndex: paramIndex };
 
-    case 'is_false':
+    case 'IS_FALSE':
       return { sql: `r."${columnName}" = false`, nextParamIndex: paramIndex };
 
     default:
       console.warn('[ScheduledProcessor] Unknown operator:', operator);
       return null;
+  }
+}
+
+/**
+ * Convert period object to days
+ */
+function convertToDays(period) {
+  const value = period.value || 0;
+  const unit = (period.unit || 'days').toLowerCase();
+  switch (unit) {
+    case 'hours': return value / 24;
+    case 'weeks': return value * 7;
+    case 'months': return value * 30;
+    case 'years': return value * 365;
+    default: return value;
   }
 }
 

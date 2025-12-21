@@ -280,7 +280,23 @@ async function isRecordSuppressed(recordId, recordType, segmentIds, tenantId) {
 }
 
 /**
- * Evaluate segment filters against a record
+ * Evaluate if a record matches segment filters
+ * Supports both HubSpot-style and legacy BarkBase filter formats
+ *
+ * HubSpot format:
+ * {
+ *   filterBranchType: "OR",
+ *   filterBranches: [
+ *     { filterBranchType: "AND", filters: [{ property, operator, value }] }
+ *   ]
+ * }
+ *
+ * Legacy BarkBase format:
+ * {
+ *   groups: [{ conditions: [...], logic: 'AND' }],
+ *   groupLogic: 'OR'
+ * }
+ *
  * @param {string} recordId - The record ID
  * @param {string} recordType - The type of record
  * @param {object} filters - The segment filter configuration
@@ -288,7 +304,7 @@ async function isRecordSuppressed(recordId, recordType, segmentIds, tenantId) {
  * @returns {Promise<boolean>} - True if record matches filters
  */
 async function evaluateSegmentFilters(recordId, recordType, filters, tenantId) {
-  if (!filters || !filters.groups || filters.groups.length === 0) {
+  if (!filters) {
     return false;
   }
 
@@ -309,32 +325,21 @@ async function evaluateSegmentFilters(recordId, recordType, filters, tenantId) {
     }
 
     const record = recordResult.rows[0];
-    const groupLogic = filters.groupLogic || 'OR';
 
-    // Evaluate each group
-    const groupResults = filters.groups.map(group => {
-      const conditionLogic = group.logic || 'AND';
-      const conditions = group.conditions || [];
-
-      if (conditions.length === 0) {
-        return false;
-      }
-
-      const conditionResults = conditions.map(condition => {
-        return evaluateFilterCondition(condition, record);
-      });
-
-      if (conditionLogic === 'OR') {
-        return conditionResults.some(r => r);
-      }
-      return conditionResults.every(r => r);
-    });
-
-    // Combine group results based on group logic
-    if (groupLogic === 'AND') {
-      return groupResults.every(r => r);
+    // Detect format and evaluate accordingly
+    if (filters.filterBranchType || filters.filterBranches) {
+      // HubSpot-style format
+      return evaluateHubSpotFilters(filters, record);
+    } else if (filters.groups && filters.groups.length > 0) {
+      // Legacy BarkBase format
+      return evaluateLegacyFilters(filters, record);
+    } else if (filters.conditions && filters.conditions.length > 0) {
+      // Flat conditions format
+      const logic = filters.logic || 'AND';
+      return evaluateConditionGroup(filters.conditions, logic, record);
     }
-    return groupResults.some(r => r);
+
+    return false;
 
   } catch (error) {
     console.error('[WorkflowTrigger] Error evaluating segment filters:', error.message);
@@ -343,47 +348,352 @@ async function evaluateSegmentFilters(recordId, recordType, filters, tenantId) {
 }
 
 /**
+ * Evaluate HubSpot-style filter branches
+ * Root level is OR, sub-branches are AND containing filters
+ */
+function evaluateHubSpotFilters(filterConfig, record) {
+  const rootType = (filterConfig.filterBranchType || 'OR').toUpperCase();
+  const branches = filterConfig.filterBranches || [];
+
+  if (branches.length === 0) {
+    // If no branches but has filters at root level, evaluate directly
+    if (filterConfig.filters && filterConfig.filters.length > 0) {
+      return evaluateHubSpotConditionGroup(filterConfig.filters, record);
+    }
+    return false;
+  }
+
+  const branchResults = branches.map(branch => {
+    const branchType = (branch.filterBranchType || 'AND').toUpperCase();
+    const filters = branch.filters || [];
+    const nestedBranches = branch.filterBranches || [];
+
+    // Evaluate filters in this branch
+    let filtersResult = true;
+    if (filters.length > 0) {
+      filtersResult = evaluateHubSpotConditionGroup(filters, record);
+    }
+
+    // Recursively evaluate nested branches
+    let nestedResult = true;
+    if (nestedBranches.length > 0) {
+      nestedResult = evaluateHubSpotFilters({ filterBranchType: branchType, filterBranches: nestedBranches }, record);
+    }
+
+    // Combine based on branch type
+    if (branchType === 'OR') {
+      return filtersResult || nestedResult;
+    }
+    return filtersResult && nestedResult;
+  });
+
+  // Combine branch results based on root type
+  if (rootType === 'AND') {
+    return branchResults.every(r => r);
+  }
+  return branchResults.some(r => r);
+}
+
+/**
+ * Evaluate a group of HubSpot-style filters (ANDed together)
+ */
+function evaluateHubSpotConditionGroup(filters, record) {
+  if (!filters || filters.length === 0) {
+    return true;
+  }
+
+  return filters.every(filter => {
+    // HubSpot uses 'property' instead of 'field'
+    const condition = {
+      field: filter.property || filter.field,
+      operator: filter.operator,
+      value: filter.value,
+      highValue: filter.highValue, // For IS_BETWEEN
+      values: filter.values, // For IS_ANY_OF, IS_NONE_OF
+    };
+    return evaluateFilterCondition(condition, record);
+  });
+}
+
+/**
+ * Evaluate legacy BarkBase filter format
+ */
+function evaluateLegacyFilters(filters, record) {
+  const groupLogic = (filters.groupLogic || 'OR').toUpperCase();
+
+  const groupResults = filters.groups.map(group => {
+    const conditionLogic = (group.logic || 'AND').toUpperCase();
+    const conditions = group.conditions || [];
+
+    if (conditions.length === 0) {
+      return false;
+    }
+
+    return evaluateConditionGroup(conditions, conditionLogic, record);
+  });
+
+  if (groupLogic === 'AND') {
+    return groupResults.every(r => r);
+  }
+  return groupResults.some(r => r);
+}
+
+/**
+ * Evaluate a group of conditions with specified logic
+ */
+function evaluateConditionGroup(conditions, logic, record) {
+  const results = conditions.map(condition => evaluateFilterCondition(condition, record));
+
+  if (logic === 'OR') {
+    return results.some(r => r);
+  }
+  return results.every(r => r);
+}
+
+/**
  * Evaluate a single filter condition against a record
+ * Supports both HubSpot-style operators (IS_EQUAL_TO) and legacy (equals)
  */
 function evaluateFilterCondition(condition, record) {
-  const { field, operator, value } = condition;
+  const { field, operator, value, highValue, values } = condition;
   const actualValue = record[field];
 
-  switch (operator) {
-    case 'equals':
-    case 'is':
-      return String(actualValue).toLowerCase() === String(value).toLowerCase();
-    case 'not_equals':
-    case 'is_not':
-      return String(actualValue).toLowerCase() !== String(value).toLowerCase();
-    case 'contains':
-      return String(actualValue).toLowerCase().includes(String(value).toLowerCase());
-    case 'not_contains':
-      return !String(actualValue).toLowerCase().includes(String(value).toLowerCase());
-    case 'starts_with':
-      return String(actualValue).toLowerCase().startsWith(String(value).toLowerCase());
-    case 'ends_with':
-      return String(actualValue).toLowerCase().endsWith(String(value).toLowerCase());
-    case 'is_empty':
-      return !actualValue || actualValue === '' || actualValue === null;
-    case 'is_not_empty':
-      return !!actualValue && actualValue !== '' && actualValue !== null;
-    case 'greater_than':
+  // Normalize operator to uppercase for comparison
+  const op = (operator || '').toUpperCase().replace(/-/g, '_');
+
+  switch (op) {
+    // Equality operators
+    case 'EQUALS':
+    case 'IS':
+    case 'IS_EQUAL_TO':
+    case 'EQ':
+      return compareValues(actualValue, value);
+
+    case 'NOT_EQUALS':
+    case 'IS_NOT':
+    case 'IS_NOT_EQUAL_TO':
+    case 'NEQ':
+      return !compareValues(actualValue, value);
+
+    // String operators
+    case 'CONTAINS':
+      return String(actualValue || '').toLowerCase().includes(String(value || '').toLowerCase());
+
+    case 'NOT_CONTAINS':
+    case 'DOES_NOT_CONTAIN':
+      return !String(actualValue || '').toLowerCase().includes(String(value || '').toLowerCase());
+
+    case 'STARTS_WITH':
+      return String(actualValue || '').toLowerCase().startsWith(String(value || '').toLowerCase());
+
+    case 'ENDS_WITH':
+      return String(actualValue || '').toLowerCase().endsWith(String(value || '').toLowerCase());
+
+    // Empty/Known operators
+    case 'IS_EMPTY':
+    case 'IS_UNKNOWN':
+      return actualValue === null || actualValue === undefined || actualValue === '';
+
+    case 'IS_NOT_EMPTY':
+    case 'IS_KNOWN':
+    case 'HAS_EVER_BEEN_ANY':
+      return actualValue !== null && actualValue !== undefined && actualValue !== '';
+
+    // Numeric comparison operators
+    case 'GREATER_THAN':
+    case 'IS_GREATER_THAN':
+    case 'GT':
       return Number(actualValue) > Number(value);
-    case 'less_than':
+
+    case 'LESS_THAN':
+    case 'IS_LESS_THAN':
+    case 'LT':
       return Number(actualValue) < Number(value);
-    case 'greater_or_equal':
+
+    case 'GREATER_OR_EQUAL':
+    case 'GREATER_THAN_OR_EQUAL':
+    case 'IS_GREATER_THAN_OR_EQUAL':
+    case 'GTE':
       return Number(actualValue) >= Number(value);
-    case 'less_or_equal':
+
+    case 'LESS_OR_EQUAL':
+    case 'LESS_THAN_OR_EQUAL':
+    case 'IS_LESS_THAN_OR_EQUAL':
+    case 'LTE':
       return Number(actualValue) <= Number(value);
-    case 'is_true':
-      return actualValue === true || actualValue === 'true';
-    case 'is_false':
-      return actualValue === false || actualValue === 'false';
+
+    // Range operator
+    case 'IS_BETWEEN':
+    case 'BETWEEN':
+      const lowVal = Number(value);
+      const highVal = Number(highValue);
+      const numActual = Number(actualValue);
+      return numActual >= lowVal && numActual <= highVal;
+
+    // Multi-value operators
+    case 'IS_ANY_OF':
+    case 'EQUALS_ANY':
+    case 'IN':
+      const anyOfValues = values || (Array.isArray(value) ? value : [value]);
+      return anyOfValues.some(v => compareValues(actualValue, v));
+
+    case 'IS_NONE_OF':
+    case 'NOT_ANY_OF':
+    case 'NOT_IN':
+      const noneOfValues = values || (Array.isArray(value) ? value : [value]);
+      return !noneOfValues.some(v => compareValues(actualValue, v));
+
+    // Date operators
+    case 'IS_BEFORE':
+    case 'BEFORE':
+      return compareDates(actualValue, value) < 0;
+
+    case 'IS_AFTER':
+    case 'AFTER':
+      return compareDates(actualValue, value) > 0;
+
+    case 'IS_BEFORE_DATE':
+      return compareDates(actualValue, value, true) < 0;
+
+    case 'IS_AFTER_DATE':
+      return compareDates(actualValue, value, true) > 0;
+
+    case 'IS_WITHIN_LAST':
+      return isWithinPeriod(actualValue, value, 'past');
+
+    case 'IS_WITHIN_NEXT':
+      return isWithinPeriod(actualValue, value, 'future');
+
+    case 'IS_MORE_THAN_DAYS_AGO':
+      return isMoreThanDaysAgo(actualValue, value);
+
+    case 'IS_LESS_THAN_DAYS_AGO':
+      return isLessThanDaysAgo(actualValue, value);
+
+    // Boolean operators
+    case 'IS_TRUE':
+      return actualValue === true || actualValue === 'true' || actualValue === 1;
+
+    case 'IS_FALSE':
+      return actualValue === false || actualValue === 'false' || actualValue === 0;
+
     default:
       console.warn('[WorkflowTrigger] Unknown filter operator:', operator);
       return false;
   }
+}
+
+/**
+ * Compare two values with type coercion
+ */
+function compareValues(actual, expected) {
+  if (actual === null || actual === undefined) {
+    return expected === null || expected === undefined || expected === '';
+  }
+
+  // Try numeric comparison first
+  const numActual = Number(actual);
+  const numExpected = Number(expected);
+  if (!isNaN(numActual) && !isNaN(numExpected)) {
+    return numActual === numExpected;
+  }
+
+  // Fall back to case-insensitive string comparison
+  return String(actual).toLowerCase() === String(expected).toLowerCase();
+}
+
+/**
+ * Compare two dates
+ * @param {*} actual - Actual date value
+ * @param {*} expected - Expected date value
+ * @param {boolean} dateOnly - If true, compare only date portion (ignore time)
+ * @returns {number} - Negative if actual < expected, 0 if equal, positive if actual > expected
+ */
+function compareDates(actual, expected, dateOnly = false) {
+  const actualDate = new Date(actual);
+  const expectedDate = new Date(expected);
+
+  if (isNaN(actualDate.getTime()) || isNaN(expectedDate.getTime())) {
+    return 0; // Invalid dates
+  }
+
+  if (dateOnly) {
+    // Compare only date portion
+    const actualDateOnly = new Date(actualDate.getFullYear(), actualDate.getMonth(), actualDate.getDate());
+    const expectedDateOnly = new Date(expectedDate.getFullYear(), expectedDate.getMonth(), expectedDate.getDate());
+    return actualDateOnly.getTime() - expectedDateOnly.getTime();
+  }
+
+  return actualDate.getTime() - expectedDate.getTime();
+}
+
+/**
+ * Check if date is within a specified period
+ * @param {*} dateValue - The date to check
+ * @param {object} period - Period specification { value, unit } or number of days
+ * @param {string} direction - 'past' or 'future'
+ */
+function isWithinPeriod(dateValue, period, direction) {
+  const date = new Date(dateValue);
+  if (isNaN(date.getTime())) {
+    return false;
+  }
+
+  const now = new Date();
+  let days;
+
+  if (typeof period === 'object') {
+    const value = period.value || 0;
+    const unit = (period.unit || 'days').toLowerCase();
+    switch (unit) {
+      case 'hours': days = value / 24; break;
+      case 'weeks': days = value * 7; break;
+      case 'months': days = value * 30; break;
+      case 'years': days = value * 365; break;
+      default: days = value;
+    }
+  } else {
+    days = Number(period);
+  }
+
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const threshold = days * msPerDay;
+
+  if (direction === 'past') {
+    const pastLimit = new Date(now.getTime() - threshold);
+    return date >= pastLimit && date <= now;
+  } else {
+    const futureLimit = new Date(now.getTime() + threshold);
+    return date >= now && date <= futureLimit;
+  }
+}
+
+/**
+ * Check if date is more than N days ago
+ */
+function isMoreThanDaysAgo(dateValue, days) {
+  const date = new Date(dateValue);
+  if (isNaN(date.getTime())) {
+    return false;
+  }
+
+  const now = new Date();
+  const threshold = new Date(now.getTime() - (Number(days) * 24 * 60 * 60 * 1000));
+  return date < threshold;
+}
+
+/**
+ * Check if date is less than N days ago
+ */
+function isLessThanDaysAgo(dateValue, days) {
+  const date = new Date(dateValue);
+  if (isNaN(date.getTime())) {
+    return false;
+  }
+
+  const now = new Date();
+  const threshold = new Date(now.getTime() - (Number(days) * 24 * 60 * 60 * 1000));
+  return date >= threshold && date <= now;
 }
 
 /**
