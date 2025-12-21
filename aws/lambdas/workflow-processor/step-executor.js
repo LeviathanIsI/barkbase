@@ -30,6 +30,9 @@ try {
 
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
 const { SchedulerClient, CreateScheduleCommand, DeleteScheduleCommand } = require('@aws-sdk/client-scheduler');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, UpdateCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
+const { CloudWatchClient, PutMetricDataCommand } = require('@aws-sdk/client-cloudwatch');
 
 const { getPoolAsync, query } = dbLayer;
 const {
@@ -39,14 +42,19 @@ const {
   createResponse,
 } = sharedLayer;
 
-// Initialize clients
-const sqs = new SQSClient({
-  region: process.env.AWS_REGION_DEPLOY || process.env.AWS_REGION || 'us-east-2',
-});
+// AWS Region
+const AWS_REGION = process.env.AWS_REGION_DEPLOY || process.env.AWS_REGION || 'us-east-2';
 
-const scheduler = new SchedulerClient({
-  region: process.env.AWS_REGION_DEPLOY || process.env.AWS_REGION || 'us-east-2',
-});
+// Initialize clients
+const sqs = new SQSClient({ region: AWS_REGION });
+const scheduler = new SchedulerClient({ region: AWS_REGION });
+const dynamoClient = new DynamoDBClient({ region: AWS_REGION });
+const dynamoDB = DynamoDBDocumentClient.from(dynamoClient);
+const cloudwatch = new CloudWatchClient({ region: AWS_REGION });
+
+// Rate limiting configuration
+const RATE_LIMIT_TABLE = process.env.RATE_LIMIT_TABLE || 'BarkBaseRateLimits';
+const DEFAULT_ACTION_LIMIT_PER_HOUR = parseInt(process.env.DEFAULT_ACTION_LIMIT || '50000', 10);
 
 // Queue URLs from environment
 const STEP_QUEUE_URL = process.env.WORKFLOW_STEP_QUEUE_URL;
@@ -494,6 +502,32 @@ async function executeAction(step, execution, recordData, tenantId, retryContext
   console.log('[STEP EXECUTOR] Record data:', JSON.stringify(recordData, null, 2));
   console.log('[STEP EXECUTOR] Retry context:', JSON.stringify(currentRetryContext, null, 2));
 
+  // Check tenant action rate limit before executing
+  const rateLimitCheck = await checkActionRateLimit(tenantId);
+  if (!rateLimitCheck.allowed) {
+    console.warn('[STEP EXECUTOR] RATE LIMITED: Tenant exceeded action limit:', {
+      tenantId,
+      actionType,
+      stepId: step.id,
+      executionId: execution.id,
+      currentCount: rateLimitCheck.currentCount,
+      limit: rateLimitCheck.limit,
+    });
+
+    // Emit CloudWatch metric for throttled action
+    await emitThrottledActionMetric(tenantId);
+
+    // Return rate limited result - this is NOT retryable
+    return {
+      success: false,
+      error: 'Rate limit exceeded',
+      rateLimited: true,
+      currentCount: rateLimitCheck.currentCount,
+      limit: rateLimitCheck.limit,
+      retryable: false,
+    };
+  }
+
   let result;
 
   switch (actionType) {
@@ -530,6 +564,9 @@ async function executeAction(step, execution, recordData, tenantId, retryContext
 
   // Find next step on success
   if (result.success) {
+    // Increment action count for rate limiting
+    await incrementActionCount(tenantId);
+
     const nextStepId = await findNextStep(step.workflow_id, step.id, step.parent_step_id, step.branch_path);
     return { ...result, nextStepId };
   }
@@ -2871,6 +2908,131 @@ async function pauseForTiming(executionId, workflowId, tenantId, resumeAt, stepI
   await scheduleDelayedExecution(executionId, workflowId, tenantId, resumeAt);
 
   console.log('[StepExecutor] Execution paused and resumption scheduled');
+}
+
+// =============================================================================
+// ACTION RATE LIMITING FUNCTIONS
+// =============================================================================
+
+/**
+ * Get current hour key for rate limiting
+ * Format: YYYY-MM-DD-HH
+ */
+function getCurrentHourKey() {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}-${String(now.getUTCHours()).padStart(2, '0')}`;
+}
+
+/**
+ * Check if tenant has exceeded action rate limit
+ * Returns { allowed: boolean, currentCount: number, limit: number }
+ */
+async function checkActionRateLimit(tenantId) {
+  const hourKey = getCurrentHourKey();
+  const pk = `tenant:${tenantId}:actions:${hourKey}`;
+
+  try {
+    // Get current count
+    const result = await dynamoDB.send(new GetCommand({
+      TableName: RATE_LIMIT_TABLE,
+      Key: { pk },
+    }));
+
+    const currentCount = result.Item?.count || 0;
+
+    // Get tenant-specific limit or use default
+    const tenantLimit = await getTenantActionLimit(tenantId);
+
+    return {
+      allowed: currentCount < tenantLimit,
+      currentCount,
+      limit: tenantLimit,
+    };
+  } catch (error) {
+    // If DynamoDB fails, allow the request but log warning
+    console.error('[RATE LIMIT] Error checking action rate limit:', error);
+    return { allowed: true, currentCount: 0, limit: DEFAULT_ACTION_LIMIT_PER_HOUR };
+  }
+}
+
+/**
+ * Increment action count for tenant
+ */
+async function incrementActionCount(tenantId) {
+  const hourKey = getCurrentHourKey();
+  const pk = `tenant:${tenantId}:actions:${hourKey}`;
+
+  // TTL: expire 2 hours after the hour ends
+  const now = new Date();
+  const hourEnd = new Date(now);
+  hourEnd.setUTCMinutes(0, 0, 0);
+  hourEnd.setUTCHours(hourEnd.getUTCHours() + 1);
+  const ttl = Math.floor(hourEnd.getTime() / 1000) + 7200; // +2 hours buffer
+
+  try {
+    await dynamoDB.send(new UpdateCommand({
+      TableName: RATE_LIMIT_TABLE,
+      Key: { pk },
+      UpdateExpression: 'SET #count = if_not_exists(#count, :zero) + :inc, #ttl = :ttl',
+      ExpressionAttributeNames: {
+        '#count': 'count',
+        '#ttl': 'ttl',
+      },
+      ExpressionAttributeValues: {
+        ':zero': 0,
+        ':inc': 1,
+        ':ttl': ttl,
+      },
+    }));
+  } catch (error) {
+    console.error('[RATE LIMIT] Error incrementing action count:', error);
+  }
+}
+
+/**
+ * Get tenant-specific action limit (could be from DB or config)
+ */
+async function getTenantActionLimit(tenantId) {
+  try {
+    // Check if tenant has a custom limit configured
+    const result = await query(
+      `SELECT value FROM "Setting" WHERE tenant_id = $1 AND key = 'workflow_action_limit_per_hour'`,
+      [tenantId]
+    );
+
+    if (result.rows.length > 0 && result.rows[0].value) {
+      return parseInt(result.rows[0].value, 10);
+    }
+  } catch (error) {
+    console.error('[RATE LIMIT] Error fetching tenant action limit:', error);
+  }
+
+  return DEFAULT_ACTION_LIMIT_PER_HOUR;
+}
+
+/**
+ * Emit CloudWatch metric for throttled actions
+ */
+async function emitThrottledActionMetric(tenantId, count = 1) {
+  try {
+    await cloudwatch.send(new PutMetricDataCommand({
+      Namespace: 'BarkBase/Workflows',
+      MetricData: [
+        {
+          MetricName: 'WorkflowActionsThrottled',
+          Dimensions: [
+            { Name: 'TenantId', Value: tenantId },
+          ],
+          Value: count,
+          Unit: 'Count',
+          Timestamp: new Date(),
+        },
+      ],
+    }));
+    console.log('[RATE LIMIT] Emitted throttled action metric for tenant:', tenantId);
+  } catch (error) {
+    console.error('[RATE LIMIT] Error emitting CloudWatch metric:', error);
+  }
 }
 
 // Export additional functions for use by other processors

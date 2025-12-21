@@ -29,14 +29,25 @@ try {
 }
 
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, UpdateCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
+const { CloudWatchClient, PutMetricDataCommand } = require('@aws-sdk/client-cloudwatch');
 
 const { getPoolAsync, query } = dbLayer;
 const { createResponse } = sharedLayer;
 
-// Initialize SQS client
-const sqs = new SQSClient({
-  region: process.env.AWS_REGION_DEPLOY || process.env.AWS_REGION || 'us-east-2',
-});
+// AWS Region
+const AWS_REGION = process.env.AWS_REGION_DEPLOY || process.env.AWS_REGION || 'us-east-2';
+
+// Initialize clients
+const sqs = new SQSClient({ region: AWS_REGION });
+const dynamoClient = new DynamoDBClient({ region: AWS_REGION });
+const dynamoDB = DynamoDBDocumentClient.from(dynamoClient);
+const cloudwatch = new CloudWatchClient({ region: AWS_REGION });
+
+// Rate limiting configuration
+const RATE_LIMIT_TABLE = process.env.RATE_LIMIT_TABLE || 'BarkBaseRateLimits';
+const DEFAULT_ENROLLMENT_LIMIT_PER_HOUR = parseInt(process.env.DEFAULT_ENROLLMENT_LIMIT || '10000', 10);
 
 // Queue URLs from environment
 const STEP_QUEUE_URL = process.env.WORKFLOW_STEP_QUEUE_URL;
@@ -895,6 +906,29 @@ async function enrollInWorkflow(workflow, recordId, recordType, tenantId, eventD
   const allowReenrollment = settings.allow_reenrollment === true;
   const reenrollmentDelayDays = settings.reenrollment_delay_days || 0;
 
+  // Check tenant enrollment rate limit first
+  const rateLimitCheck = await checkEnrollmentRateLimit(tenantId);
+  if (!rateLimitCheck.allowed) {
+    console.warn('[WorkflowTrigger] RATE LIMITED: Tenant exceeded enrollment limit:', {
+      tenantId,
+      workflowId: workflow.id,
+      workflowName: workflow.name,
+      recordId,
+      currentCount: rateLimitCheck.currentCount,
+      limit: rateLimitCheck.limit,
+    });
+
+    // Emit CloudWatch metric for throttled enrollment
+    await emitThrottledEnrollmentMetric(tenantId);
+
+    return {
+      enrolled: false,
+      reason: 'rate_limited',
+      currentCount: rateLimitCheck.currentCount,
+      limit: rateLimitCheck.limit,
+    };
+  }
+
   // Check suppression lists first
   if (workflow.suppression_segment_ids && workflow.suppression_segment_ids.length > 0) {
     const suppressionResult = await isRecordSuppressed(
@@ -1029,6 +1063,9 @@ async function enrollInWorkflow(workflow, recordId, recordType, tenantId, eventD
     workflowName: workflow.name,
     recordId,
   });
+
+  // Increment enrollment count for rate limiting
+  await incrementEnrollmentCount(tenantId);
 
   return { enrolled: true, executionId };
 }
@@ -1310,4 +1347,129 @@ function getFilterBaseQuery(objectType) {
   };
 
   return queries[objectType] || null;
+}
+
+// =============================================================================
+// RATE LIMITING FUNCTIONS
+// =============================================================================
+
+/**
+ * Get current hour key for rate limiting
+ * Format: YYYY-MM-DD-HH
+ */
+function getCurrentHourKey() {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}-${String(now.getUTCHours()).padStart(2, '0')}`;
+}
+
+/**
+ * Check if tenant has exceeded enrollment rate limit
+ * Returns { allowed: boolean, currentCount: number, limit: number }
+ */
+async function checkEnrollmentRateLimit(tenantId) {
+  const hourKey = getCurrentHourKey();
+  const pk = `tenant:${tenantId}:enrollments:${hourKey}`;
+
+  try {
+    // Get current count
+    const result = await dynamoDB.send(new GetCommand({
+      TableName: RATE_LIMIT_TABLE,
+      Key: { pk },
+    }));
+
+    const currentCount = result.Item?.count || 0;
+
+    // Get tenant-specific limit or use default
+    const tenantLimit = await getTenantEnrollmentLimit(tenantId);
+
+    return {
+      allowed: currentCount < tenantLimit,
+      currentCount,
+      limit: tenantLimit,
+    };
+  } catch (error) {
+    // If DynamoDB fails, allow the request but log warning
+    console.error('[RATE LIMIT] Error checking enrollment rate limit:', error);
+    return { allowed: true, currentCount: 0, limit: DEFAULT_ENROLLMENT_LIMIT_PER_HOUR };
+  }
+}
+
+/**
+ * Increment enrollment count for tenant
+ */
+async function incrementEnrollmentCount(tenantId) {
+  const hourKey = getCurrentHourKey();
+  const pk = `tenant:${tenantId}:enrollments:${hourKey}`;
+
+  // TTL: expire 2 hours after the hour ends (to allow for late processing)
+  const now = new Date();
+  const hourEnd = new Date(now);
+  hourEnd.setUTCMinutes(0, 0, 0);
+  hourEnd.setUTCHours(hourEnd.getUTCHours() + 1);
+  const ttl = Math.floor(hourEnd.getTime() / 1000) + 7200; // +2 hours buffer
+
+  try {
+    await dynamoDB.send(new UpdateCommand({
+      TableName: RATE_LIMIT_TABLE,
+      Key: { pk },
+      UpdateExpression: 'SET #count = if_not_exists(#count, :zero) + :inc, #ttl = :ttl',
+      ExpressionAttributeNames: {
+        '#count': 'count',
+        '#ttl': 'ttl',
+      },
+      ExpressionAttributeValues: {
+        ':zero': 0,
+        ':inc': 1,
+        ':ttl': ttl,
+      },
+    }));
+  } catch (error) {
+    console.error('[RATE LIMIT] Error incrementing enrollment count:', error);
+  }
+}
+
+/**
+ * Get tenant-specific enrollment limit (could be from DB or config)
+ */
+async function getTenantEnrollmentLimit(tenantId) {
+  try {
+    // Check if tenant has a custom limit configured
+    const result = await query(
+      `SELECT value FROM "Setting" WHERE tenant_id = $1 AND key = 'workflow_enrollment_limit_per_hour'`,
+      [tenantId]
+    );
+
+    if (result.rows.length > 0 && result.rows[0].value) {
+      return parseInt(result.rows[0].value, 10);
+    }
+  } catch (error) {
+    console.error('[RATE LIMIT] Error fetching tenant limit:', error);
+  }
+
+  return DEFAULT_ENROLLMENT_LIMIT_PER_HOUR;
+}
+
+/**
+ * Emit CloudWatch metric for throttled enrollments
+ */
+async function emitThrottledEnrollmentMetric(tenantId, count = 1) {
+  try {
+    await cloudwatch.send(new PutMetricDataCommand({
+      Namespace: 'BarkBase/Workflows',
+      MetricData: [
+        {
+          MetricName: 'WorkflowEnrollmentsThrottled',
+          Dimensions: [
+            { Name: 'TenantId', Value: tenantId },
+          ],
+          Value: count,
+          Unit: 'Count',
+          Timestamp: new Date(),
+        },
+      ],
+    }));
+    console.log('[RATE LIMIT] Emitted throttled enrollment metric for tenant:', tenantId);
+  } catch (error) {
+    console.error('[RATE LIMIT] Error emitting CloudWatch metric:', error);
+  }
 }
