@@ -291,13 +291,29 @@ async function handleLogin(event) {
 
       // NEW SCHEMA: Fetch user with roles from UserRole junction table
       // No role column on User table anymore
-      const result = await query(
+      let result = await query(
         `UPDATE "User"
          SET last_login_at = NOW(), updated_at = NOW()
          WHERE cognito_sub = $1
          RETURNING id, email, first_name, last_name, tenant_id`,
         [payload.sub]
       );
+
+      // If not found by cognito_sub, try by email and update cognito_sub
+      // This handles the case where user verified email and signs in for the first time
+      if (result.rows.length === 0 && payload.email) {
+        console.log('[AUTH-API] User not found by cognito_sub, trying by email:', payload.email);
+        result = await query(
+          `UPDATE "User"
+           SET cognito_sub = $1, last_login_at = NOW(), updated_at = NOW()
+           WHERE email = $2 AND (cognito_sub IS NULL OR cognito_sub = 'PENDING')
+           RETURNING id, email, first_name, last_name, tenant_id`,
+          [payload.sub, payload.email]
+        );
+        if (result.rows.length > 0) {
+          console.log('[AUTH-API] Updated cognito_sub for user via email lookup');
+        }
+      }
 
       if (result.rows.length > 0) {
         dbUser = result.rows[0];
@@ -614,6 +630,8 @@ async function handleRegister(event) {
   // ==========================================================================
   let tokens = null;
 
+  let needsVerification = false;
+
   if (isNewFlow) {
     try {
       console.log('[AuthBootstrap] Creating Cognito user for:', userEmail);
@@ -633,51 +651,52 @@ async function handleRegister(event) {
       cognitoSub = signUpResult.UserSub;
       console.log('[AuthBootstrap] Cognito user created:', cognitoSub);
 
+      // Update User record with cognito_sub immediately
+      await query(
+        `UPDATE "User" SET cognito_sub = $1, updated_at = NOW() WHERE id = $2`,
+        [cognitoSub, user.id]
+      );
+
       // Auto-confirm the user (requires AdminConfirmSignUp permission)
+      let isConfirmed = false;
       try {
         await cognitoClient.send(new AdminConfirmSignUpCommand({
           UserPoolId: config.userPoolId,
           Username: userEmail,
         }));
         console.log('[AuthBootstrap] Cognito user auto-confirmed');
+        isConfirmed = true;
       } catch (confirmError) {
         // If auto-confirm fails, user will need to verify email
-        console.warn('[AuthBootstrap] Auto-confirm failed (user may need email verification):', confirmError.message);
+        console.warn('[AuthBootstrap] Auto-confirm failed (user needs email verification):', confirmError.message);
+        needsVerification = true;
       }
 
-      // Update User record with cognito_sub
-      await query(
-        `UPDATE "User" SET cognito_sub = $1, updated_at = NOW() WHERE id = $2`,
-        [cognitoSub, user.id]
-      );
+      // Only sign in to get tokens if user was confirmed
+      if (isConfirmed) {
+        const authResult = await cognitoClient.send(new InitiateAuthCommand({
+          AuthFlow: 'USER_PASSWORD_AUTH',
+          ClientId: config.clientId,
+          AuthParameters: {
+            USERNAME: userEmail,
+            PASSWORD: password,
+          },
+        }));
 
-      // Sign in to get tokens
-      const authResult = await cognitoClient.send(new InitiateAuthCommand({
-        AuthFlow: 'USER_PASSWORD_AUTH',
-        ClientId: config.clientId,
-        AuthParameters: {
-          USERNAME: userEmail,
-          PASSWORD: password,
-        },
-      }));
-
-      tokens = {
-        accessToken: authResult.AuthenticationResult.AccessToken,
-        idToken: authResult.AuthenticationResult.IdToken,
-        refreshToken: authResult.AuthenticationResult.RefreshToken,
-        expiresIn: authResult.AuthenticationResult.ExpiresIn,
-      };
+        tokens = {
+          accessToken: authResult.AuthenticationResult.AccessToken,
+          idToken: authResult.AuthenticationResult.IdToken,
+          refreshToken: authResult.AuthenticationResult.RefreshToken,
+          expiresIn: authResult.AuthenticationResult.ExpiresIn,
+        };
+      }
 
     } catch (cognitoError) {
       console.error('[AuthBootstrap] Cognito error:', cognitoError.message);
 
-      // ROLLBACK: Delete DB records since Cognito failed
+      // ROLLBACK: Delete the tenant (cascade will clean up related records)
       console.log('[AuthBootstrap] Rolling back DB records due to Cognito failure');
       try {
-        await query(`DELETE FROM "UserRole" WHERE user_id = $1`, [user.id]);
-        await query(`DELETE FROM "User" WHERE id = $1`, [user.id]);
-        await query(`DELETE FROM "Role" WHERE tenant_id = $1`, [tenant.id]);
-        await query(`DELETE FROM "TenantSettings" WHERE tenant_id = $1`, [tenant.id]);
         await query(`DELETE FROM "Tenant" WHERE id = $1`, [tenant.id]);
         console.log('[AuthBootstrap] DB rollback complete');
       } catch (rollbackError) {
@@ -691,13 +710,14 @@ async function handleRegister(event) {
     }
   }
 
-  console.log('[AuthBootstrap] Registration complete for:', userEmail);
+  console.log('[AuthBootstrap] Registration complete for:', userEmail, 'needsVerification:', needsVerification);
 
   // ==========================================================================
   // STEP 3: Return success response
   // ==========================================================================
   const response = {
     success: true,
+    needsVerification,
     user: {
       id: cognitoSub,
       recordId: user?.id,
@@ -719,9 +739,14 @@ async function handleRegister(event) {
     },
   };
 
-  // Include tokens for new flow
+  // Include tokens only if user was auto-confirmed
   if (tokens) {
     response.tokens = tokens;
+  }
+
+  // Add message for verification case
+  if (needsVerification) {
+    response.message = 'Please check your email to verify your account before signing in.';
   }
 
   return createResponse(201, response);

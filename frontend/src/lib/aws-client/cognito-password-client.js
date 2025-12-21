@@ -1,7 +1,6 @@
 import {
   CognitoIdentityProviderClient,
   InitiateAuthCommand,
-  SignUpCommand,
   ConfirmSignUpCommand
 } from '@aws-sdk/client-cognito-identity-provider';
 
@@ -14,71 +13,66 @@ export class CognitoPasswordClient {
   }
 
   async signUp({ email, password, name, tenantName, tenantSlug }) {
-    if (!this.clientId) throw new Error('Cognito clientId not configured');
+    if (!this.apiBaseUrl) throw new Error('API base URL not configured');
     if (!email || !password) throw new Error('Email and password are required');
 
-    // Step 1: Create user in Cognito
-    const command = new SignUpCommand({
-      ClientId: this.clientId,
-      Username: email,
-      Password: password,
-      UserAttributes: [
-        { Name: 'email', Value: email },
-        { Name: 'name', Value: name || email.split('@')[0] }
-      ]
-    });
-
-    const res = await this.client.send(command);
-
-    // Step 2: Sign in to get tokens (Cognito auto-confirms via Pre-SignUp trigger)
-    const signInResult = await this.signIn({ email, password });
-
-    // Step 3: Call backend to create Tenant and User records in database
-
+    // Call backend to handle everything: DB first, then Cognito
+    // Backend will create tenant, user, roles in DB, then create Cognito user
+    // If Cognito fails, backend rolls back DB changes
     const registerResponse = await fetch(`${this.apiBaseUrl}/api/v1/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${signInResult.accessToken}`,
       },
       body: JSON.stringify({
-        accessToken: signInResult.accessToken,
         email,
+        password,
         name: name || email.split('@')[0],
         tenantName: tenantName || `${name || email.split('@')[0]}'s Workspace`,
         tenantSlug: tenantSlug,
       }),
-      // Use 'cors' mode without credentials to avoid complex preflight issues
       mode: 'cors',
       credentials: 'omit',
     });
 
     if (!registerResponse.ok) {
       const errorData = await registerResponse.json().catch(() => ({}));
-      console.error('[CognitoPasswordClient] Backend registration failed:', errorData);
-      throw new Error(errorData.message || 'Failed to create workspace in database');
+      console.error('[CognitoPasswordClient] Registration failed:', errorData);
+      throw new Error(errorData.message || 'Failed to create account');
     }
 
     const registerData = await registerResponse.json();
 
+    // Check if user needs email verification
+    if (registerData.needsVerification) {
+      return {
+        needsVerification: true,
+        email: email,
+        message: registerData.message || 'Please check your email to verify your account',
+      };
+    }
+
+    // Backend returns tokens if auto-confirmed
     return {
       user: {
-        id: res.UserSub,
+        id: registerData.user?.id,
         recordId: registerData.user?.recordId,
         email: email,
         emailVerified: true,
         firstName: registerData.user?.firstName,
         lastName: registerData.user?.lastName,
         role: registerData.user?.role || 'OWNER',
+        roles: registerData.user?.roles || ['OWNER'],
+        tenantId: registerData.user?.tenantId,
       },
-      accessToken: signInResult.accessToken,
-      refreshToken: signInResult.refreshToken,
-      idToken: signInResult.idToken,
+      accessToken: registerData.tokens?.accessToken,
+      refreshToken: registerData.tokens?.refreshToken,
+      idToken: registerData.tokens?.idToken,
       tenant: registerData.tenant || {
-        recordId: null,
+        id: null,
         name: tenantName || `${name || email.split('@')[0]}'s Workspace`,
         slug: tenantSlug || 'temp',
-        plan: 'FREE'
+        plan: 'FREE',
       },
     };
   }
