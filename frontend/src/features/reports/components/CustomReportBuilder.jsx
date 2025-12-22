@@ -375,10 +375,18 @@ const CustomReportBuilder = () => {
     const fetchFields = async () => {
       setFieldsLoading(true);
       try {
+        console.log('[REPORT-BUILDER] Fetching fields for dataSource:', dataSource);
         const response = await apiClient.get(`/api/v1/analytics/reports/fields?dataSource=${dataSource}`);
+        console.log('[REPORT-BUILDER] Raw API response:', response);
+        console.log('[REPORT-BUILDER] response.data:', response.data);
+        console.log('[REPORT-BUILDER] response.data?.data:', response.data?.data);
+        console.log('[REPORT-BUILDER] response.data?.data?.[dataSource]:', response.data?.data?.[dataSource]);
+
         const data = response.data?.data?.[dataSource] || { dimensions: [], measures: [] };
+        console.log('[REPORT-BUILDER] Extracted data:', data);
+
         // Map API response to expected format
-        setFieldsConfig({
+        const mappedFields = {
           dimensions: (data.dimensions || []).map(d => ({
             key: d.key,
             label: d.label,
@@ -393,9 +401,11 @@ const CustomReportBuilder = () => {
             defaultAgg: m.defaultAggregation || 'COUNT',
             group: m.group,
           })),
-        });
+        };
+        console.log('[REPORT-BUILDER] Mapped fields:', mappedFields);
+        setFieldsConfig(mappedFields);
       } catch (err) {
-        console.error('Failed to fetch report fields:', err);
+        console.error('[REPORT-BUILDER] Failed to fetch report fields:', err);
         // Keep existing fields on error
       } finally {
         setFieldsLoading(false);

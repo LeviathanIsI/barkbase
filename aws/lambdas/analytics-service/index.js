@@ -1897,12 +1897,16 @@ async function handleGetReportFields(tenantId, queryParams) {
     await getPoolAsync();
     const { dataSource } = queryParams;
 
+    console.log('[REPORT-FIELDS] Request:', { dataSource, tenantId });
+
     const result = {};
     const sources = dataSource ? [dataSource] : Object.keys(DATA_SOURCE_TO_ENTITY);
 
     for (const source of sources) {
       const entityType = DATA_SOURCE_TO_ENTITY[source];
       if (!entityType) continue;
+
+      console.log('[REPORT-FIELDS] Processing source:', source, '-> entityType:', entityType);
 
       result[source] = { dimensions: [], measures: [] };
 
@@ -1914,6 +1918,8 @@ async function handleGetReportFields(tenantId, queryParams) {
          ORDER BY sort_order, label`,
         [entityType]
       );
+
+      console.log('[REPORT-FIELDS] SystemProperty query returned:', systemProps.rows?.length, 'rows for', entityType);
 
       // 2. Get custom tenant properties for this entity type
       let customProps = { rows: [] };
@@ -1975,7 +1981,14 @@ async function handleGetReportFields(tenantId, queryParams) {
         group: 'Metrics',
         defaultAggregation: 'COUNT',
       });
+
+      console.log('[REPORT-FIELDS] Final counts for', source, ':', {
+        dimensions: result[source].dimensions.length,
+        measures: result[source].measures.length,
+      });
     }
+
+    console.log('[REPORT-FIELDS] Returning result for sources:', Object.keys(result));
 
     return createResponse(200, {
       data: result,
