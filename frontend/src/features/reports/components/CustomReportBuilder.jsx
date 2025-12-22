@@ -116,6 +116,199 @@ const AGGREGATION_OPTIONS = [
   { value: 'MAX', label: 'Max' },
 ];
 
+// Chart-specific drop zone configuration
+const CHART_ZONE_CONFIG = {
+  line: ['xAxis', 'yAxis', 'breakDownBy', 'compareBy'],
+  bar: ['xAxis', 'yAxis', 'breakDownBy', 'compareBy'],
+  column: ['xAxis', 'yAxis', 'breakDownBy', 'compareBy'],
+  area: ['xAxis', 'yAxis', 'breakDownBy', 'compareBy'],
+  scatter: ['xAxis', 'yAxis', 'breakDownBy', 'pointDetails', 'pointSize'],
+  pie: ['breakDownBy', 'values'],
+  donut: ['breakDownBy', 'values'],
+  table: ['columns'],
+  pivot: ['rows', 'columns', 'values'],
+  kpi: ['groupBy', 'values', 'compareBy'],
+  gauge: ['value', 'compareBy'],
+  combo: ['xAxis', 'yAxis1', 'yAxis2', 'breakDownBy'],
+  funnel: ['stages', 'values'],
+  treemap: ['category', 'size', 'color'],
+  stacked: ['xAxis', 'yAxis', 'stackBy'],
+  sankey: ['source', 'target', 'values'],
+};
+
+// Drop zone definitions with labels, tooltips, and field type requirements
+const DROP_ZONE_DEFINITIONS = {
+  xAxis: {
+    label: 'X-axis',
+    tooltip: 'Category or time dimension',
+    placeholder: 'Drag dimension here',
+    acceptsDimensions: true,
+    acceptsMeasures: false,
+    multiple: false,
+  },
+  yAxis: {
+    label: 'Y-axis',
+    tooltip: 'Numeric measure to aggregate',
+    placeholder: 'Drag measure here',
+    acceptsDimensions: false,
+    acceptsMeasures: true,
+    multiple: false,
+  },
+  yAxis1: {
+    label: 'Y-axis (Left)',
+    tooltip: 'Primary measure (left axis)',
+    placeholder: 'Drag measure here',
+    acceptsDimensions: false,
+    acceptsMeasures: true,
+    multiple: false,
+  },
+  yAxis2: {
+    label: 'Y-axis (Right)',
+    tooltip: 'Secondary measure (right axis)',
+    placeholder: 'Drag measure here',
+    acceptsDimensions: false,
+    acceptsMeasures: true,
+    multiple: false,
+  },
+  breakDownBy: {
+    label: 'Break down by',
+    tooltip: 'Split data by this dimension',
+    placeholder: 'Drag dimension here',
+    acceptsDimensions: true,
+    acceptsMeasures: false,
+    multiple: false,
+  },
+  compareBy: {
+    label: 'Compare by',
+    tooltip: 'Compare across time periods',
+    placeholder: 'Drag date field here',
+    acceptsDateOnly: true,
+    acceptsDimensions: true,
+    acceptsMeasures: false,
+    multiple: false,
+  },
+  stackBy: {
+    label: 'Stack by',
+    tooltip: 'Stack bars by this dimension',
+    placeholder: 'Drag dimension here',
+    acceptsDimensions: true,
+    acceptsMeasures: false,
+    multiple: false,
+  },
+  values: {
+    label: 'Values',
+    tooltip: 'Numeric values to display',
+    placeholder: 'Drag measure here',
+    acceptsDimensions: false,
+    acceptsMeasures: true,
+    multiple: true,
+  },
+  value: {
+    label: 'Value',
+    tooltip: 'Single numeric value',
+    placeholder: 'Drag measure here',
+    acceptsDimensions: false,
+    acceptsMeasures: true,
+    multiple: false,
+  },
+  columns: {
+    label: 'Columns',
+    tooltip: 'Fields to display as columns',
+    placeholder: 'Drag fields here',
+    acceptsDimensions: true,
+    acceptsMeasures: true,
+    multiple: true,
+  },
+  rows: {
+    label: 'Rows',
+    tooltip: 'Row grouping dimension',
+    placeholder: 'Drag dimension here',
+    acceptsDimensions: true,
+    acceptsMeasures: false,
+    multiple: true,
+  },
+  groupBy: {
+    label: 'Group by',
+    tooltip: 'Group results by this field',
+    placeholder: 'Drag dimension here',
+    acceptsDimensions: true,
+    acceptsMeasures: false,
+    multiple: false,
+  },
+  stages: {
+    label: 'Stages',
+    tooltip: 'Funnel stage dimension',
+    placeholder: 'Drag dimension here',
+    acceptsDimensions: true,
+    acceptsMeasures: false,
+    multiple: false,
+  },
+  category: {
+    label: 'Category',
+    tooltip: 'Treemap category grouping',
+    placeholder: 'Drag dimension here',
+    acceptsDimensions: true,
+    acceptsMeasures: false,
+    multiple: false,
+  },
+  size: {
+    label: 'Size',
+    tooltip: 'Determines box size',
+    placeholder: 'Drag measure here',
+    acceptsDimensions: false,
+    acceptsMeasures: true,
+    multiple: false,
+  },
+  color: {
+    label: 'Color',
+    tooltip: 'Determines color intensity',
+    placeholder: 'Drag measure here',
+    acceptsDimensions: false,
+    acceptsMeasures: true,
+    multiple: false,
+  },
+  source: {
+    label: 'Source',
+    tooltip: 'Flow source dimension',
+    placeholder: 'Drag dimension here',
+    acceptsDimensions: true,
+    acceptsMeasures: false,
+    multiple: false,
+  },
+  target: {
+    label: 'Target',
+    tooltip: 'Flow target dimension',
+    placeholder: 'Drag dimension here',
+    acceptsDimensions: true,
+    acceptsMeasures: false,
+    multiple: false,
+  },
+  pointDetails: {
+    label: 'Point details',
+    tooltip: 'Additional info shown on hover',
+    placeholder: 'Drag fields here',
+    acceptsDimensions: true,
+    acceptsMeasures: true,
+    multiple: true,
+  },
+  pointSize: {
+    label: 'Point size',
+    tooltip: 'Determines scatter point size',
+    placeholder: 'Drag measure here',
+    acceptsDimensions: false,
+    acceptsMeasures: true,
+    multiple: false,
+  },
+  fields: {
+    label: 'Additional fields',
+    tooltip: 'Extra detail fields for tooltips/exports',
+    placeholder: 'Drag fields here',
+    acceptsDimensions: true,
+    acceptsMeasures: true,
+    multiple: true,
+  },
+};
+
 // HubSpot-style operators organized by field type
 const FILTER_OPERATORS_BY_TYPE = {
   text: [
@@ -305,30 +498,38 @@ const CollapsibleFieldGroup = ({ title, icon: Icon, children, defaultOpen = true
 
 // =============================================================================
 // DROP ZONE COMPONENT - With drag-and-drop support and validation
+// Supports both single field and multiple field modes
 // =============================================================================
 
 const DropZone = ({
   label,
   tooltip,
-  field,
-  onRemove,
+  field,        // Single field mode: field object or null
+  fields,       // Multiple field mode: array of fields
+  onRemove,     // Single mode: () => void, Multiple mode: (index) => void
   onDrop,
   placeholder,
   acceptsDateOnly = false,
   acceptsMeasures = false,
   acceptsDimensions = true,
+  multiple = false,
   isDragging = false,
   draggedItem = null
 }) => {
   const [isOver, setIsOver] = useState(false);
 
+  // For multiple mode, check if we have any fields
+  const hasFields = multiple ? (fields && fields.length > 0) : !!field;
+
   // Check if the currently dragged item can be dropped here
   const canAcceptCurrentDrag = () => {
-    if (!draggedItem || field) return false;
+    // For single field mode, don't accept if already has a field
+    if (!multiple && field) return false;
+    if (!draggedItem) return false;
 
     const { field: dragField, isDimension } = draggedItem;
 
-    if (acceptsDateOnly && dragField.type !== 'date') {
+    if (acceptsDateOnly && !['date', 'datetime'].includes(dragField.type)) {
       return false;
     }
     if (acceptsMeasures && isDimension) {
@@ -371,9 +572,26 @@ const DropZone = ({
     }
   };
 
+  // Render a single field pill
+  const renderFieldPill = (fieldItem, index = null) => (
+    <div
+      key={fieldItem.key || index}
+      className="flex items-center gap-2 px-2.5 py-1.5 bg-white dark:bg-surface-primary rounded-md border border-border group"
+    >
+      <FieldTypeIcon type={fieldItem.type} />
+      <span className="text-xs text-text">{fieldItem.label}</span>
+      <button
+        onClick={() => multiple ? onRemove(index) : onRemove()}
+        className="p-0.5 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  );
+
   return (
-    <div className="mb-4">
-      <div className="flex items-center gap-1.5 mb-2">
+    <div className="mb-3">
+      <div className="flex items-center gap-1.5 mb-1.5">
         <span className="text-xs font-medium text-text">{label}</span>
         {tooltip && (
           <div className="group relative">
@@ -389,38 +607,59 @@ const DropZone = ({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "min-h-[44px] rounded-lg border-2 border-dashed transition-all duration-200",
-          field
-            ? "border-primary/40 bg-primary/5"
+          "min-h-[40px] rounded-lg border-2 border-dashed transition-all duration-200",
+          hasFields
+            ? "border-primary/40 bg-primary/5 p-2"
             : isOver && isValidTarget
-              ? "border-primary bg-primary/10 scale-[1.02]"
+              ? "border-primary bg-primary/10 scale-[1.01]"
               : isDragging && isValidTarget
                 ? "border-primary/50 bg-primary/5"
                 : "border-border bg-surface-secondary/50"
         )}
       >
-        {field ? (
-          <div className="flex items-center justify-between px-3 py-2.5">
-            <div className="flex items-center gap-2">
-              <FieldTypeIcon type={field.type} />
-              <span className="text-sm text-text">{field.label}</span>
-            </div>
-            <button
-              onClick={onRemove}
-              className="p-1 text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
+        {multiple ? (
+          // Multiple fields mode
+          <div className="flex flex-wrap gap-1.5">
+            {fields && fields.length > 0 && fields.map((f, i) => renderFieldPill(f, i))}
+            {(!fields || fields.length === 0 || isOver) && (
+              <div className={cn(
+                "flex items-center justify-center w-full py-1.5",
+                fields && fields.length > 0 && "hidden"
+              )}>
+                <span className={cn(
+                  "text-xs transition-colors",
+                  isOver && isValidTarget ? "text-primary font-medium" : "text-muted"
+                )}>
+                  {isOver && isValidTarget ? 'Drop here' : placeholder || 'Drag fields here'}
+                </span>
+              </div>
+            )}
           </div>
         ) : (
-          <div className="flex items-center justify-center px-3 py-2.5">
-            <span className={cn(
-              "text-xs transition-colors",
-              isOver && isValidTarget ? "text-primary font-medium" : "text-muted"
-            )}>
-              {isOver && isValidTarget ? 'Drop here' : placeholder || 'Drag fields here'}
-            </span>
-          </div>
+          // Single field mode
+          field ? (
+            <div className="flex items-center justify-between px-3 py-2">
+              <div className="flex items-center gap-2">
+                <FieldTypeIcon type={field.type} />
+                <span className="text-sm text-text">{field.label}</span>
+              </div>
+              <button
+                onClick={onRemove}
+                className="p-1 text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center px-3 py-2">
+              <span className={cn(
+                "text-xs transition-colors",
+                isOver && isValidTarget ? "text-primary font-medium" : "text-muted"
+              )}>
+                {isOver && isValidTarget ? 'Drop here' : placeholder || 'Drag fields here'}
+              </span>
+            </div>
+          )
         )}
       </div>
     </div>
@@ -684,10 +923,55 @@ const CustomReportBuilder = () => {
   const [reportName, setReportName] = useState('Untitled Report');
   const [dataSource, setDataSource] = useState('bookings');
   const [chartType, setChartType] = useState('bar');
-  const [xAxis, setXAxis] = useState(null); // dimension for x-axis
-  const [yAxis, setYAxis] = useState(null); // measure for y-axis
-  const [groupBy, setGroupBy] = useState(null); // optional second dimension (break down by)
-  const [compareBy, setCompareBy] = useState(null); // optional date dimension for comparison
+
+  // Dynamic zone values - keyed by zone name
+  // Single zones store: { field } or null
+  // Multiple zones store: [{ field }, ...] or []
+  const [zoneValues, setZoneValues] = useState({});
+
+  // Get/set helpers for zone values (prefixed with _ to suppress unused warnings - may be used externally)
+  const _getZoneValue = useCallback((zoneName) => {
+    return zoneValues[zoneName] || null;
+  }, [zoneValues]);
+
+  const _setZoneValue = useCallback((zoneName, value) => {
+    setZoneValues(prev => ({ ...prev, [zoneName]: value }));
+  }, []);
+
+  // Expose for potential future use
+  void _getZoneValue;
+  void _setZoneValue;
+
+  const addToZone = useCallback((zoneName, field) => {
+    const def = DROP_ZONE_DEFINITIONS[zoneName];
+    if (def?.multiple) {
+      setZoneValues(prev => ({
+        ...prev,
+        [zoneName]: [...(prev[zoneName] || []), field],
+      }));
+    } else {
+      setZoneValues(prev => ({ ...prev, [zoneName]: field }));
+    }
+  }, []);
+
+  const removeFromZone = useCallback((zoneName, index = null) => {
+    const def = DROP_ZONE_DEFINITIONS[zoneName];
+    if (def?.multiple && index !== null) {
+      setZoneValues(prev => ({
+        ...prev,
+        [zoneName]: (prev[zoneName] || []).filter((_, i) => i !== index),
+      }));
+    } else {
+      setZoneValues(prev => ({ ...prev, [zoneName]: def?.multiple ? [] : null }));
+    }
+  }, []);
+
+  // Legacy accessors for backward compatibility with chart rendering
+  const xAxis = zoneValues.xAxis || null;
+  const yAxis = zoneValues.yAxis || zoneValues.values?.[0] || zoneValues.value || null;
+  const groupBy = zoneValues.breakDownBy || zoneValues.stackBy || zoneValues.category || null;
+  const compareBy = zoneValues.compareBy || null;
+
   const [filters, setFilters] = useState([]);
   const [filterMode, setFilterMode] = useState('all'); // 'all' or 'any'
   const [editingFilterIndex, setEditingFilterIndex] = useState(null); // index of filter being edited
@@ -864,42 +1148,35 @@ const CustomReportBuilder = () => {
 
   // Reset selections when data source changes
   useEffect(() => {
-    setXAxis(null);
-    setYAxis(null);
-    setGroupBy(null);
-    setCompareBy(null);
+    setZoneValues({});
     setFilters([]);
     setChartData([]);
   }, [dataSource]);
 
-  // Handle field click
-  const handleFieldClick = (field, isDimension) => {
-    if (isDimension) {
-      if (!xAxis) {
-        setXAxis(field);
-      } else if (!groupBy && field.key !== xAxis.key) {
-        setGroupBy(field);
-      }
-    } else {
-      setYAxis(field);
-    }
-  };
+  // Get active zones for current chart type
+  const activeZones = useMemo(() => {
+    return CHART_ZONE_CONFIG[chartType] || ['xAxis', 'yAxis', 'breakDownBy'];
+  }, [chartType]);
 
-  // Remove field from config
-  const removeField = (type) => {
-    switch (type) {
-      case 'xAxis':
-        setXAxis(null);
-        break;
-      case 'yAxis':
-        setYAxis(null);
-        break;
-      case 'groupBy':
-        setGroupBy(null);
-        break;
-      case 'compareBy':
-        setCompareBy(null);
-        break;
+  // Handle field click - adds to first empty zone that accepts it
+  const handleFieldClick = (field, isDimension) => {
+    for (const zoneName of activeZones) {
+      const def = DROP_ZONE_DEFINITIONS[zoneName];
+      if (!def) continue;
+
+      const accepts = isDimension ? def.acceptsDimensions : def.acceptsMeasures;
+      if (!accepts) continue;
+
+      const currentValue = zoneValues[zoneName];
+      if (def.multiple) {
+        // Multi-zone: always add
+        addToZone(zoneName, field);
+        return;
+      } else if (!currentValue) {
+        // Single zone: add if empty
+        addToZone(zoneName, field);
+        return;
+      }
     }
   };
 
@@ -1336,59 +1613,53 @@ const CustomReportBuilder = () => {
                 </label>
               </div>
 
-              {/* Drop Zones */}
+              {/* Dynamic Drop Zones based on chart type */}
               <div className="px-4 py-4 space-y-1">
-                <DropZone
-                  label="X-axis"
-                  field={xAxis}
-                  onRemove={() => removeField('xAxis')}
-                  onDrop={(droppedField) => setXAxis(droppedField)}
-                  placeholder="Drag dimension here"
-                  acceptsDimensions={true}
-                  acceptsMeasures={false}
-                  isDragging={isDragging}
-                  draggedItem={draggedItem}
-                />
+                {activeZones.map((zoneName) => {
+                  const def = DROP_ZONE_DEFINITIONS[zoneName];
+                  if (!def) return null;
 
+                  const value = zoneValues[zoneName];
+                  const isMultiple = def.multiple;
+
+                  return (
+                    <DropZone
+                      key={zoneName}
+                      label={def.label}
+                      tooltip={def.tooltip}
+                      field={isMultiple ? undefined : value}
+                      fields={isMultiple ? (value || []) : undefined}
+                      onRemove={isMultiple ? (index) => removeFromZone(zoneName, index) : () => removeFromZone(zoneName)}
+                      onDrop={(droppedField) => addToZone(zoneName, droppedField)}
+                      placeholder={def.placeholder}
+                      acceptsDateOnly={def.acceptsDateOnly || false}
+                      acceptsDimensions={def.acceptsDimensions}
+                      acceptsMeasures={def.acceptsMeasures}
+                      multiple={isMultiple}
+                      isDragging={isDragging}
+                      draggedItem={draggedItem}
+                    />
+                  );
+                })}
+
+                {/* Additional Fields zone - always shown */}
                 <DropZone
-                  label="Y-axis"
-                  field={yAxis}
-                  onRemove={() => removeField('yAxis')}
-                  onDrop={(droppedField) => setYAxis(droppedField)}
-                  placeholder="Drag measure here"
-                  acceptsDimensions={false}
+                  label={DROP_ZONE_DEFINITIONS.fields.label}
+                  tooltip={DROP_ZONE_DEFINITIONS.fields.tooltip}
+                  fields={zoneValues.fields || []}
+                  onRemove={(index) => removeFromZone('fields', index)}
+                  onDrop={(droppedField) => addToZone('fields', droppedField)}
+                  placeholder={DROP_ZONE_DEFINITIONS.fields.placeholder}
+                  acceptsDimensions={true}
                   acceptsMeasures={true}
-                  isDragging={isDragging}
-                  draggedItem={draggedItem}
-                />
-
-                <DropZone
-                  label="Break down by"
-                  field={groupBy}
-                  onRemove={() => removeField('groupBy')}
-                  onDrop={(droppedField) => setGroupBy(droppedField)}
-                  placeholder="Drag dimension here"
-                  acceptsDimensions={true}
-                  acceptsMeasures={false}
-                  isDragging={isDragging}
-                  draggedItem={draggedItem}
-                />
-
-                <DropZone
-                  label="Compare by"
-                  tooltip="Compare data across time periods"
-                  field={compareBy}
-                  onRemove={() => removeField('compareBy')}
-                  onDrop={(droppedField) => setCompareBy(droppedField)}
-                  placeholder="Drag date field here"
-                  acceptsDateOnly={true}
+                  multiple={true}
                   isDragging={isDragging}
                   draggedItem={draggedItem}
                 />
 
                 {/* Date Range in Configure tab */}
-                <div className="mb-4">
-                  <div className="flex items-center gap-1.5 mb-2">
+                <div className="mb-4 pt-2 border-t border-border/50">
+                  <div className="flex items-center gap-1.5 mb-1.5">
                     <span className="text-xs font-medium text-text">Date Range</span>
                   </div>
                   <div className="flex gap-2">
