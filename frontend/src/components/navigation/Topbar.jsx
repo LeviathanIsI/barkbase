@@ -1110,7 +1110,9 @@ const ProfileDropdown = () => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const accountCode = useAuthStore((state) => state.accountCode);
+  const authAccountCode = useAuthStore((state) => state.accountCode);
+  const tenantAccountCode = useTenantStore((state) => state.tenant?.accountCode);
+  const accountCode = authAccountCode || tenantAccountCode;
   const logout = useAuthStore((state) => state.logout);
   const initials = useMemo(() => getInitials(user?.fullName || user?.name || user?.email || ''), [user]);
 
