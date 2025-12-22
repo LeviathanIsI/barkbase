@@ -4041,19 +4041,19 @@ async function handleGetRunAssignments(tenantId, queryParams) {
          k.name as kennel_name
        FROM "RunAssignment" ra
        JOIN "Run" r
-         ON r.id = ra.run_id
+         ON r.record_id = ra.run_id
         AND r.tenant_id = ra.tenant_id
        LEFT JOIN "Pet" p
          ON p.record_id = ra.pet_id
         AND p.tenant_id = ra.tenant_id
        LEFT JOIN "Booking" b
-         ON b.id = ra.booking_id
+         ON b.record_id = ra.booking_id
         AND b.tenant_id = ra.tenant_id
        LEFT JOIN "Owner" o
-         ON o.id = b.owner_id
+         ON o.record_id = b.owner_id
         AND o.tenant_id = ra.tenant_id
        LEFT JOIN "Kennel" k
-         ON k.id = b.kennel_id
+         ON k.record_id = b.kennel_id
         AND k.tenant_id = ra.tenant_id
        WHERE ra.tenant_id = $1
          AND (r.is_active = true OR r.is_active::text = 'true' OR r.is_active IS NULL)
@@ -4270,7 +4270,7 @@ async function handleSaveRunAssignments(tenantId, body, user) {
         // Booking uses BookingPet junction table, not direct pet_id
         if (!finalBookingId) {
           const bookingResult = await query(
-            `SELECT b.id FROM "Booking" b
+            `SELECT b.record_id FROM "Booking" b
              JOIN "BookingPet" bp ON bp.tenant_id = b.tenant_id AND bp.booking_id = b.record_id
              WHERE b.tenant_id = $1
                AND bp.pet_id = $2
@@ -4281,7 +4281,7 @@ async function handleSaveRunAssignments(tenantId, body, user) {
             [tenantId, petId, date]
           );
           if (bookingResult.rows.length > 0) {
-            finalBookingId = bookingResult.rows[0].id;
+            finalBookingId = bookingResult.rows[0].record_id;
           }
         }
 
@@ -11917,8 +11917,8 @@ async function handleCustomerGetPets(tenantId, user) {
     const ownerId = ownerResult.rows[0].record_id;
 
     const result = await query(
-      `SELECT 
-         p.id,
+      `SELECT
+         p.record_id,
          p.name,
          p.breed,
          p.species,

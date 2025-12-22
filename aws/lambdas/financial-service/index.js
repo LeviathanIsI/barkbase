@@ -716,7 +716,7 @@ async function handleGetInvoices(tenantId, queryParams) {
     //         due_date, issued_at, paid_at, notes, created_at, updated_at, created_by
     const result = await query(
       `SELECT
-         i.id,
+         i.record_id,
          i.invoice_number,
          i.status,
          i.subtotal_cents,
@@ -758,8 +758,8 @@ async function handleGetInvoices(tenantId, queryParams) {
       }
 
       return {
-        id: row.id,
-        recordId: row.id,
+        id: row.record_id,
+        recordId: row.record_id,
         invoiceNumber: row.invoice_number,
         status: effectiveStatus,
         amount: totalCents / 100,  // Convert cents to dollars
@@ -836,7 +836,7 @@ async function handleGetInvoice(tenantId, invoiceId) {
     const row = result.rows[0];
 
     return createResponse(200, {
-      id: row.id,
+      id: row.record_id,
       invoiceNumber: row.invoice_number,
       status: row.status,
       // Use _cents columns per schema
@@ -974,7 +974,7 @@ async function handleGenerateInvoiceFromBooking(tenantId, bookingId) {
     // Fetch booking with related data
     const bookingResult = await query(
       `SELECT
-         b.id,
+         b.record_id,
          b.tenant_id,
          b.owner_id,
          b.pet_id,
@@ -1410,7 +1410,7 @@ async function handleGetPayments(tenantId, queryParams) {
     // stripe_payment_intent_id, notes, processed_at, processed_by, created_at, updated_at
     const result = await query(
       `SELECT
-         p.id,
+         p.record_id,
          p.invoice_id,
          p.owner_id,
          p.amount_cents,
@@ -1436,8 +1436,8 @@ async function handleGetPayments(tenantId, queryParams) {
     console.log('[Payments][list] query returned:', result.rows.length, 'rows');
 
     const payments = result.rows.map(row => ({
-      id: row.id,
-      recordId: row.id,
+      id: row.record_id,
+      recordId: row.record_id,
       invoiceId: row.invoice_id,
       ownerId: row.owner_id,
       amount: row.amount_cents ? row.amount_cents / 100 : 0,  // Convert cents to dollars
@@ -1510,7 +1510,7 @@ async function handleGetPayment(tenantId, paymentId) {
     const row = result.rows[0];
 
     return createResponse(200, {
-      id: row.id,
+      id: row.record_id,
       amount: row.amount_cents ? row.amount_cents / 100 : 0,
       amountCents: row.amount_cents,
       status: row.status,
@@ -1730,7 +1730,7 @@ async function handleGetReceipt(tenantId, paymentId) {
     // Schema uses amount_cents (NOT amount_in_cents)
     const result = await query(
       `SELECT
-         p.id,
+         p.record_id,
          p.amount_cents,
          p.method,
          p.status,
@@ -1840,7 +1840,7 @@ async function handleSendReceipt(tenantId, paymentId, body) {
     // Schema uses amount_cents (NOT amount_in_cents)
     const result = await query(
       `SELECT
-         p.id,
+         p.record_id,
          p.amount_cents,
          p.method,
          p.status,
