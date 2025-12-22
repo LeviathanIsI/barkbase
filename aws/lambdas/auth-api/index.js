@@ -646,7 +646,7 @@ async function handleRegister(event) {
         UserAttributes: [
           { Name: 'email', Value: userEmail },
           { Name: 'name', Value: displayName },
-          { Name: 'custom:tenant_id', Value: tenant.id },
+          { Name: 'custom:tenant_id', Value: String(tenant.id) },
         ],
       }));
 
