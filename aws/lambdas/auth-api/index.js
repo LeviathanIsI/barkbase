@@ -550,12 +550,15 @@ async function handleRegister(event) {
     );
 
     // Create default roles for the tenant (object type code 52)
-    const roleRecordId1 = await getNextRecordId(tenant.id, 'Role');
-    const roleRecordId2 = await getNextRecordId(tenant.id, 'Role');
-    const roleRecordId3 = await getNextRecordId(tenant.id, 'Role');
-    const roleRecordId4 = await getNextRecordId(tenant.id, 'Role');
-    const roleRecordId5 = await getNextRecordId(tenant.id, 'Role');
-    const roleRecordId6 = await getNextRecordId(tenant.id, 'Role');
+    // Use dbClient for sequence to stay within transaction
+    const roleSeqResult = await dbClient.query(
+      `INSERT INTO "TenantSequence" (tenant_id, object_type_code, last_record_id)
+       VALUES ($1, 52, 6)
+       ON CONFLICT (tenant_id, object_type_code) DO UPDATE SET last_record_id = "TenantSequence".last_record_id + 6
+       RETURNING last_record_id`,
+      [tenant.id]
+    );
+    const roleBaseId = roleSeqResult.rows[0].last_record_id - 5; // Get first of 6 IDs
     const roleResult = await dbClient.query(
       `INSERT INTO "Role" (tenant_id, record_id, name, description, is_system, created_at, updated_at)
        VALUES
@@ -567,12 +570,19 @@ async function handleRegister(event) {
          ($1, $7, 'VIEWER', 'Read-only access', true, NOW(), NOW())
        ON CONFLICT (tenant_id, name) DO UPDATE SET updated_at = NOW()
        RETURNING id, name`,
-      [tenant.id, roleRecordId1, roleRecordId2, roleRecordId3, roleRecordId4, roleRecordId5, roleRecordId6]
+      [tenant.id, roleBaseId, roleBaseId + 1, roleBaseId + 2, roleBaseId + 3, roleBaseId + 4, roleBaseId + 5]
     );
     ownerRole = roleResult.rows.find(r => r.name === 'OWNER');
 
     // Create user - cognito_sub will be set after Cognito creation for new flow
-    const userRecordId = await getNextRecordId(tenant.id, 'User');
+    const userSeqResult = await dbClient.query(
+      `INSERT INTO "TenantSequence" (tenant_id, object_type_code, last_record_id)
+       VALUES ($1, 50, 1)
+       ON CONFLICT (tenant_id, object_type_code) DO UPDATE SET last_record_id = "TenantSequence".last_record_id + 1
+       RETURNING last_record_id`,
+      [tenant.id]
+    );
+    const userRecordId = userSeqResult.rows[0].last_record_id;
     const userResult = await dbClient.query(
       `INSERT INTO "User" (tenant_id, record_id, cognito_sub, email, first_name, last_name, is_active, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, TRUE, NOW(), NOW())
@@ -584,7 +594,14 @@ async function handleRegister(event) {
 
     // Assign OWNER role
     if (ownerRole) {
-      const userRoleRecordId = await getNextRecordId(tenant.id, 'UserRole');
+      const userRoleSeqResult = await dbClient.query(
+        `INSERT INTO "TenantSequence" (tenant_id, object_type_code, last_record_id)
+         VALUES ($1, 53, 1)
+         ON CONFLICT (tenant_id, object_type_code) DO UPDATE SET last_record_id = "TenantSequence".last_record_id + 1
+         RETURNING last_record_id`,
+        [tenant.id]
+      );
+      const userRoleRecordId = userRoleSeqResult.rows[0].last_record_id;
       await dbClient.query(
         `INSERT INTO "UserRole" (tenant_id, record_id, user_id, role_id, assigned_at)
          VALUES ($1, $2, $3, $4, NOW())
