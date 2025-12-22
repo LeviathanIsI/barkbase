@@ -196,7 +196,7 @@ const FILTER_OPERATORS = [
 ];
 
 // =============================================================================
-// FIELD TYPE ICONS - Clean HubSpot-style icons
+// FIELD TYPE ICONS - Clean icons with brand colors
 // =============================================================================
 
 const FieldTypeIcon = ({ type, className = '' }) => {
@@ -205,19 +205,58 @@ const FieldTypeIcon = ({ type, className = '' }) => {
     case 'number':
     case 'currency':
       return (
-        <span className={cn(baseClass, 'text-blue-500 font-semibold text-[10px] leading-none flex items-center justify-center')}>
+        <span className={cn(baseClass, 'text-primary font-semibold text-[10px] leading-none flex items-center justify-center')}>
           #
         </span>
       );
     case 'date':
-      return <Calendar className={cn(baseClass, 'text-orange-500')} />;
+      return <Calendar className={cn(baseClass, 'text-primary')} />;
     default:
       return (
-        <span className={cn(baseClass, 'text-slate-500 font-medium text-[10px] leading-none flex items-center justify-center')}>
+        <span className={cn(baseClass, 'text-muted font-medium text-[10px] leading-none flex items-center justify-center')}>
           Aa
         </span>
       );
   }
+};
+
+// =============================================================================
+// DRAGGABLE FIELD ITEM COMPONENT
+// =============================================================================
+
+const DraggableField = ({ field, isDimension, isSelected, onClick }) => {
+  const handleDragStart = (e) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({ field, isDimension }));
+    e.dataTransfer.effectAllowed = 'copy';
+    // Add a custom drag image class
+    e.target.classList.add('opacity-50');
+  };
+
+  const handleDragEnd = (e) => {
+    e.target.classList.remove('opacity-50');
+  };
+
+  return (
+    <button
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-md text-left transition-all cursor-grab active:cursor-grabbing",
+        "hover:bg-surface-hover border border-transparent",
+        isSelected && "bg-primary/10 text-primary border-primary/20"
+      )}
+    >
+      <FieldTypeIcon type={field.type} />
+      <span className="truncate flex-1">{field.label}</span>
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+        <svg className="h-3 w-3 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+        </svg>
+      </div>
+    </button>
+  );
 };
 
 // =============================================================================
@@ -257,10 +296,61 @@ const CollapsibleFieldGroup = ({ title, icon: Icon, children, defaultOpen = true
 };
 
 // =============================================================================
-// DROP ZONE COMPONENT - HubSpot-style dashed border boxes
+// DROP ZONE COMPONENT - With drag-and-drop support
 // =============================================================================
 
-const DropZone = ({ label, tooltip, field, onRemove, placeholder, acceptsDateOnly = false }) => {
+const DropZone = ({
+  label,
+  tooltip,
+  field,
+  onRemove,
+  onDrop,
+  placeholder,
+  acceptsDateOnly = false,
+  acceptsMeasures = false,
+  acceptsDimensions = true,
+  isDragging = false
+}) => {
+  const [isOver, setIsOver] = useState(false);
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setIsOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsOver(false);
+
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      const { field: droppedField, isDimension } = data;
+
+      // Validate drop based on zone requirements
+      if (acceptsDateOnly && droppedField.type !== 'date') {
+        return; // Only accept date fields
+      }
+      if (acceptsMeasures && isDimension) {
+        return; // Only accept measures
+      }
+      if (acceptsDimensions && !isDimension && !acceptsMeasures) {
+        return; // Only accept dimensions
+      }
+
+      onDrop?.(droppedField, isDimension);
+    } catch (err) {
+      console.error('Drop error:', err);
+    }
+  };
+
+  const canAcceptDrop = isDragging && !field;
+
   return (
     <div className="mb-4">
       <div className="flex items-center gap-1.5 mb-2">
@@ -275,11 +365,18 @@ const DropZone = ({ label, tooltip, field, onRemove, placeholder, acceptsDateOnl
         )}
       </div>
       <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         className={cn(
-          "min-h-[44px] rounded-lg border-2 border-dashed transition-all",
+          "min-h-[44px] rounded-lg border-2 border-dashed transition-all duration-200",
           field
-            ? "border-primary/30 bg-primary/5"
-            : "border-border bg-surface-secondary/50 hover:border-border-hover hover:bg-surface-hover/30"
+            ? "border-primary/40 bg-primary/5"
+            : isOver
+              ? "border-primary bg-primary/10 scale-[1.02]"
+              : canAcceptDrop
+                ? "border-primary/50 bg-primary/5 animate-pulse"
+                : "border-border bg-surface-secondary/50 hover:border-primary/30 hover:bg-surface-hover/30"
         )}
       >
         {field ? (
@@ -298,10 +395,10 @@ const DropZone = ({ label, tooltip, field, onRemove, placeholder, acceptsDateOnl
         ) : (
           <div className="flex items-center justify-center px-3 py-2.5">
             <span className={cn(
-              "text-xs",
-              acceptsDateOnly ? "text-orange-400" : "text-muted"
+              "text-xs transition-colors",
+              isOver ? "text-primary font-medium" : "text-muted"
             )}>
-              {placeholder || 'Drag fields here'}
+              {isOver ? 'Drop here' : placeholder || 'Drag fields here'}
             </span>
           </div>
         )}
@@ -330,10 +427,25 @@ const CustomReportBuilder = () => {
   const [fieldSearch, setFieldSearch] = useState('');
   const [activeMiddleTab, setActiveMiddleTab] = useState('configure'); // 'configure' or 'filters'
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Chart data state
   const [chartData, setChartData] = useState([]);
   const [error, setError] = useState(null);
+
+  // Global drag event listeners to track drag state
+  useEffect(() => {
+    const handleDragStart = () => setIsDragging(true);
+    const handleDragEnd = () => setIsDragging(false);
+
+    document.addEventListener('dragstart', handleDragStart);
+    document.addEventListener('dragend', handleDragEnd);
+
+    return () => {
+      document.removeEventListener('dragstart', handleDragStart);
+      document.removeEventListener('dragend', handleDragEnd);
+    };
+  }, []);
 
   // Get current field config
   const currentFields = useMemo(() => {
@@ -576,7 +688,7 @@ const CustomReportBuilder = () => {
             variant="primary"
             size="sm"
             onClick={saveReport}
-            className="h-8 px-4 bg-[#ff5c35] hover:bg-[#e54d2a] text-white border-none"
+            className="h-8 px-4"
           >
             Save report
           </Button>
@@ -647,19 +759,15 @@ const CustomReportBuilder = () => {
               defaultOpen={true}
               count={filteredMeasures.length}
             >
-              <div className="px-1">
+              <div className="px-1 group">
                 {filteredMeasures.map((field) => (
-                  <button
+                  <DraggableField
                     key={field.key}
+                    field={field}
+                    isDimension={false}
+                    isSelected={yAxis?.key === field.key}
                     onClick={() => handleFieldClick(field, false)}
-                    className={cn(
-                      "w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-md hover:bg-surface-hover text-left transition-colors",
-                      yAxis?.key === field.key && "bg-primary/10 text-primary"
-                    )}
-                  >
-                    <FieldTypeIcon type={field.type} />
-                    <span className="truncate">{field.label}</span>
-                  </button>
+                  />
                 ))}
                 {filteredMeasures.length === 0 && (
                   <p className="text-xs text-muted px-3 py-2">No measures found</p>
@@ -673,19 +781,15 @@ const CustomReportBuilder = () => {
               defaultOpen={true}
               count={Math.min(filteredDimensions.length, 3)}
             >
-              <div className="px-1">
+              <div className="px-1 group">
                 {filteredDimensions.slice(0, 3).map((field) => (
-                  <button
+                  <DraggableField
                     key={field.key}
+                    field={field}
+                    isDimension={true}
+                    isSelected={xAxis?.key === field.key || groupBy?.key === field.key || compareBy?.key === field.key}
                     onClick={() => handleFieldClick(field, true)}
-                    className={cn(
-                      "w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-md hover:bg-surface-hover text-left transition-colors",
-                      (xAxis?.key === field.key || groupBy?.key === field.key || compareBy?.key === field.key) && "bg-primary/10 text-primary"
-                    )}
-                  >
-                    <FieldTypeIcon type={field.type} />
-                    <span className="truncate">{field.label}</span>
-                  </button>
+                  />
                 ))}
               </div>
             </CollapsibleFieldGroup>
@@ -697,19 +801,15 @@ const CustomReportBuilder = () => {
               defaultOpen={true}
               count={filteredDimensions.length}
             >
-              <div className="px-1">
+              <div className="px-1 group">
                 {filteredDimensions.map((field) => (
-                  <button
+                  <DraggableField
                     key={field.key}
+                    field={field}
+                    isDimension={true}
+                    isSelected={xAxis?.key === field.key || groupBy?.key === field.key || compareBy?.key === field.key}
                     onClick={() => handleFieldClick(field, true)}
-                    className={cn(
-                      "w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-md hover:bg-surface-hover text-left transition-colors",
-                      (xAxis?.key === field.key || groupBy?.key === field.key || compareBy?.key === field.key) && "bg-primary/10 text-primary"
-                    )}
-                  >
-                    <FieldTypeIcon type={field.type} />
-                    <span className="truncate">{field.label}</span>
-                  </button>
+                  />
                 ))}
                 {filteredDimensions.length === 0 && (
                   <p className="text-xs text-muted px-3 py-2">No fields found</p>
@@ -815,21 +915,33 @@ const CustomReportBuilder = () => {
                   label="X-axis"
                   field={xAxis}
                   onRemove={() => removeField('xAxis')}
-                  placeholder="Drag fields here"
+                  onDrop={(droppedField) => setXAxis(droppedField)}
+                  placeholder="Drag dimension here"
+                  acceptsDimensions={true}
+                  acceptsMeasures={false}
+                  isDragging={isDragging}
                 />
 
                 <DropZone
                   label="Y-axis"
                   field={yAxis}
                   onRemove={() => removeField('yAxis')}
-                  placeholder="Drag fields here"
+                  onDrop={(droppedField) => setYAxis(droppedField)}
+                  placeholder="Drag measure here"
+                  acceptsDimensions={false}
+                  acceptsMeasures={true}
+                  isDragging={isDragging}
                 />
 
                 <DropZone
                   label="Break down by"
                   field={groupBy}
                   onRemove={() => removeField('groupBy')}
-                  placeholder="Drag fields here"
+                  onDrop={(droppedField) => setGroupBy(droppedField)}
+                  placeholder="Drag dimension here"
+                  acceptsDimensions={true}
+                  acceptsMeasures={false}
+                  isDragging={isDragging}
                 />
 
                 <DropZone
@@ -837,8 +949,10 @@ const CustomReportBuilder = () => {
                   tooltip="Compare data across time periods"
                   field={compareBy}
                   onRemove={() => removeField('compareBy')}
-                  placeholder="Drag date fields here"
+                  onDrop={(droppedField) => setCompareBy(droppedField)}
+                  placeholder="Drag date field here"
                   acceptsDateOnly={true}
+                  isDragging={isDragging}
                 />
 
                 {/* Date Range in Configure tab */}
