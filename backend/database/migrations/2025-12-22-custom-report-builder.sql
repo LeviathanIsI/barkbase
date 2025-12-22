@@ -61,7 +61,7 @@ CREATE INDEX IF NOT EXISTS idx_report_field_data_source ON "ReportFieldDefinitio
 CREATE TABLE IF NOT EXISTS "ReportDefinition" (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   record_id VARCHAR(50) UNIQUE NOT NULL, -- Prefixed ID like 'rpt_abc123'
-  tenant_id UUID NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+  tenant_id UUID NOT NULL,
 
   -- Basic info
   name VARCHAR(255) NOT NULL,
@@ -99,9 +99,9 @@ CREATE TABLE IF NOT EXISTS "ReportDefinition" (
   last_run_at TIMESTAMPTZ,
   run_count INT DEFAULT 0,
 
-  -- Ownership
-  created_by UUID REFERENCES "User"(id),
-  updated_by UUID REFERENCES "User"(id),
+  -- Ownership (no FK constraint - User table may not exist)
+  created_by UUID,
+  updated_by UUID,
 
   -- Soft delete
   deleted_at TIMESTAMPTZ,
@@ -122,22 +122,17 @@ CREATE INDEX IF NOT EXISTS idx_report_definition_record_id ON "ReportDefinition"
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS "ReportFolder" (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  tenant_id UUID NOT NULL REFERENCES "Tenant"(id) ON DELETE CASCADE,
+  tenant_id UUID NOT NULL,
 
   name VARCHAR(255) NOT NULL,
-  parent_id UUID REFERENCES "ReportFolder"(id) ON DELETE CASCADE,
+  parent_id UUID,
 
-  created_by UUID REFERENCES "User"(id),
+  created_by UUID,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_report_folder_tenant ON "ReportFolder"(tenant_id);
-
--- Add foreign key for folder_id after ReportFolder exists
-ALTER TABLE "ReportDefinition"
-  ADD CONSTRAINT fk_report_folder
-  FOREIGN KEY (folder_id) REFERENCES "ReportFolder"(id) ON DELETE SET NULL;
 
 -- =============================================================================
 -- FUNCTION: Generate report record_id
