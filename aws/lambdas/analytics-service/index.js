@@ -1912,7 +1912,7 @@ async function handleGetReportFields(tenantId, queryParams) {
 
       // 1. Get system properties for this entity type
       const systemProps = await query(
-        `SELECT name, label, field_type, property_group, sort_order
+        `SELECT name, label, field_type, property_group, sort_order, options
          FROM "SystemProperty"
          WHERE entity_type = $1
          ORDER BY sort_order, label`,
@@ -1926,7 +1926,7 @@ async function handleGetReportFields(tenantId, queryParams) {
       if (tenantId) {
         try {
           customProps = await query(
-            `SELECT name, label, field_type, property_group, sort_order
+            `SELECT name, label, field_type, property_group, sort_order, options
              FROM "Property"
              WHERE tenant_id = $1 AND entity_type = $2 AND is_active = true
              ORDER BY sort_order, label`,
@@ -1946,6 +1946,7 @@ async function handleGetReportFields(tenantId, queryParams) {
           label: prop.label,
           dataType: prop.field_type,
           group: prop.property_group || 'Properties',
+          options: prop.options, // For enum/select fields
         };
 
         if (MEASURE_FIELD_TYPES.includes(prop.field_type)) {

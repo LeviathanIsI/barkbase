@@ -113,6 +113,62 @@ const AGGREGATION_OPTIONS = [
   { value: 'MAX', label: 'Max' },
 ];
 
+// HubSpot-style operators organized by field type
+const FILTER_OPERATORS_BY_TYPE = {
+  text: [
+    { value: 'is', label: 'is' },
+    { value: 'is_not', label: 'is not' },
+    { value: 'contains', label: 'contains' },
+    { value: 'not_contains', label: 'doesn\'t contain' },
+    { value: 'starts_with', label: 'starts with' },
+    { value: 'ends_with', label: 'ends with' },
+    { value: 'is_known', label: 'is known' },
+    { value: 'is_unknown', label: 'is unknown' },
+  ],
+  number: [
+    { value: 'is', label: 'is equal to' },
+    { value: 'is_not', label: 'is not equal to' },
+    { value: 'gt', label: 'is greater than' },
+    { value: 'gte', label: 'is greater than or equal to' },
+    { value: 'lt', label: 'is less than' },
+    { value: 'lte', label: 'is less than or equal to' },
+    { value: 'between', label: 'is between' },
+    { value: 'is_known', label: 'is known' },
+    { value: 'is_unknown', label: 'is unknown' },
+  ],
+  date: [
+    { value: 'is', label: 'is' },
+    { value: 'is_before', label: 'is before' },
+    { value: 'is_after', label: 'is after' },
+    { value: 'is_between', label: 'is between' },
+    { value: 'in_last', label: 'in the last' },
+    { value: 'is_known', label: 'is known' },
+    { value: 'is_unknown', label: 'is unknown' },
+  ],
+  enum: [
+    { value: 'is_any_of', label: 'is any of' },
+    { value: 'is_none_of', label: 'is none of' },
+    { value: 'is_known', label: 'is known' },
+    { value: 'is_unknown', label: 'is unknown' },
+  ],
+  boolean: [
+    { value: 'is_true', label: 'is true' },
+    { value: 'is_false', label: 'is false' },
+    { value: 'is_known', label: 'is known' },
+    { value: 'is_unknown', label: 'is unknown' },
+  ],
+};
+
+// Get operators for a field type
+const getOperatorsForType = (fieldType) => {
+  if (['number', 'integer', 'currency'].includes(fieldType)) return FILTER_OPERATORS_BY_TYPE.number;
+  if (['date', 'datetime'].includes(fieldType)) return FILTER_OPERATORS_BY_TYPE.date;
+  if (['enum', 'select', 'multi_enum'].includes(fieldType)) return FILTER_OPERATORS_BY_TYPE.enum;
+  if (fieldType === 'boolean') return FILTER_OPERATORS_BY_TYPE.boolean;
+  return FILTER_OPERATORS_BY_TYPE.text;
+};
+
+// Legacy operators for backward compatibility
 const FILTER_OPERATORS = [
   { value: '=', label: 'Equals' },
   { value: '!=', label: 'Not Equals' },
@@ -369,6 +425,252 @@ const DropZone = ({
 };
 
 // =============================================================================
+// FILTER PILL COMPONENT - HubSpot-style filter chip
+// =============================================================================
+
+const FilterPill = ({ filter, field, onClick, onRemove }) => {
+  // Format the display value
+  const getDisplayValue = () => {
+    if (['is_known', 'is_unknown', 'is_true', 'is_false'].includes(filter.operator)) {
+      return null;
+    }
+    if (Array.isArray(filter.value)) {
+      return filter.value.join(', ');
+    }
+    return filter.value;
+  };
+
+  const getOperatorLabel = () => {
+    const operators = getOperatorsForType(field?.type || 'text');
+    const op = operators.find(o => o.value === filter.operator);
+    return op?.label || filter.operator;
+  };
+
+  const displayValue = getDisplayValue();
+
+  return (
+    <div
+      onClick={onClick}
+      className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-primary/10 border border-primary/20 rounded-full text-xs cursor-pointer hover:bg-primary/15 transition-colors group"
+    >
+      <span className="font-medium text-primary">{field?.label || filter.field}</span>
+      <span className="text-primary/70">{getOperatorLabel()}</span>
+      {displayValue && (
+        <span className="text-primary font-medium">{displayValue}</span>
+      )}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+        className="ml-1 p-0.5 text-primary/50 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full transition-colors"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  );
+};
+
+// =============================================================================
+// FILTER EDITOR POPOVER - HubSpot-style inline editor
+// =============================================================================
+
+const FilterEditorPopover = ({ filter, field, allFields, onUpdate, onClose, onRemove }) => {
+  const [localFilter, setLocalFilter] = useState({ ...filter });
+  const operators = getOperatorsForType(field?.type || 'text');
+
+  // Get field options if it's an enum type
+  const fieldOptions = field?.options ? (
+    typeof field.options === 'string' ? JSON.parse(field.options) : field.options
+  ) : null;
+
+  const handleApply = () => {
+    onUpdate(localFilter);
+    onClose();
+  };
+
+  const needsValue = !['is_known', 'is_unknown', 'is_true', 'is_false'].includes(localFilter.operator);
+
+  return (
+    <div className="absolute top-full left-0 right-0 mt-2 p-4 bg-white dark:bg-surface-secondary rounded-lg border border-border shadow-lg z-50">
+      {/* Field selector */}
+      <div className="mb-3">
+        <label className="block text-xs font-medium text-muted mb-1.5">Field</label>
+        <select
+          value={localFilter.field}
+          onChange={(e) => {
+            const newField = allFields.find(f => f.key === e.target.value);
+            setLocalFilter({
+              ...localFilter,
+              field: e.target.value,
+              operator: getOperatorsForType(newField?.type || 'text')[0].value,
+              value: '',
+            });
+          }}
+          className="w-full px-3 py-2 text-sm bg-surface-secondary dark:bg-surface-primary border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+        >
+          {allFields.map(f => (
+            <option key={f.key} value={f.key}>{f.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Operator selector */}
+      <div className="mb-3">
+        <label className="block text-xs font-medium text-muted mb-1.5">Condition</label>
+        <select
+          value={localFilter.operator}
+          onChange={(e) => setLocalFilter({ ...localFilter, operator: e.target.value })}
+          className="w-full px-3 py-2 text-sm bg-surface-secondary dark:bg-surface-primary border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+        >
+          {operators.map(op => (
+            <option key={op.value} value={op.value}>{op.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Value input - varies by field type */}
+      {needsValue && (
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-muted mb-1.5">Value</label>
+          {['enum', 'select', 'multi_enum'].includes(field?.type) && fieldOptions ? (
+            <div className="space-y-1.5 max-h-32 overflow-y-auto">
+              {fieldOptions.map((option) => (
+                <label key={option} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-surface-hover px-2 py-1 rounded">
+                  <input
+                    type="checkbox"
+                    checked={Array.isArray(localFilter.value) ? localFilter.value.includes(option) : localFilter.value === option}
+                    onChange={(e) => {
+                      const currentValues = Array.isArray(localFilter.value) ? localFilter.value : (localFilter.value ? [localFilter.value] : []);
+                      if (e.target.checked) {
+                        setLocalFilter({ ...localFilter, value: [...currentValues, option] });
+                      } else {
+                        setLocalFilter({ ...localFilter, value: currentValues.filter(v => v !== option) });
+                      }
+                    }}
+                    className="rounded border-border text-primary focus:ring-primary"
+                  />
+                  <span>{option}</span>
+                </label>
+              ))}
+            </div>
+          ) : field?.type === 'boolean' ? (
+            <select
+              value={localFilter.value}
+              onChange={(e) => setLocalFilter({ ...localFilter, value: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-surface-secondary dark:bg-surface-primary border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="">Select...</option>
+              <option value="true">True</option>
+              <option value="false">False</option>
+            </select>
+          ) : ['date', 'datetime'].includes(field?.type) ? (
+            <input
+              type="date"
+              value={localFilter.value || ''}
+              onChange={(e) => setLocalFilter({ ...localFilter, value: e.target.value })}
+              className="w-full px-3 py-2 text-sm bg-surface-secondary dark:bg-surface-primary border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          ) : ['number', 'integer', 'currency'].includes(field?.type) ? (
+            <input
+              type="number"
+              value={localFilter.value || ''}
+              onChange={(e) => setLocalFilter({ ...localFilter, value: e.target.value })}
+              placeholder="Enter number..."
+              className="w-full px-3 py-2 text-sm bg-surface-secondary dark:bg-surface-primary border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          ) : (
+            <input
+              type="text"
+              value={localFilter.value || ''}
+              onChange={(e) => setLocalFilter({ ...localFilter, value: e.target.value })}
+              placeholder="Enter value..."
+              className="w-full px-3 py-2 text-sm bg-surface-secondary dark:bg-surface-primary border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          )}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex items-center justify-between pt-3 border-t border-border">
+        <button
+          onClick={onRemove}
+          className="text-xs text-red-500 hover:text-red-600 font-medium"
+        >
+          Delete filter
+        </button>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={onClose} className="h-8 px-3 text-xs">
+            Cancel
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleApply} className="h-8 px-3 text-xs">
+            Apply filter
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
+// FILTER DROP ZONE - For dragging fields to create filters
+// =============================================================================
+
+const FilterDropZone = ({ onDrop, isDragging, draggedItem }) => {
+  const [isOver, setIsOver] = useState(false);
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    if (draggedItem?.isDimension) {
+      e.dataTransfer.dropEffect = 'copy';
+      setIsOver(true);
+    }
+  };
+
+  const handleDragLeave = () => setIsOver(false);
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsOver(false);
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      if (data.field) {
+        onDrop(data.field);
+      }
+    } catch (err) {
+      console.error('Filter drop error:', err);
+    }
+  };
+
+  return (
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className={cn(
+        "border-2 border-dashed rounded-lg p-4 text-center transition-all",
+        isOver
+          ? "border-primary bg-primary/10"
+          : isDragging
+            ? "border-primary/50 bg-primary/5"
+            : "border-border bg-surface-secondary/30"
+      )}
+    >
+      <FilterIcon className={cn(
+        "h-6 w-6 mx-auto mb-2 transition-colors",
+        isOver ? "text-primary" : "text-muted"
+      )} />
+      <p className={cn(
+        "text-xs transition-colors",
+        isOver ? "text-primary font-medium" : "text-muted"
+      )}>
+        {isOver ? 'Drop to add filter' : 'Drag a field here to filter'}
+      </p>
+    </div>
+  );
+};
+
+// =============================================================================
 // MAIN COMPONENT
 // =============================================================================
 
@@ -384,6 +686,8 @@ const CustomReportBuilder = () => {
   const [groupBy, setGroupBy] = useState(null); // optional second dimension (break down by)
   const [compareBy, setCompareBy] = useState(null); // optional date dimension for comparison
   const [filters, setFilters] = useState([]);
+  const [filterMode, setFilterMode] = useState('all'); // 'all' or 'any'
+  const [editingFilterIndex, setEditingFilterIndex] = useState(null); // index of filter being edited
   const [dateRange, setDateRange] = useState({ startDate: null, endDate: null });
   const [fieldSearch, setFieldSearch] = useState('');
   const [activeMiddleTab, setActiveMiddleTab] = useState('configure'); // 'configure' or 'filters'
@@ -422,6 +726,7 @@ const CustomReportBuilder = () => {
             type: d.dataType || 'text',
             group: d.group,
             isComputed: d.isComputed,
+            options: d.options, // For enum fields
           })),
           measures: (data.measures || []).map(m => ({
             key: m.key,
@@ -429,6 +734,7 @@ const CustomReportBuilder = () => {
             type: m.dataType || 'number',
             defaultAgg: m.defaultAggregation || 'COUNT',
             group: m.group,
+            options: m.options, // For enum fields
           })),
         };
         console.log('[REPORT-BUILDER] Mapped fields:', mappedFields);
@@ -595,8 +901,37 @@ const CustomReportBuilder = () => {
   };
 
   // Add filter
-  const addFilter = () => {
-    setFilters([...filters, { field: '', operator: '=', value: '' }]);
+  // Get all filterable fields (dimensions + some measures)
+  const allFilterableFields = useMemo(() => {
+    return [...currentFields.dimensions, ...currentFields.measures];
+  }, [currentFields]);
+
+  // Get field by key
+  const getFieldByKey = useCallback((key) => {
+    return allFilterableFields.find(f => f.key === key);
+  }, [allFilterableFields]);
+
+  // Add filter - optionally with a pre-selected field
+  const addFilter = (field = null) => {
+    const defaultOperator = field
+      ? getOperatorsForType(field.type)[0].value
+      : 'is';
+
+    const newFilter = {
+      field: field?.key || '',
+      operator: defaultOperator,
+      value: '',
+    };
+
+    setFilters([...filters, newFilter]);
+    // Open editor for the new filter
+    setEditingFilterIndex(filters.length);
+  };
+
+  // Add filter from drag & drop
+  const addFilterFromDrop = (field) => {
+    addFilter(field);
+    setActiveMiddleTab('filters'); // Switch to filters tab
   };
 
   // Update filter
@@ -609,6 +944,7 @@ const CustomReportBuilder = () => {
   // Remove filter
   const removeFilter = (index) => {
     setFilters(filters.filter((_, i) => i !== index));
+    setEditingFilterIndex(null);
   };
 
   // Save report to API
@@ -1015,75 +1351,113 @@ const CustomReportBuilder = () => {
               </div>
             </div>
           ) : (
-            /* Filters Tab */
-            <div className="flex-1 overflow-y-auto p-4">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-medium text-text">Filters</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addFilter}
-                  className="h-7 px-2 text-xs"
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" />
-                  Add filter
-                </Button>
+            /* Filters Tab - HubSpot Style */
+            <div className="flex-1 overflow-y-auto">
+              {/* ALL/ANY Toggle */}
+              <div className="px-4 py-3 border-b border-border bg-surface-secondary/50">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-muted">Include data if it matches</span>
+                  <select
+                    value={filterMode}
+                    onChange={(e) => setFilterMode(e.target.value)}
+                    className="px-2 py-1 bg-white dark:bg-surface-primary border border-border rounded-md font-medium text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="all">ALL</option>
+                    <option value="any">ANY</option>
+                  </select>
+                  <span className="text-muted">of the filters below</span>
+                </div>
               </div>
 
-              {filters.length === 0 ? (
-                <div className="text-center py-8">
-                  <FilterIcon className="h-10 w-10 text-muted mx-auto mb-3" />
-                  <p className="text-sm text-muted">No filters added</p>
-                  <p className="text-xs text-muted mt-1">
-                    Add filters to narrow down your report data
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filters.map((filter, index) => (
-                    <div key={index} className="p-3 bg-surface-secondary rounded-lg border border-border space-y-2">
-                      <div className="flex items-center justify-between">
-                        <select
-                          value={filter.field}
-                          onChange={(e) => updateFilter(index, { field: e.target.value })}
-                          className="flex-1 px-2 py-1.5 text-xs bg-white dark:bg-surface-primary border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-                        >
-                          <option value="">Select field...</option>
-                          {currentFields.dimensions.map(f => (
-                            <option key={f.key} value={f.key}>{f.label}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => removeFilter(index)}
-                          className="ml-2 p-1.5 text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      <div className="flex gap-2">
-                        <select
-                          value={filter.operator}
-                          onChange={(e) => updateFilter(index, { operator: e.target.value })}
-                          className="w-32 px-2 py-1.5 text-xs bg-white dark:bg-surface-primary border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-                        >
-                          {FILTER_OPERATORS.map(op => (
-                            <option key={op.value} value={op.value}>{op.label}</option>
-                          ))}
-                        </select>
-                        {!['is_null', 'is_not_null'].includes(filter.operator) && (
-                          <input
-                            type="text"
-                            value={filter.value}
-                            onChange={(e) => updateFilter(index, { value: e.target.value })}
-                            className="flex-1 px-2 py-1.5 text-xs bg-white dark:bg-surface-primary border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-                            placeholder="Enter value..."
-                          />
-                        )}
-                      </div>
+              <div className="p-4">
+                {/* Active Filter Pills */}
+                {filters.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-medium text-text">Active filters</span>
+                      <span className="text-[10px] text-muted bg-surface-hover px-1.5 py-0.5 rounded">
+                        {filters.length}
+                      </span>
                     </div>
-                  ))}
+                    <div className="flex flex-wrap gap-2 relative">
+                      {filters.map((filter, index) => {
+                        const field = getFieldByKey(filter.field);
+                        return (
+                          <div key={index} className="relative">
+                            <FilterPill
+                              filter={filter}
+                              field={field}
+                              onClick={() => setEditingFilterIndex(editingFilterIndex === index ? null : index)}
+                              onRemove={() => removeFilter(index)}
+                            />
+                            {/* Inline Editor Popover */}
+                            {editingFilterIndex === index && (
+                              <FilterEditorPopover
+                                filter={filter}
+                                field={field}
+                                allFields={allFilterableFields}
+                                onUpdate={(updated) => updateFilter(index, updated)}
+                                onClose={() => setEditingFilterIndex(null)}
+                                onRemove={() => removeFilter(index)}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Filter Drop Zone */}
+                <div className="mb-4">
+                  <FilterDropZone
+                    onDrop={addFilterFromDrop}
+                    isDragging={isDragging}
+                    draggedItem={draggedItem}
+                  />
                 </div>
-              )}
+
+                {/* Add Filter Button */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addFilter()}
+                    className="h-8 px-3 text-xs"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1.5" />
+                    Add filter
+                  </Button>
+                  {filters.length > 0 && (
+                    <button
+                      onClick={() => setFilters([])}
+                      className="text-xs text-muted hover:text-red-500 transition-colors"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+
+                {/* Quick Filters Suggestions */}
+                {filters.length === 0 && (
+                  <div className="mt-6">
+                    <p className="text-xs font-medium text-muted mb-3">Suggested filters</p>
+                    <div className="space-y-1">
+                      {currentFields.dimensions.slice(0, 5).map((field) => (
+                        <button
+                          key={field.key}
+                          onClick={() => addFilter(field)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left rounded-md hover:bg-surface-hover transition-colors"
+                        >
+                          <FieldTypeIcon type={field.type} />
+                          <span className="text-text">{field.label}</span>
+                          <Plus className="h-3 w-3 ml-auto text-muted" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
