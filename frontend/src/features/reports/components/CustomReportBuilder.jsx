@@ -3,8 +3,24 @@
  * 3-column layout: Data sources/Fields | Configure/Filters | Chart Preview
  */
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, forwardRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   BarChart,
   Bar,
@@ -67,7 +83,6 @@ import {
   AlignLeft,
   FolderTree,
   GitMerge,
-  GripVertical,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
@@ -519,6 +534,71 @@ const CollapsibleFieldGroup = ({ title, icon: Icon, children, defaultOpen = true
 };
 
 // =============================================================================
+// SORTABLE FIELD ROW - Used for drag-to-reorder in drop zones
+// =============================================================================
+
+// Static field row component for drag overlay
+const FieldRowStatic = forwardRef(({ fieldItem, style, isDragging: isDragOverlay, ...props }, ref) => (
+  <div
+    ref={ref}
+    style={style}
+    className={cn(
+      "flex items-center gap-2 px-2 py-1.5 bg-white dark:bg-surface-primary rounded-md border border-border w-full",
+      isDragOverlay && "shadow-lg ring-2 ring-primary/50 cursor-grabbing"
+    )}
+    {...props}
+  >
+    <FieldTypeIcon type={fieldItem.type} className="flex-shrink-0" />
+    <span className="text-xs text-text flex-1 truncate">{fieldItem.label}</span>
+  </div>
+));
+FieldRowStatic.displayName = 'FieldRowStatic';
+
+// Sortable field row using @dnd-kit
+const SortableFieldRow = ({ fieldItem, index, onRemove }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: fieldItem.key || `field-${index}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-2 px-2 py-1.5 bg-white dark:bg-surface-primary rounded-md border border-border group transition-colors w-full",
+        "cursor-grab active:cursor-grabbing hover:border-primary/50 hover:bg-primary/5",
+        isDragging && "opacity-40 bg-primary/10 border-primary/30"
+      )}
+      {...attributes}
+      {...listeners}
+    >
+      <FieldTypeIcon type={fieldItem.type} className="flex-shrink-0" />
+      <span className="text-xs text-text flex-1 truncate">{fieldItem.label}</span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove(index);
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="p-0.5 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
+  );
+};
+
+// =============================================================================
 // DROP ZONE COMPONENT - With drag-and-drop support and validation
 // Supports both single field and multiple field modes
 // =============================================================================
@@ -540,11 +620,35 @@ const DropZone = ({
   draggedItem = null
 }) => {
   const [isOver, setIsOver] = useState(false);
-  const [reorderDragIndex, setReorderDragIndex] = useState(null);
-  const [reorderDropIndex, setReorderDropIndex] = useState(null);
+  const [activeId, setActiveId] = useState(null);
+
+  // dnd-kit sensors for smooth drag
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px movement before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // For multiple mode, check if we have any fields
   const hasFields = multiple ? (fields && fields.length > 0) : !!field;
+
+  // Get field IDs for sortable context
+  const fieldIds = useMemo(() => {
+    if (!fields || !multiple) return [];
+    return fields.map((f, i) => f.key || `field-${i}`);
+  }, [fields, multiple]);
+
+  // Find the active field for drag overlay
+  const activeField = useMemo(() => {
+    if (!activeId || !fields) return null;
+    const index = fields.findIndex((f, i) => (f.key || `field-${i}`) === activeId);
+    return index >= 0 ? fields[index] : null;
+  }, [activeId, fields]);
 
   // Check if the currently dragged item can be dropped here
   const canAcceptCurrentDrag = () => {
@@ -579,13 +683,31 @@ const DropZone = ({
 
   const isValidTarget = canAcceptCurrentDrag();
   const isInvalidTarget = isDragging && draggedItem && !isValidTarget && !(!multiple && field);
-  const isReordering = reorderDragIndex !== null;
 
+  // dnd-kit handlers for reordering
+  const handleSortDragStart = (event) => {
+    setActiveId(event.active.id);
+  };
+
+  const handleSortDragEnd = (event) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (over && active.id !== over.id && onReorder) {
+      const oldIndex = fieldIds.indexOf(active.id);
+      const newIndex = fieldIds.indexOf(over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        onReorder(oldIndex, newIndex);
+      }
+    }
+  };
+
+  // HTML5 drag handlers for dropping NEW fields (from left panel)
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsOver(true);
-    if (isValidTarget || isReordering) {
-      e.dataTransfer.dropEffect = isReordering ? 'move' : 'copy';
+    if (isValidTarget) {
+      e.dataTransfer.dropEffect = 'copy';
     } else {
       e.dataTransfer.dropEffect = 'none';
     }
@@ -594,25 +716,11 @@ const DropZone = ({
   const handleDragLeave = (e) => {
     e.preventDefault();
     setIsOver(false);
-    if (!isReordering) {
-      setReorderDropIndex(null);
-    }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     setIsOver(false);
-
-    // Handle reorder drop
-    if (isReordering && reorderDropIndex !== null && reorderDropIndex !== reorderDragIndex) {
-      onReorder?.(reorderDragIndex, reorderDropIndex);
-      setReorderDragIndex(null);
-      setReorderDropIndex(null);
-      return;
-    }
-
-    setReorderDragIndex(null);
-    setReorderDropIndex(null);
 
     if (!isValidTarget) return;
 
@@ -622,75 +730,6 @@ const DropZone = ({
     } catch (err) {
       console.error('Drop error:', err);
     }
-  };
-
-  // Handle pill drag start for reordering
-  const handlePillDragStart = (e, index) => {
-    e.stopPropagation();
-    setReorderDragIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', String(index));
-  };
-
-  // Handle pill drag end
-  const handlePillDragEnd = () => {
-    setReorderDragIndex(null);
-    setReorderDropIndex(null);
-  };
-
-  // Handle drag over a pill for reorder indicator
-  const handlePillDragOver = (e, index) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (isReordering && index !== reorderDragIndex) {
-      setReorderDropIndex(index);
-    }
-  };
-
-  // Render a single field row (draggable for reorder) - vertical list style
-  const renderFieldRow = (fieldItem, index = null) => {
-    const isDraggedRow = reorderDragIndex === index;
-    const showInsertBefore = reorderDropIndex === index && reorderDragIndex !== null && reorderDragIndex > index;
-    const showInsertAfter = reorderDropIndex === index && reorderDragIndex !== null && reorderDragIndex < index;
-
-    return (
-      <div key={fieldItem.key || index} className="relative">
-        {/* Insert indicator above */}
-        {showInsertBefore && (
-          <div className="absolute -top-0.5 left-0 right-0 h-0.5 bg-primary rounded-full z-10" />
-        )}
-        <div
-          draggable={multiple && onReorder}
-          onDragStart={(e) => handlePillDragStart(e, index)}
-          onDragEnd={handlePillDragEnd}
-          onDragOver={(e) => handlePillDragOver(e, index)}
-          className={cn(
-            "flex items-center gap-2 px-2 py-1.5 bg-white dark:bg-surface-primary rounded-md border border-border group transition-all w-full",
-            multiple && onReorder && "cursor-grab active:cursor-grabbing",
-            isDraggedRow && "opacity-50 scale-[0.98]"
-          )}
-        >
-          {multiple && onReorder && (
-            <GripVertical className="h-3.5 w-3.5 text-muted/40 group-hover:text-muted flex-shrink-0" />
-          )}
-          <FieldTypeIcon type={fieldItem.type} className="flex-shrink-0" />
-          <span className="text-xs text-text flex-1 truncate">{fieldItem.label}</span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              multiple ? onRemove(index) : onRemove();
-            }}
-            className="p-0.5 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </div>
-        {/* Insert indicator below */}
-        {showInsertAfter && (
-          <div className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-primary rounded-full z-10" />
-        )}
-      </div>
-    );
   };
 
   return (
@@ -725,9 +764,52 @@ const DropZone = ({
         )}
       >
         {multiple ? (
-          // Multiple fields mode - vertical list
+          // Multiple fields mode - vertical list with dnd-kit sortable
           <div className="flex flex-col gap-1 p-2">
-            {fields && fields.length > 0 && fields.map((f, i) => renderFieldRow(f, i))}
+            {fields && fields.length > 0 && onReorder ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleSortDragStart}
+                onDragEnd={handleSortDragEnd}
+              >
+                <SortableContext items={fieldIds} strategy={verticalListSortingStrategy}>
+                  {fields.map((f, i) => (
+                    <SortableFieldRow
+                      key={f.key || `field-${i}`}
+                      fieldItem={f}
+                      index={i}
+                      onRemove={onRemove}
+                    />
+                  ))}
+                </SortableContext>
+                <DragOverlay dropAnimation={{
+                  duration: 200,
+                  easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+                }}>
+                  {activeField ? (
+                    <FieldRowStatic fieldItem={activeField} isDragging />
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            ) : (
+              // No reorder or no fields - just render static
+              fields && fields.map((f, i) => (
+                <div
+                  key={f.key || i}
+                  className="flex items-center gap-2 px-2 py-1.5 bg-white dark:bg-surface-primary rounded-md border border-border group w-full"
+                >
+                  <FieldTypeIcon type={f.type} className="flex-shrink-0" />
+                  <span className="text-xs text-text flex-1 truncate">{f.label}</span>
+                  <button
+                    onClick={() => onRemove(i)}
+                    className="p-0.5 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))
+            )}
             {/* Always show drop prompt at bottom */}
             <div className={cn(
               "flex items-center justify-center py-1.5 rounded border border-dashed border-transparent transition-colors",
