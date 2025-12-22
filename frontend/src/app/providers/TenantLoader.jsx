@@ -35,14 +35,15 @@ const TenantLoader = () => {
       const { tenantId: authTenantId } = useAuthStore.getState();
       const { isLoading } = useTenantStore.getState();
 
-      // If tenant already has recordId (restored from localStorage or set by Login), skip loading
-      if (currentTenant?.recordId) {
+      // If tenant already has recordId AND accountCode, skip loading
+      // (accountCode might be missing from old localStorage data)
+      if (currentTenant?.recordId && currentTenant?.accountCode) {
         return;
       }
 
-      // If auth store already has tenantId, we might have partial state - still load full config
-      // But if tenant store has recordId matching, we're good
-      if (authTenantId && currentTenant?.recordId === authTenantId) {
+      // If auth store already has tenantId AND accountCode, we're good
+      const { accountCode: authAccountCode } = useAuthStore.getState();
+      if (authTenantId && authAccountCode && currentTenant?.recordId === authTenantId) {
         return;
       }
 
