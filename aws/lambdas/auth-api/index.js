@@ -569,7 +569,7 @@ async function handleRegister(event) {
          ($1, $6, 'GROOMER', 'Grooming staff', true, NOW(), NOW()),
          ($1, $7, 'VIEWER', 'Read-only access', true, NOW(), NOW())
        ON CONFLICT (tenant_id, name) DO UPDATE SET updated_at = NOW()
-       RETURNING id, name`,
+       RETURNING record_id, name`,
       [tenant.id, roleBaseId, roleBaseId + 1, roleBaseId + 2, roleBaseId + 3, roleBaseId + 4, roleBaseId + 5]
     );
     ownerRole = roleResult.rows.find(r => r.name === 'OWNER');
@@ -586,11 +586,11 @@ async function handleRegister(event) {
     const userResult = await dbClient.query(
       `INSERT INTO "User" (tenant_id, record_id, cognito_sub, email, first_name, last_name, is_active, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, TRUE, NOW(), NOW())
-       RETURNING id, email, first_name, last_name, tenant_id`,
+       RETURNING record_id, email, first_name, last_name, tenant_id`,
       [tenant.id, userRecordId, cognitoSub || 'PENDING', userEmail, firstName, lastName]
     );
     user = userResult.rows[0];
-    console.log('[AuthBootstrap] User created:', { id: user.id, email: user.email });
+    console.log('[AuthBootstrap] User created:', { record_id: user.record_id, email: user.email });
 
     // Assign OWNER role
     if (ownerRole) {
@@ -603,10 +603,10 @@ async function handleRegister(event) {
       );
       const userRoleRecordId = userRoleSeqResult.rows[0].last_record_id;
       await dbClient.query(
-        `INSERT INTO "UserRole" (tenant_id, record_id, user_id, role_id, assigned_at)
+        `INSERT INTO "UserRole" (tenant_id, record_id, user_record_id, role_record_id, assigned_at)
          VALUES ($1, $2, $3, $4, NOW())
-         ON CONFLICT (user_id, role_id) DO NOTHING`,
-        [tenant.id, userRoleRecordId, user.id, ownerRole.id]
+         ON CONFLICT (user_record_id, role_record_id) DO NOTHING`,
+        [tenant.id, userRoleRecordId, user.record_id, ownerRole.record_id]
       );
     }
 
@@ -657,8 +657,8 @@ async function handleRegister(event) {
 
       // Update User record with cognito_sub immediately
       await query(
-        `UPDATE "User" SET cognito_sub = $1, updated_at = NOW() WHERE id = $2`,
-        [cognitoSub, user.id]
+        `UPDATE "User" SET cognito_sub = $1, updated_at = NOW() WHERE tenant_id = $2 AND record_id = $3`,
+        [cognitoSub, tenant.id, user.record_id]
       );
 
       // Auto-confirm the user (requires AdminConfirmSignUp permission)
@@ -724,7 +724,7 @@ async function handleRegister(event) {
     needsVerification,
     user: {
       id: cognitoSub,
-      recordId: user?.id,
+      recordId: user?.record_id,
       email: userEmail,
       firstName: user?.first_name,
       lastName: user?.last_name,
