@@ -91,16 +91,16 @@ const DATA_SOURCES = [
 const CHART_TYPES = [
   // Row 1
   { value: 'line', label: 'Line', icon: Activity },
-  { value: 'bar', label: 'Vertical Bar', icon: BarChart3 },
-  { value: 'horizontal-bar', label: 'Horizontal Bar', icon: BarChart2 },
+  { value: 'bar', label: 'Bar', icon: BarChart3 },
+  { value: 'column', label: 'Column', icon: BarChart2 },
   { value: 'area', label: 'Area', icon: TrendingUp },
-  { value: 'combo', label: 'Combo', icon: Layers },
-  { value: 'table', label: 'Table', icon: Table2 },
+  { value: 'stacked', label: 'Stacked', icon: Layers },
+  { value: 'treemap', label: 'Treemap', icon: Grid3X3 },
   // Row 2
   { value: 'pie', label: 'Pie', icon: PieChartIcon },
   { value: 'donut', label: 'Donut', icon: Circle },
-  { value: 'scatter', label: 'Scatter', icon: Grid3X3 },
-  { value: 'pivot', label: 'Pivot Table', icon: Grid3X3 },
+  { value: 'table', label: 'Table', icon: Table2 },
+  { value: 'pivot', label: 'Pivot', icon: Grid3X3 },
   { value: 'funnel', label: 'Funnel', icon: FilterIcon },
   { value: 'gauge', label: 'Gauge', icon: Gauge },
 ];
@@ -1232,7 +1232,7 @@ const CustomReportBuilder = () => {
                 </button>
               </div>
 
-              {/* Chart Type Grid - 2 rows of icons */}
+              {/* Chart Type Grid - 2 rows of icons with labels */}
               <div className="px-4 py-3 border-b border-border">
                 <div className="grid grid-cols-6 gap-1">
                   {CHART_TYPES.map((ct) => (
@@ -1241,13 +1241,19 @@ const CustomReportBuilder = () => {
                       onClick={() => setChartType(ct.value)}
                       title={ct.label}
                       className={cn(
-                        "flex items-center justify-center w-9 h-9 rounded-md transition-all",
+                        "flex flex-col items-center justify-center py-1.5 px-1 rounded-md transition-all",
                         chartType === ct.value
                           ? "bg-primary/10 text-primary ring-2 ring-primary/30"
                           : "text-muted hover:bg-surface-hover hover:text-text"
                       )}
                     >
-                      <ct.icon className="h-5 w-5" />
+                      <ct.icon className="h-4.5 w-4.5 mb-0.5" />
+                      <span className={cn(
+                        "text-[10px] leading-tight",
+                        chartType === ct.value ? "text-primary" : "text-muted"
+                      )}>
+                        {ct.label}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -1578,7 +1584,7 @@ const CustomReportBuilder = () => {
                     <Legend />
                     <Bar dataKey={dataKey} fill={chartColorSequence[0]} radius={[4, 4, 0, 0]} name={yAxis?.label || dataKey} />
                   </BarChart>
-                ) : chartType === 'horizontal-bar' ? (
+                ) : chartType === 'column' ? (
                   <BarChart data={chartData} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
                     <XAxis
@@ -1706,7 +1712,7 @@ const CustomReportBuilder = () => {
                     />
                     <Legend />
                   </PieChart>
-                ) : chartType === 'scatter' ? (
+                ) : chartType === 'treemap' ? (
                   <ScatterChart>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
                     <XAxis
