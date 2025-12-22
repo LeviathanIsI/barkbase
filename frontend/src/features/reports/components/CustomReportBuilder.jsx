@@ -67,6 +67,7 @@ import {
   AlignLeft,
   FolderTree,
   GitMerge,
+  GripVertical,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
@@ -529,6 +530,7 @@ const DropZone = ({
   fields,       // Multiple field mode: array of fields
   onRemove,     // Single mode: () => void, Multiple mode: (index) => void
   onDrop,
+  onReorder,    // Multiple mode: (fromIndex, toIndex) => void
   placeholder,
   acceptsDateOnly = false,
   acceptsMeasures = false,
@@ -538,6 +540,8 @@ const DropZone = ({
   draggedItem = null
 }) => {
   const [isOver, setIsOver] = useState(false);
+  const [reorderDragIndex, setReorderDragIndex] = useState(null);
+  const [reorderDropIndex, setReorderDropIndex] = useState(null);
 
   // For multiple mode, check if we have any fields
   const hasFields = multiple ? (fields && fields.length > 0) : !!field;
@@ -575,12 +579,13 @@ const DropZone = ({
 
   const isValidTarget = canAcceptCurrentDrag();
   const isInvalidTarget = isDragging && draggedItem && !isValidTarget && !(!multiple && field);
+  const isReordering = reorderDragIndex !== null;
 
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsOver(true);
-    if (isValidTarget) {
-      e.dataTransfer.dropEffect = 'copy';
+    if (isValidTarget || isReordering) {
+      e.dataTransfer.dropEffect = isReordering ? 'move' : 'copy';
     } else {
       e.dataTransfer.dropEffect = 'none';
     }
@@ -589,11 +594,25 @@ const DropZone = ({
   const handleDragLeave = (e) => {
     e.preventDefault();
     setIsOver(false);
+    if (!isReordering) {
+      setReorderDropIndex(null);
+    }
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     setIsOver(false);
+
+    // Handle reorder drop
+    if (isReordering && reorderDropIndex !== null && reorderDropIndex !== reorderDragIndex) {
+      onReorder?.(reorderDragIndex, reorderDropIndex);
+      setReorderDragIndex(null);
+      setReorderDropIndex(null);
+      return;
+    }
+
+    setReorderDragIndex(null);
+    setReorderDropIndex(null);
 
     if (!isValidTarget) return;
 
@@ -605,22 +624,74 @@ const DropZone = ({
     }
   };
 
-  // Render a single field pill
-  const renderFieldPill = (fieldItem, index = null) => (
-    <div
-      key={fieldItem.key || index}
-      className="flex items-center gap-2 px-2.5 py-1.5 bg-white dark:bg-surface-primary rounded-md border border-border group"
-    >
-      <FieldTypeIcon type={fieldItem.type} />
-      <span className="text-xs text-text">{fieldItem.label}</span>
-      <button
-        onClick={() => multiple ? onRemove(index) : onRemove()}
-        className="p-0.5 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </div>
-  );
+  // Handle pill drag start for reordering
+  const handlePillDragStart = (e, index) => {
+    e.stopPropagation();
+    setReorderDragIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  // Handle pill drag end
+  const handlePillDragEnd = () => {
+    setReorderDragIndex(null);
+    setReorderDropIndex(null);
+  };
+
+  // Handle drag over a pill for reorder indicator
+  const handlePillDragOver = (e, index) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isReordering && index !== reorderDragIndex) {
+      setReorderDropIndex(index);
+    }
+  };
+
+  // Render a single field pill (draggable for reorder)
+  const renderFieldPill = (fieldItem, index = null) => {
+    const isDraggedPill = reorderDragIndex === index;
+    const showInsertBefore = reorderDropIndex === index && reorderDragIndex !== null && reorderDragIndex > index;
+    const showInsertAfter = reorderDropIndex === index && reorderDragIndex !== null && reorderDragIndex < index;
+
+    return (
+      <div key={fieldItem.key || index} className="relative flex items-center">
+        {/* Insert indicator before */}
+        {showInsertBefore && (
+          <div className="absolute -left-1 top-0 bottom-0 w-0.5 bg-primary rounded-full" />
+        )}
+        <div
+          draggable={multiple && onReorder}
+          onDragStart={(e) => handlePillDragStart(e, index)}
+          onDragEnd={handlePillDragEnd}
+          onDragOver={(e) => handlePillDragOver(e, index)}
+          className={cn(
+            "flex items-center gap-2 px-2.5 py-1.5 bg-white dark:bg-surface-primary rounded-md border border-border group transition-all",
+            multiple && onReorder && "cursor-grab active:cursor-grabbing",
+            isDraggedPill && "opacity-50 scale-95"
+          )}
+        >
+          {multiple && onReorder && (
+            <GripVertical className="h-3 w-3 text-muted/50 group-hover:text-muted" />
+          )}
+          <FieldTypeIcon type={fieldItem.type} />
+          <span className="text-xs text-text">{fieldItem.label}</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              multiple ? onRemove(index) : onRemove();
+            }}
+            className="p-0.5 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+        {/* Insert indicator after */}
+        {showInsertAfter && (
+          <div className="absolute -right-1 top-0 bottom-0 w-0.5 bg-primary rounded-full" />
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="mb-3">
@@ -1008,6 +1079,15 @@ const CustomReportBuilder = () => {
     } else {
       setZoneValues(prev => ({ ...prev, [zoneName]: def?.multiple ? [] : null }));
     }
+  }, []);
+
+  const reorderInZone = useCallback((zoneName, fromIndex, toIndex) => {
+    setZoneValues(prev => {
+      const items = [...(prev[zoneName] || [])];
+      const [moved] = items.splice(fromIndex, 1);
+      items.splice(toIndex, 0, moved);
+      return { ...prev, [zoneName]: items };
+    });
   }, []);
 
   // Legacy accessors for backward compatibility with chart rendering
@@ -1773,6 +1853,7 @@ const CustomReportBuilder = () => {
                       fields={isMultiple ? (value || []) : undefined}
                       onRemove={isMultiple ? (index) => removeFromZone(zoneName, index) : () => removeFromZone(zoneName)}
                       onDrop={(droppedField) => addToZone(zoneName, droppedField)}
+                      onReorder={isMultiple ? (from, to) => reorderInZone(zoneName, from, to) : undefined}
                       placeholder={def.placeholder}
                       acceptsDateOnly={def.acceptsDateOnly || false}
                       acceptsDimensions={def.acceptsDimensions}
@@ -1791,6 +1872,7 @@ const CustomReportBuilder = () => {
                   fields={zoneValues.fields || []}
                   onRemove={(index) => removeFromZone('fields', index)}
                   onDrop={(droppedField) => addToZone('fields', droppedField)}
+                  onReorder={(from, to) => reorderInZone('fields', from, to)}
                   placeholder={DROP_ZONE_DEFINITIONS.fields.placeholder}
                   acceptsDimensions={true}
                   acceptsMeasures={true}
