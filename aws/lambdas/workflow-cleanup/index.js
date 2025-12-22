@@ -58,7 +58,7 @@ exports.handler = async (event) => {
 
     // Get all tenants with their retention settings from TenantSettings table
     const tenantsResult = await query(
-      `SELECT t.id, t.name, ts.workflow_log_retention_days, ts.workflow_execution_retention_days
+      `SELECT t.record_id, t.name, ts.workflow_log_retention_days, ts.workflow_execution_retention_days
        FROM "Tenant" t
        LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
        WHERE t.deleted_at IS NULL`
@@ -276,7 +276,7 @@ exports.manualCleanup = async (tenantId, logRetentionDays, executionRetentionDay
   if (tenantId) {
     // Clean specific tenant
     const tenantResult = await query(
-      `SELECT t.id, t.name, ts.workflow_log_retention_days, ts.workflow_execution_retention_days
+      `SELECT t.record_id, t.name, ts.workflow_log_retention_days, ts.workflow_execution_retention_days
        FROM "Tenant" t
        LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
        WHERE t.id = $1`,

@@ -330,11 +330,12 @@ exports.handler = async (event, context) => {
     const pathSegments = path.split('/');
     const uuidPattern = /^[a-f0-9-]{36}$/i;
 
-    // Find and replace UUIDs with placeholders
+    // Find and replace IDs (UUID or numeric) with placeholders
     // For nested resources like pets/{id}/vaccinations/{id}
+    const numericPattern = /^\d+$/;
     let foundFirstId = false;
     const normalizedSegments = pathSegments.map((segment, idx) => {
-      if (uuidPattern.test(segment)) {
+      if (uuidPattern.test(segment) || numericPattern.test(segment)) {
         // Check if this is a nested resource pattern
         const prevSegment = pathSegments[idx - 1];
         const nextSegment = pathSegments[idx + 1];
@@ -359,8 +360,8 @@ exports.handler = async (event, context) => {
     const routeKey = `${method} ${normalizedPath}`;
     const exactRouteKey = `${method} ${path}`;
 
-    // Also try simple replacement for backward compatibility
-    const simpleRouteKey = `${method} ${path.replace(/\/[a-f0-9-]{36}$/i, '/{id}')}`;
+    // Also try simple replacement for backward compatibility (UUID or numeric ID)
+    const simpleRouteKey = `${method} ${path.replace(/\/([a-f0-9-]{36}|\d+)$/i, '/{id}')}`;
 
     const handler = handlers[exactRouteKey] || handlers[routeKey] || handlers[simpleRouteKey];
 
@@ -491,7 +492,7 @@ async function createTenant(event) {
       ]
     );
 
-    console.log('[ENTITY-SERVICE] Created tenant:', result.rows[0].id);
+    console.log('[ENTITY-SERVICE] Created tenant:', result.rows[0].record_id);
     return createResponse(201, { data: result.rows[0] });
   } catch (error) {
     console.error('[ENTITY-SERVICE] createTenant error:', error);
@@ -576,7 +577,7 @@ async function deleteTenant(event) {
   const tenantId = event.user?.tenantId;
   const pathParams = getPathParams(event);
   const id = pathParams.id || event.path?.split('/').pop();
-  const deletedBy = event.user?.id || null;
+  const deletedBy = event.user?.userId || null;
 
   console.log('[ENTITY-SERVICE] Deleting tenant:', id);
 
@@ -619,7 +620,7 @@ async function getFacilities(event) {
     // Schema: id, tenant_id, name, size, location, max_occupancy, is_active, created_at, updated_at
     // Also calculate current occupancy by counting active bookings (CHECKED_IN or CONFIRMED with dates spanning today)
     const result = await query(
-      `SELECT k.id, k.tenant_id, k.name, k.size, k.location, k.max_occupancy,
+      `SELECT k.record_id, k.tenant_id, k.name, k.size, k.location, k.max_occupancy,
               k.is_active, k.created_at, k.updated_at,
               COALESCE(occ.occupied, 0) AS occupied
        FROM "Kennel" k
@@ -630,7 +631,7 @@ async function getFacilities(event) {
            AND kennel_id IS NOT NULL
            AND (status = 'CHECKED_IN' OR (status = 'CONFIRMED' AND check_in <= CURRENT_DATE AND check_out >= CURRENT_DATE))
          GROUP BY kennel_id
-       ) occ ON k.id = occ.kennel_id
+       ) occ ON k.record_id = occ.kennel_id
        WHERE k.tenant_id = $1
        ORDER BY k.name`,
       [tenantId]
@@ -729,7 +730,7 @@ async function createFacility(event) {
       ]
     );
 
-    console.log('[Facilities][create] created:', result.rows[0].id, 'record_id:', recordId);
+    console.log('[Facilities][create] created:', result.rows[0].record_id, 'record_id:', recordId);
     return createResponse(201, { data: result.rows[0] });
   } catch (error) {
     console.error('[ENTITY-SERVICE] createFacility error:', error);
@@ -799,7 +800,7 @@ async function deleteFacility(event) {
   const tenantId = resolveTenantId(event);
   const pathParams = getPathParams(event);
   const id = pathParams.id || event.path?.split('/').pop();
-  const deletedBy = event.user?.id || null;
+  const deletedBy = event.user?.userId || null;
 
   console.log('[Facilities][delete] id:', id, 'tenantId:', tenantId);
 
@@ -850,7 +851,7 @@ async function getPets(event) {
 
     // Filter by owner via PetOwner junction table
     if (ownerId) {
-      joinClause = 'INNER JOIN "PetOwner" po ON po.pet_id = p.id';
+      joinClause = 'INNER JOIN "PetOwner" po ON po.pet_id = p.record_id';
       whereClause += ` AND po.owner_id = $${paramIndex}`;
       params.push(ownerId);
       paramIndex++;
@@ -864,7 +865,7 @@ async function getPets(event) {
 
     // Get total count for pagination
     const countResult = await query(
-      `SELECT COUNT(DISTINCT p.id) as total FROM "Pet" p ${joinClause} WHERE ${whereClause}`,
+      `SELECT COUNT(DISTINCT p.record_id) as total FROM "Pet" p ${joinClause} WHERE ${whereClause}`,
       params
     );
     const total = parseInt(countResult.rows[0]?.total || 0, 10);
@@ -876,7 +877,7 @@ async function getPets(event) {
     // Vet info comes from Veterinarian table via vet_id FK
     // Owner info comes from PetOwner junction table (get primary owner)
     const result = await query(
-      `SELECT DISTINCT p.id, p.tenant_id, p.name, p.species, p.breed, p.gender, p.color,
+      `SELECT DISTINCT p.record_id, p.tenant_id, p.name, p.species, p.breed, p.gender, p.color,
               p.weight, p.date_of_birth, p.microchip_number,
               p.medical_notes, p.behavior_notes, p.dietary_notes,
               p.behavior_flags, p.status, p.photo_url, p.is_active,
@@ -885,14 +886,14 @@ async function getPets(event) {
               v.email AS vet_email, v.notes AS vet_notes,
               v.address_street AS vet_address_street, v.address_city AS vet_address_city,
               v.address_state AS vet_address_state, v.address_zip AS vet_address_zip,
-              primary_owner.id AS owner_id,
+              primary_owner.record_id AS owner_id,
               primary_owner.first_name AS owner_first_name,
               primary_owner.last_name AS owner_last_name,
               primary_owner.email AS owner_email,
               primary_owner.phone AS owner_phone
        FROM "Pet" p
        LEFT JOIN "Veterinarian" v ON v.tenant_id = p.tenant_id AND v.record_id = p.vet_id
-       LEFT JOIN "PetOwner" primary_po ON primary_po.pet_id = p.id AND primary_po.is_primary = true
+       LEFT JOIN "PetOwner" primary_po ON primary_po.pet_id = p.record_id AND primary_po.is_primary = true
        LEFT JOIN "Owner" primary_owner ON primary_owner.tenant_id = p.tenant_id AND primary_owner.record_id = primary_po.owner_id
        ${joinClause}
        WHERE ${whereClause}
@@ -926,7 +927,7 @@ async function getPet(event) {
     await getPoolAsync();
     // Schema: Pet has vet_id FK, vet info comes from Veterinarian table
     const result = await query(
-      `SELECT p.id, p.tenant_id, p.name, p.species, p.breed, p.gender, p.color,
+      `SELECT p.record_id, p.tenant_id, p.name, p.species, p.breed, p.gender, p.color,
               p.weight, p.date_of_birth, p.microchip_number,
               p.medical_notes, p.behavior_notes, p.dietary_notes,
               p.behavior_flags, p.status, p.photo_url, p.is_active,
@@ -1063,11 +1064,11 @@ async function createPet(event) {
         body.photoUrl || body.photo_url || null,
         body.isActive !== false,
         vetId,
-        event.user?.id || null
+        event.user?.userId || null
       ]
     );
 
-    const petId = result.rows[0].id;
+    const petId = result.rows[0].record_id;
 
     // If ownerId is provided, create PetOwner relationship
     // (ownerId was validated above if provided)
@@ -1208,7 +1209,7 @@ async function updatePet(event) {
 
     // Add updated_by
     updates.push(`updated_by = $${paramIndex++}`);
-    values.push(event.user?.id || null);
+    values.push(event.user?.userId || null);
 
     if (updates.length === 0) {
       return createResponse(400, { error: 'BadRequest', message: 'No fields to update' });
@@ -1249,7 +1250,7 @@ async function deletePet(event) {
   const tenantId = resolveTenantId(event);
   const pathParams = getPathParams(event);
   const id = pathParams.id || event.path?.split('/').pop();
-  const deletedBy = event.user?.id || null;
+  const deletedBy = event.user?.userId || null;
 
   console.log('[Pets][delete] id:', id, 'tenantId:', tenantId);
 
@@ -1320,7 +1321,7 @@ async function getOwners(event) {
     // Pet count comes from PetOwner junction table
     // Bookings count, last visit, lifetime value, and pending balance calculated from related tables
     const result = await query(
-      `SELECT o.id, o.tenant_id, o.first_name, o.last_name, o.email, o.phone,
+      `SELECT o.record_id, o.tenant_id, o.first_name, o.last_name, o.email, o.phone,
               o.address_street, o.address_city, o.address_state,
               o.address_zip, o.address_country,
               o.emergency_contact_name, o.emergency_contact_phone, o.notes,
@@ -1337,7 +1338,7 @@ async function getOwners(event) {
          FROM "PetOwner"
          WHERE tenant_id = $1
          GROUP BY owner_id
-       ) pet_counts ON pet_counts.owner_id = o.id
+       ) pet_counts ON pet_counts.owner_id = o.record_id
        LEFT JOIN (
          SELECT b.owner_id,
                 COUNT(*) AS bookings_count,
@@ -1345,7 +1346,7 @@ async function getOwners(event) {
          FROM "Booking" b
          WHERE b.tenant_id = $1
          GROUP BY b.owner_id
-       ) booking_stats ON booking_stats.owner_id = o.id
+       ) booking_stats ON booking_stats.owner_id = o.record_id
        LEFT JOIN (
          SELECT i.owner_id,
                 SUM(CASE WHEN LOWER(i.status) = 'paid' THEN i.total_cents ELSE 0 END) AS lifetime_value,
@@ -1353,7 +1354,7 @@ async function getOwners(event) {
          FROM "Invoice" i
          WHERE i.tenant_id = $1
          GROUP BY i.owner_id
-       ) invoice_stats ON invoice_stats.owner_id = o.id
+       ) invoice_stats ON invoice_stats.owner_id = o.record_id
        WHERE ${whereClause}
        ORDER BY o.last_name, o.first_name
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -1385,7 +1386,7 @@ async function getOwner(event) {
     // Schema: Owner has address_street, address_city, address_state, address_zip, address_country
     // Also has tags (TEXT[]), stripe_customer_id, created_by, updated_by
     const result = await query(
-      `SELECT o.id, o.tenant_id, o.first_name, o.last_name, o.email, o.phone,
+      `SELECT o.record_id, o.tenant_id, o.first_name, o.last_name, o.email, o.phone,
               o.address_street, o.address_city, o.address_state,
               o.address_zip, o.address_country,
               o.emergency_contact_name, o.emergency_contact_phone, o.notes,
@@ -1458,15 +1459,15 @@ async function createOwner(event) {
         body.notes || null,
         body.tags || [],
         body.isActive !== false,
-        event.user?.id || null
+        event.user?.userId || null
       ]
     );
 
-    console.log('[ENTITY-SERVICE] Created owner:', result.rows[0].id, 'record_id:', recordId);
+    console.log('[ENTITY-SERVICE] Created owner:', result.rows[0].record_id, 'record_id:', recordId);
 
     // Publish workflow event
     try {
-      await publishWorkflowEvent('owner.created', result.rows[0].id, 'owner', tenantId, {
+      await publishWorkflowEvent('owner.created', result.rows[0].record_id, 'owner', tenantId, {
         firstName: result.rows[0].first_name,
         lastName: result.rows[0].last_name,
         email: result.rows[0].email,
@@ -1557,7 +1558,7 @@ async function updateOwner(event) {
 
     // Add updated_by
     updates.push(`updated_by = $${paramIndex++}`);
-    values.push(event.user?.id || null);
+    values.push(event.user?.userId || null);
 
     if (updates.length === 0) {
       return createResponse(400, { error: 'BadRequest', message: 'No fields to update' });
@@ -1598,7 +1599,7 @@ async function deleteOwner(event) {
   const tenantId = resolveTenantId(event);
   const pathParams = getPathParams(event);
   const id = pathParams.id || event.path?.split('/').pop();
-  const deletedBy = event.user?.id || null;
+  const deletedBy = event.user?.userId || null;
 
   console.log('[ENTITY-SERVICE] Deleting owner:', id, 'for tenant:', tenantId);
 
@@ -1659,7 +1660,7 @@ async function exportOwnerData(event) {
     // Get all pets via PetOwner junction table (Pet has NO owner_id column)
     const petsResult = await query(
       `SELECT p.* FROM "Pet" p
-       JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.id
+       JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id
        WHERE po.owner_id = $1 AND p.tenant_id = $2`,
       [ownerId, tenantId]
     );
@@ -1695,7 +1696,7 @@ async function exportOwnerData(event) {
     }
 
     // Get vaccinations for all pets
-    const petIds = petsResult.rows.map(p => p.id);
+    const petIds = petsResult.rows.map(p => p.record_id);
     let vaccinations = [];
     if (petIds.length > 0) {
       try {
@@ -1727,7 +1728,7 @@ async function exportOwnerData(event) {
       const agreementsResult = await query(
         `SELECT pa.*, p.title as policy_title, p.type as policy_type
          FROM "PolicyAgreement" pa
-         LEFT JOIN "Policy" p ON pa.policy_id = p.id
+         LEFT JOIN "Policy" p ON pa.policy_id = p.record_id
          WHERE pa.owner_id = $1 AND pa.tenant_id = $2`,
         [ownerId, tenantId]
       );
@@ -1807,7 +1808,7 @@ async function deleteOwnerData(event) {
   const tenantId = resolveTenantId(event);
   const pathParams = getPathParams(event);
   const ownerId = pathParams.id || event.path?.split('/')[5]; // /api/v1/entity/owners/{id}/data
-  const deletedBy = event.user?.id || null;
+  const deletedBy = event.user?.userId || null;
 
   console.log('[ENTITY-SERVICE] Deleting all owner data:', ownerId, 'for tenant:', tenantId);
 
@@ -1836,12 +1837,12 @@ async function deleteOwnerData(event) {
 
     // Get all pet IDs for this owner via PetOwner junction table
     const petsResult = await query(
-      `SELECT p.id FROM "Pet" p
-       JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.id
+      `SELECT p.record_id FROM "Pet" p
+       JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id
        WHERE po.owner_id = $1 AND p.tenant_id = $2`,
       [ownerId, tenantId]
     );
-    const petIds = petsResult.rows.map(p => p.id);
+    const petIds = petsResult.rows.map(p => p.record_id);
 
     // Begin deletion (archive to DeletedRecord, then hard delete)
     const deletionSummary = {
@@ -1860,10 +1861,10 @@ async function deleteOwnerData(event) {
       try {
         // Get vaccination IDs first
         const vacResult = await query(
-          `SELECT id FROM "Vaccination" WHERE pet_id = ANY($1) AND tenant_id = $2`,
+          `SELECT record_id FROM "Vaccination" WHERE pet_id = ANY($1) AND tenant_id = $2`,
           [petIds, tenantId]
         );
-        const vacIds = vacResult.rows.map(v => v.id);
+        const vacIds = vacResult.rows.map(v => v.record_id);
         if (vacIds.length > 0) {
           deletionSummary.vaccinations = await softDeleteBatch('Vaccination', vacIds, tenantId, deletedBy);
         }
@@ -1875,10 +1876,10 @@ async function deleteOwnerData(event) {
     // Delete communications
     try {
       const commResult = await query(
-        `SELECT id FROM "Communication" WHERE owner_id = $1 AND tenant_id = $2`,
+        `SELECT record_id FROM "Communication" WHERE owner_id = $1 AND tenant_id = $2`,
         [ownerId, tenantId]
       );
-      const commIds = commResult.rows.map(c => c.id);
+      const commIds = commResult.rows.map(c => c.record_id);
       if (commIds.length > 0) {
         deletionSummary.communications = await softDeleteBatch('Communication', commIds, tenantId, deletedBy);
       }
@@ -1889,10 +1890,10 @@ async function deleteOwnerData(event) {
     // Delete policy agreements
     try {
       const paResult = await query(
-        `SELECT id FROM "PolicyAgreement" WHERE owner_id = $1 AND tenant_id = $2`,
+        `SELECT record_id FROM "PolicyAgreement" WHERE owner_id = $1 AND tenant_id = $2`,
         [ownerId, tenantId]
       );
-      const paIds = paResult.rows.map(p => p.id);
+      const paIds = paResult.rows.map(p => p.record_id);
       if (paIds.length > 0) {
         deletionSummary.policyAgreements = await softDeleteBatch('PolicyAgreement', paIds, tenantId, deletedBy);
       }
@@ -1903,10 +1904,10 @@ async function deleteOwnerData(event) {
     // Delete payments
     try {
       const payResult = await query(
-        `SELECT id FROM "Payment" WHERE owner_id = $1 AND tenant_id = $2`,
+        `SELECT record_id FROM "Payment" WHERE owner_id = $1 AND tenant_id = $2`,
         [ownerId, tenantId]
       );
-      const payIds = payResult.rows.map(p => p.id);
+      const payIds = payResult.rows.map(p => p.record_id);
       if (payIds.length > 0) {
         deletionSummary.payments = await softDeleteBatch('Payment', payIds, tenantId, deletedBy);
       }
@@ -1917,10 +1918,10 @@ async function deleteOwnerData(event) {
     // Delete invoices
     try {
       const invResult = await query(
-        `SELECT id FROM "Invoice" WHERE owner_id = $1 AND tenant_id = $2`,
+        `SELECT record_id FROM "Invoice" WHERE owner_id = $1 AND tenant_id = $2`,
         [ownerId, tenantId]
       );
-      const invIds = invResult.rows.map(i => i.id);
+      const invIds = invResult.rows.map(i => i.record_id);
       if (invIds.length > 0) {
         deletionSummary.invoices = await softDeleteBatch('Invoice', invIds, tenantId, deletedBy);
       }
@@ -1935,10 +1936,10 @@ async function deleteOwnerData(event) {
         [ownerId, tenantId]
       );
       const bookResult = await query(
-        `SELECT id FROM "Booking" WHERE owner_id = $1 AND tenant_id = $2`,
+        `SELECT record_id FROM "Booking" WHERE owner_id = $1 AND tenant_id = $2`,
         [ownerId, tenantId]
       );
-      const bookIds = bookResult.rows.map(b => b.id);
+      const bookIds = bookResult.rows.map(b => b.record_id);
       if (bookIds.length > 0) {
         deletionSummary.bookings = await softDeleteBatch('Booking', bookIds, tenantId, deletedBy);
       }
@@ -1994,13 +1995,13 @@ async function getStaff(event) {
     // Query User table directly - no separate Staff table needed
     // Users with tenant_id are staff/admin accounts for that tenant
     const result = await query(
-      `SELECT u.id, u.tenant_id, u.id as user_id,
+      `SELECT u.record_id, u.tenant_id, u.record_id as user_id,
               u.first_name, u.last_name, u.email, u.phone, u.avatar_url,
               u.is_active, u.created_at, u.updated_at,
               COALESCE(r.name, 'user') AS role,
               r.name as title
        FROM "User" u
-       LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.id
+       LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
        LEFT JOIN "Role" r ON r.tenant_id = u.tenant_id AND r.record_id = ur.role_id
        WHERE u.tenant_id = $1
        ORDER BY u.last_name, u.first_name`,
@@ -2036,13 +2037,13 @@ async function getStaffMember(event) {
     await getPoolAsync();
     // Query User table directly
     const result = await query(
-      `SELECT u.id, u.tenant_id, u.id as user_id,
+      `SELECT u.record_id, u.tenant_id, u.record_id as user_id,
               u.first_name, u.last_name, u.email, u.phone, u.avatar_url,
               u.is_active, u.created_at, u.updated_at,
               COALESCE(r.name, 'user') AS role,
               r.name as title
        FROM "User" u
-       LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.id
+       LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
        LEFT JOIN "Role" r ON r.tenant_id = u.tenant_id AND r.record_id = ur.role_id
        WHERE u.record_id = $1 AND u.tenant_id = $2`,
       [id, tenantId]
@@ -2122,12 +2123,12 @@ async function createStaffMember(event) {
     const staffWithUser = await query(
       `SELECT s.*, u.first_name, u.last_name, u.email
        FROM "Staff" s
-       LEFT JOIN "User" u ON u.tenant_id = s.tenant_id AND u.id = s.user_id
-       WHERE s.id = $1`,
-      [result.rows[0].id]
+       LEFT JOIN "User" u ON u.tenant_id = s.tenant_id AND u.record_id = s.user_id
+       WHERE s.record_id = $1`,
+      [result.rows[0].record_id]
     );
 
-    console.log('[ENTITY-SERVICE] Created staff member:', result.rows[0].id);
+    console.log('[ENTITY-SERVICE] Created staff member:', result.rows[0].record_id);
     return createResponse(201, { data: staffWithUser.rows[0] });
   } catch (error) {
     console.error('[ENTITY-SERVICE] createStaffMember error:', error);
@@ -2191,9 +2192,9 @@ async function updateStaffMember(event) {
     const staffWithUser = await query(
       `SELECT s.*, u.first_name, u.last_name, u.email
        FROM "Staff" s
-       LEFT JOIN "User" u ON u.tenant_id = s.tenant_id AND u.id = s.user_id
-       WHERE s.id = $1`,
-      [result.rows[0].id]
+       LEFT JOIN "User" u ON u.tenant_id = s.tenant_id AND u.record_id = s.user_id
+       WHERE s.record_id = $1`,
+      [result.rows[0].record_id]
     );
 
     console.log('[ENTITY-SERVICE] Updated staff member:', id);
@@ -2282,7 +2283,7 @@ async function getExpiringVaccinations(event) {
     // Also include recently expired (within 7 days past) to show overdue
     const result = await query(
       `SELECT
-         v.id,
+         v.record_id as id,
          v.pet_id,
          v.type,
          v.administered_at,
@@ -2293,14 +2294,14 @@ async function getExpiringVaccinations(event) {
          p.name as pet_name,
          p.species as pet_species,
          p.breed as pet_breed,
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name as owner_first_name,
          o.last_name as owner_last_name,
          o.email as owner_email,
          o.phone as owner_phone
        FROM "Vaccination" v
-       JOIN "Pet" p ON p.tenant_id = v.tenant_id AND p.id = v.pet_id
-       LEFT JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.id AND po.is_primary = true
+       JOIN "Pet" p ON p.tenant_id = v.tenant_id AND p.record_id = v.pet_id
+       LEFT JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id AND po.is_primary = true
        LEFT JOIN "Owner" o ON o.tenant_id = p.tenant_id AND o.record_id = po.owner_id
        WHERE v.tenant_id = $1
                  AND v.expires_at IS NOT NULL
@@ -2322,8 +2323,8 @@ async function getExpiringVaccinations(event) {
       }
 
       return {
-        id: row.id,
-        recordId: row.id, // Alias for frontend compatibility
+        id: row.record_id,
+        recordId: row.record_id, // Alias for frontend compatibility
         petId: row.pet_id,
         petName: row.pet_name,
         petSpecies: row.pet_species,
@@ -2423,7 +2424,7 @@ async function getPetVaccinations(event) {
     // id, tenant_id, pet_id, type, administered_at, expires_at, provider, lot_number, notes, document_url, created_at, updated_at
     const result = await query(
       `SELECT
-         v.id, v.pet_id, v.type, v.administered_at, v.expires_at,
+         v.record_id, v.pet_id, v.type, v.administered_at, v.expires_at,
          v.provider, v.lot_number, v.notes, v.document_url,
          v.created_at, v.updated_at
        FROM "Vaccination" v
@@ -2432,7 +2433,7 @@ async function getPetVaccinations(event) {
     );
 
     const vaccinations = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       petId: row.pet_id,
       // Map to camelCase for frontend compatibility
       vaccineName: row.type, // Schema uses 'type' column
@@ -2526,7 +2527,7 @@ async function createPetVaccination(event) {
 
     // Verify pet belongs to tenant
     const petResult = await query(
-      `SELECT id, name FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`,
+      `SELECT record_id, name FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`,
       [petId, tenantId]
     );
 
@@ -2558,11 +2559,11 @@ async function createPetVaccination(event) {
 
     const row = result.rows[0];
 
-    console.log('[ENTITY-SERVICE] Created vaccination:', row.id, 'for pet:', petId);
+    console.log('[ENTITY-SERVICE] Created vaccination:', row.record_id, 'for pet:', petId);
 
     return createResponse(201, {
       success: true,
-      id: row.id,
+      id: row.record_id,
       type: row.type,
       vaccineName: row.type, // Alias for frontend compatibility
       petId: row.pet_id,
@@ -2659,11 +2660,11 @@ async function updatePetVaccination(event) {
 
     const row = result.rows[0];
 
-    console.log('[ENTITY-SERVICE] Updated vaccination:', row.id);
+    console.log('[ENTITY-SERVICE] Updated vaccination:', row.record_id);
 
     return createResponse(200, {
       success: true,
-      id: row.id,
+      id: row.record_id,
       type: row.type,
       vaccineName: row.type, // Alias for frontend compatibility
       message: 'Vaccination record updated successfully',
@@ -2685,7 +2686,7 @@ async function deletePetVaccination(event) {
   const tenantId = resolveTenantId(event);
   const petId = event.pathParameters?.petId;
   const vaccinationId = event.pathParameters?.id;
-  const deletedBy = event.user?.id || null;
+  const deletedBy = event.user?.userId || null;
 
   console.log('[ENTITY-SERVICE] Deleting vaccination:', vaccinationId);
 
@@ -2743,7 +2744,7 @@ async function bulkDeletePets(event) {
   const tenantId = resolveTenantId(event);
   const body = parseBody(event);
   const { ids } = body;
-  const deletedBy = event.user?.id || null;
+  const deletedBy = event.user?.userId || null;
 
   console.log('[Pets][bulkDelete] tenantId:', tenantId, 'count:', ids?.length);
 
@@ -2867,7 +2868,7 @@ async function bulkExportPets(event) {
 
     // Schema: Pet has vet_id FK, vet info comes from Veterinarian table
     let queryText = `
-      SELECT p.id, p.name, p.species, p.breed, p.gender, p.color,
+      SELECT p.record_id, p.name, p.species, p.breed, p.gender, p.color,
              p.weight, p.date_of_birth, p.microchip_number,
              p.medical_notes, p.behavior_notes, p.dietary_notes,
              p.status, p.is_active, p.vet_id,
@@ -2875,12 +2876,12 @@ async function bulkExportPets(event) {
              v.clinic_name AS vet_clinic, v.vet_name, v.phone AS vet_phone,
              v.email AS vet_email
       FROM "Pet" p
-      LEFT JOIN "Veterinarian" v ON p.vet_id = v.id
+      LEFT JOIN "Veterinarian" v ON p.vet_id = v.record_id
       WHERE p.tenant_id = $1    `;
     const params = [tenantId];
 
     if (Array.isArray(ids) && ids.length > 0) {
-      queryText += ` AND p.id = ANY($2)`;
+      queryText += ` AND p.record_id = ANY($2)`;
       params.push(ids);
     }
 
@@ -2911,7 +2912,7 @@ async function bulkDeleteOwners(event) {
   const tenantId = resolveTenantId(event);
   const body = parseBody(event);
   const { ids } = body;
-  const deletedBy = event.user?.id || null;
+  const deletedBy = event.user?.userId || null;
 
   console.log('[Owners][bulkDelete] tenantId:', tenantId, 'count:', ids?.length);
 
@@ -3030,7 +3031,7 @@ async function bulkExportOwners(event) {
     await getPoolAsync();
 
     let queryText = `
-      SELECT o.id, o.first_name, o.last_name, o.email, o.phone,
+      SELECT o.record_id, o.first_name, o.last_name, o.email, o.phone,
              o.address_street, o.address_city, o.address_state, o.address_zip, o.address_country,
              o.emergency_contact_name, o.emergency_contact_phone, o.notes,
              o.is_active, o.created_at, o.updated_at
@@ -3039,7 +3040,7 @@ async function bulkExportOwners(event) {
     const params = [tenantId];
 
     if (Array.isArray(ids) && ids.length > 0) {
-      queryText += ` AND o.id = ANY($2)`;
+      queryText += ` AND o.record_id = ANY($2)`;
       params.push(ids);
     }
 
@@ -3232,7 +3233,7 @@ async function getActivities(event) {
 
     // Get activities with creator info
     const result = await query(
-      `SELECT a.id, a.tenant_id, a.entity_type, a.entity_id,
+      `SELECT a.record_id, a.tenant_id, a.entity_type, a.entity_id,
               a.activity_type, a.subject, a.content,
               a.call_duration_seconds, a.call_direction, a.call_outcome,
               a.recipient, a.is_pinned,
@@ -3240,7 +3241,7 @@ async function getActivities(event) {
               u.first_name as creator_first_name, u.last_name as creator_last_name,
               u.email as creator_email
        FROM "Activity" a
-       LEFT JOIN "User" u ON a.created_by = u.id
+       LEFT JOIN "User" u ON a.created_by = u.record_id
        WHERE ${whereClause}
        ORDER BY a.is_pinned DESC, a.created_at DESC
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -3249,7 +3250,7 @@ async function getActivities(event) {
 
     // Transform rows
     const activities = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       tenantId: row.tenant_id,
       entityType: row.entity_type,
       entityId: row.entity_id,
@@ -3300,7 +3301,7 @@ async function getActivity(event) {
     await getPoolAsync();
 
     const result = await query(
-      `SELECT a.id, a.tenant_id, a.entity_type, a.entity_id,
+      `SELECT a.record_id, a.tenant_id, a.entity_type, a.entity_id,
               a.activity_type, a.subject, a.content,
               a.call_duration_seconds, a.call_direction, a.call_outcome,
               a.recipient, a.is_pinned,
@@ -3308,7 +3309,7 @@ async function getActivity(event) {
               u.first_name as creator_first_name, u.last_name as creator_last_name,
               u.email as creator_email
        FROM "Activity" a
-       LEFT JOIN "User" u ON u.tenant_id = a.tenant_id AND u.id = a.created_by
+       LEFT JOIN "User" u ON u.tenant_id = a.tenant_id AND u.record_id = a.created_by
        WHERE a.record_id = $1 AND a.tenant_id = $2`,
       [id, tenantId]
     );
@@ -3319,7 +3320,7 @@ async function getActivity(event) {
 
     const row = result.rows[0];
     return createResponse(200, {
-      id: row.id,
+      id: row.record_id,
       tenantId: row.tenant_id,
       entityType: row.entity_type,
       entityId: row.entity_id,
@@ -3416,7 +3417,7 @@ async function createActivity(event) {
 
     const row = result.rows[0];
     return createResponse(201, {
-      id: row.id,
+      id: row.record_id,
       tenantId: row.tenant_id,
       entityType: row.entity_type,
       entityId: row.entity_id,
@@ -3500,7 +3501,7 @@ async function updateActivity(event) {
 
     const row = result.rows[0];
     return createResponse(200, {
-      id: row.id,
+      id: row.record_id,
       tenantId: row.tenant_id,
       entityType: row.entity_type,
       entityId: row.entity_id,

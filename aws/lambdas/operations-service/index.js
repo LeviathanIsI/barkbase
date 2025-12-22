@@ -341,7 +341,7 @@ exports.handler = async (event, context) => {
     }
 
     // Recurring booking by ID - supports both /api/v1/recurring/:id and /api/v1/recurring-bookings/:id
-    const recurringMatch = path.match(/\/api\/v1\/recurring(?:-bookings)?\/([a-f0-9-]+)(\/.*)?$/i);
+    const recurringMatch = path.match(/\/api\/v1\/recurring(?:-bookings)?\/((?:[a-f0-9-]+|\d+))(\/.*)?$/i);
     if (recurringMatch) {
       const recurringId = recurringMatch[1];
       const subPath = recurringMatch[2] || '';
@@ -369,7 +369,7 @@ exports.handler = async (event, context) => {
     }
 
     // Booking by ID routes
-    const bookingMatch = path.match(/\/api\/v1\/operations\/bookings\/([a-f0-9-]+)(\/.*)?$/i);
+    const bookingMatch = path.match(/\/api\/v1\/operations\/bookings\/((?:[a-f0-9-]+|\d+))(\/.*)?$/i);
     if (bookingMatch) {
       const bookingId = bookingMatch[1];
       const subPath = bookingMatch[2] || '';
@@ -404,7 +404,7 @@ exports.handler = async (event, context) => {
     }
 
     // Task by ID routes
-    const taskMatch = path.match(/\/api\/v1\/operations\/tasks\/([a-f0-9-]+)(\/.*)?$/i);
+    const taskMatch = path.match(/\/api\/v1\/operations\/tasks\/((?:[a-f0-9-]+|\d+))(\/.*)?$/i);
     if (taskMatch) {
       const taskId = taskMatch[1];
       const subPath = taskMatch[2] || '';
@@ -441,7 +441,7 @@ exports.handler = async (event, context) => {
     // Notifications routes
     if (path === '/api/v1/operations/notifications' || path === '/operations/notifications') {
       if (method === 'GET') {
-        return handleGetNotifications(tenantId, user.id, event.queryStringParameters || {});
+        return handleGetNotifications(tenantId, user.userId, event.queryStringParameters || {});
       }
       if (method === 'POST') {
         return handleCreateNotification(tenantId, parseBody(event));
@@ -451,32 +451,32 @@ exports.handler = async (event, context) => {
     // Notification count endpoint (lightweight)
     if (path === '/api/v1/operations/notifications/count' || path === '/operations/notifications/count') {
       if (method === 'GET') {
-        return handleGetNotificationCount(tenantId, user.id);
+        return handleGetNotificationCount(tenantId, user.userId);
       }
     }
 
     // Mark all notifications as read
     if (path === '/api/v1/operations/notifications/read-all' || path === '/operations/notifications/read-all') {
       if (method === 'PATCH' || method === 'POST') {
-        return handleMarkAllNotificationsRead(tenantId, user.id);
+        return handleMarkAllNotificationsRead(tenantId, user.userId);
       }
     }
 
     // Single notification by ID routes
-    const notificationMatch = path.match(/^\/(?:api\/v1\/)?operations\/notifications\/([a-f0-9-]+)$/i);
+    const notificationMatch = path.match(/^\/(?:api\/v1\/)?operations\/notifications\/((?:[a-f0-9-]+|\d+))$/i);
     if (notificationMatch) {
       const notificationId = notificationMatch[1];
       if (method === 'PATCH') {
-        return handleMarkNotificationRead(tenantId, user.id, notificationId);
+        return handleMarkNotificationRead(tenantId, user.userId, notificationId);
       }
     }
 
     // Mark single notification as read (alternate route)
-    const notificationReadMatch = path.match(/^\/(?:api\/v1\/)?operations\/notifications\/([a-f0-9-]+)\/read$/i);
+    const notificationReadMatch = path.match(/^\/(?:api\/v1\/)?operations\/notifications\/((?:[a-f0-9-]+|\d+))\/read$/i);
     if (notificationReadMatch) {
       const notificationId = notificationReadMatch[1];
       if (method === 'PATCH' || method === 'POST') {
-        return handleMarkNotificationRead(tenantId, user.id, notificationId);
+        return handleMarkNotificationRead(tenantId, user.userId, notificationId);
       }
     }
 
@@ -493,7 +493,7 @@ exports.handler = async (event, context) => {
     }
 
     // Staff by ID routes
-    const staffMatch = path.match(/^\/api\/v1\/staff\/([a-f0-9-]+)$/i);
+    const staffMatch = path.match(/^\/api\/v1\/staff\/((?:[a-f0-9-]+|\d+))$/i);
     if (staffMatch) {
       const staffId = staffMatch[1];
       if (method === 'GET') {
@@ -544,7 +544,7 @@ exports.handler = async (event, context) => {
       }
     }
     // Time entry by ID routes - supports both /api/v1/time-entries/:id and /api/v1/staff/time-entries/:id
-    const timeEntryMatch = path.match(/\/api\/v1\/(?:staff\/)?time-entries\/([a-f0-9-]+)(\/.*)?$/i);
+    const timeEntryMatch = path.match(/\/api\/v1\/(?:staff\/)?time-entries\/((?:[a-f0-9-]+|\d+))(\/.*)?$/i);
     if (timeEntryMatch) {
       const entryId = timeEntryMatch[1];
       const subPath = timeEntryMatch[2] || '';
@@ -602,7 +602,7 @@ exports.handler = async (event, context) => {
     }
 
     // Shift by ID routes
-    const shiftMatch = path.match(/\/api\/v1\/shifts\/([a-f0-9-]+)(\/.*)?$/i);
+    const shiftMatch = path.match(/\/api\/v1\/shifts\/((?:[a-f0-9-]+|\d+))(\/.*)?$/i);
     if (shiftMatch) {
       const shiftId = shiftMatch[1];
       const subPath = shiftMatch[2] || '';
@@ -636,7 +636,7 @@ exports.handler = async (event, context) => {
     }
 
     // Incident by ID routes
-    const incidentMatch = path.match(/\/api\/v1\/incidents\/([a-f0-9-]+)(\/.*)?$/i);
+    const incidentMatch = path.match(/\/api\/v1\/incidents\/((?:[a-f0-9-]+|\d+))(\/.*)?$/i);
     if (incidentMatch) {
       const incidentId = incidentMatch[1];
       const subPath = incidentMatch[2] || '';
@@ -688,7 +688,7 @@ exports.handler = async (event, context) => {
     }
 
     // Workflow folder by ID
-    const workflowFolderMatch = path.match(/\/api\/v1\/workflows\/folders\/([a-f0-9-]+)$/i);
+    const workflowFolderMatch = path.match(/\/api\/v1\/workflows\/folders\/((?:[a-f0-9-]+|\d+))$/i);
     if (workflowFolderMatch) {
       const folderId = workflowFolderMatch[1];
       if (method === 'PUT' || method === 'PATCH') {
@@ -700,7 +700,7 @@ exports.handler = async (event, context) => {
     }
 
     // Workflow by ID routes
-    const workflowMatch = path.match(/\/api\/v1\/workflows\/([a-f0-9-]+)(\/.*)?$/i);
+    const workflowMatch = path.match(/\/api\/v1\/workflows\/((?:[a-f0-9-]+|\d+))(\/.*)?$/i);
     if (workflowMatch) {
       const workflowId = workflowMatch[1];
       const subPath = workflowMatch[2] || '';
@@ -750,7 +750,7 @@ exports.handler = async (event, context) => {
         return handleRetryAllFailedExecutions(tenantId, user, workflowId);
       }
       // Execution by ID
-      const executionMatch = subPath.match(/\/executions\/([a-f0-9-]+)(\/.*)?$/i);
+      const executionMatch = subPath.match(/\/executions\/((?:[a-f0-9-]+|\d+))(\/.*)?$/i);
       if (executionMatch) {
         const executionId = executionMatch[1];
         const execSubPath = executionMatch[2] || '';
@@ -891,7 +891,7 @@ exports.handler = async (event, context) => {
     }
 
     // Run template by ID
-    const runTemplateMatch = path.match(/\/api\/v1\/run-templates\/([a-f0-9-]+)$/i);
+    const runTemplateMatch = path.match(/\/api\/v1\/run-templates\/((?:[a-f0-9-]+|\d+))$/i);
     if (runTemplateMatch) {
       const templateId = runTemplateMatch[1];
       if (method === 'GET') {
@@ -927,7 +927,7 @@ exports.handler = async (event, context) => {
     }
 
     // Single assignment update: PUT /api/v1/runs/assignments/:assignmentId
-    const singleAssignmentMatch = path.match(/\/api\/v1\/runs\/assignments\/([a-f0-9-]+)$/i);
+    const singleAssignmentMatch = path.match(/\/api\/v1\/runs\/assignments\/((?:[a-f0-9-]+|\d+))$/i);
     if (singleAssignmentMatch) {
       const assignmentId = singleAssignmentMatch[1];
       if (method === 'PUT' || method === 'PATCH') {
@@ -936,7 +936,7 @@ exports.handler = async (event, context) => {
     }
 
     // Bulk update run assignments for a specific run
-    const runAssignMatch = path.match(/\/api\/v1\/runs\/([a-f0-9-]+)\/assignments$/i);
+    const runAssignMatch = path.match(/\/api\/v1\/runs\/((?:[a-f0-9-]+|\d+))\/assignments$/i);
     if (runAssignMatch) {
       const runId = runAssignMatch[1];
       if (method === 'GET') {
@@ -951,7 +951,7 @@ exports.handler = async (event, context) => {
     }
 
     // Run by ID
-    const runMatch = path.match(/\/api\/v1\/runs\/([a-f0-9-]+)(\/.*)?$/i);
+    const runMatch = path.match(/\/api\/v1\/runs\/((?:[a-f0-9-]+|\d+))(\/.*)?$/i);
     if (runMatch) {
       const runId = runMatch[1];
       const subPath = runMatch[2] || '';
@@ -1011,7 +1011,7 @@ exports.handler = async (event, context) => {
     }
 
     // Customer booking by ID
-    const customerBookingMatch = path.match(/\/api\/v1\/customer\/bookings\/([a-f0-9-]+)$/i);
+    const customerBookingMatch = path.match(/\/api\/v1\/customer\/bookings\/((?:[a-f0-9-]+|\d+))$/i);
     if (customerBookingMatch) {
       const bookingId = customerBookingMatch[1];
       if (method === 'GET') {
@@ -1178,7 +1178,7 @@ async function handleGetBookings(tenantId, queryParams) {
     // OPTIMIZED: Single query with JSON aggregation for pets (eliminates N+1 query pattern)
     const result = await query(
       `SELECT
-         b.id,
+         b.record_id,
          b.tenant_id,
          b.owner_id,
          b.status,
@@ -1196,21 +1196,21 @@ async function handleGetBookings(tenantId, queryParams) {
          b.updated_at,
          k.name as kennel_name,
          s.name as service_name,
-         o.id as resolved_owner_id,
+         o.record_id as resolved_owner_id,
          o.first_name as owner_first_name,
          o.last_name as owner_last_name,
          o.email as owner_email,
          o.phone as owner_phone,
          COALESCE(
            (SELECT json_agg(json_build_object(
-             'id', p.id,
+             'id', p.record_id,
              'name', p.name,
              'species', p.species,
              'breed', p.breed
            ))
            FROM "BookingPet" bp
            JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
-           WHERE bp.booking_id = b.id),
+           WHERE bp.booking_id = b.record_id),
            '[]'::json
          ) as pets
        FROM "Booking" b
@@ -1219,7 +1219,7 @@ async function handleGetBookings(tenantId, queryParams) {
        LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
        LEFT JOIN "BookingPet" bp ON bp.tenant_id = b.tenant_id AND bp.booking_id = b.record_id
        WHERE ${whereClause}
-       GROUP BY b.id, k.name, s.name, o.id, o.first_name, o.last_name, o.email, o.phone
+       GROUP BY b.record_id, k.name, s.name, o.record_id, o.first_name, o.last_name, o.email, o.phone
        ORDER BY b.check_in DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...params, parseInt(limit), parseInt(offset)]
@@ -1228,7 +1228,7 @@ async function handleGetBookings(tenantId, queryParams) {
     console.log('[Bookings][diag] count:', result.rows.length);
 
     const bookings = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       tenantId: row.tenant_id,
       petId: row.pet_id,
       ownerId: row.owner_id || row.resolved_owner_id,
@@ -1309,7 +1309,7 @@ async function handleGetBooking(tenantId, bookingId) {
 
     const result = await query(
       `SELECT
-         b.id, b.tenant_id, b.pet_id, b.owner_id, b.service_id, b.kennel_id,
+         b.record_id, b.tenant_id, b.pet_id, b.owner_id, b.service_id, b.kennel_id,
          b.check_in, b.check_out, b.status, b.service_type, b.service_name AS stored_service_name,
          b.kennel_name AS stored_kennel_name, b.room_number, b.total_price_in_cents,
          b.deposit_in_cents, b.notes, b.special_instructions, b.checked_in_at,
@@ -1359,7 +1359,7 @@ async function handleGetBooking(tenantId, bookingId) {
     }
 
     return createResponse(200, {
-      id: booking.id,
+      id: booking.record_id,
       tenantId: booking.tenant_id,
       petId: booking.pet_id,
       ownerId: booking.owner_id,
@@ -1563,22 +1563,22 @@ async function handleCreateBooking(tenantId, user, body) {
     for (const pid of petsToLink) {
       await query(
         `INSERT INTO "BookingPet" (booking_id, pet_id, tenant_id) VALUES ($1, $2, $3)`,
-        [booking.id, pid, tenantId]
+        [booking.record_id, pid, tenantId]
       );
     }
 
-    console.log('[Bookings][create] created:', booking.id);
+    console.log('[Bookings][create] created:', booking.record_id);
 
     // Send confirmation email asynchronously (don't block response)
     if (sendConfirmation && ownerId) {
-      sendBookingConfirmationEmail(tenantId, booking.id, user?.id).catch(err => {
+      sendBookingConfirmationEmail(tenantId, booking.record_id, user?.id).catch(err => {
         console.error('[Bookings][create] Failed to send confirmation email:', err.message);
       });
     }
 
     // Publish workflow event
     try {
-      await publishWorkflowEvent('booking.created', booking.id, 'booking', tenantId, {
+      await publishWorkflowEvent('booking.created', booking.record_id, 'booking', tenantId, {
         status: booking.status,
         ownerId: booking.owner_id,
         kennelId: booking.kennel_id,
@@ -1594,7 +1594,7 @@ async function handleCreateBooking(tenantId, user, body) {
     return createResponse(201, {
       success: true,
       booking: {
-        id: booking.id,
+        id: booking.record_id,
         tenantId: booking.tenant_id,
         status: booking.status,
         startDate: booking.check_in,
@@ -1708,7 +1708,7 @@ async function checkBookingCapacity(tenantId, kennelId, startDate, endDate) {
     const capacityResult = await query(
       `SELECT 
          COALESCE(SUM(k.capacity), 0) as total_capacity,
-         COUNT(k.id) as kennel_count
+         COUNT(k.record_id) as kennel_count
        FROM "Kennel" k
        WHERE k.tenant_id = $1 AND k.is_active = true`,
       [tenantId]
@@ -1802,17 +1802,17 @@ async function handleGetBookingConflicts(tenantId, params) {
     // Build query to find overlapping bookings for this kennel
     let conflictsQuery = `
       SELECT
-        b.id,
+        b.record_id,
         b.status,
         b.check_in as "startDate",
         b.check_out as "endDate",
         b.notes,
         b.created_at as "createdAt",
-        k.id as kennel_id,
+        k.record_id as kennel_id,
         k.name as kennel_name,
-        s.id as service_id,
+        s.record_id as service_id,
         s.name as service_name,
-        o.id as owner_id,
+        o.record_id as owner_id,
         o.first_name as owner_first_name,
         o.last_name as owner_last_name,
         o.email as owner_email
@@ -1831,7 +1831,7 @@ async function handleGetBookingConflicts(tenantId, params) {
 
     // Exclude a specific booking (for editing existing bookings)
     if (excludeBookingId) {
-      conflictsQuery += ` AND b.id != $5`;
+      conflictsQuery += ` AND b.record_id != $5`;
       queryParams.push(excludeBookingId);
     }
 
@@ -1843,15 +1843,15 @@ async function handleGetBookingConflicts(tenantId, params) {
     const conflicts = await Promise.all(result.rows.map(async (row) => {
       // Get pets for this booking
       const petsResult = await query(
-        `SELECT p.id, p.name, p.species, p.breed
+        `SELECT p.record_id, p.name, p.species, p.breed
          FROM "BookingPet" bp
          JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
          WHERE bp.booking_id = $1`,
-        [row.id]
+        [row.record_id]
       );
 
       return {
-        id: row.id,
+        id: row.record_id,
         status: row.status,
         startDate: row.startDate,
         endDate: row.endDate,
@@ -1904,7 +1904,7 @@ async function sendBookingConfirmationEmail(tenantId, bookingId, userId) {
     const bookingResult = await query(
       `SELECT
          b.*,
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name as owner_first_name,
          o.last_name as owner_last_name,
          o.email as owner_email,
@@ -2072,7 +2072,7 @@ async function handleUpdateBooking(tenantId, bookingId, body) {
 
     // Publish workflow event for modification
     try {
-      await publishWorkflowEvent('booking.modified', booking.id, 'booking', tenantId, {
+      await publishWorkflowEvent('booking.modified', booking.record_id, 'booking', tenantId, {
         status: booking.status,
         changes: Object.keys(body).filter(k => body[k] !== undefined),
       });
@@ -2085,7 +2085,7 @@ async function handleUpdateBooking(tenantId, bookingId, body) {
       const upperStatus = status.toUpperCase();
       try {
         if (upperStatus === 'CONFIRMED') {
-          await publishWorkflowEvent('booking.confirmed', booking.id, 'booking', tenantId, {});
+          await publishWorkflowEvent('booking.confirmed', booking.record_id, 'booking', tenantId, {});
         }
       } catch (err) {
         console.error('[Bookings][update] Failed to publish status workflow event:', err.message);
@@ -2141,7 +2141,7 @@ async function handleCancelBooking(tenantId, bookingId) {
 
     // Publish workflow event
     try {
-      await publishWorkflowEvent('booking.cancelled', booking.id, 'booking', tenantId, {
+      await publishWorkflowEvent('booking.cancelled', booking.record_id, 'booking', tenantId, {
         cancelledAt: booking.cancelled_at,
         reason: booking.cancellation_reason || null,
       });
@@ -2172,7 +2172,7 @@ async function sendBookingCancellationEmail(tenantId, bookingId) {
     const bookingResult = await query(
       `SELECT
          b.*,
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name as owner_first_name,
          o.email as owner_email,
          s.name as service_name
@@ -2272,7 +2272,7 @@ async function handleCheckIn(tenantId, bookingId, body) {
 
     // Publish workflow event
     try {
-      await publishWorkflowEvent('booking.checked_in', booking.id, 'booking', tenantId, {
+      await publishWorkflowEvent('booking.checked_in', booking.record_id, 'booking', tenantId, {
         checkedInAt: booking.checked_in_at,
         checkedInBy: booking.checked_in_by,
       });
@@ -2286,7 +2286,7 @@ async function handleCheckIn(tenantId, bookingId, body) {
       checkInTime: booking.checked_in_at,
       // Return full booking data for UI update
       data: {
-        id: booking.id,
+        id: booking.record_id,
         status: booking.status,
         checkedInAt: booking.checked_in_at,
         checkedInBy: booking.checked_in_by,
@@ -2312,7 +2312,7 @@ async function sendCheckInEmail(tenantId, bookingId) {
     const bookingResult = await query(
       `SELECT
          b.*,
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name as owner_first_name,
          o.email as owner_email,
          s.name as service_name
@@ -2403,7 +2403,7 @@ async function handleCheckOut(tenantId, bookingId, body) {
 
     // Publish workflow event
     try {
-      await publishWorkflowEvent('booking.checked_out', booking.id, 'booking', tenantId, {
+      await publishWorkflowEvent('booking.checked_out', booking.record_id, 'booking', tenantId, {
         checkedOutAt: booking.checked_out_at,
         checkedOutBy: booking.checked_out_by,
       });
@@ -2417,7 +2417,7 @@ async function handleCheckOut(tenantId, bookingId, body) {
       checkOutTime: booking.checked_out_at,
       // Return full booking data for UI update
       data: {
-        id: booking.id,
+        id: booking.record_id,
         status: booking.status,
         checkedInAt: booking.checked_in_at,
         checkedOutAt: booking.checked_out_at,
@@ -2574,7 +2574,7 @@ async function handleBulkUpdateBookings(tenantId, user, body) {
     return createResponse(200, {
       success: true,
       updatedCount: result.rowCount,
-      updatedIds: result.rows.map(r => r.id),
+      updatedIds: result.rows.map(r => r.record_id),
       message: `${result.rowCount} booking(s) updated successfully`,
     });
   } catch (error) {
@@ -2604,7 +2604,7 @@ async function handleBulkExportBookings(tenantId, user, body) {
 
     let queryText = `
       SELECT
-        b.id,
+        b.record_id,
         b.status,
         b.check_in,
         b.check_out,
@@ -2630,7 +2630,7 @@ async function handleBulkExportBookings(tenantId, user, body) {
     let paramIndex = 2;
 
     if (Array.isArray(ids) && ids.length > 0) {
-      queryText += ` AND b.id = ANY($${paramIndex++})`;
+      queryText += ` AND b.record_id = ANY($${paramIndex++})`;
       params.push(ids);
     }
 
@@ -2645,7 +2645,7 @@ async function handleBulkExportBookings(tenantId, user, body) {
     const result = await query(queryText, params);
 
     // Get pets for each booking
-    const bookingIds = result.rows.map(b => b.id);
+    const bookingIds = result.rows.map(b => b.record_id);
     let petsMap = {};
 
     if (bookingIds.length > 0) {
@@ -2674,7 +2674,7 @@ async function handleBulkExportBookings(tenantId, user, body) {
       totalPrice: booking.total_price_in_cents / 100,
       deposit: booking.deposit_in_cents / 100,
       ownerName: `${booking.owner_first_name || ''} ${booking.owner_last_name || ''}`.trim(),
-      pets: petsMap[booking.id] || [],
+      pets: petsMap[booking.record_id] || [],
     }));
 
     console.log('[Bookings][bulkExport] exported:', result.rows.length);
@@ -2703,7 +2703,7 @@ async function sendCheckOutEmail(tenantId, bookingId, totalPriceInCents) {
     const bookingResult = await query(
       `SELECT
          b.*,
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name as owner_first_name,
          o.email as owner_email
        FROM "Booking" b
@@ -2803,7 +2803,7 @@ async function handleGetTasks(tenantId, queryParams) {
     //         priority, title, description, notes, due_at, completed_at, completed_by
     const result = await query(
       `SELECT
-         t.id,
+         t.record_id,
          t.tenant_id,
          t.task_type,
          t.title,
@@ -2823,7 +2823,7 @@ async function handleGetTasks(tenantId, queryParams) {
          u.last_name as assignee_last_name,
          p.name as pet_name
        FROM "Task" t
-       LEFT JOIN "User" u ON t.assigned_to = u.id
+       LEFT JOIN "User" u ON t.assigned_to = u.record_id
        LEFT JOIN "Pet" p ON p.tenant_id = t.tenant_id AND t.pet_id = p.record_id
        WHERE ${whereClause}
        ORDER BY t.due_at ASC NULLS LAST, t.priority DESC
@@ -2834,8 +2834,8 @@ async function handleGetTasks(tenantId, queryParams) {
     console.log('[Tasks][diag] count:', result.rows.length);
 
     const tasks = result.rows.map(row => ({
-      id: row.id,
-      recordId: row.id,
+      id: row.record_id,
+      recordId: row.record_id,
       tenantId: row.tenant_id,
       type: row.task_type,  // Column is task_type, expose as type for frontend
       taskType: row.task_type,
@@ -2901,7 +2901,7 @@ async function handleGetTask(tenantId, taskId) {
     const result = await query(
       `SELECT t.*, u.first_name, u.last_name
        FROM "Task" t
-       LEFT JOIN "User" u ON t.assigned_to = u.id
+       LEFT JOIN "User" u ON t.assigned_to = u.record_id
        WHERE t.record_id = $1 AND t.tenant_id = $2`,
       [taskId, tenantId]
     );
@@ -2916,7 +2916,7 @@ async function handleGetTask(tenantId, taskId) {
     const row = result.rows[0];
 
     return createResponse(200, {
-      id: row.id,
+      id: row.record_id,
       tenantId: row.tenant_id,
       type: row.task_type,  // Column is task_type, expose as type for frontend
       taskType: row.task_type,
@@ -3190,20 +3190,20 @@ async function handleGetStaffSchedules(tenantId, queryParams) {
     // Return staff with their assignments for today
     const result = await query(
       `SELECT
-         s.id,
+         s.record_id,
          s.title,
          u.first_name,
          u.last_name,
          u.email
        FROM "Staff" s
-       JOIN "User" u ON s.user_id = u.id
+       JOIN "User" u ON s.user_id = u.record_id
        WHERE s.tenant_id = $1 AND s.is_active = true`,
       [tenantId]
     );
 
     return createResponse(200, {
       data: result.rows.map(s => ({
-        id: s.id,
+        id: s.record_id,
         name: `${s.first_name} ${s.last_name}`.trim(),
         title: s.title,
         email: s.email,
@@ -3272,7 +3272,7 @@ async function handleGetNotifications(tenantId, userId, queryParams = {}) {
     );
 
     const notifications = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       type: row.type,
       title: row.title,
       message: row.message,
@@ -3446,7 +3446,7 @@ async function handleCreateNotification(tenantId, body) {
     return createResponse(201, {
       success: true,
       notification: {
-        id: notification.id,
+        id: notification.record_id,
         type: notification.type,
         title: notification.title,
         message: notification.message,
@@ -3488,7 +3488,7 @@ async function handleGetRunTemplates(tenantId, queryParams) {
 
     const result = await query(
       `SELECT
-         rt.id,
+         rt.record_id,
          rt.name,
          rt.description,
          rt.capacity,
@@ -3509,8 +3509,8 @@ async function handleGetRunTemplates(tenantId, queryParams) {
 
     // Map to frontend expected shape
     const templates = result.rows.map(row => ({
-      id: row.id,
-      recordId: row.id,
+      id: row.record_id,
+      recordId: row.record_id,
       name: row.name,
       description: row.description,
       capacity: row.capacity,
@@ -3559,7 +3559,7 @@ async function handleGetRunTemplate(tenantId, templateId) {
 
     const result = await query(
       `SELECT
-         rt.id,
+         rt.record_id,
          rt.name,
          rt.description,
          rt.capacity,
@@ -3585,8 +3585,8 @@ async function handleGetRunTemplate(tenantId, templateId) {
     const row = result.rows[0];
 
     return createResponse(200, {
-      id: row.id,
-      recordId: row.id,
+      id: row.record_id,
+      recordId: row.record_id,
       name: row.name,
       description: row.description,
       capacity: row.capacity,
@@ -3647,12 +3647,12 @@ async function handleCreateRunTemplate(tenantId, body) {
 
     const row = result.rows[0];
 
-    console.log('[RunTemplates][create] Created template:', row.id);
+    console.log('[RunTemplates][create] Created template:', row.record_id);
 
     return createResponse(201, {
       success: true,
-      id: row.id,
-      recordId: row.id,
+      id: row.record_id,
+      recordId: row.record_id,
       name: row.name,
       description: row.description,
       capacity: row.capacity,
@@ -3746,12 +3746,12 @@ async function handleUpdateRunTemplate(tenantId, templateId, body) {
 
     const row = result.rows[0];
 
-    console.log('[RunTemplates][update] Updated template:', row.id);
+    console.log('[RunTemplates][update] Updated template:', row.record_id);
 
     return createResponse(200, {
       success: true,
-      id: row.id,
-      recordId: row.id,
+      id: row.record_id,
+      recordId: row.record_id,
       name: row.name,
       description: row.description,
       capacity: row.capacity,
@@ -3888,13 +3888,13 @@ async function handleGetRuns(tenantId, queryParams) {
 
     const result = await query(
       `SELECT
-         r.id,
+         r.record_id,
          r.name,
          r.description,
          r.capacity,
          r.run_type,
          r.is_active,
-         (SELECT COUNT(*) FROM "RunAssignment" ra WHERE ra.run_id = r.id) as assignment_count
+         (SELECT COUNT(*) FROM "RunAssignment" ra WHERE ra.run_id = r.record_id) as assignment_count
        FROM "Run" r
        WHERE ${whereClause}
        ORDER BY r.name ASC`,
@@ -3904,7 +3904,7 @@ async function handleGetRuns(tenantId, queryParams) {
     console.log('[Runs][list] Found:', result.rows.length, 'runs');
 
     const runs = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       name: row.name,
       description: row.description,
       capacity: row.capacity || 10,
@@ -4014,7 +4014,7 @@ async function handleGetRunAssignments(tenantId, queryParams) {
     // Run schema: id, tenant_id, name, description, capacity, run_type, is_active
     const result = await query(
       `SELECT
-         ra.id,
+         ra.record_id,
          ra.run_id,
          ra.booking_id,
          ra.pet_id,
@@ -4044,7 +4044,7 @@ async function handleGetRunAssignments(tenantId, queryParams) {
          ON r.id = ra.run_id
         AND r.tenant_id = ra.tenant_id
        LEFT JOIN "Pet" p
-         ON p.id = ra.pet_id
+         ON p.record_id = ra.pet_id
         AND p.tenant_id = ra.tenant_id
        LEFT JOIN "Booking" b
          ON b.id = ra.booking_id
@@ -4095,7 +4095,7 @@ async function handleGetRunAssignments(tenantId, queryParams) {
         : dateStr;
 
       return {
-        id: row.id,
+        id: row.record_id,
         runId: row.run_id,
         runName: row.run_name,
         runDescription: row.run_description,
@@ -4129,19 +4129,19 @@ async function handleGetRunAssignments(tenantId, queryParams) {
     // Also get runs for utilization calculation
     // First, debug: get ALL runs for this tenant regardless of is_active
     const debugAllRuns = await query(
-      `SELECT r.id, r.name, r.is_active, r.tenant_id FROM "Run" r WHERE r.tenant_id = $1`,
+      `SELECT r.record_id, r.name, r.is_active, r.tenant_id FROM "Run" r WHERE r.tenant_id = $1`,
       [tenantId]
     );
     console.log('[RunAssignments][DEBUG] ALL runs for tenant:', tenantId, ':', debugAllRuns.rows.length, debugAllRuns.rows);
 
     // Also try without tenant filter to see if data exists at all
-    const debugAnyRuns = await query(`SELECT r.id, r.name, r.tenant_id FROM "Run" r LIMIT 5`);
+    const debugAnyRuns = await query(`SELECT r.record_id, r.name, r.tenant_id FROM "Run" r LIMIT 5`);
     console.log('[RunAssignments][DEBUG] ANY runs in table:', debugAnyRuns.rows);
 
     // Note: is_active may be boolean true, string 'true', or 1
     const runsResult = await query(
       `SELECT
-         r.id,
+         r.record_id,
          r.name,
          r.description,
          r.capacity,
@@ -4154,10 +4154,10 @@ async function handleGetRunAssignments(tenantId, queryParams) {
       [tenantId]
     );
 
-    console.log('[RunAssignments] Found runs:', runsResult.rows.length, runsResult.rows.map(r => ({ id: r.id, name: r.name, is_active: r.is_active })));
+    console.log('[RunAssignments] Found runs:', runsResult.rows.length, runsResult.rows.map(r => ({ id: r.record_id, name: r.name, is_active: r.is_active })));
 
     const runs = runsResult.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       name: row.name,
       description: row.description,
       capacity: row.capacity || 10,
@@ -4461,7 +4461,7 @@ async function handleGetRunAssignmentsForRun(tenantId, runId, queryParams) {
 
     const result = await query(
       `SELECT
-         ra.id,
+         ra.record_id,
          ra.booking_id,
          ra.pet_id,
          ra.assigned_date,
@@ -4472,7 +4472,7 @@ async function handleGetRunAssignmentsForRun(tenantId, runId, queryParams) {
          p.species as pet_species,
          p.breed as pet_breed
        FROM "RunAssignment" ra
-       LEFT JOIN "Pet" p ON p.id = ra.pet_id
+       LEFT JOIN "Pet" p ON p.record_id = ra.pet_id
        WHERE ra.run_id = $1
          AND ra.tenant_id = $2
          AND ra.assigned_date >= $3::date
@@ -4494,7 +4494,7 @@ async function handleGetRunAssignmentsForRun(tenantId, runId, queryParams) {
         : dateStr;
 
       return {
-        id: row.id,
+        id: row.record_id,
         bookingId: row.booking_id,
         petId: row.pet_id,
         petName: row.pet_name,
@@ -4713,7 +4713,7 @@ async function handleClearRunAssignments(tenantId, runId, body) {
     return createResponse(200, {
       success: true,
       clearedCount: deletedCount,
-      deletedIds: result.rows.map(r => r.id),
+      deletedIds: result.rows.map(r => r.record_id),
       message: `${deletedCount} assignment(s) cleared`,
     });
 
@@ -4736,7 +4736,7 @@ async function handleGetRun(tenantId, runId) {
     // Schema: Run has id, tenant_id, name, description, capacity, run_type, is_active
     const result = await query(
       `SELECT
-         r.id,
+         r.record_id,
          r.name,
          r.description,
          r.capacity,
@@ -4761,7 +4761,7 @@ async function handleGetRun(tenantId, runId) {
     // Get assignments for this run
     const assignmentsResult = await query(
       `SELECT
-         ra.id,
+         ra.record_id,
          ra.booking_id,
          ra.pet_id,
          ra.assigned_date,
@@ -4790,7 +4790,7 @@ async function handleGetRun(tenantId, runId) {
         : dateStr;
 
       return {
-        id: a.id,
+        id: a.record_id,
         bookingId: a.booking_id,
         petId: a.pet_id,
         petName: a.pet_name,
@@ -4805,7 +4805,7 @@ async function handleGetRun(tenantId, runId) {
     });
 
     return createResponse(200, {
-      id: row.id,
+      id: row.record_id,
       name: row.name,
       description: row.description,
       capacity: row.capacity || 10,
@@ -4867,11 +4867,11 @@ async function handleCreateRun(tenantId, body) {
 
     const row = result.rows[0];
 
-    console.log('[Runs][create] Created run:', row.id);
+    console.log('[Runs][create] Created run:', row.record_id);
 
     return createResponse(201, {
       success: true,
-      id: row.id,
+      id: row.record_id,
       name: row.name,
       code: row.code,
       size: row.size,
@@ -4961,11 +4961,11 @@ async function handleUpdateRun(tenantId, runId, body) {
 
     const row = result.rows[0];
 
-    console.log('[Runs][update] Updated run:', row.id);
+    console.log('[Runs][update] Updated run:', row.record_id);
 
     return createResponse(200, {
       success: true,
-      id: row.id,
+      id: row.record_id,
       name: row.name,
       code: row.code,
       size: row.size,
@@ -5022,7 +5022,7 @@ async function handleGetAvailableSlots(tenantId, runId, queryParams) {
 
     // Get run details - Run table has: id, tenant_id, name, description, capacity, run_type, is_active
     const runResult = await query(
-      `SELECT r.id, r.name, r.description, r.capacity, r.run_type, r.is_active
+      `SELECT r.record_id, r.name, r.description, r.capacity, r.run_type, r.is_active
        FROM "Run" r
        WHERE r.record_id = $1 AND r.tenant_id = $2`,
       [runId, tenantId]
@@ -5159,7 +5159,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
     if (typeFilter.includes('booking') || typeFilter.includes('bookings')) {
       const bookingsResult = await query(
         `SELECT
-           b.id,
+           b.record_id,
            b.status,
            b.check_in AS start_date,
            b.check_out AS end_date,
@@ -5182,12 +5182,12 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
       );
 
       // Get pets for each booking
-      const bookingIds = bookingsResult.rows.map(b => b.id);
+      const bookingIds = bookingsResult.rows.map(b => b.record_id);
       let petsMap = {};
 
       if (bookingIds.length > 0) {
         const petsResult = await query(
-          `SELECT bp.booking_id, p.id, p.name, p.species, p.breed, p.photo_url
+          `SELECT bp.booking_id, p.record_id, p.name, p.species, p.breed, p.photo_url
            FROM "BookingPet" bp
            JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
            WHERE bp.booking_id = ANY($1)`,
@@ -5199,7 +5199,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
             petsMap[pet.booking_id] = [];
           }
           petsMap[pet.booking_id].push({
-            id: pet.id,
+            id: pet.record_id,
             name: pet.name,
             species: pet.species,
             breed: pet.breed,
@@ -5209,11 +5209,11 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
       }
 
       bookingsResult.rows.forEach(row => {
-        const pets = petsMap[row.id] || [];
+        const pets = petsMap[row.record_id] || [];
         const petNames = pets.map(p => p.name).join(', ');
 
         events.push({
-          id: row.id,
+          id: row.record_id,
           type: 'booking',
           title: petNames || 'Booking',
           start: row.start_date,
@@ -5238,7 +5238,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
     if (typeFilter.includes('task') || typeFilter.includes('tasks')) {
       const tasksResult = await query(
         `SELECT
-           t.id,
+           t.record_id,
            t.title,
            t.description,
            t.status,
@@ -5250,7 +5250,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
            u.last_name as assignee_last_name,
            p.name as pet_name
          FROM "Task" t
-         LEFT JOIN "User" u ON t.assigned_to = u.id
+         LEFT JOIN "User" u ON t.assigned_to = u.record_id
          LEFT JOIN "Pet" p ON p.tenant_id = t.tenant_id AND t.pet_id = p.record_id
          WHERE t.tenant_id = $1
                      AND (
@@ -5263,7 +5263,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
 
       tasksResult.rows.forEach(row => {
         events.push({
-          id: row.id,
+          id: row.record_id,
           type: 'task',
           title: row.title,
           description: row.description,
@@ -5285,7 +5285,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
     if (typeFilter.includes('run') || typeFilter.includes('runs')) {
       const runsResult = await query(
         `SELECT
-           ra.id,
+           ra.record_id,
            ra.run_id,
            ra.pet_id,
            ra.assigned_date,
@@ -5299,7 +5299,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
            p.species as pet_species,
            p.photo_url as pet_photo_url
          FROM "RunAssignment" ra
-         JOIN "Run" r ON ra.run_id = r.id AND r.tenant_id = ra.tenant_id
+         JOIN "Run" r ON ra.run_id = r.record_id AND r.tenant_id = ra.tenant_id
          LEFT JOIN "Pet" p ON p.tenant_id = ra.tenant_id AND ra.pet_id = p.record_id
          WHERE ra.tenant_id = $1
            AND ra.assigned_date BETWEEN $2::date AND $3::date
@@ -5322,7 +5322,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
           : dateStr;
 
         events.push({
-          id: row.id,
+          id: row.record_id,
           type: 'run',
           title: `${row.pet_name || 'Pet'} - ${row.run_name || 'Run'}`,
           start: startDateTime,
@@ -5421,7 +5421,7 @@ async function handleGetOccupancy(tenantId, queryParams) {
        daily_counts AS (
          SELECT
            ds.date,
-           COUNT(b.id) as occupied
+           COUNT(b.record_id) as occupied
          FROM date_series ds
          LEFT JOIN "Booking" b ON
            b.tenant_id = $1
@@ -5615,7 +5615,7 @@ async function handleSendEmail(tenantId, user, body) {
       content: text || html || `Template: ${templateName}`,
       status: 'sent',
       templateUsed: templateName,
-      userId: user?.id,
+      userId: user?.userId,
     });
 
     return createResponse(200, {
@@ -5634,7 +5634,7 @@ async function handleSendEmail(tenantId, user, body) {
       content: `Failed: ${error.message}`,
       status: 'failed',
       templateUsed: templateName,
-      userId: user?.id,
+      userId: user?.userId,
     });
 
     return createResponse(500, {
@@ -5670,7 +5670,7 @@ async function handleSendBookingConfirmation(tenantId, user, body) {
       const bookingResult = await query(
         `SELECT
            b.*,
-           o.id as owner_id,
+           o.record_id as owner_id,
            o.first_name as owner_first_name,
            o.last_name as owner_last_name,
            o.email as owner_email,
@@ -5742,13 +5742,13 @@ async function handleSendBookingConfirmation(tenantId, user, body) {
 
     // Log to Communication table
     await logEmailToCommunication(tenantId, {
-      ownerId: owner.id,
+      ownerId: owner.record_id,
       recipientEmail: owner.email,
       subject: `Booking Confirmed - ${pets.join(', ') || 'Your pet'}`,
       content: `Booking confirmation for ${booking.check_in} to ${booking.check_out}`,
       status: 'sent',
       templateUsed: 'bookingConfirmation',
-      userId: user?.id,
+      userId: user?.userId,
     });
 
     return createResponse(200, {
@@ -5788,7 +5788,7 @@ async function handleSendBookingReminder(tenantId, user, body) {
     const bookingResult = await query(
       `SELECT
          b.*,
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name as owner_first_name,
          o.email as owner_email,
          s.name as service_name
@@ -5843,13 +5843,13 @@ async function handleSendBookingReminder(tenantId, user, body) {
 
     // Log to Communication table
     await logEmailToCommunication(tenantId, {
-      ownerId: owner.id,
+      ownerId: owner.record_id,
       recipientEmail: owner.email,
       subject: `Reminder: Upcoming Booking for ${petNames}`,
       content: `Booking reminder for ${booking.check_in}`,
       status: 'sent',
       templateUsed: 'bookingReminder',
-      userId: user?.id,
+      userId: user?.userId,
     });
 
     return createResponse(200, {
@@ -5894,8 +5894,8 @@ async function handleSendVaccinationReminder(tenantId, user, body) {
         SELECT
           v.*,
           p.name as pet_name,
-          p.id as pet_id,
-          o.id as owner_id,
+          p.record_id as pet_id,
+          o.record_id as owner_id,
           o.first_name as owner_first_name,
           o.email as owner_email
         FROM "Vaccination" v
@@ -5909,8 +5909,8 @@ async function handleSendVaccinationReminder(tenantId, user, body) {
         SELECT
           v.*,
           p.name as pet_name,
-          p.id as pet_id,
-          o.id as owner_id,
+          p.record_id as pet_id,
+          o.record_id as owner_id,
           o.first_name as owner_first_name,
           o.email as owner_email
         FROM "Vaccination" v
@@ -5960,13 +5960,13 @@ async function handleSendVaccinationReminder(tenantId, user, body) {
 
     // Log to Communication table
     await logEmailToCommunication(tenantId, {
-      ownerId: owner.id,
+      ownerId: owner.record_id,
       recipientEmail: owner.email,
       subject: `Vaccination Reminder for ${vacc.pet_name}`,
       content: `${vacc.type} expires on ${vacc.expires_at}`,
       status: 'sent',
       templateUsed: 'vaccinationReminder',
-      userId: user?.id,
+      userId: user?.userId,
     });
 
     return createResponse(200, {
@@ -5998,13 +5998,13 @@ async function handleBulkVaccinationReminders(tenantId, user, body) {
 
     // Find all vaccinations expiring within the specified windows
     const vaccResult = await query(
-      `SELECT DISTINCT ON (v.id)
-         v.id as vaccination_id,
+      `SELECT DISTINCT ON (v.record_id)
+         v.record_id as vaccination_id,
          v.type as vaccine_type,
          v.expires_at,
-         p.id as pet_id,
+         p.record_id as pet_id,
          p.name as pet_name,
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name as owner_first_name,
          o.email as owner_email,
          EXTRACT(DAY FROM v.expires_at - NOW())::integer as days_until_expiry
@@ -6020,7 +6020,7 @@ async function handleBulkVaccinationReminders(tenantId, user, body) {
            OR DATE(v.expires_at) = CURRENT_DATE + INTERVAL '7 days'
            OR v.expires_at < NOW()
          )
-       ORDER BY v.id, v.expires_at ASC`,
+       ORDER BY v.record_id, v.expires_at ASC`,
       [tenantId]
     );
 
@@ -6123,7 +6123,7 @@ async function handleSendCheckInConfirmation(tenantId, user, body) {
     const bookingResult = await query(
       `SELECT
          b.*,
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name as owner_first_name,
          o.email as owner_email,
          s.name as service_name
@@ -6177,13 +6177,13 @@ async function handleSendCheckInConfirmation(tenantId, user, body) {
 
     // Log to Communication table
     await logEmailToCommunication(tenantId, {
-      ownerId: owner.id,
+      ownerId: owner.record_id,
       recipientEmail: owner.email,
       subject: `${petNames} Has Been Checked In`,
       content: `Check-in confirmation for booking`,
       status: 'sent',
       templateUsed: 'checkInConfirmation',
-      userId: user?.id,
+      userId: user?.userId,
     });
 
     return createResponse(200, {
@@ -6223,7 +6223,7 @@ async function handleSendCheckOutConfirmation(tenantId, user, body) {
     const bookingResult = await query(
       `SELECT
          b.*,
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name as owner_first_name,
          o.email as owner_email
        FROM "Booking" b
@@ -6273,13 +6273,13 @@ async function handleSendCheckOutConfirmation(tenantId, user, body) {
 
     // Log to Communication table
     await logEmailToCommunication(tenantId, {
-      ownerId: owner.id,
+      ownerId: owner.record_id,
       recipientEmail: owner.email,
       subject: `${petNames} is Ready for Pick-Up`,
       content: `Check-out confirmation for booking`,
       status: 'sent',
       templateUsed: 'checkOutConfirmation',
-      userId: user?.id,
+      userId: user?.userId,
     });
 
     return createResponse(200, {
@@ -6346,7 +6346,7 @@ async function handleSendSMS(tenantId, user, body) {
       content: message,
       status: 'sent',
       messageSid: result.sid,
-      userId: user?.id,
+      userId: user?.userId,
     });
 
     return createResponse(200, {
@@ -6433,7 +6433,7 @@ async function handleSendBookingConfirmationSMS(tenantId, user, body) {
       status: 'sent',
       messageSid: result.sid,
       templateUsed: 'bookingConfirmation',
-      userId: user?.id,
+      userId: user?.userId,
     });
 
     return createResponse(200, {
@@ -6520,7 +6520,7 @@ async function handleSendBookingReminderSMS(tenantId, user, body) {
       status: 'sent',
       messageSid: result.sid,
       templateUsed: 'bookingReminder',
-      userId: user?.id,
+      userId: user?.userId,
     });
 
     return createResponse(200, {
@@ -6606,7 +6606,7 @@ async function handleSendCheckInSMS(tenantId, user, body) {
       status: 'sent',
       messageSid: result.sid,
       templateUsed: 'checkInConfirmation',
-      userId: user?.id,
+      userId: user?.userId,
     });
 
     return createResponse(200, {
@@ -6691,7 +6691,7 @@ async function handleSendCheckOutSMS(tenantId, user, body) {
       status: 'sent',
       messageSid: result.sid,
       templateUsed: 'checkOutConfirmation',
-      userId: user?.id,
+      userId: user?.userId,
     });
 
     return createResponse(200, {
@@ -6792,7 +6792,7 @@ async function handleGetIncidents(tenantId, queryParams) {
     // resolved_at, resolved_by, attachments, created_at, updated_at
     const result = await query(
       `SELECT
-         i.id,
+         i.record_id,
          i.tenant_id,
          i.title,
          i.description,
@@ -6815,7 +6815,7 @@ async function handleGetIncidents(tenantId, queryParams) {
          i.created_at,
          i.updated_at,
          p.name as pet_name,
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name as owner_first_name,
          o.last_name as owner_last_name,
          o.email as owner_email,
@@ -6824,9 +6824,9 @@ async function handleGetIncidents(tenantId, queryParams) {
          u.last_name as reported_by_last_name
        FROM "Incident" i
        LEFT JOIN "Pet" p ON p.tenant_id = i.tenant_id AND i.pet_id = p.record_id
-       LEFT JOIN "PetOwner" po ON p.id = po.pet_id AND po.is_primary = true
+       LEFT JOIN "PetOwner" po ON p.record_id = po.pet_id AND po.is_primary = true
        LEFT JOIN "Owner" o ON o.tenant_id = po.tenant_id AND po.owner_id = o.record_id
-       LEFT JOIN "User" u ON i.reported_by = u.id
+       LEFT JOIN "User" u ON i.reported_by = u.record_id
        WHERE ${whereClause}
        ORDER BY i.incident_date DESC, i.created_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -6834,7 +6834,7 @@ async function handleGetIncidents(tenantId, queryParams) {
     );
 
     const incidents = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       tenantId: row.tenant_id,
       title: row.title,
       description: row.description,
@@ -6919,8 +6919,8 @@ async function handleGetIncident(tenantId, incidentId) {
        FROM "Incident" i
        LEFT JOIN "Pet" p ON p.tenant_id = i.tenant_id AND i.pet_id = p.record_id
        LEFT JOIN "Owner" o ON o.tenant_id = i.tenant_id AND i.owner_id = o.record_id
-       LEFT JOIN "User" u ON i.created_by = u.id
-       LEFT JOIN "User" ru ON i.resolved_by = ru.id
+       LEFT JOIN "User" u ON i.created_by = u.record_id
+       LEFT JOIN "User" ru ON i.resolved_by = ru.record_id
        WHERE i.record_id = $1 AND i.tenant_id = $2`,
       [incidentId, tenantId]
     );
@@ -6935,7 +6935,7 @@ async function handleGetIncident(tenantId, incidentId) {
     const row = result.rows[0];
 
     return createResponse(200, {
-      id: row.id,
+      id: row.record_id,
       tenantId: row.tenant_id,
       petId: row.pet_id,
       petName: row.pet_name,
@@ -7078,7 +7078,7 @@ async function handleCreateIncident(tenantId, user, body) {
 
     return createResponse(201, {
       success: true,
-      id: incident.id,
+      id: incident.record_id,
       status: incident.status,
       message: 'Incident reported successfully',
     });
@@ -7338,7 +7338,7 @@ async function handleNotifyOwnerOfIncident(tenantId, user, incidentId, body) {
       content: message || `An incident involving ${incident.pet_name || 'your pet'} has been reported.`,
       status: 'sent',
       templateUsed: 'incidentNotification',
-      userId: user?.id,
+      userId: user?.userId,
     });
 
     console.log('[Incidents][notifyOwner] Owner notified for:', incidentId);
@@ -7399,7 +7399,7 @@ async function handleGetWorkflows(tenantId, queryParams) {
     const result = await query(
       `SELECT w.*, u.first_name as created_by_first_name, u.last_name as created_by_last_name
        FROM "Workflow" w
-       LEFT JOIN "User" u ON w.created_by = u.id
+       LEFT JOIN "User" u ON w.created_by = u.record_id
        WHERE ${whereClause}
        ORDER BY w.updated_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -7407,7 +7407,7 @@ async function handleGetWorkflows(tenantId, queryParams) {
     );
 
     const workflows = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       tenant_id: row.tenant_id,
       name: row.name,
       description: row.description,
@@ -7464,7 +7464,7 @@ async function handleGetWorkflow(tenantId, workflowId) {
     const result = await query(
       `SELECT w.*, u.first_name as created_by_first_name, u.last_name as created_by_last_name
        FROM "Workflow" w
-       LEFT JOIN "User" u ON w.created_by = u.id
+       LEFT JOIN "User" u ON w.created_by = u.record_id
        WHERE w.record_id = $1 AND w.tenant_id = $2 AND w.deleted_at IS NULL`,
       [workflowId, tenantId]
     );
@@ -7479,7 +7479,7 @@ async function handleGetWorkflow(tenantId, workflowId) {
     const row = result.rows[0];
 
     return createResponse(200, {
-      id: row.id,
+      id: row.record_id,
       tenant_id: row.tenant_id,
       name: row.name,
       description: row.description,
@@ -8406,7 +8406,7 @@ async function handleGetWorkflowDependencies(tenantId, workflowId) {
 
     // Get steps that reference other workflows (enroll_in_workflow action)
     const enrollStepsResult = await query(
-      `SELECT ws.id, ws.name, ws.config, w.name as target_workflow_name
+      `SELECT ws.record_id, ws.name, ws.config, w.name as target_workflow_name
        FROM "WorkflowStep" ws
        LEFT JOIN "Workflow" w ON w.id = (ws.config->>'workflowId')::uuid
        WHERE ws.workflow_id = $1 AND ws.action_type = 'enroll_in_workflow'`,
@@ -8415,7 +8415,7 @@ async function handleGetWorkflowDependencies(tenantId, workflowId) {
 
     // Get steps that create tasks
     const taskStepsResult = await query(
-      `SELECT ws.id, ws.name, ws.config
+      `SELECT ws.record_id, ws.name, ws.config
        FROM "WorkflowStep" ws
        WHERE ws.workflow_id = $1 AND ws.action_type = 'create_task'`,
       [workflowId]
@@ -8423,7 +8423,7 @@ async function handleGetWorkflowDependencies(tenantId, workflowId) {
 
     // Get steps that send emails
     const emailStepsResult = await query(
-      `SELECT ws.id, ws.name, ws.config
+      `SELECT ws.record_id, ws.name, ws.config
        FROM "WorkflowStep" ws
        WHERE ws.workflow_id = $1 AND ws.action_type = 'send_email'`,
       [workflowId]
@@ -8431,18 +8431,18 @@ async function handleGetWorkflowDependencies(tenantId, workflowId) {
 
     return createResponse(200, {
       workflows: enrollStepsResult.rows.map(s => ({
-        stepId: s.id,
+        stepId: s.record_id,
         stepName: s.name,
         targetWorkflowId: s.config?.workflowId,
         targetWorkflowName: s.target_workflow_name,
       })),
       tasks: taskStepsResult.rows.map(s => ({
-        stepId: s.id,
+        stepId: s.record_id,
         stepName: s.name,
         taskConfig: s.config,
       })),
       emails: emailStepsResult.rows.map(s => ({
-        stepId: s.id,
+        stepId: s.record_id,
         stepName: s.name,
         emailConfig: s.config,
       })),
@@ -8470,7 +8470,7 @@ async function handleGetWorkflowUsedBy(tenantId, workflowId) {
 
     // Find workflows that enroll into this workflow
     const result = await query(
-      `SELECT DISTINCT w.id, w.name, w.status, ws.name as step_name
+      `SELECT DISTINCT w.record_id, w.name, w.status, ws.name as step_name
        FROM "Workflow" w
        JOIN "WorkflowStep" ws ON ws.tenant_id = w.tenant_id AND ws.workflow_id = w.record_id
        WHERE w.tenant_id = $1
@@ -8482,7 +8482,7 @@ async function handleGetWorkflowUsedBy(tenantId, workflowId) {
 
     return createResponse(200, {
       workflows: result.rows.map(r => ({
-        id: r.id,
+        id: r.record_id,
         name: r.name,
         status: r.status,
         stepName: r.step_name,
@@ -9133,16 +9133,16 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
           jsonb_build_object('event', 'enrolled', 'message', 'Record enrolled in workflow') as result,
           NULL as error_message
         FROM "WorkflowExecution" e
-        LEFT JOIN "Pet" p ON LOWER(e.record_type) = 'pet' AND e.record_id = p.id
-        LEFT JOIN "Owner" o ON LOWER(e.record_type) IN ('owner', 'contact') AND e.record_id = o.id
-        LEFT JOIN "Booking" b ON LOWER(e.record_type) = 'booking' AND e.record_id = b.id
+        LEFT JOIN "Pet" p ON LOWER(e.record_type) = 'pet' AND e.record_id = p.record_id
+        LEFT JOIN "Owner" o ON LOWER(e.record_type) IN ('owner', 'contact') AND e.record_id = o.record_id
+        LEFT JOIN "Booking" b ON LOWER(e.record_type) = 'booking' AND e.record_id = b.record_id
         WHERE e.workflow_id = $1 AND e.tenant_id = $2
 
         UNION ALL
 
         -- STEP events from WorkflowExecutionLog
         SELECT
-          l.id,
+          l.record_id,
           l.execution_id,
           l.step_id,
           s.name as step_name,
@@ -9175,9 +9175,9 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
         FROM "WorkflowExecutionLog" l
         JOIN "WorkflowExecution" e ON e.id = l.execution_id
         LEFT JOIN "WorkflowStep" s ON s.id = l.step_id
-        LEFT JOIN "Pet" p ON LOWER(e.record_type) = 'pet' AND e.record_id = p.id
-        LEFT JOIN "Owner" o ON LOWER(e.record_type) IN ('owner', 'contact') AND e.record_id = o.id
-        LEFT JOIN "Booking" b ON LOWER(e.record_type) = 'booking' AND e.record_id = b.id
+        LEFT JOIN "Pet" p ON LOWER(e.record_type) = 'pet' AND e.record_id = p.record_id
+        LEFT JOIN "Owner" o ON LOWER(e.record_type) IN ('owner', 'contact') AND e.record_id = o.record_id
+        LEFT JOIN "Booking" b ON LOWER(e.record_type) = 'booking' AND e.record_id = b.record_id
         WHERE e.workflow_id = $1 AND e.tenant_id = $2
           AND (l.event_type IS NULL OR l.event_type NOT IN ('enrolled', 'completed', 'goal_met'))
 
@@ -9213,9 +9213,9 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
           END as result,
           NULL as error_message
         FROM "WorkflowExecution" e
-        LEFT JOIN "Pet" p ON LOWER(e.record_type) = 'pet' AND e.record_id = p.id
-        LEFT JOIN "Owner" o ON LOWER(e.record_type) IN ('owner', 'contact') AND e.record_id = o.id
-        LEFT JOIN "Booking" b ON LOWER(e.record_type) = 'booking' AND e.record_id = b.id
+        LEFT JOIN "Pet" p ON LOWER(e.record_type) = 'pet' AND e.record_id = p.record_id
+        LEFT JOIN "Owner" o ON LOWER(e.record_type) IN ('owner', 'contact') AND e.record_id = o.record_id
+        LEFT JOIN "Booking" b ON LOWER(e.record_type) = 'booking' AND e.record_id = b.record_id
         WHERE e.workflow_id = $1 AND e.tenant_id = $2
           AND e.completed_at IS NOT NULL
       )
@@ -9246,7 +9246,7 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
 
     // Transform rows to ensure proper types
     const logs = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       executionId: row.execution_id,
       stepId: row.step_id,
       stepName: row.step_name || null,
@@ -9295,7 +9295,7 @@ async function handleGetWorkflowExecution(tenantId, workflowId, executionId) {
     const result = await query(
       `SELECT e.*,
               w.settings->'timingConfig' as timing_config,
-              array_agg(json_build_object('id', l.id, 'step_id', l.step_id, 'status', l.status, 'started_at', l.started_at, 'completed_at', l.completed_at, 'result', l.result) ORDER BY l.started_at) as logs
+              array_agg(json_build_object('id', l.record_id, 'step_id', l.step_id, 'status', l.status, 'started_at', l.started_at, 'completed_at', l.completed_at, 'result', l.result) ORDER BY l.started_at) as logs
        FROM "WorkflowExecution" e
        JOIN "Workflow" w ON w.tenant_id = e.tenant_id AND e.workflow_id = w.record_id
        LEFT JOIN "WorkflowExecutionLog" l ON e.id = l.execution_id
@@ -9807,7 +9807,7 @@ async function handleClockIn(tenantId, user, body) {
         error: 'Conflict',
         message: 'Already clocked in',
         activeEntry: {
-          id: active.id,
+          id: active.record_id,
           clockIn: active.clock_in,
         },
       });
@@ -9827,7 +9827,7 @@ async function handleClockIn(tenantId, user, body) {
 
     return createResponse(201, {
       success: true,
-      id: entry.id,
+      id: entry.record_id,
       userId: entry.user_id,
       clockIn: entry.clock_in,
       status: entry.status,
@@ -9908,7 +9908,7 @@ async function handleClockOut(tenantId, user, body) {
            updated_at = NOW()
        WHERE id = $1 AND tenant_id = $2
        RETURNING *`,
-      [active.id, tenantId, notes, totalBreakMinutes]
+      [active.record_id, tenantId, notes, totalBreakMinutes]
     );
 
     const entry = result.rows[0];
@@ -9918,7 +9918,7 @@ async function handleClockOut(tenantId, user, body) {
 
     return createResponse(200, {
       success: true,
-      id: entry.id,
+      id: entry.record_id,
       clockIn: entry.clock_in,
       clockOut: entry.clock_out,
       breakMinutes: totalBreakMinutes,
@@ -9988,7 +9988,7 @@ async function handleStartBreak(tenantId, user, body) {
        SET is_on_break = true, break_start = NOW(), updated_at = NOW()
        WHERE id = $1 AND tenant_id = $2
        RETURNING *`,
-      [active.id, tenantId]
+      [active.record_id, tenantId]
     );
 
     return createResponse(200, {
@@ -10052,7 +10052,7 @@ async function handleEndBreak(tenantId, user, body) {
        SET is_on_break = false, break_start = NULL, break_minutes = $3, updated_at = NOW()
        WHERE id = $1 AND tenant_id = $2
        RETURNING *`,
-      [active.id, tenantId, totalBreakMinutes]
+      [active.record_id, tenantId, totalBreakMinutes]
     );
 
     return createResponse(200, {
@@ -10099,7 +10099,7 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
     const activeResult = await query(
       `SELECT te.*, u.first_name, u.last_name
        FROM "TimeEntry" te
-       JOIN "User" u ON te.user_id = u.id
+       JOIN "User" u ON te.user_id = u.record_id
        WHERE te.tenant_id = $1 AND te.user_id = $2 AND te.clock_out IS NULL
        LIMIT 1`,
       [tenantId, userId]
@@ -10127,7 +10127,7 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
       [tenantId, userId]
     );
     const recentEntries = recentResult.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       date: row.date,
       clockIn: row.clock_in,
       clockOut: row.clock_out,
@@ -10161,7 +10161,7 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
     return createResponse(200, {
       isClockedIn: true,
       isOnBreak: entry.is_on_break,
-      entryId: entry.id,
+      entryId: entry.record_id,
       userId: userId,
       userName: `${entry.first_name} ${entry.last_name}`.trim(),
       clockIn: entry.clock_in,
@@ -10218,7 +10218,7 @@ async function handleGetTimeEntries(tenantId, queryParams) {
          u.first_name, u.last_name, u.email as user_email,
          approver.first_name as approved_by_first, approver.last_name as approved_by_last
        FROM "TimeEntry" te
-       JOIN "User" u ON te.user_id = u.id
+       JOIN "User" u ON te.user_id = u.record_id
        LEFT JOIN "User" approver ON te.approved_by = approver.id
        WHERE ${whereClause}
        ORDER BY te.clock_in DESC
@@ -10227,7 +10227,7 @@ async function handleGetTimeEntries(tenantId, queryParams) {
     );
 
     const entries = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       userId: row.user_id,
       userName: `${row.first_name} ${row.last_name}`.trim(),
       userEmail: row.user_email,
@@ -10289,7 +10289,7 @@ async function handleGetTimeEntry(tenantId, entryId) {
          te.*,
          u.first_name, u.last_name, u.email as user_email
        FROM "TimeEntry" te
-       JOIN "User" u ON te.user_id = u.id
+       JOIN "User" u ON te.user_id = u.record_id
        WHERE te.record_id = $1 AND te.tenant_id = $2`,
       [entryId, tenantId]
     );
@@ -10304,7 +10304,7 @@ async function handleGetTimeEntry(tenantId, entryId) {
     const row = result.rows[0];
 
     return createResponse(200, {
-      id: row.id,
+      id: row.record_id,
       userId: row.user_id,
       userName: `${row.first_name} ${row.last_name}`.trim(),
       clockIn: row.clock_in,
@@ -10535,7 +10535,7 @@ async function handleGetShifts(tenantId, queryParams) {
     );
 
     const shifts = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       tenantId: row.tenant_id,
       staffId: row.staff_id,
       staffName: `${row.first_name} ${row.last_name}`.trim(),
@@ -10612,7 +10612,7 @@ async function handleGetShift(tenantId, shiftId) {
     const row = result.rows[0];
 
     return createResponse(200, {
-      id: row.id,
+      id: row.record_id,
       staffId: row.staff_id,
       staffName: `${row.first_name} ${row.last_name}`.trim(),
       startTime: row.start_time,
@@ -10676,7 +10676,7 @@ async function handleCreateShift(tenantId, user, body) {
 
     return createResponse(201, {
       success: true,
-      id: shift.id,
+      id: shift.record_id,
       startTime: shift.start_time,
       endTime: shift.end_time,
       message: 'Shift created successfully',
@@ -10915,7 +10915,7 @@ async function handleGetWeeklySchedule(tenantId, queryParams) {
     const shiftsResult = await query(
       `SELECT
          sh.*,
-         s.id as staff_id,
+         s.record_id as staff_id,
          s.first_name,
          s.last_name,
          s.role as staff_role
@@ -10940,8 +10940,8 @@ async function handleGetWeeklySchedule(tenantId, queryParams) {
     // Organize shifts by staff and day
     const staffMap = new Map();
     for (const staff of staffResult.rows) {
-      staffMap.set(staff.id, {
-        id: staff.id,
+      staffMap.set(staff.record_id, {
+        id: staff.record_id,
         name: `${staff.first_name} ${staff.last_name}`.trim(),
         role: staff.role,
         email: staff.email,
@@ -10955,7 +10955,7 @@ async function handleGetWeeklySchedule(tenantId, queryParams) {
         const shiftDate = new Date(row.start_time);
         const dayIndex = shiftDate.getDay();
         staffData.shifts[dayIndex].push({
-          id: row.id,
+          id: row.record_id,
           startTime: row.start_time,
           endTime: row.end_time,
           role: row.role,
@@ -11011,7 +11011,7 @@ async function handleGetShiftTemplates(tenantId) {
     );
 
     const templates = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       name: row.name,
       description: row.description,
       startTime: row.start_time,
@@ -11130,7 +11130,7 @@ async function handleGetRecurringBookings(tenantId, queryParams) {
     );
 
     const recurring = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       tenantId: row.tenant_id,
       ownerId: row.owner_id,
       ownerName: row.owner_first_name ? `${row.owner_first_name} ${row.owner_last_name || ''}`.trim() : null,
@@ -11207,7 +11207,7 @@ async function handleGetRecurringBooking(tenantId, recurringId) {
     const row = result.rows[0];
 
     return createResponse(200, {
-      id: row.id,
+      id: row.record_id,
       ownerId: row.owner_id,
       ownerName: row.owner_first_name ? `${row.owner_first_name} ${row.owner_last_name || ''}`.trim() : null,
       petIds: row.pet_ids,
@@ -11304,7 +11304,7 @@ async function handleCreateRecurringBooking(tenantId, user, body) {
 
     return createResponse(201, {
       success: true,
-      id: recurring.id,
+      id: recurring.record_id,
       nextOccurrenceDate: recurring.next_occurrence_date,
       message: 'Recurring booking created successfully',
     });
@@ -11768,7 +11768,7 @@ async function handleCustomerCheckAvailability(tenantId, queryParams) {
     // Count pets via BookingPet junction table
     const occupancyResult = await query(
       `SELECT
-         COUNT(DISTINCT b.id) as active_bookings,
+         COUNT(DISTINCT b.record_id) as active_bookings,
          COUNT(DISTINCT bp.pet_id) as pets_booked
        FROM "Booking" b
        LEFT JOIN "BookingPet" bp ON bp.tenant_id = b.tenant_id AND bp.booking_id = b.record_id
@@ -11785,11 +11785,11 @@ async function handleCustomerCheckAvailability(tenantId, queryParams) {
     // Get available kennels
     // Schema: Kennel has max_occupancy (not capacity), size (not kennel_type)
     const availableKennelsResult = await query(
-      `SELECT k.id, k.name, k.max_occupancy, k.size, k.location
+      `SELECT k.record_id, k.name, k.max_occupancy, k.size, k.location
        FROM "Kennel" k
        WHERE k.tenant_id = $1
        AND k.is_active = true
-       AND k.id NOT IN (
+       AND k.record_id NOT IN (
          SELECT DISTINCT b.kennel_id
          FROM "Booking" b
          WHERE b.tenant_id = $1
@@ -11811,7 +11811,7 @@ async function handleCustomerCheckAvailability(tenantId, queryParams) {
       availableSlots,
       requestedSlots: parseInt(petCount),
       availableKennels: availableKennelsResult.rows.map(k => ({
-        id: k.id,
+        id: k.record_id,
         name: k.name,
         capacity: k.max_occupancy,
         maxOccupancy: k.max_occupancy,
@@ -11845,7 +11845,7 @@ async function handleCustomerGetServices(tenantId) {
     // Schema: price_in_cents (not price)
     const result = await query(
       `SELECT
-         s.id,
+         s.record_id,
          s.name,
          s.description,
          s.service_type,
@@ -11862,8 +11862,8 @@ async function handleCustomerGetServices(tenantId) {
     );
 
     const services = result.rows.map(row => ({
-      id: row.id,
-      recordId: row.id,
+      id: row.record_id,
+      recordId: row.record_id,
       name: row.name,
       description: row.description,
       serviceType: row.service_type,
@@ -11902,7 +11902,7 @@ async function handleCustomerGetPets(tenantId, user) {
     // Find owner record for this user
     const ownerResult = await query(
       `SELECT record_id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
-      [user.id, tenantId]
+      [user.record_id, tenantId]
     );
 
     if (ownerResult.rows.length === 0) {
@@ -11936,8 +11936,8 @@ async function handleCustomerGetPets(tenantId, user) {
     );
 
     const pets = result.rows.map(row => ({
-      id: row.id,
-      recordId: row.id,
+      id: row.record_id,
+      recordId: row.record_id,
       name: row.name,
       breed: row.breed,
       species: row.species || 'dog',
@@ -11981,7 +11981,7 @@ async function handleCustomerGetBookings(tenantId, user, queryParams) {
     // Find owner record for this user
     const ownerResult = await query(
       `SELECT record_id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
-      [user.id, tenantId]
+      [user.record_id, tenantId]
     );
 
     if (ownerResult.rows.length === 0) {
@@ -12011,7 +12011,7 @@ async function handleCustomerGetBookings(tenantId, user, queryParams) {
     // Use BookingPet junction table instead of pet_ids array
     const result = await query(
       `SELECT
-         b.id,
+         b.record_id,
          b.check_in,
          b.check_out,
          b.status,
@@ -12028,16 +12028,16 @@ async function handleCustomerGetBookings(tenantId, user, queryParams) {
        LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
        LEFT JOIN "Kennel" k ON k.tenant_id = b.tenant_id AND b.kennel_id = k.record_id
        LEFT JOIN "BookingPet" bp ON bp.tenant_id = b.tenant_id AND bp.booking_id = b.record_id
-       LEFT JOIN "Pet" p ON p.id = bp.pet_id
+       LEFT JOIN "Pet" p ON p.record_id = bp.pet_id
        WHERE ${whereClause}
-       GROUP BY b.id, s.id, k.id
+       GROUP BY b.record_id, s.record_id, k.record_id
        ORDER BY b.check_in DESC`,
       params
     );
 
     const bookings = result.rows.map(row => ({
-      id: row.id,
-      recordId: row.id,
+      id: row.record_id,
+      recordId: row.record_id,
       startDate: row.check_in,  // Alias for frontend
       endDate: row.check_out,   // Alias for frontend
       checkIn: row.check_in,
@@ -12077,7 +12077,7 @@ async function handleCustomerGetBookings(tenantId, user, queryParams) {
 async function handleCustomerCreateBooking(tenantId, user, body) {
   const { petIds, serviceId, startDate, endDate, kennelId, notes } = body;
 
-  console.log('[Customer][createBooking] Creating booking:', { tenantId, userId: user.id, petIds, startDate, endDate });
+  console.log('[Customer][createBooking] Creating booking:', { tenantId, userId: user.record_id, petIds, startDate, endDate });
 
   // Validation
   if (!petIds || petIds.length === 0) {
@@ -12107,7 +12107,7 @@ async function handleCustomerCreateBooking(tenantId, user, body) {
     // Find owner record for this user
     const ownerResult = await query(
       `SELECT record_id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
-      [user.id, tenantId]
+      [user.record_id, tenantId]
     );
 
     if (ownerResult.rows.length === 0) {
@@ -12194,7 +12194,7 @@ async function handleCustomerCreateBooking(tenantId, user, body) {
       await query(
         `INSERT INTO "BookingPet" (booking_id, pet_id, tenant_id, created_at)
          VALUES ($1, $2, $3, NOW())`,
-        [booking.id, petId, tenantId]
+        [booking.record_id, petId, tenantId]
       );
     }
 
@@ -12203,7 +12203,7 @@ async function handleCustomerCreateBooking(tenantId, user, body) {
       const emailUtils = require('/opt/nodejs/email-utils');
       await emailUtils.sendBookingConfirmation(
         tenantId,
-        booking.id,
+        booking.record_id,
         user.email,
         {
           firstName: user.firstName || user.first_name,
@@ -12216,13 +12216,13 @@ async function handleCustomerCreateBooking(tenantId, user, body) {
       console.warn('[Customer][createBooking] Email failed:', emailErr.message);
     }
 
-    console.log('[Customer][createBooking] Created booking:', booking.id);
+    console.log('[Customer][createBooking] Created booking:', booking.record_id);
 
     return createResponse(201, {
       success: true,
       data: {
-        id: booking.id,
-        recordId: booking.id,
+        id: booking.record_id,
+        recordId: booking.record_id,
         startDate: booking.check_in,   // Alias for frontend
         endDate: booking.check_out,    // Alias for frontend
         checkIn: booking.check_in,
@@ -12249,7 +12249,7 @@ async function handleCustomerCreateBooking(tenantId, user, body) {
  * Customer: Get a specific booking
  */
 async function handleCustomerGetBooking(tenantId, user, bookingId) {
-  console.log('[Customer][getBooking]', { tenantId, userId: user.id, bookingId });
+  console.log('[Customer][getBooking]', { tenantId, userId: user.record_id, bookingId });
 
   try {
     await getPoolAsync();
@@ -12257,7 +12257,7 @@ async function handleCustomerGetBooking(tenantId, user, bookingId) {
     // Find owner record for this user
     const ownerResult = await query(
       `SELECT record_id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
-      [user.id, tenantId]
+      [user.record_id, tenantId]
     );
 
     if (ownerResult.rows.length === 0) {
@@ -12273,7 +12273,7 @@ async function handleCustomerGetBooking(tenantId, user, bookingId) {
     // Use BookingPet junction table instead of pet_ids array
     const result = await query(
       `SELECT
-         b.id,
+         b.record_id,
          b.check_in,
          b.check_out,
          b.status,
@@ -12286,7 +12286,7 @@ async function handleCustomerGetBooking(tenantId, user, bookingId) {
          s.service_type,
          s.description as service_description,
          k.name as kennel_name,
-         COALESCE(array_agg(json_build_object('id', p.id, 'name', p.name, 'breed', p.breed)) FILTER (WHERE p.id IS NOT NULL), ARRAY[]::json[]) as pets
+         COALESCE(array_agg(json_build_object('id', p.record_id, 'name', p.name, 'breed', p.breed)) FILTER (WHERE p.record_id IS NOT NULL), ARRAY[]::json[]) as pets
        FROM "Booking" b
        LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
        LEFT JOIN "Kennel" k ON k.tenant_id = b.tenant_id AND b.kennel_id = k.record_id
@@ -12307,8 +12307,8 @@ async function handleCustomerGetBooking(tenantId, user, bookingId) {
 
     return createResponse(200, {
       data: {
-        id: row.id,
-        recordId: row.id,
+        id: row.record_id,
+        recordId: row.record_id,
         startDate: row.check_in,   // Alias for frontend
         endDate: row.check_out,    // Alias for frontend
         checkIn: row.check_in,
@@ -12344,7 +12344,7 @@ async function handleCustomerGetBooking(tenantId, user, bookingId) {
  * Customer: Cancel their own booking
  */
 async function handleCustomerCancelBooking(tenantId, user, bookingId) {
-  console.log('[Customer][cancelBooking]', { tenantId, userId: user.id, bookingId });
+  console.log('[Customer][cancelBooking]', { tenantId, userId: user.record_id, bookingId });
 
   try {
     await getPoolAsync();
@@ -12352,7 +12352,7 @@ async function handleCustomerCancelBooking(tenantId, user, bookingId) {
     // Find owner record for this user
     const ownerResult = await query(
       `SELECT record_id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
-      [user.id, tenantId]
+      [user.record_id, tenantId]
     );
 
     if (ownerResult.rows.length === 0) {
@@ -12468,9 +12468,9 @@ async function handleCustomerGetProfile(tenantId, user) {
          o.created_at,
          u.email as account_email
        FROM "Owner" o
-       LEFT JOIN "User" u ON o.user_id = u.id
+       LEFT JOIN "User" u ON o.user_id = u.record_id
        WHERE o.user_id = $1 AND o.tenant_id = $2`,
-      [user.id, tenantId]
+      [user.record_id, tenantId]
     );
 
     if (result.rows.length === 0) {
@@ -12484,7 +12484,7 @@ async function handleCustomerGetProfile(tenantId, user) {
 
     return createResponse(200, {
       data: {
-        id: row.id,
+        id: row.record_id,
         firstName: row.first_name,
         lastName: row.last_name,
         email: row.email || row.account_email,
@@ -12563,7 +12563,7 @@ async function handleCustomerUpdateProfile(tenantId, user, body) {
     }
 
     updates.push('updated_at = NOW()');
-    values.push(user.id, tenantId);
+    values.push(user.record_id, tenantId);
 
     const result = await query(
       `UPDATE "Owner"
@@ -12584,7 +12584,7 @@ async function handleCustomerUpdateProfile(tenantId, user, body) {
     return createResponse(200, {
       success: true,
       data: {
-        id: row.id,
+        id: row.record_id,
         firstName: row.first_name,
         lastName: row.last_name,
         email: row.email,
@@ -12638,7 +12638,7 @@ async function handleGetStaffMembers(tenantId, queryParams) {
 
     const result = await query(
       `SELECT
-         s.id,
+         s.record_id,
          s.tenant_id,
          s.user_id,
          s.title,
@@ -12653,7 +12653,7 @@ async function handleGetStaffMembers(tenantId, queryParams) {
          u.email,
          u.phone
        FROM "Staff" s
-       LEFT JOIN "User" u ON s.user_id = u.id
+       LEFT JOIN "User" u ON s.user_id = u.record_id
        WHERE ${whereClause}
        ORDER BY u.last_name ASC, u.first_name ASC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -12661,7 +12661,7 @@ async function handleGetStaffMembers(tenantId, queryParams) {
     );
 
     const staff = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       tenantId: row.tenant_id,
       userId: row.user_id,
       firstName: row.first_name,
@@ -12723,7 +12723,7 @@ async function handleGetStaffMember(tenantId, staffId) {
          u.email,
          u.phone
        FROM "Staff" s
-       LEFT JOIN "User" u ON s.user_id = u.id
+       LEFT JOIN "User" u ON s.user_id = u.record_id
        WHERE s.record_id = $1 AND s.tenant_id = $2`,
       [staffId, tenantId]
     );
@@ -12738,7 +12738,7 @@ async function handleGetStaffMember(tenantId, staffId) {
     const row = result.rows[0];
 
     return createResponse(200, {
-      id: row.id,
+      id: row.record_id,
       tenantId: row.tenant_id,
       userId: row.user_id,
       firstName: row.first_name,
@@ -12807,7 +12807,7 @@ async function handleCreateStaffMember(tenantId, user, body) {
 
     return createResponse(201, {
       success: true,
-      id: staff.id,
+      id: staff.record_id,
       tenantId: staff.tenant_id,
       userId: staff.user_id,
       title: staff.title,
@@ -12914,7 +12914,7 @@ async function handleUpdateStaffMember(tenantId, user, staffId, body) {
 
     return createResponse(200, {
       success: true,
-      id: staff.id,
+      id: staff.record_id,
       title: staff.title,
       role: staff.role,
       hourlyRate: staff.hourly_rate,

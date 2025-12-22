@@ -75,18 +75,18 @@ async function processBookingReminders() {
     // Find all bookings starting tomorrow across all tenants
     const bookingsResult = await query(
       `SELECT
-         b.id as booking_id,
+         b.record_id as booking_id,
          b.tenant_id,
          b.check_in,
          b.check_out,
          b.service_type,
          COALESCE(b.service_name, s.name) as service_name,
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name as owner_first_name,
          o.email as owner_email
        FROM "Booking" b
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       LEFT JOIN "Service" s ON b.service_id = s.id
+       LEFT JOIN "Owner" o ON b.owner_id = o.record_id
+       LEFT JOIN "Service" s ON b.service_id = s.record_id
        WHERE b.status IN ('CONFIRMED', 'PENDING')
          AND DATE(b.check_in) = CURRENT_DATE + INTERVAL '1 day'
          AND o.email IS NOT NULL
@@ -100,7 +100,7 @@ async function processBookingReminders() {
         // Get pets for this booking
         const petsResult = await query(
           `SELECT p.name FROM "BookingPet" bp
-           JOIN "Pet" p ON bp.pet_id = p.id
+           JOIN "Pet" p ON bp.pet_id = p.record_id
            WHERE bp.booking_id = $1`,
           [booking.booking_id]
         );
@@ -165,28 +165,28 @@ async function processVaccinationReminders() {
   try {
     // Find all vaccinations expiring at key intervals
     const vaccResult = await query(
-      `SELECT DISTINCT ON (v.id)
-         v.id as vaccination_id,
+      `SELECT DISTINCT ON (v.record_id)
+         v.record_id as vaccination_id,
          v.tenant_id,
          v.type as vaccine_type,
          v.expires_at,
-         p.id as pet_id,
+         p.record_id as pet_id,
          p.name as pet_name,
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name as owner_first_name,
          o.email as owner_email,
          EXTRACT(DAY FROM v.expires_at - NOW())::integer as days_until_expiry
        FROM "Vaccination" v
-       JOIN "Pet" p ON v.pet_id = p.id
-       LEFT JOIN "PetOwner" po ON po.pet_id = p.id AND po.is_primary = true
-       LEFT JOIN "Owner" o ON po.owner_id = o.id
+       JOIN "Pet" p ON v.pet_id = p.record_id
+       LEFT JOIN "PetOwner" po ON po.pet_id = p.record_id AND po.is_primary = true
+       LEFT JOIN "Owner" o ON po.owner_id = o.record_id
        WHERE o.email IS NOT NULL
          AND (
            DATE(v.expires_at) = CURRENT_DATE + INTERVAL '30 days'
            OR DATE(v.expires_at) = CURRENT_DATE + INTERVAL '14 days'
            OR DATE(v.expires_at) = CURRENT_DATE + INTERVAL '7 days'
          )
-       ORDER BY v.id, v.expires_at ASC`
+       ORDER BY v.record_id, v.expires_at ASC`
     );
 
     console.log('[REMINDER] Found', vaccResult.rows.length, 'vaccination reminders to send');
@@ -260,17 +260,17 @@ async function processExpiredVaccinations() {
   try {
     // Find vaccinations that expired today
     const expiredResult = await query(
-      `SELECT DISTINCT ON (p.id)
-         p.id as pet_id,
+      `SELECT DISTINCT ON (p.record_id)
+         p.record_id as pet_id,
          p.name as pet_name,
          p.tenant_id,
-         o.id as owner_id
+         o.record_id as owner_id
        FROM "Vaccination" v
-       JOIN "Pet" p ON v.pet_id = p.id
-       LEFT JOIN "PetOwner" po ON po.pet_id = p.id AND po.is_primary = true
-       LEFT JOIN "Owner" o ON po.owner_id = o.id
+       JOIN "Pet" p ON v.pet_id = p.record_id
+       LEFT JOIN "PetOwner" po ON po.pet_id = p.record_id AND po.is_primary = true
+       LEFT JOIN "Owner" o ON po.owner_id = o.record_id
        WHERE DATE(v.expires_at) = CURRENT_DATE
-       ORDER BY p.id, v.expires_at DESC`
+       ORDER BY p.record_id, v.expires_at DESC`
     );
 
     console.log('[REMINDER] Found', expiredResult.rows.length, 'pets with vaccinations expiring today');
@@ -298,14 +298,14 @@ async function processPetBirthdays() {
     // Find pets with birthday today
     const birthdayResult = await query(
       `SELECT
-         p.id as pet_id,
+         p.record_id as pet_id,
          p.name as pet_name,
          p.tenant_id,
          p.date_of_birth,
-         o.id as owner_id
+         o.record_id as owner_id
        FROM "Pet" p
-       LEFT JOIN "PetOwner" po ON po.pet_id = p.id AND po.is_primary = true
-       LEFT JOIN "Owner" o ON po.owner_id = o.id
+       LEFT JOIN "PetOwner" po ON po.pet_id = p.record_id AND po.is_primary = true
+       LEFT JOIN "Owner" o ON po.owner_id = o.record_id
        WHERE EXTRACT(MONTH FROM p.date_of_birth) = EXTRACT(MONTH FROM CURRENT_DATE)
          AND EXTRACT(DAY FROM p.date_of_birth) = EXTRACT(DAY FROM CURRENT_DATE)
          AND p.date_of_birth IS NOT NULL`

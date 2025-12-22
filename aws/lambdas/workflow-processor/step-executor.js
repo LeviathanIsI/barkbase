@@ -2517,7 +2517,7 @@ async function fetchBookingRelatedData(data, tenantId) {
   // Get all pets for this booking (via BookingPet junction table)
   const petsResult = await query(
     `SELECT p.* FROM "Pet" p
-     JOIN "BookingPet" bp ON bp.pet_id = p.id
+     JOIN "BookingPet" bp ON bp.pet_id = p.record_id
      WHERE bp.booking_id = $1
      ORDER BY p.name`,
     [data.booking.id]
@@ -2560,7 +2560,7 @@ async function fetchPetRelatedData(data, tenantId) {
   // Get primary owner via PetOwner junction table
   const ownerResult = await query(
     `SELECT o.* FROM "Owner" o
-     JOIN "PetOwner" po ON po.owner_id = o.id
+     JOIN "PetOwner" po ON po.owner_id = o.record_id
      WHERE po.pet_id = $1 AND po.is_primary = true
      LIMIT 1`,
     [data.pet.id]
@@ -2608,7 +2608,7 @@ async function fetchOwnerRelatedData(data, tenantId) {
   // Get all pets for this owner
   const petsResult = await query(
     `SELECT p.* FROM "Pet" p
-     JOIN "PetOwner" po ON po.pet_id = p.id
+     JOIN "PetOwner" po ON po.pet_id = p.record_id
      WHERE po.owner_id = $1
      ORDER BY p.name`,
     [data.owner.id]
@@ -2758,7 +2758,7 @@ async function fetchTaskRelatedData(data, tenantId) {
     // Try to get owner from pet
     const ownerResult = await query(
       `SELECT o.* FROM "Owner" o
-       JOIN "PetOwner" po ON po.owner_id = o.id
+       JOIN "PetOwner" po ON po.owner_id = o.record_id
        WHERE po.pet_id = $1 AND po.is_primary = true
        LIMIT 1`,
       [data.pet.id]

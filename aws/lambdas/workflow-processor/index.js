@@ -1485,7 +1485,7 @@ async function processFilterWorkflow(workflow) {
        AND NOT EXISTS (
          SELECT 1 FROM "WorkflowExecution" we
          WHERE we.workflow_id = $2
-           AND we.enrolled_record_id = r.id
+           AND we.enrolled_record_id = r.record_id
            AND we.status IN ('running', 'paused')
        )
      LIMIT 100`;
@@ -1529,12 +1529,12 @@ async function processFilterWorkflow(workflow) {
  */
 function getFilterBaseQuery(objectType) {
   const queries = {
-    pet: 'SELECT r.id FROM "Pet" r',
-    booking: 'SELECT r.id FROM "Booking" r',
-    owner: 'SELECT r.id FROM "Owner" r',
-    payment: 'SELECT r.id FROM "Payment" r',
-    invoice: 'SELECT r.id FROM "Invoice" r',
-    task: 'SELECT r.id FROM "Task" r',
+    pet: 'SELECT r.record_id FROM "Pet" r',
+    booking: 'SELECT r.record_id FROM "Booking" r',
+    owner: 'SELECT r.record_id FROM "Owner" r',
+    payment: 'SELECT r.record_id FROM "Payment" r',
+    invoice: 'SELECT r.record_id FROM "Invoice" r',
+    task: 'SELECT r.record_id FROM "Task" r',
   };
 
   return queries[objectType] || null;

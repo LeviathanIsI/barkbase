@@ -497,7 +497,7 @@ async function getUserIdFromCognitoSub(cognitoSub) {
   try {
     await getPoolAsync();
     const result = await query(
-      `SELECT id, first_name, last_name, email FROM "User" WHERE cognito_sub = $1`,
+      `SELECT record_id, tenant_id, first_name, last_name, email FROM "User" WHERE cognito_sub = $1`,
       [cognitoSub]
     );
     return result.rows[0] || null;
@@ -1055,7 +1055,7 @@ async function handleGetBookingsInsights(tenantId, queryParams) {
          s.name,
          COUNT(*) as booking_count
        FROM "Booking" b
-       JOIN "Service" s ON b.service_id = s.id
+       JOIN "Service" s ON b.service_id = s.record_id
        WHERE b.tenant_id = $1
                  AND b.created_at >= $2
        GROUP BY s.name
@@ -1469,11 +1469,11 @@ async function handleGetServiceAnalytics(tenantId) {
     await getPoolAsync();
 
     const result = await query(
-      `SELECT s.name, COUNT(b.id) as bookings
+      `SELECT s.name, COUNT(b.record_id) as bookings
        FROM "Service" s
-       LEFT JOIN "Booking" b ON b.service_id = s.id
+       LEFT JOIN "Booking" b ON b.service_id = s.record_id
        WHERE s.tenant_id = $1
-       GROUP BY s.id, s.name
+       GROUP BY s.record_id, s.name
        ORDER BY bookings DESC`,
       [tenantId]
     );
@@ -1678,7 +1678,7 @@ async function handleExportBookings(tenantId, queryParams) {
 
     const result = await query(
       `SELECT
-         b.id as booking_id,
+         b.record_id as booking_id,
          b.check_in,
          b.check_out,
          b.status,
@@ -1693,9 +1693,9 @@ async function handleExportBookings(tenantId, queryParams) {
          p.breed as pet_breed,
          k.name as kennel_name
        FROM "Booking" b
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       LEFT JOIN "Pet" p ON p.id = ANY(b.pet_ids)
-       LEFT JOIN "Kennel" k ON b.kennel_id = k.id
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND o.record_id = b.owner_id
+       LEFT JOIN "Pet" p ON p.tenant_id = b.tenant_id AND p.record_id = ANY(b.pet_ids)
+       LEFT JOIN "Kennel" k ON k.tenant_id = b.tenant_id AND k.record_id = b.kennel_id
        WHERE ${whereClause}
        ORDER BY b.check_in DESC`,
       params
@@ -1764,7 +1764,7 @@ async function handleExportCustomers(tenantId, queryParams) {
     
     const result = await query(
       `SELECT
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name,
          o.last_name,
          o.email,
@@ -1776,16 +1776,16 @@ async function handleExportCustomers(tenantId, queryParams) {
          o.emergency_contact_name,
          o.emergency_contact_phone,
          o.created_at,
-         COUNT(DISTINCT b.id) as total_bookings,
+         COUNT(DISTINCT b.record_id) as total_bookings,
          COALESCE(SUM(b.total_price_cents), 0) as lifetime_value_cents,
          MAX(b.created_at) as last_booking_date,
-         COUNT(DISTINCT p.id) as pet_count
+         COUNT(DISTINCT p.record_id) as pet_count
        FROM "Owner" o
-       LEFT JOIN "Booking" b ON o.id = b.owner_id AND b.status IN ('CHECKED_IN', 'COMPLETED')
-       LEFT JOIN "PetOwner" po ON o.id = po.owner_id
-       LEFT JOIN "Pet" p ON po.pet_id = p.id
+       LEFT JOIN "Booking" b ON b.tenant_id = o.tenant_id AND b.owner_id = o.record_id AND b.status IN ('CHECKED_IN', 'COMPLETED')
+       LEFT JOIN "PetOwner" po ON po.tenant_id = o.tenant_id AND po.owner_id = o.record_id
+       LEFT JOIN "Pet" p ON p.tenant_id = po.tenant_id AND p.record_id = po.pet_id
        WHERE o.tenant_id = $1
-       GROUP BY o.id
+       GROUP BY o.record_id, o.first_name, o.last_name, o.email, o.phone, o.address, o.city, o.state, o.zip_code, o.emergency_contact_name, o.emergency_contact_phone, o.created_at
        ORDER BY o.last_name, o.first_name`,
       [tenantId]
     );
@@ -1868,7 +1868,7 @@ async function handleExportOccupancy(tenantId, queryParams) {
     const result = await query(
       `SELECT
          d::date as date,
-         COUNT(DISTINCT b.id) as bookings,
+         COUNT(DISTINCT b.record_id) as bookings,
          COALESCE(SUM(array_length(b.pet_ids, 1)), 0) as pets_boarded
        FROM generate_series($2::date, $3::date, '1 day'::interval) d
        LEFT JOIN "Booking" b ON b.tenant_id = $1
@@ -1937,7 +1937,7 @@ async function handleExportPets(tenantId, queryParams) {
     
     const result = await query(
       `SELECT
-         p.id as pet_id,
+         p.record_id as pet_id,
          p.name,
          p.breed,
          p.species,
@@ -1956,15 +1956,15 @@ async function handleExportPets(tenantId, queryParams) {
          o.last_name as owner_last_name,
          o.email as owner_email,
          o.phone as owner_phone,
-         COUNT(DISTINCT b.id) as booking_count,
+         COUNT(DISTINCT b.record_id) as booking_count,
          MAX(b.created_at) as last_visit
        FROM "Pet" p
-       LEFT JOIN "PetOwner" po ON p.id = po.pet_id
-       LEFT JOIN "Owner" o ON po.owner_id = o.id
-       LEFT JOIN "Veterinarian" v ON p.vet_id = v.id
-       LEFT JOIN "Booking" b ON p.id = ANY(b.pet_ids)
+       LEFT JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id
+       LEFT JOIN "Owner" o ON o.tenant_id = po.tenant_id AND o.record_id = po.owner_id
+       LEFT JOIN "Veterinarian" v ON v.tenant_id = p.tenant_id AND v.record_id = p.vet_id
+       LEFT JOIN "Booking" b ON b.tenant_id = p.tenant_id AND p.record_id = ANY(b.pet_ids)
        WHERE p.tenant_id = $1
-       GROUP BY p.id, o.id, v.id
+       GROUP BY p.record_id, p.name, p.breed, p.species, p.weight, p.birth_date, p.gender, p.color, p.microchip_number, p.special_needs, p.dietary_requirements, p.created_at, o.first_name, o.last_name, o.email, o.phone, v.name, v.phone, v.clinic_name
        ORDER BY p.name`,
       [tenantId]
     );
@@ -2055,7 +2055,7 @@ async function handleExportVaccinations(tenantId, queryParams) {
     
     const result = await query(
       `SELECT
-         v.id as vaccination_id,
+         v.record_id as vaccination_id,
          v.vaccine_name,
          v.vaccination_date,
          v.expiration_date,
@@ -2074,9 +2074,9 @@ async function handleExportVaccinations(tenantId, queryParams) {
            ELSE 'Valid'
          END as status
        FROM "Vaccination" v
-       LEFT JOIN "Pet" p ON v.pet_id = p.id
-       LEFT JOIN "PetOwner" po ON p.id = po.pet_id
-       LEFT JOIN "Owner" o ON po.owner_id = o.id
+       LEFT JOIN "Pet" p ON p.tenant_id = v.tenant_id AND p.record_id = v.pet_id
+       LEFT JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id
+       LEFT JOIN "Owner" o ON o.tenant_id = po.tenant_id AND o.record_id = po.owner_id
        WHERE ${whereClause}
        ORDER BY v.expiration_date ASC`,
       params
@@ -2457,7 +2457,7 @@ const COMPUTED_FIELD_BUILDERS = {
     return {
       sql: `(
         SELECT COUNT(*) FROM "Booking" b
-        JOIN "BookingPet" bp ON bp.booking_id = b.id
+        JOIN "BookingPet" bp ON bp.booking_id = b.record_id
         WHERE bp.pet_id = ${ta}.id
         AND b.tenant_id = ${ta}.tenant_id
       ) ${sqlOp} $${paramIndex}`,
@@ -2473,7 +2473,7 @@ const COMPUTED_FIELD_BUILDERS = {
       return {
         sql: `NOT EXISTS (
           SELECT 1 FROM "Booking" b
-          JOIN "BookingPet" bp ON bp.booking_id = b.id
+          JOIN "BookingPet" bp ON bp.booking_id = b.record_id
           WHERE bp.pet_id = ${ta}.id
           AND b.tenant_id = ${ta}.tenant_id
         )`,
@@ -2485,7 +2485,7 @@ const COMPUTED_FIELD_BUILDERS = {
       return {
         sql: `EXISTS (
           SELECT 1 FROM "Booking" b
-          JOIN "BookingPet" bp ON bp.booking_id = b.id
+          JOIN "BookingPet" bp ON bp.booking_id = b.record_id
           WHERE bp.pet_id = ${ta}.id
           AND b.tenant_id = ${ta}.tenant_id
         )`,
@@ -2497,7 +2497,7 @@ const COMPUTED_FIELD_BUILDERS = {
       return {
         sql: `(
           SELECT MAX(b.check_in) FROM "Booking" b
-          JOIN "BookingPet" bp ON bp.booking_id = b.id
+          JOIN "BookingPet" bp ON bp.booking_id = b.record_id
           WHERE bp.pet_id = ${ta}.id
           AND b.tenant_id = ${ta}.tenant_id
         ) >= NOW() - INTERVAL '${parseInt(value) || 30} days'`,
@@ -2509,7 +2509,7 @@ const COMPUTED_FIELD_BUILDERS = {
       return {
         sql: `(
           SELECT MAX(b.check_in) FROM "Booking" b
-          JOIN "BookingPet" bp ON bp.booking_id = b.id
+          JOIN "BookingPet" bp ON bp.booking_id = b.record_id
           WHERE bp.pet_id = ${ta}.id
           AND b.tenant_id = ${ta}.tenant_id
         ) < NOW() - INTERVAL '${parseInt(value) || 30} days'`,
@@ -2520,7 +2520,7 @@ const COMPUTED_FIELD_BUILDERS = {
     return {
       sql: `(
         SELECT MAX(b.check_in) FROM "Booking" b
-        JOIN "BookingPet" bp ON bp.booking_id = b.id
+        JOIN "BookingPet" bp ON bp.booking_id = b.record_id
         WHERE bp.pet_id = ${ta}.id
         AND b.tenant_id = ${ta}.tenant_id
       ) ${sqlOp} $${paramIndex}`,
@@ -2556,7 +2556,7 @@ const COMPUTED_FIELD_BUILDERS = {
     return {
       sql: `(
         SELECT COUNT(*) FROM "PetOwner" po
-        JOIN "Pet" p ON po.pet_id = p.id
+        JOIN "Pet" p ON po.pet_id = p.record_id
         WHERE po.owner_id = ${ta}.id
         AND po.tenant_id = ${ta}.tenant_id
         AND p.is_active = true
@@ -2691,7 +2691,7 @@ const COMPUTED_FIELD_BUILDERS = {
     return {
       sql: `(
         SELECT s.name FROM "Service" s
-        WHERE s.id = ${ta}.service_id
+        WHERE s.record_id = ${ta}.service_id AND s.tenant_id = ${ta}.tenant_id
       ) ${sqlOp} $${paramIndex}`,
       params: [value],
     };
@@ -2961,7 +2961,7 @@ async function handleGetSegmentMembers(tenantId, segmentId, queryParams) {
 
     // Get segment with filters and type
     const segmentResult = await query(
-      `SELECT id, filters, segment_type, object_type FROM "Segment" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT record_id, filters, segment_type, object_type FROM "Segment" WHERE record_id = $1 AND tenant_id = $2`,
       [segmentId, tenantId]
     );
 
@@ -2984,23 +2984,23 @@ async function handleGetSegmentMembers(tenantId, segmentId, queryParams) {
       // ACTIVE segment: get members from SegmentMember table (populated by refresh)
       let tableName = '"Owner"';
       let idColumn = 'owner_id';
-      let selectFields = 'o.id, o.first_name, o.last_name, o.email, o.phone';
+      let selectFields = 'o.record_id, o.first_name, o.last_name, o.email, o.phone';
 
       if (objectType === 'pets') {
         tableName = '"Pet"';
         idColumn = 'pet_id';
-        selectFields = 'o.id, o.name, o.species, o.breed, o.owner_id';
+        selectFields = 'o.record_id, o.name, o.species, o.breed, o.owner_id';
       } else if (objectType === 'bookings') {
         tableName = '"Booking"';
         idColumn = 'booking_id';
-        selectFields = 'o.id, o.pet_id, o.start_date, o.end_date, o.status';
+        selectFields = 'o.record_id, o.pet_id, o.start_date, o.end_date, o.status';
       }
 
       // Query from SegmentMember joined with object table
       const result = await query(
         `SELECT ${selectFields}, sm.added_at
          FROM "SegmentMember" sm
-         JOIN ${tableName} o ON sm.${idColumn} = o.id
+         JOIN ${tableName} o ON sm.${idColumn} = o.record_id
          WHERE sm.segment_id = $1
          ORDER BY sm.added_at DESC
          LIMIT $2 OFFSET $3`,
@@ -3017,7 +3017,7 @@ async function handleGetSegmentMembers(tenantId, segmentId, queryParams) {
       // Map results based on object type
       if (objectType === 'owners') {
         members = result.rows.map(row => ({
-          id: row.id,
+          id: row.record_id,
           firstName: row.first_name,
           lastName: row.last_name,
           email: row.email,
@@ -3026,7 +3026,7 @@ async function handleGetSegmentMembers(tenantId, segmentId, queryParams) {
         }));
       } else if (objectType === 'pets') {
         members = result.rows.map(row => ({
-          id: row.id,
+          id: row.record_id,
           name: row.name,
           species: row.species,
           breed: row.breed,
@@ -3035,7 +3035,7 @@ async function handleGetSegmentMembers(tenantId, segmentId, queryParams) {
         }));
       } else {
         members = result.rows.map(row => ({
-          id: row.id,
+          id: row.record_id,
           petId: row.pet_id,
           startDate: row.start_date,
           endDate: row.end_date,
@@ -3047,14 +3047,14 @@ async function handleGetSegmentMembers(tenantId, segmentId, queryParams) {
       // STATIC segment or no filters: use SegmentMember table
       const result = await query(
         `SELECT
-           o.id,
+           o.record_id,
            o.first_name,
            o.last_name,
            o.email,
            o.phone,
            sm.added_at
          FROM "SegmentMember" sm
-         JOIN "Owner" o ON sm.owner_id = o.id
+         JOIN "Owner" o ON sm.owner_id = o.record_id
          WHERE sm.segment_id = $1
          ORDER BY o.last_name, o.first_name
          LIMIT $2 OFFSET $3`,
@@ -3068,7 +3068,7 @@ async function handleGetSegmentMembers(tenantId, segmentId, queryParams) {
 
       total = parseInt(countResult.rows[0]?.count || 0);
       members = result.rows.map(row => ({
-        id: row.id,
+        id: row.record_id,
         firstName: row.first_name,
         lastName: row.last_name,
         email: row.email,
@@ -3106,7 +3106,7 @@ async function handleGetSegment(tenantId, segmentId) {
 
     const result = await query(
       `SELECT
-         s.id,
+         s.record_id,
          s.name,
          s.description,
          s.criteria,
@@ -3121,9 +3121,9 @@ async function handleGetSegment(tenantId, segmentId) {
          s.created_by,
          s.created_at,
          s.updated_at,
-         COALESCE(s.member_count, (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm.segment_id = s.id)) as computed_member_count
+         COALESCE(s.member_count, (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm.segment_id = s.record_id)) as computed_member_count
        FROM "Segment" s
-       WHERE s.id = $1 AND s.tenant_id = $2`,
+       WHERE s.record_id = $1 AND s.tenant_id = $2`,
       [segmentId, tenantId]
     );
 
@@ -3219,13 +3219,13 @@ async function handleCreateSegment(tenantId, body, userId = null) {
     percentOfTotal = totalCount > 0 ? ((memberCount / totalCount) * 100).toFixed(2) : 0;
 
     const result = await query(
-      `INSERT INTO "Segment" (tenant_id, name, description, object_type, segment_type, filters, member_count, percent_of_total, seven_day_change, created_by, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, NOW(), NOW())
-       RETURNING id`,
+      `INSERT INTO "Segment" (tenant_id, record_id, name, description, object_type, segment_type, filters, member_count, percent_of_total, seven_day_change, created_by, created_at, updated_at)
+       VALUES ($1, next_record_id($1, 70), $2, $3, $4, $5, $6, $7, $8, 0, $9, NOW(), NOW())
+       RETURNING record_id`,
       [tenantId, name.trim(), description?.trim() || null, object_type, segment_type, JSON.stringify(parsedFilters), memberCount, percentOfTotal, userId]
     );
 
-    const segmentId = result.rows[0].id;
+    const segmentId = result.rows[0].record_id;
 
     // Store initial snapshot
     try {
@@ -3267,7 +3267,7 @@ async function handleUpdateSegment(tenantId, segmentId, body, userId = null) {
 
     // Verify segment exists and belongs to tenant
     const checkResult = await query(
-      `SELECT id, is_automatic FROM "Segment" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT record_id, is_automatic FROM "Segment" WHERE record_id = $1 AND tenant_id = $2`,
       [segmentId, tenantId]
     );
 
@@ -3333,7 +3333,7 @@ async function handleDeleteSegment(tenantId, segmentId) {
     await getPoolAsync();
 
     const result = await query(
-      `DELETE FROM "Segment" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      `DELETE FROM "Segment" WHERE record_id = $1 AND tenant_id = $2 RETURNING record_id`,
       [segmentId, tenantId]
     );
 
@@ -3364,7 +3364,7 @@ async function handleAddSegmentMembers(tenantId, segmentId, body) {
 
     // Verify segment
     const segmentCheck = await query(
-      `SELECT id FROM "Segment" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT record_id FROM "Segment" WHERE record_id = $1 AND tenant_id = $2`,
       [segmentId, tenantId]
     );
     if (segmentCheck.rows.length === 0) {
@@ -3382,7 +3382,7 @@ async function handleAddSegmentMembers(tenantId, segmentId, body) {
 
     // Update member count
     await query(
-      `UPDATE "Segment" SET member_count = (SELECT COUNT(*) FROM "SegmentMember" WHERE segment_id = $1), updated_at = NOW() WHERE id = $1`,
+      `UPDATE "Segment" SET member_count = (SELECT COUNT(*) FROM "SegmentMember" WHERE segment_id = $1), updated_at = NOW() WHERE record_id = $1`,
       [segmentId]
     );
 
@@ -3415,7 +3415,7 @@ async function handleRemoveSegmentMembers(tenantId, segmentId, body) {
 
     // Update member count
     await query(
-      `UPDATE "Segment" SET member_count = (SELECT COUNT(*) FROM "SegmentMember" WHERE segment_id = $1), updated_at = NOW() WHERE id = $1`,
+      `UPDATE "Segment" SET member_count = (SELECT COUNT(*) FROM "SegmentMember" WHERE segment_id = $1), updated_at = NOW() WHERE record_id = $1`,
       [segmentId]
     );
 
@@ -3434,7 +3434,7 @@ async function handleCloneSegment(tenantId, segmentId) {
     await getPoolAsync();
 
     const original = await query(
-      `SELECT * FROM "Segment" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT * FROM "Segment" WHERE record_id = $1 AND tenant_id = $2`,
       [segmentId, tenantId]
     );
 
@@ -3444,14 +3444,14 @@ async function handleCloneSegment(tenantId, segmentId) {
 
     const row = original.rows[0];
     const result = await query(
-      `INSERT INTO "Segment" (tenant_id, name, description, object_type, segment_type, filters, is_automatic, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, FALSE, NOW(), NOW())
-       RETURNING id`,
+      `INSERT INTO "Segment" (tenant_id, record_id, name, description, object_type, segment_type, filters, is_automatic, created_at, updated_at)
+       VALUES ($1, next_record_id($1, 70), $2, $3, $4, $5, $6, FALSE, NOW(), NOW())
+       RETURNING record_id`,
       [tenantId, `${row.name} (Copy)`, row.description, row.object_type, row.segment_type, JSON.stringify(row.filters)]
     );
 
     return createResponse(201, {
-      segment: { id: result.rows[0].id, recordId: result.rows[0].id },
+      segment: { id: result.rows[0].record_id, recordId: result.rows[0].record_id },
       message: 'Segment cloned successfully',
     });
   } catch (error) {
@@ -3497,7 +3497,7 @@ async function handleRefreshSegment(tenantId, segmentId) {
 
     // Get segment details
     const segmentResult = await query(
-      `SELECT id, filters, segment_type, object_type FROM "Segment" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT record_id, filters, segment_type, object_type FROM "Segment" WHERE record_id = $1 AND tenant_id = $2`,
       [segmentId, tenantId]
     );
 
@@ -3527,7 +3527,7 @@ async function handleRefreshSegment(tenantId, segmentId) {
       const { whereClause, params } = buildFilterWhereClause(filters, objectType, 'o', 2);
 
       // Get all matching IDs
-      let idsQuery = `SELECT o.id FROM ${tableName} o WHERE o.tenant_id = $1`;
+      let idsQuery = `SELECT o.record_id FROM ${tableName} o WHERE o.tenant_id = $1`;
       let queryParams = [tenantId];
 
       if (whereClause) {
@@ -3670,20 +3670,20 @@ async function handleRefreshAllSegments(tenantId) {
 
     // Get all segments for tenant
     const segments = await query(
-      `SELECT id FROM "Segment" WHERE tenant_id = $1`,
+      `SELECT record_id FROM "Segment" WHERE tenant_id = $1`,
       [tenantId]
     );
 
     for (const segment of segments.rows) {
       const countResult = await query(
         `SELECT COUNT(*) as count FROM "SegmentMember" WHERE segment_id = $1`,
-        [segment.id]
+        [segment.record_id]
       );
       const count = parseInt(countResult.rows[0]?.count || 0);
 
       await query(
-        `UPDATE "Segment" SET member_count = $1, updated_at = NOW() WHERE id = $2`,
-        [count, segment.id]
+        `UPDATE "Segment" SET member_count = $1, updated_at = NOW() WHERE record_id = $2`,
+        [count, segment.record_id]
       );
     }
 
@@ -3719,7 +3719,7 @@ async function handleGetSegmentActivity(tenantId, segmentId, queryParams) {
          u.last_name as user_last_name,
          u.email as user_email
        FROM "SegmentActivity" sa
-       LEFT JOIN "User" u ON sa.created_by = u.id
+       LEFT JOIN "User" u ON sa.created_by = u.record_id
        WHERE sa.segment_id = $1
        ORDER BY sa.created_at DESC
        LIMIT $2 OFFSET $3`,
@@ -3784,14 +3784,14 @@ async function handlePreviewSegment(tenantId, body) {
     await getPoolAsync();
 
     let tableName = '"Owner"';
-    let selectFields = 'o.id, o.first_name, o.last_name, o.email, o.phone';
+    let selectFields = 'o.record_id, o.first_name, o.last_name, o.email, o.phone';
 
     if (objectType === 'pets') {
       tableName = '"Pet"';
-      selectFields = 'o.id, o.name, o.species, o.breed';
+      selectFields = 'o.record_id, o.name, o.species, o.breed';
     } else if (objectType === 'bookings') {
       tableName = '"Booking"';
-      selectFields = 'o.id, o.pet_id, o.start_date, o.end_date, o.status';
+      selectFields = 'o.record_id, o.pet_id, o.start_date, o.end_date, o.status';
     }
 
     // Build filter clause using same function as members endpoint
@@ -3817,8 +3817,8 @@ async function handlePreviewSegment(tenantId, body) {
     const sample = result.rows.map(row => {
       if (objectType === 'owners') {
         return {
-          id: row.id,
-          recordId: row.id,
+          id: row.record_id,
+          recordId: row.record_id,
           firstName: row.first_name,
           lastName: row.last_name,
           email: row.email,
@@ -3827,16 +3827,16 @@ async function handlePreviewSegment(tenantId, body) {
         };
       } else if (objectType === 'pets') {
         return {
-          id: row.id,
-          recordId: row.id,
+          id: row.record_id,
+          recordId: row.record_id,
           name: row.name,
           species: row.species,
           breed: row.breed,
         };
       } else {
         return {
-          id: row.id,
-          recordId: row.id,
+          id: row.record_id,
+          recordId: row.record_id,
           petId: row.pet_id,
           startDate: row.start_date,
           endDate: row.end_date,
@@ -3864,7 +3864,7 @@ async function handleExportSegmentMembers(tenantId, segmentId) {
 
     // Get segment info
     const segmentResult = await query(
-      `SELECT object_type FROM "Segment" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT object_type FROM "Segment" WHERE record_id = $1 AND tenant_id = $2`,
       [segmentId, tenantId]
     );
 
@@ -3884,7 +3884,7 @@ async function handleExportSegmentMembers(tenantId, segmentId) {
          o.phone,
          o.created_at
        FROM "SegmentMember" sm
-       JOIN "Owner" o ON sm.owner_id = o.id
+       JOIN "Owner" o ON sm.owner_id = o.record_id
        WHERE sm.segment_id = $1
        ORDER BY o.last_name, o.first_name`,
       [segmentId]
@@ -3941,12 +3941,12 @@ async function handleGetConversations(tenantId) {
          c.is_archived,
          c.created_at,
          c.updated_at,
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name as owner_first_name,
          o.last_name as owner_last_name,
          o.email as owner_email
        FROM "Conversation" c
-       LEFT JOIN "Owner" o ON c.owner_id = o.id
+       LEFT JOIN "Owner" o ON c.owner_id = o.record_id
        WHERE c.tenant_id = $1
        ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC`,
       [tenantId]
@@ -3999,7 +3999,7 @@ async function handleGetMessages(tenantId, conversationId) {
 
     // Verify conversation belongs to tenant
     const convCheck = await query(
-      `SELECT id FROM "Conversation" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT record_id FROM "Conversation" WHERE record_id = $1 AND tenant_id = $2`,
       [conversationId, tenantId]
     );
 
@@ -4218,18 +4218,18 @@ async function handleGetUSDAForm7001(tenantId, queryParams) {
 
     // Get all pets currently checked in (active bookings)
     const animalsResult = await query(
-      `SELECT DISTINCT ON (p.id)
-         p.id, p.name, p.species, p.breed, p.birth_date, p.gender,
+      `SELECT DISTINCT ON (p.record_id)
+         p.record_id, p.name, p.species, p.breed, p.birth_date, p.gender,
          p.microchip_number,
          o.first_name || ' ' || o.last_name as owner_name,
          b.check_in as date_received
        FROM "Pet" p
-       JOIN "Booking" b ON p.id = ANY(b.pet_ids)
-       JOIN "PetOwner" po ON p.id = po.pet_id
-       JOIN "Owner" o ON po.owner_id = o.id
+       JOIN "Booking" b ON b.tenant_id = p.tenant_id AND p.record_id = ANY(b.pet_ids)
+       JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id
+       JOIN "Owner" o ON o.tenant_id = po.tenant_id AND o.record_id = po.owner_id
        WHERE b.tenant_id = $1
          AND b.status = 'CHECKED_IN'
-       ORDER BY p.id, b.check_in DESC`,
+       ORDER BY p.record_id, b.check_in DESC`,
       [tenantId]
     );
 
@@ -4260,18 +4260,18 @@ async function handleGetUSDAForm7001PDF(tenantId, queryParams) {
     const facilityData = await getFacilityData(tenantId);
 
     const animalsResult = await query(
-      `SELECT DISTINCT ON (p.id)
-         p.id, p.name, p.species, p.breed, p.birth_date, p.gender,
+      `SELECT DISTINCT ON (p.record_id)
+         p.record_id, p.name, p.species, p.breed, p.birth_date, p.gender,
          p.microchip_number,
          o.first_name || ' ' || o.last_name as owner_name,
          b.check_in as date_received
        FROM "Pet" p
-       JOIN "Booking" b ON p.id = ANY(b.pet_ids)
-       JOIN "PetOwner" po ON p.id = po.pet_id
-       JOIN "Owner" o ON po.owner_id = o.id
+       JOIN "Booking" b ON b.tenant_id = p.tenant_id AND p.record_id = ANY(b.pet_ids)
+       JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id
+       JOIN "Owner" o ON o.tenant_id = po.tenant_id AND o.record_id = po.owner_id
        WHERE b.tenant_id = $1
          AND b.status = 'CHECKED_IN'
-       ORDER BY p.id, b.check_in DESC`,
+       ORDER BY p.record_id, b.check_in DESC`,
       [tenantId]
     );
 
@@ -4316,8 +4316,8 @@ async function handleGetUSDAForm7002(tenantId, queryParams) {
     // Get check-ins and check-outs in date range
     const transactionsResult = await query(
       `SELECT
-         b.id as booking_id,
-         p.id as pet_id,
+         b.record_id as booking_id,
+         p.record_id as pet_id,
          p.name as pet_name,
          p.species,
          p.breed,
@@ -4330,9 +4330,9 @@ async function handleGetUSDAForm7002(tenantId, queryParams) {
          b.actual_check_out,
          b.status
        FROM "Booking" b
-       JOIN "Owner" o ON b.owner_id = o.id
+       JOIN "Owner" o ON o.tenant_id = b.tenant_id AND o.record_id = b.owner_id
        CROSS JOIN LATERAL unnest(b.pet_ids) AS pid
-       JOIN "Pet" p ON p.id = pid
+       JOIN "Pet" p ON p.tenant_id = b.tenant_id AND p.record_id = pid
        WHERE b.tenant_id = $1
                  AND (
            (DATE(COALESCE(b.actual_check_in, b.check_in)) BETWEEN $2 AND $3)
@@ -4410,15 +4410,15 @@ async function handleGetUSDAForm7002PDF(tenantId, queryParams) {
 
     const transactionsResult = await query(
       `SELECT
-         b.id as booking_id, p.id as pet_id, p.name as pet_name,
+         b.record_id as booking_id, p.record_id as pet_id, p.name as pet_name,
          p.species, p.breed, p.gender,
          o.first_name || ' ' || o.last_name as owner_name,
          o.address as owner_address,
          b.actual_check_in, b.actual_check_out, b.check_in, b.check_out
        FROM "Booking" b
-       JOIN "Owner" o ON b.owner_id = o.id
+       JOIN "Owner" o ON o.tenant_id = b.tenant_id AND o.record_id = b.owner_id
        CROSS JOIN LATERAL unnest(b.pet_ids) AS pid
-       JOIN "Pet" p ON p.id = pid
+       JOIN "Pet" p ON p.tenant_id = b.tenant_id AND p.record_id = pid
        WHERE b.tenant_id = $1         AND ((DATE(COALESCE(b.actual_check_in, b.check_in)) BETWEEN $2 AND $3)
            OR (DATE(COALESCE(b.actual_check_out, b.check_out)) BETWEEN $2 AND $3))`,
       [tenantId, start, end]
@@ -4479,26 +4479,26 @@ async function handleGetUSDAForm7005(tenantId, queryParams) {
     const vetRecordsResult = await query(
       `SELECT
          i.id, i.incident_date as date,
-         p.id as pet_id, p.name as pet_name, p.species, p.breed,
+         p.record_id as pet_id, p.name as pet_name, p.species, p.breed,
          'treatment' as type,
          i.title as description,
          i.medical_treatment as medication,
          i.vet_recommendations as notes
        FROM "Incident" i
-       JOIN "Pet" p ON i.pet_id = p.id
+       JOIN "Pet" p ON i.pet_id = p.record_id
        WHERE i.tenant_id = $1
          AND i.vet_contacted = true
          AND DATE(i.incident_date) BETWEEN $2 AND $3
                UNION ALL
        SELECT
          v.id, v.administered_date as date,
-         p.id as pet_id, p.name as pet_name, p.species, p.breed,
+         p.record_id as pet_id, p.name as pet_name, p.species, p.breed,
          'vaccination' as type,
          v.vaccine_name as description,
          NULL as medication,
          v.notes
        FROM "Vaccination" v
-       JOIN "Pet" p ON v.pet_id = p.id
+       JOIN "Pet" p ON v.pet_id = p.record_id
        WHERE v.tenant_id = $1
          AND DATE(v.administered_date) BETWEEN $2 AND $3
                ORDER BY date DESC`,
@@ -4535,16 +4535,16 @@ async function handleGetUSDAForm7005PDF(tenantId, queryParams) {
     const facilityData = await getFacilityData(tenantId);
 
     const vetRecordsResult = await query(
-      `SELECT i.id, i.incident_date as date, p.id as pet_id, p.name as pet_name,
+      `SELECT i.record_id, i.incident_date as date, p.record_id as pet_id, p.name as pet_name,
               p.species, p.breed, 'treatment' as type, i.title as description,
               i.medical_treatment as medication, i.vet_recommendations as notes
-       FROM "Incident" i JOIN "Pet" p ON i.pet_id = p.id
+       FROM "Incident" i JOIN "Pet" p ON i.pet_id = p.record_id
        WHERE i.tenant_id = $1 AND i.vet_contacted = true
          AND DATE(i.incident_date) BETWEEN $2 AND $3       UNION ALL
-       SELECT v.id, v.administered_date as date, p.id as pet_id, p.name as pet_name,
+       SELECT v.record_id, v.administered_date as date, p.record_id as pet_id, p.name as pet_name,
               p.species, p.breed, 'vaccination' as type, v.vaccine_name as description,
               NULL as medication, v.notes
-       FROM "Vaccination" v JOIN "Pet" p ON v.pet_id = p.id
+       FROM "Vaccination" v JOIN "Pet" p ON v.pet_id = p.record_id
        WHERE v.tenant_id = $1 AND DATE(v.administered_date) BETWEEN $2 AND $3       ORDER BY date DESC`,
       [tenantId, start, end]
     );
@@ -4584,11 +4584,11 @@ async function handleGetVaccinationCompliance(tenantId) {
 
     // Get all pets with their vaccinations
     const petsResult = await query(
-      `SELECT p.id, p.name, p.species, p.breed,
+      `SELECT p.record_id, p.name, p.species, p.breed,
               o.first_name || ' ' || o.last_name as owner_name
        FROM "Pet" p
-       LEFT JOIN "PetOwner" po ON p.id = po.pet_id
-       LEFT JOIN "Owner" o ON po.owner_id = o.id
+       LEFT JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id
+       LEFT JOIN "Owner" o ON o.tenant_id = po.tenant_id AND o.record_id = po.owner_id
        WHERE p.tenant_id = $1`,
       [tenantId]
     );
@@ -4787,13 +4787,13 @@ async function handleGetAuditLogs(tenantId, queryParams) {
           a.user_agent as "userAgent",
           a.metadata,
           a.created_at as timestamp,
-          u.id as "actorId",
+          u.record_id as "actorId",
           u.first_name as "actorFirstName",
           u.last_name as "actorLastName",
           u.email as "actorEmail",
           'general' as source_type
         FROM "AuditLog" a
-        LEFT JOIN "User" u ON a.user_id = u.id
+        LEFT JOIN "User" u ON a.user_id = u.record_id
         WHERE a.tenant_id = $1${dateFilterAudit}
       `);
     }
@@ -4825,13 +4825,13 @@ async function handleGetAuditLogs(tenantId, queryParams) {
             'location', aa.location
           ) as metadata,
           aa.created_at as timestamp,
-          u.id as "actorId",
+          u.record_id as "actorId",
           u.first_name as "actorFirstName",
           u.last_name as "actorLastName",
           u.email as "actorEmail",
           'auth' as source_type
         FROM "AuthAuditLog" aa
-        LEFT JOIN "User" u ON aa.user_id = u.id
+        LEFT JOIN "User" u ON aa.user_id = u.record_id
         WHERE (aa.tenant_id = $1 OR aa.tenant_id IS NULL)${dateFilterAuth}
       `);
     }
@@ -5178,7 +5178,7 @@ async function handleExportAuditLogs(tenantId, queryParams) {
           u.email as actor_email,
           'Dashboard' as source
         FROM "AuditLog" a
-        LEFT JOIN "User" u ON a.user_id = u.id
+        LEFT JOIN "User" u ON a.user_id = u.record_id
         WHERE a.tenant_id = $1 ${dateFilter}
       `);
     }
@@ -5196,7 +5196,7 @@ async function handleExportAuditLogs(tenantId, queryParams) {
           u.email as actor_email,
           'Auth System' as source
         FROM "AuthAuditLog" aa
-        LEFT JOIN "User" u ON aa.user_id = u.id
+        LEFT JOIN "User" u ON aa.user_id = u.record_id
         WHERE (aa.tenant_id = $1 OR aa.tenant_id IS NULL) ${authDateFilter}
       `);
     }

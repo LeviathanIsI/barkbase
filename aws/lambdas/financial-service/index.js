@@ -994,7 +994,7 @@ async function handleGenerateInvoiceFromBooking(tenantId, bookingId) {
          o.last_name as owner_last_name,
          o.email as owner_email
        FROM "Booking" b
-       LEFT JOIN "Kennel" k ON b.kennel_id = k.id
+       LEFT JOIN "Kennel" k ON b.kennel_id = k.record_id
        LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND s.record_id = b.service_id
        LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND o.record_id = b.owner_id
        WHERE b.record_id = $1 AND b.tenant_id = $2 `,
@@ -1737,7 +1737,7 @@ async function handleGetReceipt(tenantId, paymentId) {
          p.processed_at,
          p.notes,
          p.invoice_id,
-         o.id as owner_id,
+         o.record_id as owner_id,
          o.first_name as owner_first_name,
          o.last_name as owner_last_name,
          o.email as owner_email,

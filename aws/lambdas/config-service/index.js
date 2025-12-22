@@ -1687,7 +1687,7 @@ async function handleUpdateTenantConfig(user, body) {
 
     // Fetch updated data
     const result = await query(
-      `SELECT t.id, t.name, t.slug, t.plan, t.updated_at,
+      `SELECT t.record_id, t.name, t.slug, t.plan, t.updated_at,
               ts.timezone, ts.currency, ts.business_name, ts.branding
        FROM "Tenant" t
        LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
@@ -4661,7 +4661,7 @@ async function handleListFormSubmissions(user, queryParams) {
 
     const result = await query(
       `SELECT fs.*, ft.name as template_name, ft.type as template_type, o.first_name as owner_first_name, o.last_name as owner_last_name, p.name as pet_name
-       FROM "FormSubmission" fs JOIN "FormTemplate" ft ON fs.template_id = ft.id LEFT JOIN "Owner" o ON fs.owner_id = o.id LEFT JOIN "Pet" p ON fs.pet_id = p.id
+       FROM "FormSubmission" fs JOIN "FormTemplate" ft ON fs.template_id = ft.id LEFT JOIN "Owner" o ON fs.owner_id = o.record_id LEFT JOIN "Pet" p ON fs.pet_id = p.record_id
        WHERE ${whereClause} ORDER BY fs.created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...params, parseInt(limit), parseInt(offset)]
     );
@@ -4696,7 +4696,7 @@ async function handleGetFormSubmission(user, submissionId) {
       `SELECT fs.*, ft.name as template_name, ft.type as template_type, ft.fields as template_fields,
               o.first_name as owner_first_name, o.last_name as owner_last_name, o.email as owner_email, p.name as pet_name
        FROM "FormSubmission" fs JOIN "FormTemplate" ft ON fs.template_id = ft.id
-       LEFT JOIN "Owner" o ON fs.owner_id = o.id LEFT JOIN "Pet" p ON fs.pet_id = p.id
+       LEFT JOIN "Owner" o ON fs.owner_id = o.record_id LEFT JOIN "Pet" p ON fs.pet_id = p.record_id
        WHERE fs.id = $1 AND fs.tenant_id = $2`,
       [submissionId, ctx.tenantId]
     );
@@ -8861,7 +8861,7 @@ async function handleCreateExport(user, body) {
           const petsResult = await query(
             `SELECT p.*, o.first_name as owner_first_name, o.last_name as owner_last_name, o.email as owner_email
              FROM "Pet" p
-             LEFT JOIN "Owner" o ON p.owner_id = o.id
+             LEFT JOIN "Owner" o ON p.owner_id = o.record_id
              WHERE p.tenant_id = $1              ORDER BY p.name`,
             [ctx.tenantId]
           );
@@ -8882,7 +8882,7 @@ async function handleCreateExport(user, body) {
           const bookingsResult = await query(
             `SELECT b.*, o.first_name as owner_first_name, o.last_name as owner_last_name, o.email as owner_email
              FROM "Booking" b
-             LEFT JOIN "Owner" o ON b.owner_id = o.id
+             LEFT JOIN "Owner" o ON b.owner_id = o.record_id
              WHERE b.tenant_id = $1              ORDER BY b.created_at DESC`,
             [ctx.tenantId]
           );
@@ -8896,7 +8896,7 @@ async function handleCreateExport(user, body) {
             const financialResult = await query(
               `SELECT i.*, o.first_name as owner_first_name, o.last_name as owner_last_name
                FROM "Invoice" i
-               LEFT JOIN "Owner" o ON i.owner_id = o.id
+               LEFT JOIN "Owner" o ON i.owner_id = o.record_id
                WHERE i.tenant_id = $1
                ORDER BY i.created_at DESC`,
               [ctx.tenantId]
@@ -8914,8 +8914,8 @@ async function handleCreateExport(user, body) {
           const vaccinationsResult = await query(
             `SELECT v.*, p.name as pet_name, o.first_name as owner_first_name, o.last_name as owner_last_name
              FROM "Vaccination" v
-             LEFT JOIN "Pet" p ON v.pet_id = p.id
-             LEFT JOIN "Owner" o ON p.owner_id = o.id
+             LEFT JOIN "Pet" p ON v.pet_id = p.record_id
+             LEFT JOIN "Owner" o ON p.owner_id = o.record_id
              WHERE v.tenant_id = $1              ORDER BY v.expiration_date`,
             [ctx.tenantId]
           );
@@ -10361,7 +10361,7 @@ async function handleListImports(user, queryParams = {}) {
         u.first_name || ' ' || u.last_name as "createdByName",
         u.email as "createdByEmail"
       FROM "Import" i
-      LEFT JOIN "User" u ON i.created_by = u.id
+      LEFT JOIN "User" u ON i.created_by = u.record_id
       ${whereClause}
       ORDER BY i.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -10400,7 +10400,7 @@ async function handleGetImportDetail(user, importId) {
         u.first_name || ' ' || u.last_name as "createdByName",
         u.email as "createdByEmail"
       FROM "Import" i
-      LEFT JOIN "User" u ON i.created_by = u.id
+      LEFT JOIN "User" u ON i.created_by = u.record_id
       WHERE i.id = $1 AND i.tenant_id = $2`,
       [importId, ctx.tenantId]
     );
@@ -11014,8 +11014,8 @@ async function handleGetFormSubmissions(user, formId) {
     const result = await query(`
       SELECT fs.*, o.first_name, o.last_name, o.email, p.name as pet_name
       FROM "FormSubmission" fs
-      LEFT JOIN "Owner" o ON fs.owner_id = o.id
-      LEFT JOIN "Pet" p ON fs.pet_id = p.id
+      LEFT JOIN "Owner" o ON fs.owner_id = o.record_id
+      LEFT JOIN "Pet" p ON fs.pet_id = p.record_id
       WHERE fs.form_id = $1 AND fs.tenant_id = $2
       ORDER BY fs.submitted_at DESC
       LIMIT 100
@@ -11100,11 +11100,11 @@ async function handleGetDocuments(user, queryParams) {
     const result = await query(`
       SELECT 
         d.*,
-        o.id as owner_id, o.first_name as owner_first_name, o.last_name as owner_last_name,
-        p.id as pet_id, p.name as pet_name
+        o.record_id as owner_id, o.first_name as owner_first_name, o.last_name as owner_last_name,
+        p.record_id as pet_id, p.name as pet_name
       FROM "Document" d
-      LEFT JOIN "Owner" o ON d.owner_id = o.id
-      LEFT JOIN "Pet" p ON d.pet_id = p.id
+      LEFT JOIN "Owner" o ON d.owner_id = o.record_id
+      LEFT JOIN "Pet" p ON d.pet_id = p.record_id
       WHERE ${whereClause}
       ORDER BY ${orderBy}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -11113,8 +11113,8 @@ async function handleGetDocuments(user, queryParams) {
     // Get total count
     const countResult = await query(
       `SELECT COUNT(*) as count FROM "Document" d 
-       LEFT JOIN "Owner" o ON d.owner_id = o.id
-       LEFT JOIN "Pet" p ON d.pet_id = p.id
+       LEFT JOIN "Owner" o ON d.owner_id = o.record_id
+       LEFT JOIN "Pet" p ON d.pet_id = p.record_id
        WHERE ${whereClause}`,
       params
     );
@@ -11275,8 +11275,8 @@ async function handleGetDocument(user, docId) {
     const result = await query(`
       SELECT d.*, o.first_name, o.last_name, p.name as pet_name
       FROM "Document" d
-      LEFT JOIN "Owner" o ON d.owner_id = o.id
-      LEFT JOIN "Pet" p ON d.pet_id = p.id
+      LEFT JOIN "Owner" o ON d.owner_id = o.record_id
+      LEFT JOIN "Pet" p ON d.pet_id = p.record_id
       WHERE d.id = $1 AND d.tenant_id = $2     `, [docId, ctx.tenantId]);
 
     if (result.rows.length === 0) {
@@ -12876,7 +12876,7 @@ async function handleGetObjectPipelines(user, objectType) {
       `SELECT p.*,
         (SELECT json_agg(s ORDER BY s.display_order)
          FROM "PipelineStage" s
-         WHERE s.pipeline_id = p.id AND s.is_active = true) as stages
+         WHERE s.pipeline_id = p.record_id AND s.is_active = true) as stages
        FROM "ObjectPipeline" p
        WHERE p.tenant_id = $1 AND p.object_type = $2 AND p.is_active = true
        ORDER BY p.display_order`,
@@ -13972,7 +13972,7 @@ async function handleGetSavedViews(user, objectType) {
     const result = await query(
       `SELECT sv.*, u.first_name, u.last_name, u.email
        FROM "SavedView" sv
-       LEFT JOIN "User" u ON sv.owner_id = u.id
+       LEFT JOIN "User" u ON sv.owner_id = u.record_id
        WHERE sv.tenant_id = $1 AND sv.object_type = $2
        ORDER BY sv.is_admin_promoted DESC, sv.is_default DESC, sv.name`,
       [ctx.tenantId, objectType.toLowerCase()]

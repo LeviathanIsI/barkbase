@@ -405,12 +405,12 @@ async function getRecordsForScheduleWorkflow(workflow) {
   // For now, just get records not already in a running execution of this workflow
   // TODO: Add proper filter condition parsing
   const result = await query(
-    `SELECT r.id FROM "${tableName}" r
+    `SELECT r.record_id FROM "${tableName}" r
      WHERE r.tenant_id = $1
        AND NOT EXISTS (
          SELECT 1 FROM "WorkflowExecution" we
          WHERE we.workflow_id = $2
-           AND we.enrolled_record_id = r.id
+           AND we.enrolled_record_id = r.record_id
            AND we.status IN ('running', 'paused')
        )
      LIMIT 100`,
@@ -525,14 +525,14 @@ async function processFilterWorkflow(workflow) {
   whereClause += ` AND NOT EXISTS (
     SELECT 1 FROM "WorkflowExecution" we
     WHERE we.workflow_id = $${paramIndex}
-      AND we.enrolled_record_id = r.id
+      AND we.enrolled_record_id = r.record_id
       AND we.status IN ('running', 'paused')
   )`;
   params.push(workflowId);
 
   // Get matching records
   const recordsResult = await query(
-    `SELECT r.id FROM "${tableName}" r WHERE ${whereClause} LIMIT 100`,
+    `SELECT r.record_id FROM "${tableName}" r WHERE ${whereClause} LIMIT 100`,
     params
   );
 

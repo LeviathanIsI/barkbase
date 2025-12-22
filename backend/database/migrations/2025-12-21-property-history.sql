@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS "PropertyHistory" (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL,
   entity_type VARCHAR(50) NOT NULL,
-  entity_id UUID NOT NULL,
+  entity_id BIGINT NOT NULL,
   property_name VARCHAR(100) NOT NULL,
   old_value TEXT,
   new_value TEXT,
@@ -80,7 +80,7 @@ BEGIN
       EXECUTE format('SELECT ($1).%I::TEXT', col_name) INTO new_val USING NEW;
       IF new_val IS NOT NULL THEN
         INSERT INTO "PropertyHistory" (tenant_id, entity_type, entity_id, property_name, old_value, new_value)
-        VALUES (tenant_id_val, entity_type_name, NEW.id, col_name, NULL, new_val);
+        VALUES (tenant_id_val, entity_type_name, NEW.record_id, col_name, NULL, new_val);
       END IF;
     END LOOP;
     RETURN NEW;
@@ -99,7 +99,7 @@ BEGIN
       -- Only log if value actually changed
       IF old_val IS DISTINCT FROM new_val THEN
         INSERT INTO "PropertyHistory" (tenant_id, entity_type, entity_id, property_name, old_value, new_value)
-        VALUES (tenant_id_val, entity_type_name, NEW.id, col_name, old_val, new_val);
+        VALUES (tenant_id_val, entity_type_name, NEW.record_id, col_name, old_val, new_val);
       END IF;
     END LOOP;
     RETURN NEW;
