@@ -80,9 +80,9 @@ const Login = () => {
 
       if (import.meta.env.DEV) console.log('[Login] Authentication successful');
 
-      // Call backend to create session record
+      // Call backend to create session record (uses raw fetch intentionally - auth endpoint before apiClient is configured)
       try {
-        const loginResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/auth/login`, {
+        const loginResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/auth/login`, { // eslint-disable-line no-restricted-syntax
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -117,7 +117,7 @@ const Login = () => {
       if (result.refreshToken) {
         try {
           sessionStorage.setItem('barkbase_refresh_token', result.refreshToken);
-        } catch (e) {
+        } catch {
           console.warn('[Login] Could not store refresh token');
         }
       }
@@ -140,6 +140,7 @@ const Login = () => {
           // Update tenant store with full tenant data
           setTenant({
             recordId: tenantConfig.tenantId || tenantConfig.recordId,
+            accountCode: tenantConfig.accountCode,
             slug: tenantConfig.slug,
             name: tenantConfig.name,
             plan: tenantConfig.plan,
