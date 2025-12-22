@@ -315,13 +315,16 @@ backend/database/
 # 🧪 E2E TESTING (LOCAL DEVELOPMENT ONLY)
 # =============================================================================
 
-# Root level e2e directories
-e2e/
+# Root level e2e directories (not tests/e2e which is production test suite)
+/e2e/
 e2eutils/
 e2etests/
 e2ereports/
 e2epages/
 e2efixtures/
+
+# Include tests/e2e (production E2E test suite)
+!tests/e2e/
 
 # Frontend e2e testing
 frontend/e2e/
