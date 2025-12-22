@@ -66,6 +66,7 @@ import {
   AtSign,
   AlignLeft,
   FolderTree,
+  GitMerge,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
@@ -103,6 +104,7 @@ const CHART_TYPES = [
   { value: 'table', label: 'Table', icon: Table2 },
   { value: 'pivot', label: 'Pivot', icon: Grid3X3 },
   { value: 'funnel', label: 'Funnel', icon: FilterIcon },
+  { value: 'sankey', label: 'Sankey', icon: GitMerge },
   { value: 'gauge', label: 'Gauge', icon: Gauge },
 ];
 
