@@ -62,7 +62,8 @@ function getAuthConfig() {
   }
 
   return {
-    jwksUrl: process.env.COGNITO_JWKS_URL || 
+    userPoolId,
+    jwksUrl: process.env.COGNITO_JWKS_URL ||
       `https://cognito-idp.${region}.amazonaws.com/${userPoolId}/.well-known/jwks.json`,
     issuer: process.env.COGNITO_ISSUER_URL ||
       `https://cognito-idp.${region}.amazonaws.com/${userPoolId}`,
