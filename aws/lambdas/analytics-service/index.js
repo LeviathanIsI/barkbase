@@ -1716,17 +1716,29 @@ async function handleCustomReportQuery(tenantId, body) {
     let paramIndex = 2;
 
     // Add dimensions (group by columns)
+    // Accept any valid column name - only reject SQL injection patterns
+    const DANGEROUS_PATTERNS = /[;'"\\(){}[\]<>|&$`!]/;
+
     for (const dimKey of dimensions) {
-      const dim = config.dimensions[dimKey];
-      if (!dim) {
+      // Check for SQL injection patterns
+      if (DANGEROUS_PATTERNS.test(dimKey)) {
         return createResponse(400, {
           error: 'Bad Request',
-          message: `Invalid dimension: ${dimKey} for data source ${dataSource}`,
+          message: `Invalid dimension name: ${dimKey}`,
         });
       }
-      selectParts.push(`${dim.column} as "${dimKey}"`);
-      groupByParts.push(dim.column);
-      if (dim.join) joins.add(dim.join);
+
+      // Use hardcoded config if available (for computed columns), otherwise use column directly
+      const dim = config.dimensions[dimKey];
+      if (dim) {
+        selectParts.push(`${dim.column} as "${dimKey}"`);
+        groupByParts.push(dim.column);
+        if (dim.join) joins.add(dim.join);
+      } else {
+        // Dynamic column from SystemProperty - use column name directly
+        selectParts.push(`t.${dimKey} as "${dimKey}"`);
+        groupByParts.push(`t.${dimKey}`);
+      }
     }
 
     // Add measures (aggregated columns)
@@ -1734,16 +1746,25 @@ async function handleCustomReportQuery(tenantId, body) {
       const measureKey = typeof measureDef === 'string' ? measureDef : measureDef.field;
       const aggOverride = typeof measureDef === 'object' ? measureDef.aggregation : null;
 
-      const measure = config.measures[measureKey];
-      if (!measure) {
+      // Check for SQL injection patterns
+      if (DANGEROUS_PATTERNS.test(measureKey)) {
         return createResponse(400, {
           error: 'Bad Request',
-          message: `Invalid measure: ${measureKey} for data source ${dataSource}`,
+          message: `Invalid measure name: ${measureKey}`,
         });
       }
 
-      const agg = aggOverride || measure.agg;
-      selectParts.push(`${agg}(${measure.column}) as "${measureKey}"`);
+      // Use hardcoded config if available, otherwise use column directly with COUNT
+      const measure = config.measures[measureKey];
+      if (measure) {
+        const agg = aggOverride || measure.agg;
+        selectParts.push(`${agg}(${measure.column}) as "${measureKey}"`);
+      } else {
+        // Dynamic measure - default to COUNT for record_count, otherwise SUM
+        const agg = aggOverride || (measureKey === 'record_count' ? 'COUNT' : 'SUM');
+        const column = measureKey === 'record_count' ? `t.${config.idField}` : `t.${measureKey}`;
+        selectParts.push(`${agg}(${column}) as "${measureKey}"`);
+      }
     }
 
     // If no dimensions or measures, just count
@@ -1768,10 +1789,12 @@ async function handleCustomReportQuery(tenantId, body) {
 
     // Custom filters
     for (const filter of filters) {
-      const dim = config.dimensions[filter.field] || config.measures[filter.field];
-      if (!dim) continue;
+      // Skip filters with dangerous patterns
+      if (DANGEROUS_PATTERNS.test(filter.field)) continue;
 
-      const column = dim.column;
+      // Use hardcoded config if available, otherwise use column directly
+      const dim = config.dimensions[filter.field] || config.measures[filter.field];
+      const column = dim ? dim.column : `t.${filter.field}`;
       const operator = filter.operator || '=';
       const value = filter.value;
 
