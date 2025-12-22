@@ -93,7 +93,7 @@ async function validateSessionAge(cognitoSub, tenantId) {
     // Auto logout hours from TenantSettings (default 24h if not set)
     const result = await query(
       `SELECT
-        s.id as session_id,
+        s.record_id as session_id,
         s.session_start,
         s.last_activity,
         s.user_id,
@@ -146,7 +146,7 @@ async function validateSessionAge(cognitoSub, tenantId) {
     await query(
       `UPDATE "UserSession"
        SET last_activity = NOW()
-       WHERE id = $1`,
+       WHERE record_id = $1`,
       [session_id]
     );
 
