@@ -136,6 +136,27 @@ const CHART_ZONE_CONFIG = {
   sankey: ['source', 'target', 'values'],
 };
 
+// Minimum required fields per chart type for query execution
+// Each entry specifies required zones - for arrays, at least 1 item required
+const CHART_MINIMUM_REQUIREMENTS = {
+  line: { required: ['xAxis', 'yAxis'], message: 'Add a dimension to X-axis and a measure to Y-axis' },
+  bar: { required: ['xAxis', 'yAxis'], message: 'Add a dimension to X-axis and a measure to Y-axis' },
+  column: { required: ['xAxis', 'yAxis'], message: 'Add a dimension to X-axis and a measure to Y-axis' },
+  area: { required: ['xAxis', 'yAxis'], message: 'Add a dimension to X-axis and a measure to Y-axis' },
+  stacked: { required: ['xAxis', 'yAxis'], message: 'Add a dimension to X-axis and a measure to Y-axis' },
+  scatter: { required: ['xAxis', 'yAxis'], message: 'Add dimensions to both X-axis and Y-axis' },
+  pie: { required: ['breakDownBy', 'values'], message: 'Add a dimension to Break down by and a measure to Values' },
+  donut: { required: ['breakDownBy', 'values'], message: 'Add a dimension to Break down by and a measure to Values' },
+  table: { required: ['columns'], message: 'Add at least one column to display' },
+  pivot: { required: ['rows', 'columns', 'values'], message: 'Add at least one Row, Column, and Value' },
+  kpi: { required: ['values'], message: 'Add a measure to Values' },
+  gauge: { required: ['value'], message: 'Add a measure to Value' },
+  combo: { required: ['xAxis', 'yAxis1'], message: 'Add a dimension to X-axis and a measure to Y-axis (Left)' },
+  funnel: { required: ['stages', 'values'], message: 'Add a dimension to Stages and a measure to Values' },
+  treemap: { required: ['category', 'size'], message: 'Add a dimension to Category and a measure to Size' },
+  sankey: { required: ['source', 'target', 'values'], message: 'Add Source, Target dimensions and a Value measure' },
+};
+
 // Drop zone definitions with labels, tooltips, and field type requirements
 const DROP_ZONE_DEFINITIONS = {
   xAxis: {
@@ -1107,6 +1128,90 @@ const CustomReportBuilder = () => {
     return currentFields.measures.filter(f => f.label.toLowerCase().includes(search));
   }, [currentFields.measures, fieldSearch]);
 
+  // Check if minimum requirements are met for current chart type
+  const checkMinimumRequirements = useCallback(() => {
+    const requirements = CHART_MINIMUM_REQUIREMENTS[chartType];
+    if (!requirements) return { met: false, message: 'Unknown chart type' };
+
+    for (const zoneName of requirements.required) {
+      const value = zoneValues[zoneName];
+      const def = DROP_ZONE_DEFINITIONS[zoneName];
+
+      if (def?.multiple) {
+        // For multi-value zones, need at least 1 item
+        if (!value || !Array.isArray(value) || value.length === 0) {
+          return { met: false, message: requirements.message };
+        }
+      } else {
+        // For single-value zones, need a value
+        if (!value) {
+          return { met: false, message: requirements.message };
+        }
+      }
+    }
+
+    return { met: true, message: null };
+  }, [chartType, zoneValues]);
+
+  // Build query config from zone values
+  const buildQueryConfig = useCallback(() => {
+    const dimensions = [];
+    const measures = [];
+
+    // Collect dimensions from zone values
+    const dimensionZones = ['xAxis', 'breakDownBy', 'stackBy', 'groupBy', 'category', 'stages', 'source', 'target', 'rows'];
+    for (const zone of dimensionZones) {
+      const value = zoneValues[zone];
+      if (value) {
+        if (Array.isArray(value)) {
+          dimensions.push(...value.map(v => v.key));
+        } else {
+          dimensions.push(value.key);
+        }
+      }
+    }
+
+    // Collect measures from zone values
+    const measureZones = ['yAxis', 'yAxis1', 'yAxis2', 'values', 'value', 'size', 'color', 'pointSize'];
+    for (const zone of measureZones) {
+      const value = zoneValues[zone];
+      if (value) {
+        if (Array.isArray(value)) {
+          measures.push(...value.map(v => ({ field: v.key })));
+        } else {
+          measures.push({ field: value.key });
+        }
+      }
+    }
+
+    // For table view, columns can be both dimensions and measures
+    if (chartType === 'table' && zoneValues.columns) {
+      const cols = zoneValues.columns;
+      // Clear and rebuild - columns go to dimensions for grouping
+      dimensions.length = 0;
+      measures.length = 0;
+      cols.forEach(col => {
+        // Add to dimensions for grouping
+        dimensions.push(col.key);
+      });
+      // Add record_count as default measure for tables
+      if (measures.length === 0) {
+        measures.push({ field: 'record_count' });
+      }
+    }
+
+    return {
+      dataSource,
+      dimensions,
+      measures,
+      filters: filters.filter(f => f.field && f.value),
+      dateRange,
+    };
+  }, [chartType, dataSource, zoneValues, filters, dateRange]);
+
+  // Get requirements status
+  const requirementsStatus = useMemo(() => checkMinimumRequirements(), [checkMinimumRequirements]);
+
   // Query mutation
   const queryMutation = useMutation({
     mutationFn: async (queryConfig) => {
@@ -1118,8 +1223,20 @@ const CustomReportBuilder = () => {
       // Transform currency values from cents to dollars
       const transformed = data.map(row => {
         const newRow = { ...row };
-        if (yAxis?.type === 'currency' && newRow[yAxis.key] !== undefined) {
-          newRow[yAxis.key] = newRow[yAxis.key] / 100;
+        // Check all measure zones for currency types
+        const measureZones = ['yAxis', 'yAxis1', 'yAxis2', 'values', 'value', 'size'];
+        for (const zone of measureZones) {
+          const field = zoneValues[zone];
+          if (field?.type === 'currency' && newRow[field.key] !== undefined) {
+            newRow[field.key] = newRow[field.key] / 100;
+          }
+          if (Array.isArray(field)) {
+            field.forEach(f => {
+              if (f?.type === 'currency' && newRow[f.key] !== undefined) {
+                newRow[f.key] = newRow[f.key] / 100;
+              }
+            });
+          }
         }
         return newRow;
       });
@@ -1132,42 +1249,37 @@ const CustomReportBuilder = () => {
     },
   });
 
-  // Fetch data when config changes
+  // Manual fetch data function
   const fetchData = useCallback(() => {
-    if (!xAxis || !yAxis) return;
+    if (!requirementsStatus.met) return;
+    const config = buildQueryConfig();
+    queryMutation.mutate(config);
+  }, [requirementsStatus.met, buildQueryConfig, queryMutation]);
 
-    const dimensions = [xAxis.key];
-    if (groupBy) dimensions.push(groupBy.key);
-
-    const measures = [{ field: yAxis.key }];
-
-    queryMutation.mutate({
-      dataSource,
-      dimensions,
-      measures,
-      filters: filters.filter(f => f.field && f.value),
-      dateRange,
-    });
-  }, [dataSource, xAxis, yAxis, groupBy, filters, dateRange, queryMutation]);
-
-  // Auto-fetch when config changes
+  // Auto-fetch when config changes (respects autoRefresh setting)
   useEffect(() => {
-    if (!xAxis || !yAxis) return;
+    // Don't fetch if requirements aren't met
+    if (!requirementsStatus.met) {
+      setChartData([]);
+      return;
+    }
 
-    const dimensions = [xAxis.key];
-    if (groupBy) dimensions.push(groupBy.key);
+    // Don't auto-fetch if autoRefresh is disabled
+    if (!autoRefresh) return;
 
-    const measures = [{ field: yAxis.key }];
-
-    queryMutation.mutate({
-      dataSource,
-      dimensions,
-      measures,
-      filters: filters.filter(f => f.field && f.value),
-      dateRange,
-    });
+    const config = buildQueryConfig();
+    queryMutation.mutate(config);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [xAxis?.key, yAxis?.key, groupBy?.key, JSON.stringify(filters), dateRange.startDate, dateRange.endDate, dataSource]);
+  }, [
+    requirementsStatus.met,
+    autoRefresh,
+    chartType,
+    dataSource,
+    JSON.stringify(zoneValues),
+    JSON.stringify(filters),
+    dateRange.startDate,
+    dateRange.endDate,
+  ]);
 
   // Reset selections when data source changes
   useEffect(() => {
@@ -1621,7 +1733,14 @@ const CustomReportBuilder = () => {
                 </button>
                 <button
                   onClick={fetchData}
-                  className="px-2 py-1 text-xs text-muted hover:text-text border border-border rounded hover:bg-surface-hover"
+                  disabled={!requirementsStatus.met || queryMutation.isPending}
+                  title={!requirementsStatus.met ? requirementsStatus.message : 'Refresh data'}
+                  className={cn(
+                    "px-2 py-1 text-xs border border-border rounded transition-colors",
+                    requirementsStatus.met
+                      ? "text-muted hover:text-text hover:bg-surface-hover"
+                      : "text-muted/50 cursor-not-allowed"
+                  )}
                 >
                   <RefreshCw className={cn("h-3.5 w-3.5", queryMutation.isPending && "animate-spin")} />
                 </button>
@@ -1848,14 +1967,15 @@ const CustomReportBuilder = () => {
               </div>
             )}
 
-            {!xAxis || !yAxis ? (
+            {!requirementsStatus.met ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center max-w-md">
                   <div className="w-24 h-24 mx-auto mb-4 bg-surface-secondary rounded-full flex items-center justify-center">
                     <BarChart3 className="h-10 w-10 text-muted" />
                   </div>
+                  <h3 className="text-base font-medium text-text mb-2">Configure your report</h3>
                   <p className="text-sm text-muted">
-                    Add one 'x' field or one 'y' field to display the report.
+                    {requirementsStatus.message}
                   </p>
                 </div>
               </div>
