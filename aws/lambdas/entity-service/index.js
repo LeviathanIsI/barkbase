@@ -661,7 +661,7 @@ async function getFacility(event) {
       `SELECT id, tenant_id, name, size, location, max_occupancy,
               is_active, created_at, updated_at
        FROM "Kennel"
-       WHERE id = $1 AND tenant_id = $2`,
+       WHERE record_id = $1 AND tenant_id = $2`,
       [id, tenantId]
     );
     if (result.rows.length === 0) {
@@ -778,7 +778,7 @@ async function updateFacility(event) {
 
     const result = await query(
       `UPDATE "Kennel" SET ${updates.join(', ')}, updated_at = NOW()
-       WHERE id = $${paramIndex++} AND tenant_id = $${paramIndex}
+       WHERE record_id = $${paramIndex++} AND tenant_id = $${paramIndex}
        RETURNING *`,
       values
     );
@@ -891,9 +891,9 @@ async function getPets(event) {
               primary_owner.email AS owner_email,
               primary_owner.phone AS owner_phone
        FROM "Pet" p
-       LEFT JOIN "Veterinarian" v ON p.vet_id = v.id
+       LEFT JOIN "Veterinarian" v ON v.tenant_id = p.tenant_id AND v.record_id = p.vet_id
        LEFT JOIN "PetOwner" primary_po ON primary_po.pet_id = p.id AND primary_po.is_primary = true
-       LEFT JOIN "Owner" primary_owner ON primary_owner.id = primary_po.owner_id
+       LEFT JOIN "Owner" primary_owner ON primary_owner.tenant_id = p.tenant_id AND primary_owner.record_id = primary_po.owner_id
        ${joinClause}
        WHERE ${whereClause}
        ORDER BY p.name
@@ -936,8 +936,8 @@ async function getPet(event) {
               v.address_street AS vet_address_street, v.address_city AS vet_address_city,
               v.address_state AS vet_address_state, v.address_zip AS vet_address_zip
        FROM "Pet" p
-       LEFT JOIN "Veterinarian" v ON p.vet_id = v.id
-       WHERE p.id = $1 AND p.tenant_id = $2`,
+       LEFT JOIN "Veterinarian" v ON v.tenant_id = p.tenant_id AND v.record_id = p.vet_id
+       WHERE p.record_id = $1 AND p.tenant_id = $2`,
       [id, tenantId]
     );
     if (result.rows.length === 0) {
@@ -989,7 +989,7 @@ async function createPet(event) {
     const ownerId = body.ownerId || body.owner_id;
     if (ownerId) {
       const ownerCheck = await query(
-        `SELECT id FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+        `SELECT id FROM "Owner" WHERE record_id = $1 AND tenant_id = $2`,
         [ownerId, tenantId]
       );
       if (ownerCheck.rows.length === 0) {
@@ -1013,24 +1013,24 @@ async function createPet(event) {
       // Try to find existing vet by clinic name and vet name
       if (vetClinic || vetName) {
         const existingVet = await query(
-          `SELECT id FROM "Veterinarian"
+          `SELECT record_id FROM "Veterinarian"
            WHERE tenant_id = $1 AND (clinic_name = $2 OR vet_name = $3)
            LIMIT 1`,
           [tenantId, vetClinic, vetName]
         );
 
         if (existingVet.rows.length > 0) {
-          vetId = existingVet.rows[0].id;
+          vetId = existingVet.rows[0].record_id;
         } else {
           // Create new Veterinarian record
           const vetRecordId = await getNextRecordId(tenantId, 'Veterinarian');
           const newVet = await query(
             `INSERT INTO "Veterinarian" (tenant_id, record_id, clinic_name, vet_name, phone, email, is_active)
              VALUES ($1, $2, $3, $4, $5, $6, true)
-             RETURNING id`,
+             RETURNING record_id`,
             [tenantId, vetRecordId, vetClinic, vetName, vetPhone, vetEmail]
           );
-          vetId = newVet.rows[0].id;
+          vetId = newVet.rows[0].record_id;
         }
       }
     }
@@ -1171,7 +1171,7 @@ async function updatePet(event) {
 
       if (vetClinic || vetName) {
         const existingVet = await query(
-          `SELECT id FROM "Veterinarian"
+          `SELECT record_id FROM "Veterinarian"
            WHERE tenant_id = $1 AND (clinic_name = $2 OR vet_name = $3)
            LIMIT 1`,
           [tenantId, vetClinic, vetName]
@@ -1179,7 +1179,7 @@ async function updatePet(event) {
 
         let vetId;
         if (existingVet.rows.length > 0) {
-          vetId = existingVet.rows[0].id;
+          vetId = existingVet.rows[0].record_id;
           // Optionally update vet info
           await query(
             `UPDATE "Veterinarian" SET
@@ -1196,10 +1196,10 @@ async function updatePet(event) {
           const newVet = await query(
             `INSERT INTO "Veterinarian" (tenant_id, record_id, clinic_name, vet_name, phone, email, is_active)
              VALUES ($1, $2, $3, $4, $5, $6, true)
-             RETURNING id`,
+             RETURNING record_id`,
             [tenantId, vetRecordId, vetClinic, vetName, vetPhone, vetEmail]
           );
-          vetId = newVet.rows[0].id;
+          vetId = newVet.rows[0].record_id;
         }
         updates.push(`vet_id = $${paramIndex++}`);
         values.push(vetId);
@@ -1218,7 +1218,7 @@ async function updatePet(event) {
 
     const result = await query(
       `UPDATE "Pet" SET ${updates.join(', ')}, updated_at = NOW()
-       WHERE id = $${paramIndex++} AND tenant_id = $${paramIndex}
+       WHERE record_id = $${paramIndex++} AND tenant_id = $${paramIndex}
        RETURNING *`,
       values
     );
@@ -1392,7 +1392,7 @@ async function getOwner(event) {
               o.tags, o.stripe_customer_id,
               o.is_active, o.created_at, o.updated_at, o.created_by, o.updated_by
        FROM "Owner" o
-       WHERE o.id = $1 AND o.tenant_id = $2`,
+       WHERE o.record_id = $1 AND o.tenant_id = $2`,
       [id, tenantId]
     );
     if (result.rows.length === 0) {
@@ -1646,7 +1646,7 @@ async function exportOwnerData(event) {
 
     // Get owner details
     const ownerResult = await query(
-      `SELECT * FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT * FROM "Owner" WHERE record_id = $1 AND tenant_id = $2`,
       [ownerId, tenantId]
     );
 
@@ -1659,7 +1659,7 @@ async function exportOwnerData(event) {
     // Get all pets via PetOwner junction table (Pet has NO owner_id column)
     const petsResult = await query(
       `SELECT p.* FROM "Pet" p
-       JOIN "PetOwner" po ON p.id = po.pet_id
+       JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.id
        WHERE po.owner_id = $1 AND p.tenant_id = $2`,
       [ownerId, tenantId]
     );
@@ -1824,7 +1824,7 @@ async function deleteOwnerData(event) {
 
     // Verify owner exists
     const ownerResult = await query(
-      `SELECT id, first_name, last_name FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT id, first_name, last_name FROM "Owner" WHERE record_id = $1 AND tenant_id = $2`,
       [ownerId, tenantId]
     );
 
@@ -1837,7 +1837,7 @@ async function deleteOwnerData(event) {
     // Get all pet IDs for this owner via PetOwner junction table
     const petsResult = await query(
       `SELECT p.id FROM "Pet" p
-       JOIN "PetOwner" po ON p.id = po.pet_id
+       JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.id
        WHERE po.owner_id = $1 AND p.tenant_id = $2`,
       [ownerId, tenantId]
     );
@@ -2000,8 +2000,8 @@ async function getStaff(event) {
               COALESCE(r.name, 'user') AS role,
               r.name as title
        FROM "User" u
-       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
-       LEFT JOIN "Role" r ON ur.role_id = r.id
+       LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.id
+       LEFT JOIN "Role" r ON r.tenant_id = u.tenant_id AND r.record_id = ur.role_id
        WHERE u.tenant_id = $1
        ORDER BY u.last_name, u.first_name`,
       [tenantId]
@@ -2042,9 +2042,9 @@ async function getStaffMember(event) {
               COALESCE(r.name, 'user') AS role,
               r.name as title
        FROM "User" u
-       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
-       LEFT JOIN "Role" r ON ur.role_id = r.id
-       WHERE u.id = $1 AND u.tenant_id = $2`,
+       LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.id
+       LEFT JOIN "Role" r ON r.tenant_id = u.tenant_id AND r.record_id = ur.role_id
+       WHERE u.record_id = $1 AND u.tenant_id = $2`,
       [id, tenantId]
     );
     if (result.rows.length === 0) {
@@ -2083,7 +2083,7 @@ async function createStaffMember(event) {
 
     // Check if user exists and belongs to tenant
     const userCheck = await query(
-      `SELECT id FROM "User" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT id FROM "User" WHERE record_id = $1 AND tenant_id = $2`,
       [userId, tenantId]
     );
 
@@ -2122,7 +2122,7 @@ async function createStaffMember(event) {
     const staffWithUser = await query(
       `SELECT s.*, u.first_name, u.last_name, u.email
        FROM "Staff" s
-       LEFT JOIN "User" u ON s.user_id = u.id
+       LEFT JOIN "User" u ON u.tenant_id = s.tenant_id AND u.id = s.user_id
        WHERE s.id = $1`,
       [result.rows[0].id]
     );
@@ -2191,7 +2191,7 @@ async function updateStaffMember(event) {
     const staffWithUser = await query(
       `SELECT s.*, u.first_name, u.last_name, u.email
        FROM "Staff" s
-       LEFT JOIN "User" u ON s.user_id = u.id
+       LEFT JOIN "User" u ON u.tenant_id = s.tenant_id AND u.id = s.user_id
        WHERE s.id = $1`,
       [result.rows[0].id]
     );
@@ -2221,8 +2221,8 @@ async function deleteStaffMember(event) {
     // Hard delete for staff records (they can be re-created)
     const result = await query(
       `DELETE FROM "Staff"
-       WHERE id = $1 AND tenant_id = $2
-       RETURNING id`,
+       WHERE record_id = $1 AND tenant_id = $2
+       RETURNING record_id`,
       [id, tenantId]
     );
 
@@ -2299,9 +2299,9 @@ async function getExpiringVaccinations(event) {
          o.email as owner_email,
          o.phone as owner_phone
        FROM "Vaccination" v
-       JOIN "Pet" p ON v.pet_id = p.id
-       LEFT JOIN "PetOwner" po ON p.id = po.pet_id AND po.is_primary = true
-       LEFT JOIN "Owner" o ON po.owner_id = o.id
+       JOIN "Pet" p ON p.tenant_id = v.tenant_id AND p.id = v.pet_id
+       LEFT JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.id AND po.is_primary = true
+       LEFT JOIN "Owner" o ON o.tenant_id = p.tenant_id AND o.record_id = po.owner_id
        WHERE v.tenant_id = $1
                  AND v.expires_at IS NOT NULL
          AND v.expires_at >= CURRENT_DATE - INTERVAL '7 days'
@@ -2408,7 +2408,7 @@ async function getPetVaccinations(event) {
 
     // Verify pet belongs to tenant
     const petResult = await query(
-      `SELECT id FROM "Pet" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT id FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`,
       [petId, tenantId]
     );
 
@@ -2526,7 +2526,7 @@ async function createPetVaccination(event) {
 
     // Verify pet belongs to tenant
     const petResult = await query(
-      `SELECT id, name FROM "Pet" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT id, name FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`,
       [petId, tenantId]
     );
 
@@ -2829,7 +2829,7 @@ async function bulkUpdatePets(event) {
     const result = await query(
       `UPDATE "Pet"
        SET ${setClauses.join(', ')}
-       WHERE id = ANY($1) AND tenant_id = $2       RETURNING id`,
+       WHERE record_id = ANY($1) AND tenant_id = $2       RETURNING record_id`,
       values
     );
 
@@ -2838,7 +2838,7 @@ async function bulkUpdatePets(event) {
     return createResponse(200, {
       success: true,
       updatedCount: result.rowCount,
-      updatedIds: result.rows.map(r => r.id),
+      updatedIds: result.rows.map(r => r.record_id),
       message: `${result.rowCount} pet(s) updated successfully`,
     });
   } catch (error) {
@@ -2993,7 +2993,7 @@ async function bulkUpdateOwners(event) {
     const result = await query(
       `UPDATE "Owner"
        SET ${setClauses.join(', ')}
-       WHERE id = ANY($1) AND tenant_id = $2       RETURNING id`,
+       WHERE record_id = ANY($1) AND tenant_id = $2       RETURNING record_id`,
       values
     );
 
@@ -3002,7 +3002,7 @@ async function bulkUpdateOwners(event) {
     return createResponse(200, {
       success: true,
       updatedCount: result.rowCount,
-      updatedIds: result.rows.map(r => r.id),
+      updatedIds: result.rows.map(r => r.record_id),
       message: `${result.rowCount} owner(s) updated successfully`,
     });
   } catch (error) {
@@ -3090,8 +3090,8 @@ async function bulkDeleteStaff(event) {
 
     const result = await query(
       `DELETE FROM "Staff"
-       WHERE id = ANY($1) AND tenant_id = $2
-       RETURNING id`,
+       WHERE record_id = ANY($1) AND tenant_id = $2
+       RETURNING record_id`,
       [ids, tenantId]
     );
 
@@ -3100,7 +3100,7 @@ async function bulkDeleteStaff(event) {
     return createResponse(200, {
       success: true,
       deletedCount: result.rowCount,
-      deletedIds: result.rows.map(r => r.id),
+      deletedIds: result.rows.map(r => r.record_id),
       message: `${result.rowCount} staff member(s) deleted successfully`,
     });
   } catch (error) {
@@ -3161,8 +3161,8 @@ async function bulkUpdateStaff(event) {
     const result = await query(
       `UPDATE "Staff"
        SET ${setClauses.join(', ')}
-       WHERE id = ANY($1) AND tenant_id = $2
-       RETURNING id`,
+       WHERE record_id = ANY($1) AND tenant_id = $2
+       RETURNING record_id`,
       values
     );
 
@@ -3171,7 +3171,7 @@ async function bulkUpdateStaff(event) {
     return createResponse(200, {
       success: true,
       updatedCount: result.rowCount,
-      updatedIds: result.rows.map(r => r.id),
+      updatedIds: result.rows.map(r => r.record_id),
       message: `${result.rowCount} staff member(s) updated successfully`,
     });
   } catch (error) {
@@ -3308,8 +3308,8 @@ async function getActivity(event) {
               u.first_name as creator_first_name, u.last_name as creator_last_name,
               u.email as creator_email
        FROM "Activity" a
-       LEFT JOIN "User" u ON a.created_by = u.id
-       WHERE a.id = $1 AND a.tenant_id = $2`,
+       LEFT JOIN "User" u ON u.tenant_id = a.tenant_id AND u.id = a.created_by
+       WHERE a.record_id = $1 AND a.tenant_id = $2`,
       [id, tenantId]
     );
 
@@ -3540,7 +3540,7 @@ async function deleteActivity(event) {
     await getPoolAsync();
 
     const result = await query(
-      `DELETE FROM "Activity" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      `DELETE FROM "Activity" WHERE record_id = $1 AND tenant_id = $2 RETURNING record_id`,
       [id, tenantId]
     );
 
@@ -3548,7 +3548,7 @@ async function deleteActivity(event) {
       return createResponse(404, { error: 'NotFound', message: 'Activity not found' });
     }
 
-    return createResponse(200, { success: true, id: result.rows[0].id });
+    return createResponse(200, { success: true, id: result.rows[0].record_id });
   } catch (error) {
     console.error('[ENTITY-SERVICE] deleteActivity error:', error);
     return createResponse(500, { error: 'InternalServerError', message: 'Failed to delete activity' });
