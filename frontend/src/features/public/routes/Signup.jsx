@@ -69,30 +69,46 @@ const Signup = () => {
     setError(null);
 
     try {
-      const signUpResponse = await auth.signUp({ 
-        email, 
-        password, 
+      const signUpResponse = await auth.signUp({
+        email,
+        password,
         tenantName,
         tenantSlug: tenantSlug || slugHint,
         name: email.split('@')[0]
       });
 
+      // Check if user needs email verification (no tokens returned)
+      if (signUpResponse.needsVerification) {
+        setSuccess({
+          email,
+          tenant: signUpResponse.tenant || { name: tenantName, slug: tenantSlug || slugHint },
+          message: signUpResponse.message,
+        });
+        return;
+      }
+
+      // Only set auth and navigate if we have tokens
+      if (!signUpResponse.accessToken) {
+        throw new Error('Registration succeeded but no access token received. Please try logging in.');
+      }
 
       setAuth({
         user: signUpResponse.user,
         accessToken: signUpResponse.accessToken,
         refreshToken: signUpResponse.refreshToken,
         role: 'OWNER',
-        tenantId: signUpResponse.tenant.recordId,
-        memberships: [{ role: 'OWNER', tenantId: signUpResponse.tenant.recordId }],
+        tenantId: signUpResponse.tenant?.id || signUpResponse.tenant?.recordId,
+        accountCode: signUpResponse.tenant?.accountCode,
+        memberships: [{ role: 'OWNER', tenantId: signUpResponse.tenant?.id || signUpResponse.tenant?.recordId }],
         rememberMe: true,
       });
 
       setTenant({
-        recordId: signUpResponse.tenant.recordId,
-        slug: signUpResponse.tenant.slug,
-        name: signUpResponse.tenant.name,
-        plan: signUpResponse.tenant.plan || 'FREE',
+        recordId: signUpResponse.tenant?.id || signUpResponse.tenant?.recordId,
+        slug: signUpResponse.tenant?.slug,
+        name: signUpResponse.tenant?.name,
+        plan: signUpResponse.tenant?.plan || 'FREE',
+        accountCode: signUpResponse.tenant?.accountCode,
       });
 
       navigate('/today');
