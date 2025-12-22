@@ -6,10 +6,11 @@
  */
 
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../../../backend/.env.development') });
+require('dotenv').config({ path: path.join(__dirname, '../../../frontend/.env.development') });
 
-// Default to local development URL
-const API_BASE_URL = process.env.API_URL || 'http://localhost:3001/api/v1';
+// API Gateway URL from frontend environment
+// Pattern: https://{api-id}.execute-api.{region}.amazonaws.com
+const API_BASE_URL = process.env.VITE_API_URL || 'https://gvrsq1bmy6.execute-api.us-east-2.amazonaws.com';
 
 /**
  * Create headers for an authenticated request
@@ -55,13 +56,19 @@ async function parseResponse(response) {
 async function request(method, endpoint, options = {}) {
   const { token, tenantId, body, headers: additionalHeaders, accountCode } = options;
 
+  // Normalize endpoint - ensure it starts with /api/v1 for standard routes
+  let normalizedEndpoint = endpoint;
+  if (!endpoint.startsWith('/api/') && !endpoint.startsWith('/a/')) {
+    normalizedEndpoint = `/api/v1${endpoint}`;
+  }
+
   // Build URL - support both new ID system (/a/:accountCode) and legacy (/api/v1)
   let url;
   if (accountCode) {
     // New ID system: /a/:accountCode/:resource
-    url = `${API_BASE_URL.replace('/api/v1', '')}/a/${accountCode}${endpoint}`;
+    url = `${API_BASE_URL}/a/${accountCode}${endpoint}`;
   } else {
-    url = `${API_BASE_URL}${endpoint}`;
+    url = `${API_BASE_URL}${normalizedEndpoint}`;
   }
 
   const headers = createHeaders(token, tenantId, additionalHeaders);

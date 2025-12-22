@@ -2304,11 +2304,8 @@ async function getExpiringVaccinations(event) {
        LEFT JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id AND po.is_primary = true
        LEFT JOIN "Owner" o ON o.tenant_id = p.tenant_id AND o.record_id = po.owner_id
        WHERE v.tenant_id = $1
-                 AND v.expires_at IS NOT NULL
-         AND v.expires_at >= CURRENT_DATE - INTERVAL '7 days'
-         AND v.expires_at <= CURRENT_DATE + INTERVAL '1 day' * $2
-       ORDER BY v.expires_at ASC`,
-      [tenantId, daysAhead]
+       ORDER BY v.expires_at ASC NULLS LAST`,
+      [tenantId]
     );
 
     const vaccinations = result.rows.map(row => {

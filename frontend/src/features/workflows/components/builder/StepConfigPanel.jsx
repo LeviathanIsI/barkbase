@@ -86,10 +86,13 @@ export default function StepConfigPanel() {
 
   // Handle save - saves and closes
   const handleSave = useCallback(() => {
+    console.log('[StepConfigPanel] handleSave called');
+    console.log('[StepConfigPanel] localStep:', JSON.stringify(localStep, null, 2));
     if (selectedStepId === 'trigger' && localEntryCondition) {
       setEntryCondition(localEntryCondition);
     } else if (localStep) {
       updateStep(localStep.id, localStep);
+      console.log('[StepConfigPanel] updateStep called with:', localStep.id, JSON.stringify(localStep.config));
     }
     setHasChanges(false);
     clearSelection(); // Close after saving

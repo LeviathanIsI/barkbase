@@ -849,8 +849,15 @@ function TriggerConfigPanel({
 
   // State for filter configuration - pre-populate from saved
   const [filterConditions, setFilterConditions] = useState(() => {
-    if (savedEntryCondition?.triggerType === 'filter_criteria' && savedFilterConfig.conditions?.length > 0) {
-      return savedFilterConfig.conditions;
+    if (savedEntryCondition?.triggerType === 'filter_criteria') {
+      // Handle new groups structure
+      if (savedFilterConfig.groups?.[0]?.conditions?.length > 0) {
+        return savedFilterConfig.groups[0].conditions;
+      }
+      // Handle legacy conditions structure (backwards compatibility)
+      if (savedFilterConfig.conditions?.length > 0) {
+        return savedFilterConfig.conditions;
+      }
     }
     return [{ field: '', operator: '', value: '' }];
   });
@@ -890,13 +897,20 @@ function TriggerConfigPanel({
 
   // Handle save for filter_criteria
   const handleSaveFilterConfig = async () => {
+    // Build filterConfig with groups structure expected by validation
+    const filterConfig = {
+      groups: [
+        {
+          conditions: filterConditions.filter(c => c.field && c.operator),
+          logic: 'and',
+        }
+      ],
+    };
+
     const newEntryCondition = {
       triggerType: 'filter_criteria',
       eventType: null,
-      filterConfig: {
-        conditions: filterConditions,
-        logic: 'and',
-      },
+      filterConfig,
       scheduleConfig: null,
     };
 
@@ -904,7 +918,7 @@ function TriggerConfigPanel({
       triggerType: 'filter_criteria',
       objectType: objectType,
       eventType: null,
-      filterConfig: newEntryCondition.filterConfig,
+      filterConfig,
       scheduleConfig: null,
     };
 

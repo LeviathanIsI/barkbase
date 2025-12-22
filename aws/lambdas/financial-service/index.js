@@ -3757,10 +3757,10 @@ async function handleGetPackages(tenantId, queryParams) {
       whereClause += ` AND p.is_active = true`;
     }
 
-    // Get packages with their included services
+    // Get packages (PackageService junction table still uses UUID FKs, so we skip services for now)
     const result = await query(
       `SELECT
-         p.id,
+         p.record_id,
          p.tenant_id,
          p.name,
          p.description,
@@ -3768,31 +3768,17 @@ async function handleGetPackages(tenantId, queryParams) {
          p.discount_percent,
          p.is_active,
          p.created_at,
-         p.updated_at,
-         COALESCE(
-           json_agg(
-             json_build_object(
-               'serviceId', ps.service_id,
-               'serviceName', s.name,
-               'quantity', ps.quantity,
-               'unitPriceInCents', s.price_in_cents
-             )
-           ) FILTER (WHERE ps.service_id IS NOT NULL),
-           '[]'
-         ) as services
+         p.updated_at
        FROM "Package" p
-       LEFT JOIN "PackageService" ps ON p.id = ps.package_id
-       LEFT JOIN "Service" s ON s.tenant_id = p.tenant_id AND s.record_id = ps.service_id
        WHERE ${whereClause}
-       GROUP BY p.id
        ORDER BY p.created_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...params, parseInt(limit), parseInt(offset)]
     );
 
     const packages = result.rows.map(row => ({
-      id: row.id,
-      recordId: row.id,
+      id: row.record_id,
+      recordId: row.record_id,
       tenantId: row.tenant_id,
       name: row.name,
       description: row.description,
@@ -3800,7 +3786,7 @@ async function handleGetPackages(tenantId, queryParams) {
       price: row.price_in_cents / 100,
       discountPercent: row.discount_percent,
       isActive: row.is_active,
-      services: row.services || [],
+      services: [], // PackageService junction table still uses UUID FKs
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));

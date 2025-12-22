@@ -2,20 +2,39 @@
  * E2E Test Setup Utilities
  *
  * Provides isolated test environments with:
+ * - Real Cognito authentication
  * - Test tenant creation/cleanup
  * - Test user creation with specific roles
- * - JWT token generation for authenticated requests
  */
 
 const { Pool } = require('pg');
 const path = require('path');
-const jwt = require('jsonwebtoken');
+const {
+  CognitoUserPool,
+  CognitoUser,
+  AuthenticationDetails,
+} = require('amazon-cognito-identity-js');
+
+// Load frontend env for Cognito config
+require('dotenv').config({ path: path.join(__dirname, '../../../frontend/.env.development') });
+// Load backend env for database
 require('dotenv').config({ path: path.join(__dirname, '../../../backend/.env.development') });
 
 let pool = null;
 
-// JWT secret for test tokens (matches Lambda auth layer in test mode)
-const TEST_JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key-for-e2e-tests';
+// Cognito configuration from frontend env
+const COGNITO_USER_POOL_ID = process.env.VITE_COGNITO_USER_POOL_ID || 'us-east-2_Ruxq8VwmU';
+const COGNITO_CLIENT_ID = process.env.VITE_COGNITO_CLIENT_ID || '7o10d6f75hrbgkksed19ij4ip9';
+
+// Test account credentials
+const TEST_ACCOUNT = {
+  email: 'joshua.r.bradford1@gmail.com',
+  password: 'Josh1987!?!?',
+};
+
+// Cache for Cognito tokens to avoid re-authenticating
+let cachedCognitoSession = null;
+let cachedTestUser = null;
 
 /**
  * Get or create the database pool
@@ -124,6 +143,61 @@ function generateAccountCode() {
 }
 
 /**
+ * Object type codes for the record_id system
+ * Must match aws/layers/db-layer/nodejs/db.js OBJECT_TYPE_CODES
+ */
+const OBJECT_TYPE_CODES = {
+  Owner: 1,
+  Pet: 2,
+  Booking: 3,
+  Payment: 4,
+  Invoice: 5,
+  InvoiceLine: 6,
+  Task: 7,
+  Note: 8,
+  Vaccination: 9,
+  Incident: 10,
+  Workflow: 20,
+  WorkflowStep: 21,
+  WorkflowExecution: 22,
+  Service: 30,
+  Package: 31,
+  Run: 40,
+  Kennel: 41,
+  RunAssignment: 43,
+  User: 50,
+  Role: 52,
+  UserRole: 53,
+  TimeEntry: 55,
+  Conversation: 60,
+  Message: 61,
+  Notification: 62,
+  Segment: 27,
+  SegmentMember: 28,
+  AuditLog: 90,
+};
+
+/**
+ * Get the next record_id for a table using the database function
+ * @param {string} tenantId - Tenant UUID
+ * @param {string} tableName - Table name (e.g., "User", "Owner")
+ * @returns {Promise<number>} Next record_id
+ */
+async function getNextRecordId(tenantId, tableName) {
+  const objectTypeCode = OBJECT_TYPE_CODES[tableName];
+  if (!objectTypeCode) {
+    throw new Error(`Unknown table "${tableName}" - not registered in OBJECT_TYPE_CODES`);
+  }
+
+  const result = await query(
+    'SELECT next_record_id($1, $2) as record_id',
+    [tenantId, objectTypeCode]
+  );
+
+  return result.rows[0].record_id;
+}
+
+/**
  * Create a test tenant with isolated data
  * @param {object} overrides - Field overrides
  * @returns {Promise<object>} Created tenant
@@ -138,13 +212,12 @@ async function createTestTenant(overrides = {}) {
     name: overrides.name || `E2E Test Tenant ${timestamp}`,
     slug: overrides.slug || `e2e-test-${timestamp}-${randomSuffix}`,
     account_code: overrides.account_code || generateAccountCode(),
-    plan: overrides.plan || 'PROFESSIONAL',
-    status: overrides.status || 'active',
+    plan: overrides.plan || 'PRO',
   };
 
   const result = await query(
-    `INSERT INTO "Tenant" (id, name, slug, account_code, plan, status, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+    `INSERT INTO "Tenant" (id, name, slug, account_code, plan, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
      RETURNING *`,
     [
       tenantData.id,
@@ -152,7 +225,6 @@ async function createTestTenant(overrides = {}) {
       tenantData.slug,
       tenantData.account_code,
       tenantData.plan,
-      tenantData.status,
     ]
   );
 
@@ -175,63 +247,67 @@ async function createTestTenant(overrides = {}) {
  * @returns {Promise<object>} Created user with role
  */
 async function createTestUser(tenantId, role = 'ADMIN', overrides = {}) {
-  const userId = overrides.id || generateUUID();
   const timestamp = Date.now();
   const cognitoSub = overrides.cognito_sub || `test-cognito-${timestamp}-${Math.random().toString(36).substring(2, 8)}`;
+
+  // Get next record_id for User table
+  const userRecordId = await getNextRecordId(tenantId, 'User');
 
   // Create user record
   const userResult = await query(
     `INSERT INTO "User" (
-      id, tenant_id, cognito_sub, record_id, email, first_name, last_name,
-      status, created_at, updated_at
+      tenant_id, record_id, cognito_sub, email, first_name, last_name, is_active, created_at, updated_at
     )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
      RETURNING *`,
     [
-      userId,
       tenantId,
+      userRecordId,
       cognitoSub,
-      overrides.record_id || `usr_${timestamp}`,
       overrides.email || `test-${timestamp}@example.com`,
       overrides.first_name || 'Test',
       overrides.last_name || 'User',
-      overrides.status || 'active',
+      overrides.is_active !== undefined ? overrides.is_active : true,
     ]
   );
 
+  const user = userResult.rows[0];
+
   // Get or create role
   let roleResult = await query(
-    `SELECT id FROM "Role" WHERE tenant_id = $1 AND name = $2`,
+    `SELECT record_id FROM "Role" WHERE tenant_id = $1 AND name = $2`,
     [tenantId, role]
   );
 
   if (roleResult.rows.length === 0) {
-    // Create the role
+    // Get next record_id for Role table
+    const roleRecordId = await getNextRecordId(tenantId, 'Role');
     roleResult = await query(
-      `INSERT INTO "Role" (id, tenant_id, name, description, permissions, is_system, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
-       RETURNING id`,
+      `INSERT INTO "Role" (tenant_id, record_id, name, description, is_system, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, true, NOW(), NOW())
+       RETURNING record_id`,
       [
-        generateUUID(),
         tenantId,
+        roleRecordId,
         role,
         `${role} role for testing`,
-        JSON.stringify(getRolePermissions(role)),
       ]
     );
   }
 
-  const roleId = roleResult.rows[0].id;
+  const roleId = roleResult.rows[0].record_id;
+
+  // Get next record_id for UserRole
+  const userRoleRecordId = await getNextRecordId(tenantId, 'UserRole');
 
   // Assign role to user
   await query(
-    `INSERT INTO "UserRole" (user_id, role_id, tenant_id, created_at)
-     VALUES ($1, $2, $3, NOW())
-     ON CONFLICT (user_id, role_id) DO NOTHING`,
-    [userId, roleId, tenantId]
+    `INSERT INTO "UserRole" (tenant_id, record_id, user_id, role_id, assigned_at)
+     VALUES ($1, $2, $3, $4, NOW())
+     ON CONFLICT DO NOTHING`,
+    [tenantId, userRoleRecordId, user.record_id, roleId]
   );
 
-  const user = userResult.rows[0];
   user.role = role;
   user.roleId = roleId;
 
@@ -272,39 +348,126 @@ function getRolePermissions(role) {
 }
 
 /**
- * Generate a JWT token for a test user
- * @param {object} user - User object from createTestUser
- * @param {object} options - Token options
- * @returns {string} JWT token
+ * Authenticate with Cognito and get a real JWT token
+ * @returns {Promise<{token: string, session: object}>}
  */
-function getAuthToken(user, options = {}) {
-  const payload = {
-    sub: user.cognito_sub,
-    'custom:tenant_id': user.tenant_id,
-    'custom:user_id': user.id,
-    'custom:role': user.role,
-    email: user.email,
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + (options.expiresIn || 3600),
-  };
+async function authenticateWithCognito(email = TEST_ACCOUNT.email, password = TEST_ACCOUNT.password) {
+  // Return cached session if still valid
+  if (cachedCognitoSession) {
+    const idToken = cachedCognitoSession.getIdToken();
+    const expiration = idToken.getExpiration();
+    const now = Math.floor(Date.now() / 1000);
 
-  return jwt.sign(payload, TEST_JWT_SECRET);
+    // If token expires in more than 5 minutes, reuse it
+    if (expiration - now > 300) {
+      return {
+        token: idToken.getJwtToken(),
+        accessToken: cachedCognitoSession.getAccessToken().getJwtToken(),
+        session: cachedCognitoSession,
+      };
+    }
+  }
+
+  const userPool = new CognitoUserPool({
+    UserPoolId: COGNITO_USER_POOL_ID,
+    ClientId: COGNITO_CLIENT_ID,
+  });
+
+  const authDetails = new AuthenticationDetails({
+    Username: email,
+    Password: password,
+  });
+
+  const cognitoUser = new CognitoUser({
+    Username: email,
+    Pool: userPool,
+  });
+
+  return new Promise((resolve, reject) => {
+    cognitoUser.authenticateUser(authDetails, {
+      onSuccess: (result) => {
+        cachedCognitoSession = result;
+        console.log('[E2E] Cognito authentication successful');
+        resolve({
+          token: result.getIdToken().getJwtToken(),
+          accessToken: result.getAccessToken().getJwtToken(),
+          session: result,
+        });
+      },
+      onFailure: (err) => {
+        console.error('[E2E] Cognito authentication failed:', err.message);
+        reject(err);
+      },
+      newPasswordRequired: () => {
+        reject(new Error('New password required - test account needs password reset'));
+      },
+    });
+  });
 }
 
 /**
- * Generate an expired JWT token
+ * Get the real user info from the database for the test account
+ * @returns {Promise<object>} User and tenant info
  */
-function getExpiredToken(user) {
-  const payload = {
-    sub: user.cognito_sub,
-    'custom:tenant_id': user.tenant_id,
-    'custom:user_id': user.id,
-    email: user.email,
-    iat: Math.floor(Date.now() / 1000) - 7200,
-    exp: Math.floor(Date.now() / 1000) - 3600, // Expired 1 hour ago
-  };
+async function getTestUserFromDatabase() {
+  if (cachedTestUser) {
+    return cachedTestUser;
+  }
 
-  return jwt.sign(payload, TEST_JWT_SECRET);
+  const result = await query(
+    `SELECT u.*, t.id as tenant_id, t.name as tenant_name, t.account_code, t.slug as tenant_slug
+     FROM "User" u
+     JOIN "Tenant" t ON u.tenant_id = t.id
+     WHERE u.email = $1
+     LIMIT 1`,
+    [TEST_ACCOUNT.email]
+  );
+
+  if (result.rows.length === 0) {
+    throw new Error(`Test user ${TEST_ACCOUNT.email} not found in database`);
+  }
+
+  cachedTestUser = result.rows[0];
+  return cachedTestUser;
+}
+
+/**
+ * Get a real auth token from Cognito
+ * This is the main function tests should use
+ * @returns {Promise<string>} JWT token
+ */
+async function getAuthToken() {
+  const { token } = await authenticateWithCognito();
+  return token;
+}
+
+/**
+ * Get test context with real Cognito auth
+ * @returns {Promise<object>} Test context with token and user info
+ */
+async function getTestContext() {
+  const [authResult, user] = await Promise.all([
+    authenticateWithCognito(),
+    getTestUserFromDatabase(),
+  ]);
+
+  return {
+    token: authResult.token,
+    accessToken: authResult.accessToken,
+    user,
+    tenantId: user.tenant_id,
+    accountCode: user.account_code,
+  };
+}
+
+/**
+ * Generate an expired token (for testing 401 scenarios)
+ * Note: This is a fake token that will be rejected
+ */
+function getExpiredToken() {
+  // Return a structurally valid but expired JWT
+  // The API will reject this with 401
+  return 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiZXhwIjoxfQ.invalid';
 }
 
 /**
@@ -324,24 +487,23 @@ async function cleanupTenant(tenantId) {
   const deleteQueries = [
     // Workflow data
     `DELETE FROM "WorkflowExecutionLog" WHERE execution_id IN (
-      SELECT id FROM "WorkflowExecution" WHERE tenant_id = $1
+      SELECT record_id FROM "WorkflowExecution" WHERE tenant_id = $1
     )`,
     `DELETE FROM "WorkflowExecution" WHERE tenant_id = $1`,
     `DELETE FROM "WorkflowStep" WHERE workflow_id IN (
-      SELECT id FROM "Workflow" WHERE tenant_id = $1
+      SELECT record_id FROM "Workflow" WHERE tenant_id = $1
     )`,
     `DELETE FROM "Workflow" WHERE tenant_id = $1`,
 
     // Analytics
     `DELETE FROM "SegmentMember" WHERE segment_id IN (
-      SELECT id FROM "Segment" WHERE tenant_id = $1
+      SELECT record_id FROM "Segment" WHERE tenant_id = $1
     )`,
     `DELETE FROM "Segment" WHERE tenant_id = $1`,
     `DELETE FROM "ReportDefinition" WHERE tenant_id = $1`,
 
     // Messaging
     `DELETE FROM "Notification" WHERE tenant_id = $1`,
-    `DELETE FROM "MessageTemplate" WHERE tenant_id = $1`,
     `DELETE FROM "Conversation" WHERE tenant_id = $1`,
     `DELETE FROM "Message" WHERE tenant_id = $1`,
 
@@ -354,14 +516,14 @@ async function cleanupTenant(tenantId) {
 
     // Financial
     `DELETE FROM "Payment" WHERE tenant_id = $1`,
-    `DELETE FROM "InvoiceLineItem" WHERE invoice_id IN (
-      SELECT id FROM "Invoice" WHERE tenant_id = $1
+    `DELETE FROM "InvoiceLine" WHERE invoice_id IN (
+      SELECT record_id FROM "Invoice" WHERE tenant_id = $1
     )`,
     `DELETE FROM "Invoice" WHERE tenant_id = $1`,
 
     // Bookings
     `DELETE FROM "BookingPet" WHERE booking_id IN (
-      SELECT id FROM "Booking" WHERE tenant_id = $1
+      SELECT record_id FROM "Booking" WHERE tenant_id = $1
     )`,
     `DELETE FROM "Booking" WHERE tenant_id = $1`,
 
@@ -377,14 +539,9 @@ async function cleanupTenant(tenantId) {
     // Owners
     `DELETE FROM "Owner" WHERE tenant_id = $1`,
 
-    // Staff
-    `DELETE FROM "Staff" WHERE tenant_id = $1`,
-
-    // Facilities
-    `DELETE FROM "Run" WHERE facility_id IN (
-      SELECT id FROM "Facility" WHERE tenant_id = $1
-    )`,
-    `DELETE FROM "Facility" WHERE tenant_id = $1`,
+    // Runs and Kennels
+    `DELETE FROM "Run" WHERE tenant_id = $1`,
+    `DELETE FROM "Kennel" WHERE tenant_id = $1`,
 
     // Services
     `DELETE FROM "Service" WHERE tenant_id = $1`,
@@ -404,7 +561,6 @@ async function cleanupTenant(tenantId) {
 
     // Settings
     `DELETE FROM "TenantSettings" WHERE tenant_id = $1`,
-    `DELETE FROM "FeatureFlag" WHERE tenant_id = $1`,
 
     // Tenant
     `DELETE FROM "Tenant" WHERE id = $1`,
@@ -453,19 +609,37 @@ async function createTestEnvironment() {
 }
 
 module.exports = {
+  // Database
   getPool,
   query,
   transaction,
   closePool,
   testConnection,
+
+  // Utilities
   generateUUID,
   generateAccountCode,
+  getNextRecordId,
+  OBJECT_TYPE_CODES,
+
+  // Test data creation
   createTestTenant,
   createTestUser,
-  getAuthToken,
-  getExpiredToken,
-  getInvalidToken,
   cleanupTenant,
   createTestEnvironment,
-  TEST_JWT_SECRET,
+
+  // Cognito authentication (real tokens)
+  authenticateWithCognito,
+  getTestUserFromDatabase,
+  getAuthToken,
+  getTestContext,
+  TEST_ACCOUNT,
+
+  // For testing auth failures
+  getExpiredToken,
+  getInvalidToken,
+
+  // Config
+  COGNITO_USER_POOL_ID,
+  COGNITO_CLIENT_ID,
 };

@@ -118,6 +118,9 @@ function validateSteps(steps) {
   steps.forEach((step) => {
     const config = step.config || step.actionConfig || step.action_config || {};
 
+    // Debug logging to identify validation issues
+    console.log('[validateSteps] Step:', step.name, 'Type:', step.actionType, 'Config:', JSON.stringify(config));
+
     if (step.actionType === 'send_sms' || step.action_type === 'send_sms') {
       if (!config.message) {
         issues.push({ type: 'error', message: `SMS action "${step.name}" has no message` });
@@ -203,10 +206,6 @@ export default function ReviewWorkflowSidebar({
   onActivate,
   isActivating = false
 }) {
-  const [dependencies, setDependencies] = useState(null);
-  const [loadingDeps, setLoadingDeps] = useState(true);
-  const [depsError, setDepsError] = useState(null);
-
   const objectConfig = OBJECT_TYPE_CONFIG[workflow.objectType] || {};
   const triggerLabel =
     ENTRY_CONDITION_TYPES.find((t) => t.value === workflow.entryCondition?.triggerType)?.label ||
@@ -258,8 +257,7 @@ export default function ReviewWorkflowSidebar({
 
   // Overall status
   const hasErrors = triggerValidation.status === 'error' ||
-                    stepsValidation.status === 'error' ||
-                    getDependenciesStatus() === 'error';
+                    stepsValidation.status === 'error';
 
   const handleActivate = () => {
     if (!hasErrors) {
