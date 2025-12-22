@@ -568,7 +568,6 @@ async function handleRegister(event) {
          ($1, $5, 'RECEPTIONIST', 'Front desk operations', true, NOW(), NOW()),
          ($1, $6, 'GROOMER', 'Grooming staff', true, NOW(), NOW()),
          ($1, $7, 'VIEWER', 'Read-only access', true, NOW(), NOW())
-       ON CONFLICT (tenant_id, name) DO UPDATE SET updated_at = NOW()
        RETURNING record_id, name`,
       [tenant.id, roleBaseId, roleBaseId + 1, roleBaseId + 2, roleBaseId + 3, roleBaseId + 4, roleBaseId + 5]
     );
@@ -604,8 +603,7 @@ async function handleRegister(event) {
       const userRoleRecordId = userRoleSeqResult.rows[0].last_record_id;
       await dbClient.query(
         `INSERT INTO "UserRole" (tenant_id, record_id, user_id, role_id, assigned_at)
-         VALUES ($1, $2, $3, $4, NOW())
-         ON CONFLICT (user_id, role_id) DO NOTHING`,
+         VALUES ($1, $2, $3, $4, NOW())`,
         [tenant.id, userRoleRecordId, user.record_id, ownerRole.record_id]
       );
     }
