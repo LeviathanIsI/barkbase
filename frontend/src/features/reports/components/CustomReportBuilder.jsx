@@ -1235,10 +1235,59 @@ const CustomReportBuilder = () => {
                 </button>
               </div>
 
-              {/* Chart Type Grid - 2 rows of icons with labels */}
-              <div className="px-4 py-3 border-b border-border">
-                <div className="grid grid-cols-6 gap-1">
-                  {CHART_TYPES.map((ct) => (
+              {/* Chart Type Grid - 4, 4, 5 layout */}
+              <div className="px-4 py-3 border-b border-border space-y-1">
+                {/* Row 1: 4 items */}
+                <div className="grid grid-cols-4 gap-1">
+                  {CHART_TYPES.slice(0, 4).map((ct) => (
+                    <button
+                      key={ct.value}
+                      onClick={() => setChartType(ct.value)}
+                      title={ct.label}
+                      className={cn(
+                        "flex flex-col items-center justify-center py-1.5 px-1 rounded-md transition-all",
+                        chartType === ct.value
+                          ? "bg-primary/10 text-primary ring-2 ring-primary/30"
+                          : "text-muted hover:bg-surface-hover hover:text-text"
+                      )}
+                    >
+                      <ct.icon className="h-4.5 w-4.5 mb-0.5" />
+                      <span className={cn(
+                        "text-[10px] leading-tight",
+                        chartType === ct.value ? "text-primary" : "text-muted"
+                      )}>
+                        {ct.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {/* Row 2: 4 items */}
+                <div className="grid grid-cols-4 gap-1">
+                  {CHART_TYPES.slice(4, 8).map((ct) => (
+                    <button
+                      key={ct.value}
+                      onClick={() => setChartType(ct.value)}
+                      title={ct.label}
+                      className={cn(
+                        "flex flex-col items-center justify-center py-1.5 px-1 rounded-md transition-all",
+                        chartType === ct.value
+                          ? "bg-primary/10 text-primary ring-2 ring-primary/30"
+                          : "text-muted hover:bg-surface-hover hover:text-text"
+                      )}
+                    >
+                      <ct.icon className="h-4.5 w-4.5 mb-0.5" />
+                      <span className={cn(
+                        "text-[10px] leading-tight",
+                        chartType === ct.value ? "text-primary" : "text-muted"
+                      )}>
+                        {ct.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                {/* Row 3: 5 items */}
+                <div className="grid grid-cols-5 gap-1">
+                  {CHART_TYPES.slice(8).map((ct) => (
                     <button
                       key={ct.value}
                       onClick={() => setChartType(ct.value)}
