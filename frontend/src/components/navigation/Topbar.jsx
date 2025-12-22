@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import {
   Bell,
   ChevronDown,
+  Copy,
   HelpCircle,
   LogOut,
   MapPin,
@@ -1107,6 +1108,7 @@ const TimeClockButton = () => {
 // Profile Dropdown Component
 const ProfileDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -1115,6 +1117,14 @@ const ProfileDropdown = () => {
   const accountCode = authAccountCode || tenantAccountCode;
   const logout = useAuthStore((state) => state.logout);
   const initials = useMemo(() => getInitials(user?.fullName || user?.name || user?.email || ''), [user]);
+
+  const handleCopyAccountCode = useCallback(() => {
+    if (accountCode) {
+      navigator.clipboard.writeText(accountCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [accountCode]);
 
   // Close on outside click
   useEffect(() => {
@@ -1200,9 +1210,6 @@ const ProfileDropdown = () => {
                     {user.email}
                   </p>
                 )}
-                <p className="text-[0.65rem] text-[color:var(--bb-color-text-muted)] mt-0.5">
-                  Account Code: {accountCode || '—'}
-                </p>
                 {user?.role && (
                   <p className="text-[0.65rem] text-[color:var(--bb-color-accent)] mt-0.5 capitalize">
                     {user.role}
@@ -1210,6 +1217,35 @@ const ProfileDropdown = () => {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Account Code - Prominent for support */}
+          <div
+            className="px-4 py-2.5 border-b"
+            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <p className="text-[0.65rem] text-[color:var(--bb-color-text-muted)] mb-1">
+              Account Code
+            </p>
+            <button
+              type="button"
+              onClick={handleCopyAccountCode}
+              className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md border transition-all hover:bg-[color:var(--bb-color-bg-elevated)]"
+              style={{
+                borderColor: 'var(--bb-color-border-default)',
+                backgroundColor: 'var(--bb-color-bg-surface)',
+              }}
+              title="Click to copy"
+            >
+              <span className="flex-1 text-left font-mono text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
+                {accountCode || '—'}
+              </span>
+              {copied ? (
+                <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+              ) : (
+                <Copy className="h-4 w-4 text-[color:var(--bb-color-text-muted)] flex-shrink-0" />
+              )}
+            </button>
           </div>
 
           {/* Menu Items */}
