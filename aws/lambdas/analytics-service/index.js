@@ -3927,7 +3927,7 @@ async function handleGetConversations(tenantId) {
 
     const result = await query(
       `SELECT
-         c.id,
+         c.record_id,
          c.subject,
          c.last_message_at,
          c.unread_count,
@@ -3939,14 +3939,14 @@ async function handleGetConversations(tenantId) {
          o.last_name as owner_last_name,
          o.email as owner_email
        FROM "Conversation" c
-       LEFT JOIN "Owner" o ON c.owner_id = o.record_id
+       LEFT JOIN "Owner" o ON c.owner_id = o.record_id AND c.tenant_id = o.tenant_id
        WHERE c.tenant_id = $1
        ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC`,
       [tenantId]
     );
 
     const conversations = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       subject: row.subject,
       lastMessageAt: row.last_message_at,
       unreadCount: parseInt(row.unread_count || 0),
@@ -4005,7 +4005,7 @@ async function handleGetMessages(tenantId, conversationId) {
 
     const result = await query(
       `SELECT
-         m.id,
+         m.record_id,
          m.sender_type,
          m.sender_id,
          m.content,
@@ -4019,7 +4019,7 @@ async function handleGetMessages(tenantId, conversationId) {
     );
 
     const messages = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       senderType: row.sender_type,
       senderId: row.sender_id,
       content: row.content,
