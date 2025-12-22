@@ -1201,7 +1201,7 @@ const ProfileDropdown = () => {
                   </p>
                 )}
                 <p className="text-[0.65rem] text-[color:var(--bb-color-text-muted)] mt-0.5">
-                  Account: {accountCode || '—'}
+                  Account Code: {accountCode || '—'}
                 </p>
                 {user?.role && (
                   <p className="text-[0.65rem] text-[color:var(--bb-color-accent)] mt-0.5 capitalize">
