@@ -48,7 +48,13 @@ const OwnerDetail = lazy(() => import("@/features/owners/routes/OwnerDetail"));
 const PetDetail = lazy(() => import("@/features/pets/routes/PetDetail"));
 const Payments = lazy(() => import("@/features/payments/routes/Payments"));
 const Vaccinations = lazy(() => import("@/features/vaccinations/routes/Vaccinations"));
-const Reports = lazy(() => import("@/features/reports/routes/Reports"));
+const ReportsLayout = lazy(() => import("@/features/reports/components/ReportsLayout"));
+const ReportsOverview = lazy(() => import("@/features/reports/routes/ReportsOverview"));
+const ReportsLive = lazy(() => import("@/features/reports/routes/ReportsLive"));
+const ReportsScheduled = lazy(() => import("@/features/reports/routes/ReportsScheduled"));
+const CustomReportBuilder = lazy(() => import("@/features/reports/components/CustomReportBuilder"));
+const ReportsBenchmarks = lazy(() => import("@/features/reports/routes/ReportsBenchmarks"));
+const ReportsPredictive = lazy(() => import("@/features/reports/routes/ReportsPredictive"));
 const Admin = lazy(() => import("@/features/admin/routes/Admin"));
 // TenantSettings removed - consolidated into Settings
 const SettingsFeatureToggles = lazy(() =>
@@ -264,7 +270,19 @@ export const router = createBrowserRouter([
               { path: "segments/:id", element: <SegmentDetail /> },
               { path: "segments/:id/edit", element: <SegmentBuilder /> },
               { path: "payments", element: <Payments /> },
-              { path: "reports", element: <Reports /> },
+              // Reports with nested routes
+              {
+                path: "reports",
+                element: <ReportsLayout />,
+                children: [
+                  { index: true, element: <ReportsOverview /> },
+                  { path: "live", element: <ReportsLive /> },
+                  { path: "scheduled", element: <ReportsScheduled /> },
+                  { path: "builder", element: <CustomReportBuilder /> },
+                  { path: "benchmarks", element: <ReportsBenchmarks /> },
+                  { path: "predictive", element: <ReportsPredictive /> },
+                ],
+              },
               // Operations
               { path: "runs", element: <Navigate to="/run-schedules" replace /> },
               { path: "vaccinations", element: <Vaccinations /> },
