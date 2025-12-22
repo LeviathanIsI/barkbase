@@ -225,10 +225,11 @@ const FieldTypeIcon = ({ type, className = '' }) => {
 // =============================================================================
 
 const DraggableField = ({ field, isDimension, isSelected, onClick }) => {
+  const fieldData = JSON.stringify({ field, isDimension });
+
   const handleDragStart = (e) => {
-    e.dataTransfer.setData('application/json', JSON.stringify({ field, isDimension }));
+    e.dataTransfer.setData('application/json', fieldData);
     e.dataTransfer.effectAllowed = 'copy';
-    // Add a custom drag image class
     e.target.classList.add('opacity-50');
   };
 
@@ -239,6 +240,7 @@ const DraggableField = ({ field, isDimension, isSelected, onClick }) => {
   return (
     <button
       draggable
+      data-field-data={fieldData}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onClick={onClick}
@@ -250,11 +252,6 @@ const DraggableField = ({ field, isDimension, isSelected, onClick }) => {
     >
       <FieldTypeIcon type={field.type} />
       <span className="truncate flex-1">{field.label}</span>
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-        <svg className="h-3 w-3 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
-        </svg>
-      </div>
     </button>
   );
 };
@@ -296,7 +293,7 @@ const CollapsibleFieldGroup = ({ title, icon: Icon, children, defaultOpen = true
 };
 
 // =============================================================================
-// DROP ZONE COMPONENT - With drag-and-drop support
+// DROP ZONE COMPONENT - With drag-and-drop support and validation
 // =============================================================================
 
 const DropZone = ({
@@ -309,14 +306,39 @@ const DropZone = ({
   acceptsDateOnly = false,
   acceptsMeasures = false,
   acceptsDimensions = true,
-  isDragging = false
+  isDragging = false,
+  draggedItem = null
 }) => {
   const [isOver, setIsOver] = useState(false);
 
+  // Check if the currently dragged item can be dropped here
+  const canAcceptCurrentDrag = () => {
+    if (!draggedItem || field) return false;
+
+    const { field: dragField, isDimension } = draggedItem;
+
+    if (acceptsDateOnly && dragField.type !== 'date') {
+      return false;
+    }
+    if (acceptsMeasures && isDimension) {
+      return false;
+    }
+    if (acceptsDimensions && !isDimension && !acceptsMeasures) {
+      return false;
+    }
+    return true;
+  };
+
+  const isValidTarget = canAcceptCurrentDrag();
+
   const handleDragOver = (e) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-    setIsOver(true);
+    if (isValidTarget) {
+      e.dataTransfer.dropEffect = 'copy';
+      setIsOver(true);
+    } else {
+      e.dataTransfer.dropEffect = 'none';
+    }
   };
 
   const handleDragLeave = (e) => {
@@ -328,28 +350,15 @@ const DropZone = ({
     e.preventDefault();
     setIsOver(false);
 
+    if (!isValidTarget) return;
+
     try {
       const data = JSON.parse(e.dataTransfer.getData('application/json'));
-      const { field: droppedField, isDimension } = data;
-
-      // Validate drop based on zone requirements
-      if (acceptsDateOnly && droppedField.type !== 'date') {
-        return; // Only accept date fields
-      }
-      if (acceptsMeasures && isDimension) {
-        return; // Only accept measures
-      }
-      if (acceptsDimensions && !isDimension && !acceptsMeasures) {
-        return; // Only accept dimensions
-      }
-
-      onDrop?.(droppedField, isDimension);
+      onDrop?.(data.field, data.isDimension);
     } catch (err) {
       console.error('Drop error:', err);
     }
   };
-
-  const canAcceptDrop = isDragging && !field;
 
   return (
     <div className="mb-4">
@@ -372,11 +381,11 @@ const DropZone = ({
           "min-h-[44px] rounded-lg border-2 border-dashed transition-all duration-200",
           field
             ? "border-primary/40 bg-primary/5"
-            : isOver
+            : isOver && isValidTarget
               ? "border-primary bg-primary/10 scale-[1.02]"
-              : canAcceptDrop
-                ? "border-primary/50 bg-primary/5 animate-pulse"
-                : "border-border bg-surface-secondary/50 hover:border-primary/30 hover:bg-surface-hover/30"
+              : isDragging && isValidTarget
+                ? "border-primary/50 bg-primary/5"
+                : "border-border bg-surface-secondary/50"
         )}
       >
         {field ? (
@@ -396,9 +405,9 @@ const DropZone = ({
           <div className="flex items-center justify-center px-3 py-2.5">
             <span className={cn(
               "text-xs transition-colors",
-              isOver ? "text-primary font-medium" : "text-muted"
+              isOver && isValidTarget ? "text-primary font-medium" : "text-muted"
             )}>
-              {isOver ? 'Drop here' : placeholder || 'Drag fields here'}
+              {isOver && isValidTarget ? 'Drop here' : placeholder || 'Drag fields here'}
             </span>
           </div>
         )}
@@ -428,15 +437,31 @@ const CustomReportBuilder = () => {
   const [activeMiddleTab, setActiveMiddleTab] = useState('configure'); // 'configure' or 'filters'
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
+  const [draggedItem, setDraggedItem] = useState(null);
 
   // Chart data state
   const [chartData, setChartData] = useState([]);
   const [error, setError] = useState(null);
 
-  // Global drag event listeners to track drag state
+  // Global drag event listeners to track drag state and item
   useEffect(() => {
-    const handleDragStart = () => setIsDragging(true);
-    const handleDragEnd = () => setIsDragging(false);
+    const handleDragStart = (e) => {
+      setIsDragging(true);
+      // Try to get the dragged field data
+      try {
+        // We need to get this from the element's data since dataTransfer isn't accessible in dragstart on document
+        const target = e.target;
+        if (target.dataset?.fieldData) {
+          setDraggedItem(JSON.parse(target.dataset.fieldData));
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    };
+    const handleDragEnd = () => {
+      setIsDragging(false);
+      setDraggedItem(null);
+    };
 
     document.addEventListener('dragstart', handleDragStart);
     document.addEventListener('dragend', handleDragEnd);
@@ -913,6 +938,7 @@ const CustomReportBuilder = () => {
                   acceptsDimensions={true}
                   acceptsMeasures={false}
                   isDragging={isDragging}
+                  draggedItem={draggedItem}
                 />
 
                 <DropZone
@@ -924,6 +950,7 @@ const CustomReportBuilder = () => {
                   acceptsDimensions={false}
                   acceptsMeasures={true}
                   isDragging={isDragging}
+                  draggedItem={draggedItem}
                 />
 
                 <DropZone
@@ -935,6 +962,7 @@ const CustomReportBuilder = () => {
                   acceptsDimensions={true}
                   acceptsMeasures={false}
                   isDragging={isDragging}
+                  draggedItem={draggedItem}
                 />
 
                 <DropZone
@@ -946,6 +974,7 @@ const CustomReportBuilder = () => {
                   placeholder="Drag date field here"
                   acceptsDateOnly={true}
                   isDragging={isDragging}
+                  draggedItem={draggedItem}
                 />
 
                 {/* Date Range in Configure tab */}
