@@ -1110,6 +1110,7 @@ const ProfileDropdown = () => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
+  const accountCode = useAuthStore((state) => state.accountCode);
   const logout = useAuthStore((state) => state.logout);
   const initials = useMemo(() => getInitials(user?.fullName || user?.name || user?.email || ''), [user]);
 
@@ -1195,6 +1196,11 @@ const ProfileDropdown = () => {
                 {user?.email && (
                   <p className="text-xs text-[color:var(--bb-color-text-muted)] truncate">
                     {user.email}
+                  </p>
+                )}
+                {accountCode && (
+                  <p className="text-[0.65rem] text-[color:var(--bb-color-text-muted)] mt-0.5">
+                    Account: {accountCode}
                   </p>
                 )}
                 {user?.role && (
