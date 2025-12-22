@@ -1,6 +1,6 @@
 /**
- * CustomReportBuilder - Functional custom report builder
- * 3-column layout: Data sources | Live Preview | Configuration
+ * CustomReportBuilder - HubSpot-style custom report builder
+ * 3-column layout: Data sources/Fields | Configure/Filters | Chart Preview
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
@@ -21,6 +21,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  ScatterChart,
+  Scatter,
 } from 'recharts';
 import {
   BarChart3,
@@ -34,11 +36,11 @@ import {
   Download,
   X,
   Plus,
-  GripVertical,
   Hash,
   Type,
   Calendar,
   Search,
+  ChevronRight,
   ChevronDown,
   Users,
   PawPrint,
@@ -46,9 +48,18 @@ import {
   Wrench,
   CreditCard,
   UserCog,
-  Settings,
   Trash2,
   RefreshCw,
+  BarChart2,
+  Activity,
+  Circle,
+  Layers,
+  Grid3X3,
+  Map,
+  Gauge,
+  Info,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
@@ -148,12 +159,22 @@ const FIELD_CONFIG = {
   },
 };
 
+// Chart types organized in 2 rows for icon grid
 const CHART_TYPES = [
-  { value: 'bar', label: 'Bar', icon: BarChart3 },
-  { value: 'line', label: 'Line', icon: LineChartIcon },
-  { value: 'pie', label: 'Pie', icon: PieChartIcon },
+  // Row 1
+  { value: 'line', label: 'Line', icon: Activity },
+  { value: 'bar', label: 'Vertical Bar', icon: BarChart3 },
+  { value: 'horizontal-bar', label: 'Horizontal Bar', icon: BarChart2 },
   { value: 'area', label: 'Area', icon: TrendingUp },
+  { value: 'combo', label: 'Combo', icon: Layers },
   { value: 'table', label: 'Table', icon: Table2 },
+  // Row 2
+  { value: 'pie', label: 'Pie', icon: PieChartIcon },
+  { value: 'donut', label: 'Donut', icon: Circle },
+  { value: 'scatter', label: 'Scatter', icon: Grid3X3 },
+  { value: 'pivot', label: 'Pivot Table', icon: Grid3X3 },
+  { value: 'funnel', label: 'Funnel', icon: FilterIcon },
+  { value: 'gauge', label: 'Gauge', icon: Gauge },
 ];
 
 const AGGREGATION_OPTIONS = [
@@ -175,19 +196,118 @@ const FILTER_OPERATORS = [
 ];
 
 // =============================================================================
-// FIELD TYPE ICONS
+// FIELD TYPE ICONS - Clean HubSpot-style icons
 // =============================================================================
 
-const FieldTypeIcon = ({ type }) => {
+const FieldTypeIcon = ({ type, className = '' }) => {
+  const baseClass = cn('h-3.5 w-3.5 flex-shrink-0', className);
   switch (type) {
     case 'number':
     case 'currency':
-      return <Hash className="h-3 w-3 text-blue-500" />;
+      return (
+        <span className={cn(baseClass, 'text-blue-500 font-semibold text-[10px] leading-none flex items-center justify-center')}>
+          #
+        </span>
+      );
     case 'date':
-      return <Calendar className="h-3 w-3 text-amber-500" />;
+      return <Calendar className={cn(baseClass, 'text-orange-500')} />;
     default:
-      return <Type className="h-3 w-3 text-gray-500" />;
+      return (
+        <span className={cn(baseClass, 'text-slate-500 font-medium text-[10px] leading-none flex items-center justify-center')}>
+          Aa
+        </span>
+      );
   }
+};
+
+// =============================================================================
+// COLLAPSIBLE FIELD GROUP COMPONENT
+// =============================================================================
+
+const CollapsibleFieldGroup = ({ title, icon: Icon, children, defaultOpen = true, count }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="border-b border-border/50 last:border-b-0">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-hover/50 transition-colors text-left"
+      >
+        <ChevronRight
+          className={cn(
+            "h-3.5 w-3.5 text-muted transition-transform duration-200",
+            isOpen && "rotate-90"
+          )}
+        />
+        {Icon && <Icon className="h-3.5 w-3.5 text-muted" />}
+        <span className="text-xs font-medium text-text flex-1">{title}</span>
+        {count !== undefined && (
+          <span className="text-[10px] text-muted bg-surface-hover px-1.5 py-0.5 rounded">
+            {count}
+          </span>
+        )}
+      </button>
+      {isOpen && (
+        <div className="pb-2">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// =============================================================================
+// DROP ZONE COMPONENT - HubSpot-style dashed border boxes
+// =============================================================================
+
+const DropZone = ({ label, tooltip, field, onRemove, placeholder, acceptsDateOnly = false }) => {
+  return (
+    <div className="mb-4">
+      <div className="flex items-center gap-1.5 mb-2">
+        <span className="text-xs font-medium text-text">{label}</span>
+        {tooltip && (
+          <div className="group relative">
+            <Info className="h-3 w-3 text-muted cursor-help" />
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-900 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+              {tooltip}
+            </div>
+          </div>
+        )}
+      </div>
+      <div
+        className={cn(
+          "min-h-[44px] rounded-lg border-2 border-dashed transition-all",
+          field
+            ? "border-primary/30 bg-primary/5"
+            : "border-border bg-surface-secondary/50 hover:border-border-hover hover:bg-surface-hover/30"
+        )}
+      >
+        {field ? (
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <FieldTypeIcon type={field.type} />
+              <span className="text-sm text-text">{field.label}</span>
+            </div>
+            <button
+              onClick={onRemove}
+              className="p-1 text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center px-3 py-2.5">
+            <span className={cn(
+              "text-xs",
+              acceptsDateOnly ? "text-orange-400" : "text-muted"
+            )}>
+              {placeholder || 'Drag fields here'}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 // =============================================================================
@@ -203,10 +323,13 @@ const CustomReportBuilder = () => {
   const [chartType, setChartType] = useState('bar');
   const [xAxis, setXAxis] = useState(null); // dimension for x-axis
   const [yAxis, setYAxis] = useState(null); // measure for y-axis
-  const [groupBy, setGroupBy] = useState(null); // optional second dimension
+  const [groupBy, setGroupBy] = useState(null); // optional second dimension (break down by)
+  const [compareBy, setCompareBy] = useState(null); // optional date dimension for comparison
   const [filters, setFilters] = useState([]);
   const [dateRange, setDateRange] = useState({ startDate: null, endDate: null });
   const [fieldSearch, setFieldSearch] = useState('');
+  const [activeMiddleTab, setActiveMiddleTab] = useState('configure'); // 'configure' or 'filters'
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   // Chart data state
   const [chartData, setChartData] = useState([]);
@@ -297,6 +420,7 @@ const CustomReportBuilder = () => {
     setXAxis(null);
     setYAxis(null);
     setGroupBy(null);
+    setCompareBy(null);
     setFilters([]);
     setChartData([]);
   }, [dataSource]);
@@ -325,6 +449,9 @@ const CustomReportBuilder = () => {
         break;
       case 'groupBy':
         setGroupBy(null);
+        break;
+      case 'compareBy':
+        setCompareBy(null);
         break;
     }
   };
@@ -398,41 +525,60 @@ const CustomReportBuilder = () => {
   const dataKey = yAxis?.key || 'count';
   const nameKey = xAxis?.key || 'name';
 
+  // Get current data source info
+  const currentDataSource = DATA_SOURCES.find(ds => ds.value === dataSource);
+
   return (
     <div className="flex flex-col h-[calc(100vh-180px)] min-h-[600px] -mt-3">
-      {/* Top Bar */}
-      <div className="flex items-center justify-between px-3 py-2 bg-white dark:bg-surface-primary border-b border-border">
+      {/* Top Bar - HubSpot Style */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#1a2433] dark:bg-[#1a2433] border-b border-[#2d3e50]">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate('/reports')}
-            className="h-7 px-2"
+            className="h-8 px-3 text-white/80 hover:text-white hover:bg-white/10"
           >
-            <ArrowLeft className="h-3.5 w-3.5 mr-1" />
+            Exit
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/reports')}
+            className="h-8 px-3 border-white/20 text-white/80 hover:text-white hover:bg-white/10"
+          >
             Back
           </Button>
-          <div className="h-4 w-px bg-border" />
+        </div>
+        <div className="flex items-center gap-2">
           <input
             type="text"
             value={reportName}
             onChange={(e) => setReportName(e.target.value)}
-            className="text-sm font-medium bg-transparent border-none focus:outline-none focus:ring-0 text-text w-48"
-            placeholder="Report Name"
+            className="text-base font-medium bg-transparent border-none focus:outline-none focus:ring-0 text-white text-center min-w-[200px]"
+            placeholder="Enter report name"
           />
+          <button className="text-white/60 hover:text-white">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-7 px-2" onClick={fetchData}>
-            <RefreshCw className={cn("h-3 w-3 mr-1", queryMutation.isPending && "animate-spin")} />
-            Refresh
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-3 border-white/20 text-white/80 hover:text-white hover:bg-white/10"
+          >
+            Sample reports
           </Button>
-          <Button variant="outline" size="sm" className="h-7 px-2" onClick={exportCSV} disabled={!chartData.length}>
-            <Download className="h-3 w-3 mr-1" />
-            Export CSV
-          </Button>
-          <Button variant="primary" size="sm" className="h-7 px-2" onClick={saveReport}>
-            <Save className="h-3 w-3 mr-1" />
-            Save
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={saveReport}
+            className="h-8 px-4 bg-[#ff5c35] hover:bg-[#e54d2a] text-white border-none"
+          >
+            Save report
           </Button>
         </div>
       </div>
@@ -440,74 +586,74 @@ const CustomReportBuilder = () => {
       {/* Main Content - 3 Column Layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT PANEL - Data Sources & Fields */}
-        <div className="w-56 border-r border-border bg-surface-secondary dark:bg-surface-secondary flex flex-col overflow-hidden">
-          {/* Data Source Selector */}
-          <div className="p-2 border-b border-border">
-            <label className="text-[10px] uppercase text-muted font-medium mb-1 block">Data Source</label>
-            <StyledSelect
-              options={DATA_SOURCES.map(ds => ({ value: ds.value, label: ds.label }))}
-              value={dataSource}
-              onChange={(opt) => setDataSource(opt?.value || 'bookings')}
-              isClearable={false}
-              isSearchable={false}
-            />
+        <div className="w-56 border-r border-border bg-white dark:bg-surface-secondary flex flex-col overflow-hidden">
+          {/* Edit Data Sources Link */}
+          <div className="px-3 py-2 border-b border-border">
+            <button className="text-xs text-primary hover:text-primary-dark flex items-center gap-1">
+              Edit data sources
+              <ChevronRight className="h-3 w-3" />
+            </button>
           </div>
 
-          {/* Field Search */}
-          <div className="p-2 border-b border-border">
+          {/* Data Source Count */}
+          <div className="px-3 py-2 border-b border-border">
+            <p className="text-xs font-medium text-text">1 data source</p>
+          </div>
+
+          {/* Search Across Sources */}
+          <div className="px-3 py-2 border-b border-border">
             <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted" />
               <input
                 type="text"
-                placeholder="Search fields..."
+                placeholder="Search across sources"
                 value={fieldSearch}
                 onChange={(e) => setFieldSearch(e.target.value)}
-                className="w-full pl-7 pr-2 py-1 text-xs bg-white dark:bg-surface-primary border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-surface-secondary dark:bg-surface-primary border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <button className="absolute right-2 top-1/2 -translate-y-1/2 text-muted hover:text-text">
+                <Grid3X3 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Browse Data Source Dropdown */}
+          <div className="px-3 py-2 border-b border-border">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted">Browse:</span>
+              <StyledSelect
+                options={DATA_SOURCES.map(ds => ({ value: ds.value, label: ds.label }))}
+                value={dataSource}
+                onChange={(opt) => setDataSource(opt?.value || 'bookings')}
+                isClearable={false}
+                isSearchable={false}
+                className="flex-1"
+                styles={{
+                  control: (base) => ({
+                    ...base,
+                    minHeight: '28px',
+                    fontSize: '12px',
+                  }),
+                }}
               />
             </div>
           </div>
 
-          {/* Field Lists */}
-          <div className="flex-1 overflow-y-auto p-2 space-y-3">
-            {/* Dimensions */}
-            <div>
-              <div className="text-[10px] uppercase text-muted font-medium mb-1 flex items-center gap-1">
-                <GripVertical className="h-3 w-3" />
-                Dimensions (Group By)
-              </div>
-              <div className="space-y-0.5">
-                {filteredDimensions.map((field) => (
-                  <button
-                    key={field.key}
-                    onClick={() => handleFieldClick(field, true)}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-surface-hover text-left transition-colors",
-                      (xAxis?.key === field.key || groupBy?.key === field.key) && "bg-primary/10 text-primary"
-                    )}
-                  >
-                    <FieldTypeIcon type={field.type} />
-                    <span className="truncate">{field.label}</span>
-                  </button>
-                ))}
-                {filteredDimensions.length === 0 && (
-                  <p className="text-[10px] text-muted py-2">No dimensions found</p>
-                )}
-              </div>
-            </div>
-
-            {/* Measures */}
-            <div>
-              <div className="text-[10px] uppercase text-muted font-medium mb-1 flex items-center gap-1">
-                <Hash className="h-3 w-3" />
-                Measures (Aggregate)
-              </div>
-              <div className="space-y-0.5">
+          {/* Field Lists - Collapsible Groups */}
+          <div className="flex-1 overflow-y-auto">
+            {/* Default Measures */}
+            <CollapsibleFieldGroup
+              title="Default measures"
+              defaultOpen={true}
+              count={filteredMeasures.length}
+            >
+              <div className="px-1">
                 {filteredMeasures.map((field) => (
                   <button
                     key={field.key}
                     onClick={() => handleFieldClick(field, false)}
                     className={cn(
-                      "w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-surface-hover text-left transition-colors",
+                      "w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-md hover:bg-surface-hover text-left transition-colors",
                       yAxis?.key === field.key && "bg-primary/10 text-primary"
                     )}
                   >
@@ -516,86 +662,362 @@ const CustomReportBuilder = () => {
                   </button>
                 ))}
                 {filteredMeasures.length === 0 && (
-                  <p className="text-[10px] text-muted py-2">No measures found</p>
+                  <p className="text-xs text-muted px-3 py-2">No measures found</p>
                 )}
               </div>
-            </div>
+            </CollapsibleFieldGroup>
+
+            {/* Top Properties (Dimensions) */}
+            <CollapsibleFieldGroup
+              title="Top properties"
+              defaultOpen={true}
+              count={Math.min(filteredDimensions.length, 3)}
+            >
+              <div className="px-1">
+                {filteredDimensions.slice(0, 3).map((field) => (
+                  <button
+                    key={field.key}
+                    onClick={() => handleFieldClick(field, true)}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-md hover:bg-surface-hover text-left transition-colors",
+                      (xAxis?.key === field.key || groupBy?.key === field.key || compareBy?.key === field.key) && "bg-primary/10 text-primary"
+                    )}
+                  >
+                    <FieldTypeIcon type={field.type} />
+                    <span className="truncate">{field.label}</span>
+                  </button>
+                ))}
+              </div>
+            </CollapsibleFieldGroup>
+
+            {/* All Fields */}
+            <CollapsibleFieldGroup
+              title={currentDataSource?.label || 'Fields'}
+              icon={currentDataSource?.icon}
+              defaultOpen={true}
+              count={filteredDimensions.length}
+            >
+              <div className="px-1">
+                {filteredDimensions.map((field) => (
+                  <button
+                    key={field.key}
+                    onClick={() => handleFieldClick(field, true)}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-md hover:bg-surface-hover text-left transition-colors",
+                      (xAxis?.key === field.key || groupBy?.key === field.key || compareBy?.key === field.key) && "bg-primary/10 text-primary"
+                    )}
+                  >
+                    <FieldTypeIcon type={field.type} />
+                    <span className="truncate">{field.label}</span>
+                  </button>
+                ))}
+                {filteredDimensions.length === 0 && (
+                  <p className="text-xs text-muted px-3 py-2">No fields found</p>
+                )}
+              </div>
+            </CollapsibleFieldGroup>
           </div>
         </div>
 
-        {/* CENTER PANEL - Chart Preview */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-surface-primary">
-          {/* Chart Type Selector */}
-          <div className="flex items-center gap-1 p-2 border-b border-border">
-            {CHART_TYPES.map((ct) => (
-              <button
-                key={ct.value}
-                onClick={() => setChartType(ct.value)}
-                className={cn(
-                  "flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors",
-                  chartType === ct.value
-                    ? "bg-primary text-white"
-                    : "text-muted hover:bg-surface-hover"
-                )}
-              >
-                <ct.icon className="h-3.5 w-3.5" />
-                {ct.label}
-              </button>
-            ))}
+        {/* MIDDLE PANEL - Configure/Filters Tabs + Drop Zones */}
+        <div className="w-80 border-r border-border bg-white dark:bg-surface-primary flex flex-col overflow-hidden">
+          {/* Tabs */}
+          <div className="flex border-b border-border">
+            <button
+              onClick={() => setActiveMiddleTab('configure')}
+              className={cn(
+                "flex-1 px-4 py-3 text-sm font-medium transition-colors relative",
+                activeMiddleTab === 'configure'
+                  ? "text-primary"
+                  : "text-muted hover:text-text"
+              )}
+            >
+              Configure
+              {activeMiddleTab === 'configure' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveMiddleTab('filters')}
+              className={cn(
+                "flex-1 px-4 py-3 text-sm font-medium transition-colors relative",
+                activeMiddleTab === 'filters'
+                  ? "text-primary"
+                  : "text-muted hover:text-text"
+              )}
+            >
+              Filters ({filters.length})
+              {activeMiddleTab === 'filters' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
+            </button>
+          </div>
+
+          {activeMiddleTab === 'configure' ? (
+            <div className="flex-1 overflow-y-auto">
+              {/* Chart Section Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <span className="text-sm font-medium text-text">Chart</span>
+                <button className="text-xs text-primary hover:text-primary-dark">
+                  Chart settings
+                </button>
+              </div>
+
+              {/* Chart Type Grid - 2 rows of icons */}
+              <div className="px-4 py-3 border-b border-border">
+                <div className="grid grid-cols-6 gap-1">
+                  {CHART_TYPES.map((ct) => (
+                    <button
+                      key={ct.value}
+                      onClick={() => setChartType(ct.value)}
+                      title={ct.label}
+                      className={cn(
+                        "flex items-center justify-center w-9 h-9 rounded-md transition-all",
+                        chartType === ct.value
+                          ? "bg-primary/10 text-primary ring-2 ring-primary/30"
+                          : "text-muted hover:bg-surface-hover hover:text-text"
+                      )}
+                    >
+                      <ct.icon className="h-5 w-5" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Toolbar - Undo/Redo/Refresh */}
+              <div className="flex items-center gap-2 px-4 py-2 border-b border-border">
+                <button className="px-2 py-1 text-xs text-muted hover:text-text border border-border rounded hover:bg-surface-hover">
+                  <Undo2 className="h-3.5 w-3.5" />
+                </button>
+                <button className="px-2 py-1 text-xs text-muted hover:text-text border border-border rounded hover:bg-surface-hover">
+                  <Redo2 className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={fetchData}
+                  className="px-2 py-1 text-xs text-muted hover:text-text border border-border rounded hover:bg-surface-hover"
+                >
+                  <RefreshCw className={cn("h-3.5 w-3.5", queryMutation.isPending && "animate-spin")} />
+                </button>
+                <label className="flex items-center gap-2 ml-auto text-xs text-muted">
+                  <input
+                    type="checkbox"
+                    checked={autoRefresh}
+                    onChange={(e) => setAutoRefresh(e.target.checked)}
+                    className="rounded border-border"
+                  />
+                  Refresh as I make changes
+                </label>
+              </div>
+
+              {/* Drop Zones */}
+              <div className="px-4 py-4 space-y-1">
+                <DropZone
+                  label="X-axis"
+                  field={xAxis}
+                  onRemove={() => removeField('xAxis')}
+                  placeholder="Drag fields here"
+                />
+
+                <DropZone
+                  label="Y-axis"
+                  field={yAxis}
+                  onRemove={() => removeField('yAxis')}
+                  placeholder="Drag fields here"
+                />
+
+                <DropZone
+                  label="Break down by"
+                  field={groupBy}
+                  onRemove={() => removeField('groupBy')}
+                  placeholder="Drag fields here"
+                />
+
+                <DropZone
+                  label="Compare by"
+                  tooltip="Compare data across time periods"
+                  field={compareBy}
+                  onRemove={() => removeField('compareBy')}
+                  placeholder="Drag date fields here"
+                  acceptsDateOnly={true}
+                />
+
+                {/* Date Range in Configure tab */}
+                <div className="mb-4">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <span className="text-xs font-medium text-text">Date Range</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={dateRange.startDate || ''}
+                      onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
+                      className="flex-1 px-3 py-2 text-xs bg-surface-secondary dark:bg-surface-primary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <input
+                      type="date"
+                      value={dateRange.endDate || ''}
+                      onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
+                      className="flex-1 px-3 py-2 text-xs bg-surface-secondary dark:bg-surface-primary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Filters Tab */
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-medium text-text">Filters</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addFilter}
+                  className="h-7 px-2 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Add filter
+                </Button>
+              </div>
+
+              {filters.length === 0 ? (
+                <div className="text-center py-8">
+                  <FilterIcon className="h-10 w-10 text-muted mx-auto mb-3" />
+                  <p className="text-sm text-muted">No filters added</p>
+                  <p className="text-xs text-muted mt-1">
+                    Add filters to narrow down your report data
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filters.map((filter, index) => (
+                    <div key={index} className="p-3 bg-surface-secondary rounded-lg border border-border space-y-2">
+                      <div className="flex items-center justify-between">
+                        <select
+                          value={filter.field}
+                          onChange={(e) => updateFilter(index, { field: e.target.value })}
+                          className="flex-1 px-2 py-1.5 text-xs bg-white dark:bg-surface-primary border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="">Select field...</option>
+                          {currentFields.dimensions.map(f => (
+                            <option key={f.key} value={f.key}>{f.label}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => removeFilter(index)}
+                          className="ml-2 p-1.5 text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <select
+                          value={filter.operator}
+                          onChange={(e) => updateFilter(index, { operator: e.target.value })}
+                          className="w-32 px-2 py-1.5 text-xs bg-white dark:bg-surface-primary border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          {FILTER_OPERATORS.map(op => (
+                            <option key={op.value} value={op.value}>{op.label}</option>
+                          ))}
+                        </select>
+                        {!['is_null', 'is_not_null'].includes(filter.operator) && (
+                          <input
+                            type="text"
+                            value={filter.value}
+                            onChange={(e) => updateFilter(index, { value: e.target.value })}
+                            className="flex-1 px-2 py-1.5 text-xs bg-white dark:bg-surface-primary border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+                            placeholder="Enter value..."
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT PANEL - Chart Preview */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-surface-secondary dark:bg-surface-primary">
+          {/* Preview Header */}
+          <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-surface-secondary border-b border-border">
+            <div className="flex items-center gap-4">
+              <div className="flex rounded-md border border-border overflow-hidden">
+                <button className="px-3 py-1.5 text-xs bg-surface-hover text-text">
+                  Unsummarized data
+                </button>
+                <button className="px-3 py-1.5 text-xs text-muted hover:text-text hover:bg-surface-hover">
+                  Summarized data
+                </button>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportCSV}
+              disabled={!chartData.length}
+              className="h-7 px-3 text-xs"
+            >
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              Export unsummarized data
+            </Button>
           </div>
 
           {/* Chart Area */}
-          <div className="flex-1 p-4 overflow-auto">
+          <div className="flex-1 p-6 overflow-auto bg-white dark:bg-surface-primary">
             {error && (
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg mb-4">
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg mb-4">
                 <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
               </div>
             )}
 
             {!xAxis || !yAxis ? (
               <div className="h-full flex items-center justify-center">
-                <div className="text-center max-w-sm">
-                  <Settings className="h-12 w-12 text-muted mx-auto mb-3" />
-                  <h3 className="text-sm font-medium text-text mb-1">Configure Your Report</h3>
-                  <p className="text-xs text-muted">
-                    Select a dimension for the X-Axis and a measure for the Y-Axis from the left panel to see your chart.
+                <div className="text-center max-w-md">
+                  <div className="w-24 h-24 mx-auto mb-4 bg-surface-secondary rounded-full flex items-center justify-center">
+                    <BarChart3 className="h-10 w-10 text-muted" />
+                  </div>
+                  <p className="text-sm text-muted">
+                    Add one 'x' field or one 'y' field to display the report.
                   </p>
                 </div>
               </div>
             ) : queryMutation.isPending ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center">
-                  <RefreshCw className="h-8 w-8 text-primary animate-spin mx-auto mb-2" />
-                  <p className="text-xs text-muted">Loading data...</p>
+                  <RefreshCw className="h-10 w-10 text-primary animate-spin mx-auto mb-3" />
+                  <p className="text-sm text-muted">Loading data...</p>
                 </div>
               </div>
             ) : chartData.length === 0 ? (
               <div className="h-full flex items-center justify-center">
-                <div className="text-center max-w-sm">
-                  <BarChart3 className="h-12 w-12 text-muted mx-auto mb-3" />
-                  <h3 className="text-sm font-medium text-text mb-1">No Data</h3>
-                  <p className="text-xs text-muted">
-                    No data matches your current filters. Try adjusting your date range or filters.
+                <div className="text-center max-w-md">
+                  <div className="w-24 h-24 mx-auto mb-4 bg-surface-secondary rounded-full flex items-center justify-center">
+                    <BarChart3 className="h-10 w-10 text-muted" />
+                  </div>
+                  <h3 className="text-base font-medium text-text mb-2">No Data</h3>
+                  <p className="text-sm text-muted">
+                    No data matches your current configuration. Try adjusting your date range or filters.
                   </p>
                 </div>
               </div>
-            ) : chartType === 'table' ? (
-              <div className="overflow-auto max-h-full">
-                <table className="w-full text-xs">
-                  <thead className="bg-surface-secondary">
+            ) : chartType === 'table' || chartType === 'pivot' ? (
+              <div className="overflow-auto max-h-full rounded-lg border border-border">
+                <table className="w-full text-sm">
+                  <thead className="bg-surface-secondary sticky top-0">
                     <tr>
                       {Object.keys(chartData[0] || {}).map(key => (
-                        <th key={key} className="px-3 py-2 text-left font-medium text-muted uppercase">
+                        <th key={key} className="px-4 py-3 text-left font-medium text-muted uppercase text-xs tracking-wide border-b border-border">
                           {key}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="bg-white dark:bg-surface-primary">
                     {chartData.map((row, i) => (
-                      <tr key={i} className="border-b border-border hover:bg-surface-hover">
+                      <tr key={i} className="border-b border-border hover:bg-surface-hover transition-colors">
                         {Object.entries(row).map(([key, value]) => (
-                          <td key={key} className="px-3 py-2 text-text">
+                          <td key={key} className="px-4 py-3 text-text">
                             {formatValue(value, key === yAxis?.key ? yAxis?.type : 'text')}
                           </td>
                         ))}
@@ -630,6 +1052,29 @@ const CustomReportBuilder = () => {
                     />
                     <Legend />
                     <Bar dataKey={dataKey} fill={chartColorSequence[0]} radius={[4, 4, 0, 0]} name={yAxis?.label || dataKey} />
+                  </BarChart>
+                ) : chartType === 'horizontal-bar' ? (
+                  <BarChart data={chartData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
+                    <XAxis
+                      type="number"
+                      stroke="var(--bb-color-chart-axis)"
+                      tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }}
+                      tickFormatter={(v) => yAxis?.type === 'currency' ? `$${v}` : v.toLocaleString()}
+                    />
+                    <YAxis
+                      dataKey={nameKey}
+                      type="category"
+                      stroke="var(--bb-color-chart-axis)"
+                      tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }}
+                      width={100}
+                    />
+                    <Tooltip
+                      contentStyle={tooltipContentStyle}
+                      formatter={(value) => formatValue(value, yAxis?.type)}
+                    />
+                    <Legend />
+                    <Bar dataKey={dataKey} fill={chartColorSequence[0]} radius={[0, 4, 4, 0]} name={yAxis?.label || dataKey} />
                   </BarChart>
                 ) : chartType === 'line' ? (
                   <LineChart data={chartData}>
@@ -699,7 +1144,7 @@ const CustomReportBuilder = () => {
                       nameKey={nameKey}
                       cx="50%"
                       cy="50%"
-                      outerRadius={120}
+                      outerRadius={140}
                       label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                       labelLine={{ stroke: 'var(--bb-color-text-muted)' }}
                     >
@@ -713,153 +1158,54 @@ const CustomReportBuilder = () => {
                     />
                     <Legend />
                   </PieChart>
+                ) : chartType === 'donut' ? (
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      dataKey={dataKey}
+                      nameKey={nameKey}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={80}
+                      outerRadius={140}
+                      label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                      labelLine={{ stroke: 'var(--bb-color-text-muted)' }}
+                    >
+                      {chartData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={chartColorSequence[index % chartColorSequence.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={tooltipContentStyle}
+                      formatter={(value) => formatValue(value, yAxis?.type)}
+                    />
+                    <Legend />
+                  </PieChart>
+                ) : chartType === 'scatter' ? (
+                  <ScatterChart>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
+                    <XAxis
+                      dataKey={nameKey}
+                      type="category"
+                      stroke="var(--bb-color-chart-axis)"
+                      tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }}
+                    />
+                    <YAxis
+                      dataKey={dataKey}
+                      stroke="var(--bb-color-chart-axis)"
+                      tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }}
+                      tickFormatter={(v) => yAxis?.type === 'currency' ? `$${v}` : v.toLocaleString()}
+                    />
+                    <Tooltip
+                      contentStyle={tooltipContentStyle}
+                      formatter={(value) => formatValue(value, yAxis?.type)}
+                    />
+                    <Legend />
+                    <Scatter name={yAxis?.label || dataKey} data={chartData} fill={chartColorSequence[0]} />
+                  </ScatterChart>
                 ) : null}
               </ResponsiveContainer>
             )}
-          </div>
-        </div>
-
-        {/* RIGHT PANEL - Configuration */}
-        <div className="w-64 border-l border-border bg-surface-secondary dark:bg-surface-secondary flex flex-col overflow-hidden">
-          <div className="p-2 border-b border-border">
-            <h3 className="text-xs font-semibold text-text uppercase">Configure Chart</h3>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-2 space-y-3">
-            {/* X-Axis */}
-            <div>
-              <label className="text-[10px] uppercase text-muted font-medium mb-1 block">X-Axis (Dimension)</label>
-              <div className="min-h-[36px] p-2 bg-white dark:bg-surface-primary border border-dashed border-border rounded">
-                {xAxis ? (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <FieldTypeIcon type={xAxis.type} />
-                      <span className="text-xs text-text">{xAxis.label}</span>
-                    </div>
-                    <button onClick={() => removeField('xAxis')} className="text-muted hover:text-red-500">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-[10px] text-muted text-center">Click a dimension to add</p>
-                )}
-              </div>
-            </div>
-
-            {/* Y-Axis */}
-            <div>
-              <label className="text-[10px] uppercase text-muted font-medium mb-1 block">Y-Axis (Measure)</label>
-              <div className="min-h-[36px] p-2 bg-white dark:bg-surface-primary border border-dashed border-border rounded">
-                {yAxis ? (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <FieldTypeIcon type={yAxis.type} />
-                      <span className="text-xs text-text">{yAxis.label}</span>
-                    </div>
-                    <button onClick={() => removeField('yAxis')} className="text-muted hover:text-red-500">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-[10px] text-muted text-center">Click a measure to add</p>
-                )}
-              </div>
-            </div>
-
-            {/* Group By */}
-            <div>
-              <label className="text-[10px] uppercase text-muted font-medium mb-1 block">Group By (Optional)</label>
-              <div className="min-h-[36px] p-2 bg-white dark:bg-surface-primary border border-dashed border-border rounded">
-                {groupBy ? (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <FieldTypeIcon type={groupBy.type} />
-                      <span className="text-xs text-text">{groupBy.label}</span>
-                    </div>
-                    <button onClick={() => removeField('groupBy')} className="text-muted hover:text-red-500">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-[10px] text-muted text-center">Click another dimension</p>
-                )}
-              </div>
-            </div>
-
-            {/* Date Range */}
-            <div>
-              <label className="text-[10px] uppercase text-muted font-medium mb-1 block">Date Range</label>
-              <div className="space-y-1.5">
-                <input
-                  type="date"
-                  value={dateRange.startDate || ''}
-                  onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
-                  className="w-full px-2 py-1 text-xs bg-white dark:bg-surface-primary border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder="Start Date"
-                />
-                <input
-                  type="date"
-                  value={dateRange.endDate || ''}
-                  onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
-                  className="w-full px-2 py-1 text-xs bg-white dark:bg-surface-primary border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
-                  placeholder="End Date"
-                />
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-[10px] uppercase text-muted font-medium">Filters</label>
-                <button onClick={addFilter} className="text-primary hover:text-primary-dark">
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <div className="space-y-2">
-                {filters.length === 0 && (
-                  <p className="text-[10px] text-muted text-center py-2">No filters added</p>
-                )}
-                {filters.map((filter, index) => (
-                  <div key={index} className="p-2 bg-white dark:bg-surface-primary border border-border rounded space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <select
-                        value={filter.field}
-                        onChange={(e) => updateFilter(index, { field: e.target.value })}
-                        className="flex-1 px-1 py-0.5 text-[10px] bg-transparent border border-border rounded focus:outline-none"
-                      >
-                        <option value="">Select field...</option>
-                        {currentFields.dimensions.map(f => (
-                          <option key={f.key} value={f.key}>{f.label}</option>
-                        ))}
-                      </select>
-                      <button onClick={() => removeFilter(index)} className="ml-1 text-muted hover:text-red-500">
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                    <div className="flex gap-1">
-                      <select
-                        value={filter.operator}
-                        onChange={(e) => updateFilter(index, { operator: e.target.value })}
-                        className="w-24 px-1 py-0.5 text-[10px] bg-transparent border border-border rounded focus:outline-none"
-                      >
-                        {FILTER_OPERATORS.map(op => (
-                          <option key={op.value} value={op.value}>{op.label}</option>
-                        ))}
-                      </select>
-                      {!['is_null', 'is_not_null'].includes(filter.operator) && (
-                        <input
-                          type="text"
-                          value={filter.value}
-                          onChange={(e) => updateFilter(index, { value: e.target.value })}
-                          className="flex-1 px-1 py-0.5 text-[10px] bg-transparent border border-border rounded focus:outline-none"
-                          placeholder="Value"
-                        />
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </div>
