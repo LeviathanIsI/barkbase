@@ -1237,7 +1237,7 @@ const ProfileDropdown = () => {
               }}
               title="Click to copy"
             >
-              <span className="flex-1 text-left font-mono text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
+              <span className="flex-1 text-left text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
                 {accountCode || '—'}
               </span>
               {copied ? (
