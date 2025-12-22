@@ -131,7 +131,7 @@ async function handleGetProfile(user) {
 
     const result = await query(
       `SELECT
-         u.id,
+         u.record_id,
          u.cognito_sub,
          u.email,
          u.first_name,
@@ -146,8 +146,8 @@ async function handleGetProfile(user) {
          t.plan as tenant_plan,
          COALESCE(
            (SELECT array_agg(r.name) FROM "UserRole" ur
-            JOIN "Role" r ON ur.role_id = r.id
-            WHERE ur.user_id = u.id),
+            JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
+            WHERE ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id),
            ARRAY[]::VARCHAR[]
          ) as roles
        FROM "User" u
@@ -166,7 +166,7 @@ async function handleGetProfile(user) {
     }
 
     const profile = result.rows[0];
-    console.log('[PROFILE-API] Found profile:', { id: profile.id, email: profile.email });
+    console.log('[PROFILE-API] Found profile:', { record_id: profile.record_id, email: profile.email });
 
     // Determine primary role for backward compatibility (highest privilege role)
     const roleHierarchy = ['OWNER', 'ADMIN', 'MANAGER', 'STAFF', 'USER'];
@@ -175,8 +175,8 @@ async function handleGetProfile(user) {
 
     return createResponse(200, {
       profile: {
-        id: profile.id,
-        recordId: profile.id,
+        id: profile.record_id,
+        recordId: profile.record_id,
         cognitoSub: profile.cognito_sub,
         email: profile.email,
         firstName: profile.first_name,
@@ -265,7 +265,7 @@ async function handleUpdateProfile(user, body) {
       `UPDATE "User"
        SET ${setClauses.join(', ')}
        WHERE cognito_sub = $1
-       RETURNING id, email, first_name, last_name, phone, avatar_url, tenant_id, updated_at`,
+       RETURNING record_id, email, first_name, last_name, phone, avatar_url, tenant_id, updated_at`,
       [user.id, ...Object.values(dbFieldMap)]
     );
 
@@ -277,14 +277,14 @@ async function handleUpdateProfile(user, body) {
     }
 
     const updated = result.rows[0];
-    console.log('[PROFILE-API] Profile updated:', { id: updated.id });
+    console.log('[PROFILE-API] Profile updated:', { record_id: updated.record_id });
 
     // Fetch roles from UserRole junction table for the response
     const rolesResult = await query(
       `SELECT r.name FROM "UserRole" ur
-       JOIN "Role" r ON ur.role_id = r.id
-       WHERE ur.user_id = $1`,
-      [updated.id]
+       JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
+       WHERE ur.tenant_id = $1 AND ur.user_id = $2`,
+      [updated.tenant_id, updated.record_id]
     );
     const userRoles = rolesResult.rows.map(r => r.name);
 
@@ -295,8 +295,8 @@ async function handleUpdateProfile(user, body) {
     return createResponse(200, {
       success: true,
       profile: {
-        id: updated.id,
-        recordId: updated.id,
+        id: updated.record_id,
+        recordId: updated.record_id,
         email: updated.email,
         firstName: updated.first_name,
         lastName: updated.last_name,
@@ -468,12 +468,12 @@ async function handleUpdateTenant(user, body) {
     // Check if user has permission - fetch roles from UserRole junction table
     const userResult = await query(
       `SELECT
-         u.id,
+         u.record_id,
          u.tenant_id,
          COALESCE(
            (SELECT array_agg(r.name) FROM "UserRole" ur
-            JOIN "Role" r ON ur.role_id = r.id
-            WHERE ur.user_id = u.id),
+            JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
+            WHERE ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id),
            ARRAY[]::VARCHAR[]
          ) as roles
        FROM "User" u
@@ -683,7 +683,7 @@ async function handleGetPreferences(user) {
 
     // Verify user exists
     const result = await query(
-      `SELECT id FROM "User" WHERE cognito_sub = $1`,
+      `SELECT record_id FROM "User" WHERE cognito_sub = $1`,
       [user.id]
     );
 
@@ -730,7 +730,7 @@ async function handleUpdatePreferences(user, body) {
 
     // Verify user exists
     const result = await query(
-      `SELECT id FROM "User" WHERE cognito_sub = $1`,
+      `SELECT record_id FROM "User" WHERE cognito_sub = $1`,
       [user.id]
     );
 
