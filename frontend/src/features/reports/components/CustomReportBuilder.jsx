@@ -529,25 +529,37 @@ const DropZone = ({
 
     const { field: dragField, isDimension } = draggedItem;
 
-    if (acceptsDateOnly && !['date', 'datetime'].includes(dragField.type)) {
-      return false;
+    // Date-only zones: must be date/datetime type
+    if (acceptsDateOnly) {
+      return ['date', 'datetime'].includes(dragField.type);
     }
-    if (acceptsMeasures && isDimension) {
-      return false;
+
+    // Zone accepts BOTH dimensions and measures → accept anything
+    if (acceptsDimensions && acceptsMeasures) {
+      return true;
     }
-    if (acceptsDimensions && !isDimension && !acceptsMeasures) {
-      return false;
+
+    // Zone only accepts measures (numeric fields) → reject dimensions
+    if (acceptsMeasures && !acceptsDimensions) {
+      return !isDimension; // Only accept measures (isDimension = false)
     }
-    return true;
+
+    // Zone only accepts dimensions → reject measures
+    if (acceptsDimensions && !acceptsMeasures) {
+      return isDimension; // Only accept dimensions (isDimension = true)
+    }
+
+    return false;
   };
 
   const isValidTarget = canAcceptCurrentDrag();
+  const isInvalidTarget = isDragging && draggedItem && !isValidTarget && !(!multiple && field);
 
   const handleDragOver = (e) => {
     e.preventDefault();
+    setIsOver(true);
     if (isValidTarget) {
       e.dataTransfer.dropEffect = 'copy';
-      setIsOver(true);
     } else {
       e.dataTransfer.dropEffect = 'none';
     }
@@ -608,13 +620,16 @@ const DropZone = ({
         onDrop={handleDrop}
         className={cn(
           "min-h-[40px] rounded-lg border-2 border-dashed transition-all duration-200",
-          hasFields
-            ? "border-primary/40 bg-primary/5 p-2"
-            : isOver && isValidTarget
-              ? "border-primary bg-primary/10 scale-[1.01]"
-              : isDragging && isValidTarget
-                ? "border-primary/50 bg-primary/5"
-                : "border-border bg-surface-secondary/50"
+          // Has fields - show filled state
+          hasFields && "border-primary/40 bg-primary/5 p-2",
+          // Valid drop target - highlight green/primary
+          !hasFields && isOver && isValidTarget && "border-primary bg-primary/10 scale-[1.01] cursor-copy",
+          !hasFields && isDragging && isValidTarget && !isOver && "border-primary/50 bg-primary/5",
+          // Invalid drop target - show red/forbidden
+          !hasFields && isOver && isInvalidTarget && "border-red-400 bg-red-50 dark:bg-red-900/20 cursor-not-allowed",
+          !hasFields && isDragging && isInvalidTarget && !isOver && "border-red-300/50 bg-red-50/30 dark:bg-red-900/10 opacity-60",
+          // Default state
+          !hasFields && !isDragging && "border-border bg-surface-secondary/50"
         )}
       >
         {multiple ? (
@@ -628,9 +643,13 @@ const DropZone = ({
               )}>
                 <span className={cn(
                   "text-xs transition-colors",
-                  isOver && isValidTarget ? "text-primary font-medium" : "text-muted"
+                  isOver && isValidTarget && "text-primary font-medium",
+                  isOver && isInvalidTarget && "text-red-500 font-medium",
+                  !isOver && "text-muted"
                 )}>
-                  {isOver && isValidTarget ? 'Drop here' : placeholder || 'Drag fields here'}
+                  {isOver && isValidTarget && 'Drop here'}
+                  {isOver && isInvalidTarget && 'Cannot drop here'}
+                  {!isOver && (placeholder || 'Drag fields here')}
                 </span>
               </div>
             )}
@@ -654,9 +673,13 @@ const DropZone = ({
             <div className="flex items-center justify-center px-3 py-2">
               <span className={cn(
                 "text-xs transition-colors",
-                isOver && isValidTarget ? "text-primary font-medium" : "text-muted"
+                isOver && isValidTarget && "text-primary font-medium",
+                isOver && isInvalidTarget && "text-red-500 font-medium",
+                !isOver && "text-muted"
               )}>
-                {isOver && isValidTarget ? 'Drop here' : placeholder || 'Drag fields here'}
+                {isOver && isValidTarget && 'Drop here'}
+                {isOver && isInvalidTarget && 'Cannot drop here'}
+                {!isOver && (placeholder || 'Drag fields here')}
               </span>
             </div>
           )
