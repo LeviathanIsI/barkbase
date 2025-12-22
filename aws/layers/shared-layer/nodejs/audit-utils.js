@@ -366,7 +366,7 @@ async function queryAuditLogs(dbQuery, tenantId, filters = {}) {
   const result = await dbQuery(
     `SELECT a.*, u.email as user_email, u.first_name as user_first_name, u.last_name as user_last_name
      FROM "AuditLog" a
-     LEFT JOIN "User" u ON a.user_id = u.id
+     LEFT JOIN "User" u ON a.user_id = u.record_id
      WHERE ${whereClause}
      ORDER BY a.created_at DESC
      LIMIT $${paramIndex++} OFFSET $${paramIndex}`,

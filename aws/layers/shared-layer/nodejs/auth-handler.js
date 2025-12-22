@@ -99,7 +99,7 @@ async function validateSessionAge(cognitoSub, tenantId) {
         s.user_id,
         COALESCE((ts.notification_prefs->>'auto_logout_hours')::INTEGER, 24) as auto_logout_hours
        FROM "UserSession" s
-       JOIN "User" u ON s.user_id = u.id
+       JOIN "User" u ON s.user_id = u.record_id
        LEFT JOIN "TenantSettings" ts ON s.tenant_id = ts.tenant_id
        WHERE u.cognito_sub = $1
          AND s.tenant_id = $2
@@ -197,7 +197,7 @@ async function getUserAuthorizationFromDB(cognitoSub) {
     // No deleted_at columns - records are either in table or in DeletedRecord archive
     const result = await query(
       `SELECT
-        u.id,
+        u.record_id,
         u.cognito_sub,
         u.tenant_id,
         u.email,
@@ -212,8 +212,8 @@ async function getUserAuthorizationFromDB(cognitoSub) {
         ts.timezone as tenant_timezone,
         COALESCE(
           (SELECT array_agg(r.name) FROM "UserRole" ur
-           JOIN "Role" r ON ur.role_id = r.id
-           WHERE ur.user_id = u.id),
+           JOIN "Role" r ON ur.role_id = r.record_id
+           WHERE ur.user_id = u.record_id),
           ARRAY[]::VARCHAR[]
         ) as roles
       FROM "User" u
@@ -237,7 +237,7 @@ async function getUserAuthorizationFromDB(cognitoSub) {
     const userRoles = user.roles || [];
     const primaryRole = roleHierarchy.find(r => userRoles.map(ur => ur?.toUpperCase()).includes(r)) || userRoles[0] || null;
 
-    console.log(`[AUTH] Authorization loaded from DB: userId=${user.id}, cognitoSub=${user.cognito_sub}, tenant=${user.tenant_id}, roles=${userRoles.join(',')}, primaryRole=${primaryRole}`);
+    console.log(`[AUTH] Authorization loaded from DB: userId=${user.record_id}, cognitoSub=${user.cognito_sub}, tenant=${user.tenant_id}, roles=${userRoles.join(',')}, primaryRole=${primaryRole}`);
 
     return {
       // User identification
@@ -246,8 +246,8 @@ async function getUserAuthorizationFromDB(cognitoSub) {
       id: user.cognito_sub,           // For backwards compat (handlers expect cognito sub here)
       visibleId: user.cognito_sub,    // For backwards compat
       cognitoSub: user.cognito_sub,   // Explicit cognito sub
-      userId: user.id,                // Database User.id (UUID)
-      recordId: user.id,              // Database User.id (UUID)
+      userId: user.record_id,         // Database User.record_id (UUID)
+      recordId: user.record_id,       // Database User.record_id (UUID)
 
       // AUTHORIZATION - from DATABASE via UserRole junction table
       tenantId: user.tenant_id,
