@@ -1200,11 +1200,9 @@ const ProfileDropdown = () => {
                     {user.email}
                   </p>
                 )}
-                {accountCode && (
-                  <p className="text-[0.65rem] text-[color:var(--bb-color-text-muted)] mt-0.5">
-                    Account: {accountCode}
-                  </p>
-                )}
+                <p className="text-[0.65rem] text-[color:var(--bb-color-text-muted)] mt-0.5">
+                  Account: {accountCode || '—'}
+                </p>
                 {user?.role && (
                   <p className="text-[0.65rem] text-[color:var(--bb-color-accent)] mt-0.5 capitalize">
                     {user.role}
