@@ -1209,15 +1209,15 @@ async function handleGetBookings(tenantId, queryParams) {
              'breed', p.breed
            ))
            FROM "BookingPet" bp
-           JOIN "Pet" p ON bp.pet_id = p.id
+           JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
            WHERE bp.booking_id = b.id),
            '[]'::json
          ) as pets
        FROM "Booking" b
-       LEFT JOIN "Kennel" k ON b.kennel_id = k.id
-       LEFT JOIN "Service" s ON b.service_id = s.id
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       LEFT JOIN "BookingPet" bp ON bp.booking_id = b.id
+       LEFT JOIN "Kennel" k ON k.tenant_id = b.tenant_id AND b.kennel_id = k.record_id
+       LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+       LEFT JOIN "BookingPet" bp ON bp.tenant_id = b.tenant_id AND bp.booking_id = b.record_id
        WHERE ${whereClause}
        GROUP BY b.id, k.name, s.name, o.id, o.first_name, o.last_name, o.email, o.phone
        ORDER BY b.check_in DESC
@@ -1320,10 +1320,10 @@ async function handleGetBooking(tenantId, bookingId) {
          o.first_name as owner_first_name, o.last_name as owner_last_name,
          o.email as owner_email, o.phone as owner_phone
        FROM "Booking" b
-       LEFT JOIN "Kennel" k ON b.kennel_id = k.id
-       LEFT JOIN "Service" s ON b.service_id = s.id
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       WHERE b.id = $1 AND b.tenant_id = $2`,
+       LEFT JOIN "Kennel" k ON k.tenant_id = b.tenant_id AND b.kennel_id = k.record_id
+       LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+       WHERE b.record_id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId]
     );
 
@@ -1338,9 +1338,9 @@ async function handleGetBooking(tenantId, bookingId) {
 
     // Get pets for this booking from BookingPet join table
     const petsResult = await query(
-      `SELECT p.id, p.name, p.species, p.breed
+      `SELECT p.record_id, p.name, p.species, p.breed
        FROM "BookingPet" bp
-       JOIN "Pet" p ON bp.pet_id = p.id
+       JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
        WHERE bp.booking_id = $1`,
       [bookingId]
     );
@@ -1350,8 +1350,8 @@ async function handleGetBooking(tenantId, bookingId) {
     // Fallback: If no BookingPet entries but pet_id is set, lookup pet directly
     if (pets.length === 0 && booking.pet_id) {
       const directPetResult = await query(
-        `SELECT id, name, species, breed FROM "Pet" WHERE id = $1`,
-        [booking.pet_id]
+        `SELECT record_id, name, species, breed FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`,
+        [booking.pet_id, tenantId]
       );
       if (directPetResult.rows.length > 0) {
         pets = directPetResult.rows;
@@ -1491,7 +1491,7 @@ async function handleCreateBooking(tenantId, user, body) {
     // Validate ownerId exists
     if (ownerId) {
       const ownerCheck = await query(
-        `SELECT id FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+        `SELECT record_id FROM "Owner" WHERE record_id = $1 AND tenant_id = $2`,
         [ownerId, tenantId]
       );
       if (ownerCheck.rows.length === 0) {
@@ -1502,7 +1502,7 @@ async function handleCreateBooking(tenantId, user, body) {
     // Validate kennelId exists
     if (kennelId) {
       const kennelCheck = await query(
-        `SELECT id FROM "Kennel" WHERE id = $1 AND tenant_id = $2`,
+        `SELECT record_id FROM "Kennel" WHERE record_id = $1 AND tenant_id = $2`,
         [kennelId, tenantId]
       );
       if (kennelCheck.rows.length === 0) {
@@ -1513,7 +1513,7 @@ async function handleCreateBooking(tenantId, user, body) {
     // Validate serviceId exists
     if (serviceId) {
       const serviceCheck = await query(
-        `SELECT id FROM "Service" WHERE id = $1 AND tenant_id = $2`,
+        `SELECT record_id FROM "Service" WHERE record_id = $1 AND tenant_id = $2`,
         [serviceId, tenantId]
       );
       if (serviceCheck.rows.length === 0) {
@@ -1525,7 +1525,7 @@ async function handleCreateBooking(tenantId, user, body) {
     const petsToValidate = petIds && petIds.length > 0 ? petIds : (petId ? [petId] : []);
     for (const pid of petsToValidate) {
       const petCheck = await query(
-        `SELECT id FROM "Pet" WHERE id = $1 AND tenant_id = $2`,
+        `SELECT record_id FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`,
         [pid, tenantId]
       );
       if (petCheck.rows.length === 0) {
@@ -1657,9 +1657,9 @@ async function checkBookingCapacity(tenantId, kennelId, startDate, endDate) {
     if (kennelId) {
       // Check if the specific kennel is available for the date range
       const kennelResult = await query(
-        `SELECT k.id, k.name, k.capacity
+        `SELECT k.record_id, k.name, k.capacity
          FROM "Kennel" k
-         WHERE k.id = $1 AND k.tenant_id = $2 AND k.is_active = true`,
+         WHERE k.record_id = $1 AND k.tenant_id = $2 AND k.is_active = true`,
         [kennelId, tenantId]
       );
 
@@ -1817,9 +1817,9 @@ async function handleGetBookingConflicts(tenantId, params) {
         o.last_name as owner_last_name,
         o.email as owner_email
       FROM "Booking" b
-      LEFT JOIN "Kennel" k ON b.kennel_id = k.id
-      LEFT JOIN "Service" s ON b.service_id = s.id
-      LEFT JOIN "Owner" o ON b.owner_id = o.id
+      LEFT JOIN "Kennel" k ON k.tenant_id = b.tenant_id AND b.kennel_id = k.record_id
+      LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
+      LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
       WHERE b.tenant_id = $1
         AND b.kennel_id = $2
         AND b.status NOT IN ('CANCELLED', 'NO_SHOW', 'CHECKED_OUT')
@@ -1845,7 +1845,7 @@ async function handleGetBookingConflicts(tenantId, params) {
       const petsResult = await query(
         `SELECT p.id, p.name, p.species, p.breed
          FROM "BookingPet" bp
-         JOIN "Pet" p ON bp.pet_id = p.id
+         JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
          WHERE bp.booking_id = $1`,
         [row.id]
       );
@@ -1910,9 +1910,9 @@ async function sendBookingConfirmationEmail(tenantId, bookingId, userId) {
          o.email as owner_email,
          s.name as service_name
        FROM "Booking" b
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       LEFT JOIN "Service" s ON b.service_id = s.id
-       WHERE b.id = $1 AND b.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+       LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
+       WHERE b.record_id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId]
     );
 
@@ -1926,7 +1926,7 @@ async function sendBookingConfirmationEmail(tenantId, bookingId, userId) {
     // Get pets for booking
     const petsResult = await query(
       `SELECT p.name FROM "BookingPet" bp
-       JOIN "Pet" p ON bp.pet_id = p.id
+       JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
        WHERE bp.booking_id = $1`,
       [bookingId]
     );
@@ -2177,9 +2177,9 @@ async function sendBookingCancellationEmail(tenantId, bookingId) {
          o.email as owner_email,
          s.name as service_name
        FROM "Booking" b
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       LEFT JOIN "Service" s ON b.service_id = s.id
-       WHERE b.id = $1 AND b.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+       LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
+       WHERE b.record_id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId]
     );
 
@@ -2193,7 +2193,7 @@ async function sendBookingCancellationEmail(tenantId, bookingId) {
     // Get pets for booking
     const petsResult = await query(
       `SELECT p.name FROM "BookingPet" bp
-       JOIN "Pet" p ON bp.pet_id = p.id
+       JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
        WHERE bp.booking_id = $1`,
       [bookingId]
     );
@@ -2317,9 +2317,9 @@ async function sendCheckInEmail(tenantId, bookingId) {
          o.email as owner_email,
          s.name as service_name
        FROM "Booking" b
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       LEFT JOIN "Service" s ON b.service_id = s.id
-       WHERE b.id = $1 AND b.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+       LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
+       WHERE b.record_id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId]
     );
 
@@ -2331,7 +2331,7 @@ async function sendCheckInEmail(tenantId, bookingId) {
 
     const petsResult = await query(
       `SELECT p.name FROM "BookingPet" bp
-       JOIN "Pet" p ON bp.pet_id = p.id
+       JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
        WHERE bp.booking_id = $1`,
       [bookingId]
     );
@@ -2565,7 +2565,7 @@ async function handleBulkUpdateBookings(tenantId, user, body) {
     const result = await query(
       `UPDATE "Booking"
        SET ${setClauses.join(', ')}
-       WHERE id = ANY($1) AND tenant_id = $2       RETURNING id`,
+       WHERE record_id = ANY($1) AND tenant_id = $2       RETURNING record_id`,
       values
     );
 
@@ -2623,8 +2623,8 @@ async function handleBulkExportBookings(tenantId, user, body) {
         o.phone as owner_phone,
         s.name as service_name_from_service
       FROM "Booking" b
-      LEFT JOIN "Owner" o ON b.owner_id = o.id
-      LEFT JOIN "Service" s ON b.service_id = s.id
+      LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+      LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
       WHERE b.tenant_id = $1    `;
     const params = [tenantId];
     let paramIndex = 2;
@@ -2652,7 +2652,7 @@ async function handleBulkExportBookings(tenantId, user, body) {
       const petsResult = await query(
         `SELECT bp.booking_id, p.name, p.species, p.breed
          FROM "BookingPet" bp
-         JOIN "Pet" p ON bp.pet_id = p.id
+         JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
          WHERE bp.booking_id = ANY($1)`,
         [bookingIds]
       );
@@ -2707,8 +2707,8 @@ async function sendCheckOutEmail(tenantId, bookingId, totalPriceInCents) {
          o.first_name as owner_first_name,
          o.email as owner_email
        FROM "Booking" b
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       WHERE b.id = $1 AND b.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+       WHERE b.record_id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId]
     );
 
@@ -2720,7 +2720,7 @@ async function sendCheckOutEmail(tenantId, bookingId, totalPriceInCents) {
 
     const petsResult = await query(
       `SELECT p.name FROM "BookingPet" bp
-       JOIN "Pet" p ON bp.pet_id = p.id
+       JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
        WHERE bp.booking_id = $1`,
       [bookingId]
     );
@@ -2824,7 +2824,7 @@ async function handleGetTasks(tenantId, queryParams) {
          p.name as pet_name
        FROM "Task" t
        LEFT JOIN "User" u ON t.assigned_to = u.id
-       LEFT JOIN "Pet" p ON t.pet_id = p.id
+       LEFT JOIN "Pet" p ON p.tenant_id = t.tenant_id AND t.pet_id = p.record_id
        WHERE ${whereClause}
        ORDER BY t.due_at ASC NULLS LAST, t.priority DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -2902,7 +2902,7 @@ async function handleGetTask(tenantId, taskId) {
       `SELECT t.*, u.first_name, u.last_name
        FROM "Task" t
        LEFT JOIN "User" u ON t.assigned_to = u.id
-       WHERE t.id = $1 AND t.tenant_id = $2`,
+       WHERE t.record_id = $1 AND t.tenant_id = $2`,
       [taskId, tenantId]
     );
 
@@ -3143,7 +3143,7 @@ async function handleDeleteTask(tenantId, user, taskId) {
     await getPoolAsync();
 
     const result = await query(
-      `DELETE FROM "Task" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      `DELETE FROM "Task" WHERE record_id = $1 AND tenant_id = $2 RETURNING record_id`,
       [taskId, tenantId]
     );
 
@@ -3356,8 +3356,8 @@ async function handleMarkNotificationRead(tenantId, userId, notificationId) {
     const result = await query(
       `UPDATE "Notification"
        SET is_read = true, updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND (user_id = $3 OR user_id IS NULL)
-       RETURNING id`,
+       WHERE record_id = $1 AND tenant_id = $2 AND (user_id = $3 OR user_id IS NULL)
+       RETURNING record_id`,
       [notificationId, tenantId, userId]
     );
 
@@ -3395,7 +3395,7 @@ async function handleMarkAllNotificationsRead(tenantId, userId) {
       `UPDATE "Notification"
        SET is_read = true, updated_at = NOW()
        WHERE tenant_id = $1 AND (user_id = $2 OR user_id IS NULL) AND is_read = false
-       RETURNING id`,
+       RETURNING record_id`,
       [tenantId, userId]
     );
 
@@ -3437,7 +3437,7 @@ async function handleCreateNotification(tenantId, body) {
       `INSERT INTO "Notification" (
          tenant_id, record_id, user_id, type, title, message, link, metadata, is_read, created_at, updated_at
        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, false, NOW(), NOW())
-       RETURNING id, type, title, message, link, metadata, is_read, created_at`,
+       RETURNING record_id, type, title, message, link, metadata, is_read, created_at`,
       [tenantId, notificationRecordId, userId || null, type, title, message || null, link || null, metadata ? JSON.stringify(metadata) : null]
     );
 
@@ -3571,7 +3571,7 @@ async function handleGetRunTemplate(tenantId, templateId) {
          rt.created_at,
          rt.updated_at
        FROM "RunTemplate" rt
-       WHERE rt.id = $1 AND rt.tenant_id = $2`,
+       WHERE rt.record_id = $1 AND rt.tenant_id = $2`,
       [templateId, tenantId]
     );
 
@@ -4271,7 +4271,7 @@ async function handleSaveRunAssignments(tenantId, body, user) {
         if (!finalBookingId) {
           const bookingResult = await query(
             `SELECT b.id FROM "Booking" b
-             JOIN "BookingPet" bp ON bp.booking_id = b.id
+             JOIN "BookingPet" bp ON bp.tenant_id = b.tenant_id AND bp.booking_id = b.record_id
              WHERE b.tenant_id = $1
                AND bp.pet_id = $2
                AND b.status IN ('CONFIRMED', 'CHECKED_IN')
@@ -4295,12 +4295,12 @@ async function handleSaveRunAssignments(tenantId, body, user) {
           const result = await query(
             `INSERT INTO "RunAssignment" (tenant_id, record_id, run_id, pet_id, booking_id, assigned_date, start_time, end_time, notes, created_by)
              VALUES ($1, $2, $3, $4, $5, $6::date, $7::time, $8::time, $9, $10)
-             RETURNING id`,
+             RETURNING record_id`,
             [tenantId, runAssignmentRecordId, runId, petId, finalBookingId, date, startTime || null, endTime || null, notes || null, userId]
           );
 
           created.push({
-            id: result.rows[0].id,
+            id: result.rows[0].record_id,
             runId,
             petId,
             bookingId: finalBookingId,
@@ -4422,8 +4422,8 @@ async function handleUpdateRunAssignment(tenantId, assignmentId, body, user) {
     const result = await query(
       `UPDATE "RunAssignment"
        SET ${updates.join(', ')}
-       WHERE id = $1 AND tenant_id = $2
-       RETURNING id, run_id as "runId", pet_id as "petId", booking_id as "bookingId",
+       WHERE record_id = $1 AND tenant_id = $2
+       RETURNING record_id, run_id as "runId", pet_id as "petId", booking_id as "bookingId",
                  assigned_date as "assignedDate", start_time as "startTime", end_time as "endTime", notes`,
       values
     );
@@ -4613,8 +4613,8 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
         // Schema: assigned_date (DATE), start_time (TIME), end_time (TIME)
         // Check if assignment already exists for this pet/run/date
         const existingCheck = await query(
-          `SELECT id FROM "RunAssignment" WHERE run_id = $1 AND pet_id = $2 AND assigned_date = $3::date`,
-          [actualRunId, petId, date]
+          `SELECT record_id FROM "RunAssignment" WHERE run_id = $1 AND pet_id = $2 AND assigned_date = $3::date AND tenant_id = $4`,
+          [actualRunId, petId, date, tenantId]
         );
 
         let result;
@@ -4622,9 +4622,9 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
           // Update existing
           result = await query(
             `UPDATE "RunAssignment" SET start_time = $1::time, end_time = $2::time, booking_id = COALESCE($3, booking_id)
-             WHERE run_id = $4 AND pet_id = $5 AND assigned_date = $6::date
-             RETURNING id`,
-            [startTimeVal, endTimeVal, bookingId, actualRunId, petId, date]
+             WHERE run_id = $4 AND pet_id = $5 AND assigned_date = $6::date AND tenant_id = $7
+             RETURNING record_id`,
+            [startTimeVal, endTimeVal, bookingId, actualRunId, petId, date, tenantId]
           );
         } else {
           // Insert new
@@ -4632,13 +4632,13 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
           result = await query(
             `INSERT INTO "RunAssignment" (tenant_id, record_id, run_id, pet_id, booking_id, assigned_date, start_time, end_time)
              VALUES ($1, $2, $3, $4, $5, $6::date, $7::time, $8::time)
-             RETURNING id`,
+             RETURNING record_id`,
             [tenantId, assignmentRecordId, actualRunId, petId, bookingId, date, startTimeVal, endTimeVal]
           );
         }
 
         created.push({
-          id: result.rows[0].id,
+          id: result.rows[0].record_id,
           petId,
           assignedDate: date,
           startTime: startTimeVal,
@@ -4698,11 +4698,11 @@ async function handleClearRunAssignments(tenantId, runId, body) {
     }
 
     if (Array.isArray(assignmentIds) && assignmentIds.length > 0) {
-      deleteQuery += ` AND id = ANY($${paramIndex++}::uuid[])`;
+      deleteQuery += ` AND record_id = ANY($${paramIndex++}::uuid[])`;
       params.push(assignmentIds);
     }
 
-    deleteQuery += ' RETURNING id, pet_id';
+    deleteQuery += ' RETURNING record_id, pet_id';
 
     // Execute delete directly (no archiving to avoid schema issues)
     const result = await query(deleteQuery, params);
@@ -4745,7 +4745,7 @@ async function handleGetRun(tenantId, runId) {
          r.created_at,
          r.updated_at
        FROM "Run" r
-       WHERE r.id = $1 AND r.tenant_id = $2`,
+       WHERE r.record_id = $1 AND r.tenant_id = $2`,
       [runId, tenantId]
     );
 
@@ -4771,7 +4771,7 @@ async function handleGetRun(tenantId, runId) {
          p.name as pet_name,
          p.species as pet_species
        FROM "RunAssignment" ra
-       LEFT JOIN "Pet" p ON ra.pet_id = p.id
+       LEFT JOIN "Pet" p ON p.tenant_id = ra.tenant_id AND ra.pet_id = p.record_id
        WHERE ra.run_id = $1
        ORDER BY ra.assigned_date ASC, ra.start_time ASC`,
       [runId]
@@ -5024,7 +5024,7 @@ async function handleGetAvailableSlots(tenantId, runId, queryParams) {
     const runResult = await query(
       `SELECT r.id, r.name, r.description, r.capacity, r.run_type, r.is_active
        FROM "Run" r
-       WHERE r.id = $1 AND r.tenant_id = $2`,
+       WHERE r.record_id = $1 AND r.tenant_id = $2`,
       [runId, tenantId]
     );
 
@@ -5088,15 +5088,15 @@ async function handleRemovePetFromRun(tenantId, runId, body) {
     if (assignmentId) {
       result = await query(
         `DELETE FROM "RunAssignment"
-         WHERE id = $1 AND tenant_id = $2
-         RETURNING id`,
+         WHERE record_id = $1 AND tenant_id = $2
+         RETURNING record_id`,
         [assignmentId, tenantId]
       );
     } else {
       result = await query(
         `DELETE FROM "RunAssignment"
          WHERE run_id = $1 AND pet_id = $2 AND tenant_id = $3
-         RETURNING id`,
+         RETURNING record_id`,
         [runId, petId, tenantId]
       );
     }
@@ -5171,9 +5171,9 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
            o.first_name as owner_first_name,
            o.last_name as owner_last_name
          FROM "Booking" b
-         LEFT JOIN "Service" s ON b.service_id = s.id
-         LEFT JOIN "Kennel" k ON b.kennel_id = k.id
-         LEFT JOIN "Owner" o ON b.owner_id = o.id
+         LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
+         LEFT JOIN "Kennel" k ON k.tenant_id = b.tenant_id AND b.kennel_id = k.record_id
+         LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
          WHERE b.tenant_id = $1
                      AND DATE(b.check_in) <= $3::date
            AND DATE(b.check_out) >= $2::date
@@ -5189,7 +5189,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
         const petsResult = await query(
           `SELECT bp.booking_id, p.id, p.name, p.species, p.breed, p.photo_url
            FROM "BookingPet" bp
-           JOIN "Pet" p ON bp.pet_id = p.id
+           JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
            WHERE bp.booking_id = ANY($1)`,
           [bookingIds]
         );
@@ -5251,7 +5251,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
            p.name as pet_name
          FROM "Task" t
          LEFT JOIN "User" u ON t.assigned_to = u.id
-         LEFT JOIN "Pet" p ON t.pet_id = p.id
+         LEFT JOIN "Pet" p ON p.tenant_id = t.tenant_id AND t.pet_id = p.record_id
          WHERE t.tenant_id = $1
                      AND (
              (t.scheduled_for IS NOT NULL AND DATE(t.scheduled_for) BETWEEN $2::date AND $3::date)
@@ -5300,7 +5300,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
            p.photo_url as pet_photo_url
          FROM "RunAssignment" ra
          JOIN "Run" r ON ra.run_id = r.id AND r.tenant_id = ra.tenant_id
-         LEFT JOIN "Pet" p ON ra.pet_id = p.id
+         LEFT JOIN "Pet" p ON p.tenant_id = ra.tenant_id AND ra.pet_id = p.record_id
          WHERE ra.tenant_id = $1
            AND ra.assigned_date BETWEEN $2::date AND $3::date
          ORDER BY ra.assigned_date ASC, ra.start_time ASC`,
@@ -5676,9 +5676,9 @@ async function handleSendBookingConfirmation(tenantId, user, body) {
            o.email as owner_email,
            s.name as service_name
          FROM "Booking" b
-         LEFT JOIN "Owner" o ON b.owner_id = o.id
-         LEFT JOIN "Service" s ON b.service_id = s.id
-         WHERE b.id = $1 AND b.tenant_id = $2`,
+         LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+         LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
+         WHERE b.record_id = $1 AND b.tenant_id = $2`,
         [bookingId, tenantId]
       );
 
@@ -5700,7 +5700,7 @@ async function handleSendBookingConfirmation(tenantId, user, body) {
       // Get pets for booking
       const petsResult = await query(
         `SELECT p.name FROM "BookingPet" bp
-         JOIN "Pet" p ON bp.pet_id = p.id
+         JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
          WHERE bp.booking_id = $1`,
         [bookingId]
       );
@@ -5793,9 +5793,9 @@ async function handleSendBookingReminder(tenantId, user, body) {
          o.email as owner_email,
          s.name as service_name
        FROM "Booking" b
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       LEFT JOIN "Service" s ON b.service_id = s.id
-       WHERE b.id = $1 AND b.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+       LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
+       WHERE b.record_id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId]
     );
 
@@ -5823,7 +5823,7 @@ async function handleSendBookingReminder(tenantId, user, body) {
     // Get pets for booking
     const petsResult = await query(
       `SELECT p.name FROM "BookingPet" bp
-       JOIN "Pet" p ON bp.pet_id = p.id
+       JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
        WHERE bp.booking_id = $1`,
       [bookingId]
     );
@@ -5899,10 +5899,10 @@ async function handleSendVaccinationReminder(tenantId, user, body) {
           o.first_name as owner_first_name,
           o.email as owner_email
         FROM "Vaccination" v
-        JOIN "Pet" p ON v.pet_id = p.id
-        LEFT JOIN "PetOwner" po ON po.pet_id = p.id AND po.is_primary = true
-        LEFT JOIN "Owner" o ON po.owner_id = o.id
-        WHERE v.id = $1 AND v.tenant_id = $2`;
+        JOIN "Pet" p ON p.tenant_id = v.tenant_id AND v.pet_id = p.record_id
+        LEFT JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id AND po.is_primary = true
+        LEFT JOIN "Owner" o ON o.tenant_id = po.tenant_id AND po.owner_id = o.record_id
+        WHERE v.record_id = $1 AND v.tenant_id = $2`;
       params = [vaccinationId, tenantId];
     } else {
       vaccQuery = `
@@ -5914,9 +5914,9 @@ async function handleSendVaccinationReminder(tenantId, user, body) {
           o.first_name as owner_first_name,
           o.email as owner_email
         FROM "Vaccination" v
-        JOIN "Pet" p ON v.pet_id = p.id
-        LEFT JOIN "PetOwner" po ON po.pet_id = p.id AND po.is_primary = true
-        LEFT JOIN "Owner" o ON po.owner_id = o.id
+        JOIN "Pet" p ON p.tenant_id = v.tenant_id AND v.pet_id = p.record_id
+        LEFT JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id AND po.is_primary = true
+        LEFT JOIN "Owner" o ON o.tenant_id = po.tenant_id AND po.owner_id = o.record_id
         WHERE v.pet_id = $1 AND v.tenant_id = $2
         AND v.expires_at <= NOW() + INTERVAL '30 days'
         ORDER BY v.expires_at ASC
@@ -6009,9 +6009,9 @@ async function handleBulkVaccinationReminders(tenantId, user, body) {
          o.email as owner_email,
          EXTRACT(DAY FROM v.expires_at - NOW())::integer as days_until_expiry
        FROM "Vaccination" v
-       JOIN "Pet" p ON v.pet_id = p.id
-       LEFT JOIN "PetOwner" po ON po.pet_id = p.id AND po.is_primary = true
-       LEFT JOIN "Owner" o ON po.owner_id = o.id
+       JOIN "Pet" p ON p.tenant_id = v.tenant_id AND v.pet_id = p.record_id
+       LEFT JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id AND po.is_primary = true
+       LEFT JOIN "Owner" o ON o.tenant_id = po.tenant_id AND po.owner_id = o.record_id
        WHERE v.tenant_id = $1
                  AND o.email IS NOT NULL
          AND (
@@ -6128,9 +6128,9 @@ async function handleSendCheckInConfirmation(tenantId, user, body) {
          o.email as owner_email,
          s.name as service_name
        FROM "Booking" b
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       LEFT JOIN "Service" s ON b.service_id = s.id
-       WHERE b.id = $1 AND b.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+       LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
+       WHERE b.record_id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId]
     );
 
@@ -6158,7 +6158,7 @@ async function handleSendCheckInConfirmation(tenantId, user, body) {
     // Get pets for booking
     const petsResult = await query(
       `SELECT p.name FROM "BookingPet" bp
-       JOIN "Pet" p ON bp.pet_id = p.id
+       JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
        WHERE bp.booking_id = $1`,
       [bookingId]
     );
@@ -6227,8 +6227,8 @@ async function handleSendCheckOutConfirmation(tenantId, user, body) {
          o.first_name as owner_first_name,
          o.email as owner_email
        FROM "Booking" b
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       WHERE b.id = $1 AND b.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+       WHERE b.record_id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId]
     );
 
@@ -6256,7 +6256,7 @@ async function handleSendCheckOutConfirmation(tenantId, user, body) {
     // Get pets for booking
     const petsResult = await query(
       `SELECT p.name FROM "BookingPet" bp
-       JOIN "Pet" p ON bp.pet_id = p.id
+       JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
        WHERE bp.booking_id = $1`,
       [bookingId]
     );
@@ -6393,8 +6393,8 @@ async function handleSendBookingConfirmationSMS(tenantId, user, body) {
     const bookingResult = await query(
       `SELECT b.*, o.phone as owner_phone, o.first_name as owner_first_name
        FROM "Booking" b
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       WHERE b.id = $1 AND b.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+       WHERE b.record_id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId]
     );
 
@@ -6417,7 +6417,7 @@ async function handleSendBookingConfirmationSMS(tenantId, user, body) {
 
     // Get pet names
     const petsResult = await query(
-      `SELECT p.name FROM "Pet" p WHERE p.id = ANY($1::uuid[])`,
+      `SELECT p.name FROM "Pet" p WHERE p.record_id = ANY($1::uuid[])`,
       [booking.pet_ids || []]
     );
     const petNames = petsResult.rows.map(r => r.name).join(', ') || 'your pet';
@@ -6479,8 +6479,8 @@ async function handleSendBookingReminderSMS(tenantId, user, body) {
     const bookingResult = await query(
       `SELECT b.*, o.phone as owner_phone
        FROM "Booking" b
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       WHERE b.id = $1 AND b.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+       WHERE b.record_id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId]
     );
 
@@ -6503,7 +6503,7 @@ async function handleSendBookingReminderSMS(tenantId, user, body) {
 
     // Get pet names
     const petsResult = await query(
-      `SELECT p.name FROM "Pet" p WHERE p.id = ANY($1::uuid[])`,
+      `SELECT p.name FROM "Pet" p WHERE p.record_id = ANY($1::uuid[])`,
       [booking.pet_ids || []]
     );
     const petNames = petsResult.rows.map(r => r.name).join(', ') || 'Your pet';
@@ -6566,8 +6566,8 @@ async function handleSendCheckInSMS(tenantId, user, body) {
     const bookingResult = await query(
       `SELECT b.*, o.phone as owner_phone
        FROM "Booking" b
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       WHERE b.id = $1 AND b.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+       WHERE b.record_id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId]
     );
 
@@ -6590,7 +6590,7 @@ async function handleSendCheckInSMS(tenantId, user, body) {
 
     // Get pet names
     const petsResult = await query(
-      `SELECT p.name FROM "Pet" p WHERE p.id = ANY($1::uuid[])`,
+      `SELECT p.name FROM "Pet" p WHERE p.record_id = ANY($1::uuid[])`,
       [booking.pet_ids || []]
     );
     const petNames = petsResult.rows.map(r => r.name).join(', ') || 'Your pet';
@@ -6652,8 +6652,8 @@ async function handleSendCheckOutSMS(tenantId, user, body) {
     const bookingResult = await query(
       `SELECT b.*, o.phone as owner_phone
        FROM "Booking" b
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       WHERE b.id = $1 AND b.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+       WHERE b.record_id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId]
     );
 
@@ -6676,7 +6676,7 @@ async function handleSendCheckOutSMS(tenantId, user, body) {
 
     // Get pet names
     const petsResult = await query(
-      `SELECT p.name FROM "Pet" p WHERE p.id = ANY($1::uuid[])`,
+      `SELECT p.name FROM "Pet" p WHERE p.record_id = ANY($1::uuid[])`,
       [booking.pet_ids || []]
     );
     const petNames = petsResult.rows.map(r => r.name).join(', ') || 'Your pet';
@@ -6823,9 +6823,9 @@ async function handleGetIncidents(tenantId, queryParams) {
          u.first_name as reported_by_first_name,
          u.last_name as reported_by_last_name
        FROM "Incident" i
-       LEFT JOIN "Pet" p ON i.pet_id = p.id
+       LEFT JOIN "Pet" p ON p.tenant_id = i.tenant_id AND i.pet_id = p.record_id
        LEFT JOIN "PetOwner" po ON p.id = po.pet_id AND po.is_primary = true
-       LEFT JOIN "Owner" o ON po.owner_id = o.id
+       LEFT JOIN "Owner" o ON o.tenant_id = po.tenant_id AND po.owner_id = o.record_id
        LEFT JOIN "User" u ON i.reported_by = u.id
        WHERE ${whereClause}
        ORDER BY i.incident_date DESC, i.created_at DESC
@@ -6917,11 +6917,11 @@ async function handleGetIncident(tenantId, incidentId) {
          ru.first_name as resolved_by_first_name,
          ru.last_name as resolved_by_last_name
        FROM "Incident" i
-       LEFT JOIN "Pet" p ON i.pet_id = p.id
-       LEFT JOIN "Owner" o ON i.owner_id = o.id
+       LEFT JOIN "Pet" p ON p.tenant_id = i.tenant_id AND i.pet_id = p.record_id
+       LEFT JOIN "Owner" o ON o.tenant_id = i.tenant_id AND i.owner_id = o.record_id
        LEFT JOIN "User" u ON i.created_by = u.id
        LEFT JOIN "User" ru ON i.resolved_by = ru.id
-       WHERE i.id = $1 AND i.tenant_id = $2`,
+       WHERE i.record_id = $1 AND i.tenant_id = $2`,
       [incidentId, tenantId]
     );
 
@@ -7169,7 +7169,7 @@ async function handleUpdateIncident(tenantId, user, incidentId, body) {
 
     return createResponse(200, {
       success: true,
-      id: result.rows[0].id,
+      id: result.rows[0].record_id,
       status: result.rows[0].status,
       message: 'Incident updated successfully',
     });
@@ -7269,7 +7269,7 @@ async function handleResolveIncident(tenantId, user, incidentId, body) {
 
     return createResponse(200, {
       success: true,
-      id: result.rows[0].id,
+      id: result.rows[0].record_id,
       status: 'RESOLVED',
       resolvedAt: result.rows[0].resolved_at,
       message: 'Incident resolved successfully',
@@ -7300,9 +7300,9 @@ async function handleNotifyOwnerOfIncident(tenantId, user, incidentId, body) {
       `SELECT i.*, o.email as owner_email, o.phone as owner_phone, o.first_name as owner_first_name,
               p.name as pet_name
        FROM "Incident" i
-       LEFT JOIN "Owner" o ON i.owner_id = o.id
-       LEFT JOIN "Pet" p ON i.pet_id = p.id
-       WHERE i.id = $1 AND i.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = i.tenant_id AND i.owner_id = o.record_id
+       LEFT JOIN "Pet" p ON p.tenant_id = i.tenant_id AND i.pet_id = p.record_id
+       WHERE i.record_id = $1 AND i.tenant_id = $2`,
       [incidentId, tenantId]
     );
 
@@ -7465,7 +7465,7 @@ async function handleGetWorkflow(tenantId, workflowId) {
       `SELECT w.*, u.first_name as created_by_first_name, u.last_name as created_by_last_name
        FROM "Workflow" w
        LEFT JOIN "User" u ON w.created_by = u.id
-       WHERE w.id = $1 AND w.tenant_id = $2 AND w.deleted_at IS NULL`,
+       WHERE w.record_id = $1 AND w.tenant_id = $2 AND w.deleted_at IS NULL`,
       [workflowId, tenantId]
     );
 
@@ -7666,8 +7666,8 @@ async function handleDeleteWorkflow(tenantId, user, workflowId) {
     const result = await query(
       `UPDATE "Workflow"
        SET deleted_at = NOW(), updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
+       WHERE record_id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING record_id`,
       [workflowId, tenantId]
     );
 
@@ -7849,8 +7849,8 @@ async function handleGetMatchingRecordsCount(tenantId, workflowId) {
 
     // Get workflow with entry condition
     const workflowResult = await query(
-      `SELECT id, object_type, entry_condition, settings FROM "Workflow"
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT record_id, object_type, entry_condition, settings FROM "Workflow"
+       WHERE record_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [workflowId, tenantId]
     );
 
@@ -8135,8 +8135,8 @@ async function handlePostMatchingRecordsCount(tenantId, workflowId, body) {
 
     // Get workflow to verify it exists and get settings/objectType if not provided
     const workflowResult = await query(
-      `SELECT id, object_type, settings FROM "Workflow"
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT record_id, object_type, settings FROM "Workflow"
+       WHERE record_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [workflowId, tenantId]
     );
 
@@ -8392,8 +8392,8 @@ async function handleGetWorkflowDependencies(tenantId, workflowId) {
 
     // Verify workflow exists
     const workflowResult = await query(
-      `SELECT id, name FROM "Workflow"
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT record_id, name FROM "Workflow"
+       WHERE record_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [workflowId, tenantId]
     );
 
@@ -8472,7 +8472,7 @@ async function handleGetWorkflowUsedBy(tenantId, workflowId) {
     const result = await query(
       `SELECT DISTINCT w.id, w.name, w.status, ws.name as step_name
        FROM "Workflow" w
-       JOIN "WorkflowStep" ws ON ws.workflow_id = w.id
+       JOIN "WorkflowStep" ws ON ws.tenant_id = w.tenant_id AND ws.workflow_id = w.record_id
        WHERE w.tenant_id = $1
          AND w.deleted_at IS NULL
          AND ws.action_type = 'enroll_in_workflow'
@@ -8779,7 +8779,7 @@ async function enrollMatchingRecordsHelper(workflowId, tenantId, workflow) {
   }
 
   // Get matching records (limit to 1000 for safety)
-  const selectQuery = `SELECT id FROM "${tableName}" WHERE ${whereClause} LIMIT 1000`;
+  const selectQuery = `SELECT record_id FROM "${tableName}" WHERE ${whereClause} LIMIT 1000`;
   console.log('[Workflows][enrollMatchingRecords] Generated SQL:', selectQuery);
   console.log('[Workflows][enrollMatchingRecords] SQL Params:', JSON.stringify(params));
 
@@ -8792,11 +8792,11 @@ async function enrollMatchingRecordsHelper(workflowId, tenantId, workflow) {
 
   // Get first step
   const stepsResult = await query(
-    `SELECT id FROM "WorkflowStep" WHERE workflow_id = $1 ORDER BY position LIMIT 1`,
-    [workflowId]
+    `SELECT record_id FROM "WorkflowStep" WHERE workflow_id = $1 AND tenant_id = $2 ORDER BY position LIMIT 1`,
+    [workflowId, tenantId]
   );
 
-  const firstStepId = stepsResult.rows.length > 0 ? stepsResult.rows[0].id : null;
+  const firstStepId = stepsResult.rows.length > 0 ? stepsResult.rows[0].record_id : null;
 
   // Enroll each record
   let enrolled = 0;
@@ -8813,7 +8813,7 @@ async function enrollMatchingRecordsHelper(workflowId, tenantId, workflow) {
           uuid_generate_v4(), $1, $2, $3, $4, 'running', $5, NOW(), NOW(), NOW()
         )
         RETURNING id`,
-        [workflowId, tenantId, record.id, objectType, firstStepId]
+        [workflowId, tenantId, record.record_id, objectType, firstStepId]
       );
 
       if (execResult.rows.length > 0) {
@@ -8865,7 +8865,7 @@ async function handleGetWorkflowSteps(tenantId, workflowId) {
 
     // Verify workflow exists and belongs to tenant
     const workflowResult = await query(
-      `SELECT id FROM "Workflow" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT record_id FROM "Workflow" WHERE record_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [workflowId, tenantId]
     );
 
@@ -8913,7 +8913,7 @@ async function handleUpdateWorkflowSteps(tenantId, user, workflowId, body) {
 
     // Verify workflow exists and belongs to tenant
     const workflowResult = await query(
-      `SELECT id FROM "Workflow" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT record_id FROM "Workflow" WHERE record_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [workflowId, tenantId]
     );
 
@@ -9011,7 +9011,7 @@ async function handleGetWorkflowExecutions(tenantId, workflowId, queryParams) {
 
     // Verify workflow exists and belongs to tenant
     const workflowResult = await query(
-      `SELECT id FROM "Workflow" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT record_id FROM "Workflow" WHERE record_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [workflowId, tenantId]
     );
 
@@ -9034,7 +9034,7 @@ async function handleGetWorkflowExecutions(tenantId, workflowId, queryParams) {
     const result = await query(
       `SELECT e.*, w.settings->'timingConfig' as timing_config
        FROM "WorkflowExecution" e
-       JOIN "Workflow" w ON e.workflow_id = w.id
+       JOIN "Workflow" w ON w.tenant_id = e.tenant_id AND e.workflow_id = w.record_id
        WHERE ${whereClause.replace('workflow_id', 'e.workflow_id').replace('tenant_id', 'e.tenant_id').replace('status', 'e.status')}
        ORDER BY e.enrolled_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -9097,7 +9097,7 @@ async function handleGetWorkflowHistory(tenantId, workflowId, queryParams) {
 
     // Verify workflow exists and belongs to tenant
     const workflowResult = await query(
-      `SELECT id FROM "Workflow" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT record_id FROM "Workflow" WHERE record_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [workflowId, tenantId]
     );
 
@@ -9297,9 +9297,9 @@ async function handleGetWorkflowExecution(tenantId, workflowId, executionId) {
               w.settings->'timingConfig' as timing_config,
               array_agg(json_build_object('id', l.id, 'step_id', l.step_id, 'status', l.status, 'started_at', l.started_at, 'completed_at', l.completed_at, 'result', l.result) ORDER BY l.started_at) as logs
        FROM "WorkflowExecution" e
-       JOIN "Workflow" w ON e.workflow_id = w.id
+       JOIN "Workflow" w ON w.tenant_id = e.tenant_id AND e.workflow_id = w.record_id
        LEFT JOIN "WorkflowExecutionLog" l ON e.id = l.execution_id
-       WHERE e.id = $1 AND e.workflow_id = $2 AND e.tenant_id = $3
+       WHERE e.record_id = $1 AND e.workflow_id = $2 AND e.tenant_id = $3
        GROUP BY e.id, w.settings`,
       [executionId, workflowId, tenantId]
     );
@@ -9393,8 +9393,8 @@ async function handleRetryExecution(tenantId, user, workflowId, executionId) {
     const execResult = await query(
       `SELECT we.*, w.name as workflow_name
        FROM "WorkflowExecution" we
-       JOIN "Workflow" w ON we.workflow_id = w.id
-       WHERE we.id = $1 AND we.workflow_id = $2 AND we.tenant_id = $3 AND we.status = 'failed'`,
+       JOIN "Workflow" w ON w.tenant_id = we.tenant_id AND we.workflow_id = w.record_id
+       WHERE we.record_id = $1 AND we.workflow_id = $2 AND we.tenant_id = $3 AND we.status = 'failed'`,
       [executionId, workflowId, tenantId]
     );
 
@@ -9745,7 +9745,7 @@ async function handleDeleteWorkflowFolder(tenantId, user, folderId) {
     );
 
     const result = await query(
-      `DELETE FROM "WorkflowFolder" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      `DELETE FROM "WorkflowFolder" WHERE record_id = $1 AND tenant_id = $2 RETURNING record_id`,
       [folderId, tenantId]
     );
 
@@ -9795,7 +9795,7 @@ async function handleClockIn(tenantId, user, body) {
 
     // Check if already clocked in (has active entry without clock_out)
     const activeResult = await query(
-      `SELECT id, clock_in FROM "TimeEntry"
+      `SELECT record_id, clock_in FROM "TimeEntry"
        WHERE tenant_id = $1 AND user_id = $2 AND clock_out IS NULL
        LIMIT 1`,
       [tenantId, userId]
@@ -9993,7 +9993,7 @@ async function handleStartBreak(tenantId, user, body) {
 
     return createResponse(200, {
       success: true,
-      id: result.rows[0].id,
+      id: result.rows[0].record_id,
       breakStart: result.rows[0].break_start,
       message: 'Break started',
     });
@@ -10057,7 +10057,7 @@ async function handleEndBreak(tenantId, user, body) {
 
     return createResponse(200, {
       success: true,
-      id: result.rows[0].id,
+      id: result.rows[0].record_id,
       breakDurationMinutes: breakDuration,
       totalBreakMinutes: totalBreakMinutes,
       message: 'Break ended',
@@ -10290,7 +10290,7 @@ async function handleGetTimeEntry(tenantId, entryId) {
          u.first_name, u.last_name, u.email as user_email
        FROM "TimeEntry" te
        JOIN "User" u ON te.user_id = u.id
-       WHERE te.id = $1 AND te.tenant_id = $2`,
+       WHERE te.record_id = $1 AND te.tenant_id = $2`,
       [entryId, tenantId]
     );
 
@@ -10396,7 +10396,7 @@ async function handleUpdateTimeEntry(tenantId, user, entryId, body) {
 
     return createResponse(200, {
       success: true,
-      id: result.rows[0].id,
+      id: result.rows[0].record_id,
       message: 'Time entry updated',
     });
 
@@ -10471,7 +10471,7 @@ async function handleApproveTimeEntry(tenantId, user, entryId, body) {
 
     return createResponse(200, {
       success: true,
-      id: result.rows[0].id,
+      id: result.rows[0].record_id,
       approvedAt: result.rows[0].approved_at,
       message: 'Time entry approved',
     });
@@ -10527,7 +10527,7 @@ async function handleGetShifts(tenantId, queryParams) {
          sh.*,
          s.first_name, s.last_name, s.email as staff_email, s.role as staff_role
        FROM "Shift" sh
-       JOIN "Staff" s ON sh.staff_id = s.id
+       JOIN "Staff" s ON s.tenant_id = sh.tenant_id AND sh.staff_id = s.record_id
        WHERE ${whereClause}
        ORDER BY sh.start_time ASC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -10597,8 +10597,8 @@ async function handleGetShift(tenantId, shiftId) {
          sh.*,
          s.first_name, s.last_name, s.email as staff_email
        FROM "Shift" sh
-       JOIN "Staff" s ON sh.staff_id = s.id
-       WHERE sh.id = $1 AND sh.tenant_id = $2`,
+       JOIN "Staff" s ON s.tenant_id = sh.tenant_id AND sh.staff_id = s.record_id
+       WHERE sh.record_id = $1 AND sh.tenant_id = $2`,
       [shiftId, tenantId]
     );
 
@@ -10740,7 +10740,7 @@ async function handleUpdateShift(tenantId, user, shiftId, body) {
 
     return createResponse(200, {
       success: true,
-      id: result.rows[0].id,
+      id: result.rows[0].record_id,
       message: 'Shift updated',
     });
 
@@ -10813,7 +10813,7 @@ async function handleConfirmShift(tenantId, user, shiftId) {
 
     return createResponse(200, {
       success: true,
-      id: result.rows[0].id,
+      id: result.rows[0].record_id,
       status: 'CONFIRMED',
       message: 'Shift confirmed',
     });
@@ -10859,10 +10859,10 @@ async function handleBulkCreateShifts(tenantId, user, body) {
         const result = await query(
           `INSERT INTO "Shift" (tenant_id, record_id, staff_id, start_time, end_time, role, notes, status, created_by)
            VALUES ($1, $2, $3, $4, $5, $6, $7, 'SCHEDULED', $8)
-           RETURNING id`,
+           RETURNING record_id`,
           [tenantId, shiftRecordId, shift.staffId, shift.startTime, shift.endTime, shift.role || null, shift.notes || null, user?.id]
         );
-        createdIds.push(result.rows[0].id);
+        createdIds.push(result.rows[0].record_id);
       } catch (err) {
         errors.push({ shift, error: err.message });
       }
@@ -10920,7 +10920,7 @@ async function handleGetWeeklySchedule(tenantId, queryParams) {
          s.last_name,
          s.role as staff_role
        FROM "Shift" sh
-       JOIN "Staff" s ON sh.staff_id = s.id
+       JOIN "Staff" s ON s.tenant_id = sh.tenant_id AND sh.staff_id = s.record_id
        WHERE sh.tenant_id = $1
          AND sh.start_time >= $2
          AND sh.start_time < $3
@@ -11073,7 +11073,7 @@ async function handleCreateShiftTemplate(tenantId, user, body) {
 
     return createResponse(201, {
       success: true,
-      id: result.rows[0].id,
+      id: result.rows[0].record_id,
       name: result.rows[0].name,
       message: 'Shift template created',
     });
@@ -11122,7 +11122,7 @@ async function handleGetRecurringBookings(tenantId, queryParams) {
          o.last_name as owner_last_name,
          o.email as owner_email
        FROM "RecurringBooking" rb
-       LEFT JOIN "Owner" o ON rb.owner_id = o.id
+       LEFT JOIN "Owner" o ON o.tenant_id = rb.tenant_id AND rb.owner_id = o.record_id
        WHERE ${whereClause}
        ORDER BY rb.created_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -11192,8 +11192,8 @@ async function handleGetRecurringBooking(tenantId, recurringId) {
     const result = await query(
       `SELECT rb.*, o.first_name as owner_first_name, o.last_name as owner_last_name
        FROM "RecurringBooking" rb
-       LEFT JOIN "Owner" o ON rb.owner_id = o.id
-       WHERE rb.id = $1 AND rb.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = rb.tenant_id AND rb.owner_id = o.record_id
+       WHERE rb.record_id = $1 AND rb.tenant_id = $2`,
       [recurringId, tenantId]
     );
 
@@ -11374,7 +11374,7 @@ async function handleUpdateRecurringBooking(tenantId, user, recurringId, body) {
 
     return createResponse(200, {
       success: true,
-      id: result.rows[0].id,
+      id: result.rows[0].record_id,
       message: 'Recurring booking updated',
     });
 
@@ -11458,7 +11458,7 @@ async function handlePauseRecurringBooking(tenantId, recurringId, body) {
 
     return createResponse(200, {
       success: true,
-      id: result.rows[0].id,
+      id: result.rows[0].record_id,
       pausedAt: result.rows[0].paused_at,
       message: 'Recurring booking paused',
     });
@@ -11509,7 +11509,7 @@ async function handleResumeRecurringBooking(tenantId, recurringId) {
 
     return createResponse(200, {
       success: true,
-      id: result.rows[0].id,
+      id: result.rows[0].record_id,
       nextOccurrenceDate: result.rows[0].next_occurrence_date,
       message: 'Recurring booking resumed',
     });
@@ -11566,9 +11566,9 @@ async function handleGenerateRecurringInstances(tenantId, recurringId, body) {
 
       // Check if already generated for this date
       const existingCheck = await query(
-        `SELECT id FROM "RecurringBookingInstance"
-         WHERE recurring_booking_id = $1 AND occurrence_date = $2`,
-        [recurringId, occurrenceDateStr]
+        `SELECT record_id FROM "RecurringBookingInstance"
+         WHERE recurring_booking_id = $1 AND occurrence_date = $2 AND tenant_id = $3`,
+        [recurringId, occurrenceDateStr, tenantId]
       );
 
       if (existingCheck.rows.length === 0) {
@@ -11596,7 +11596,7 @@ async function handleGenerateRecurringInstances(tenantId, recurringId, body) {
                notes, special_instructions, total_price_cents, status
              )
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'PENDING')
-             RETURNING id`,
+             RETURNING record_id`,
             [
               tenantId, recurringBookingRecordId, rb.owner_id, rb.preferred_kennel_id,
               rb.service_id, checkIn, checkOut, rb.notes,
@@ -11771,7 +11771,7 @@ async function handleCustomerCheckAvailability(tenantId, queryParams) {
          COUNT(DISTINCT b.id) as active_bookings,
          COUNT(DISTINCT bp.pet_id) as pets_booked
        FROM "Booking" b
-       LEFT JOIN "BookingPet" bp ON bp.booking_id = b.id
+       LEFT JOIN "BookingPet" bp ON bp.tenant_id = b.tenant_id AND bp.booking_id = b.record_id
        WHERE b.tenant_id = $1
        AND b.status IN ('CONFIRMED', 'CHECKED_IN')
        AND b.check_in <= $3
@@ -11901,7 +11901,7 @@ async function handleCustomerGetPets(tenantId, user) {
 
     // Find owner record for this user
     const ownerResult = await query(
-      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
+      `SELECT record_id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
       [user.id, tenantId]
     );
 
@@ -11914,7 +11914,7 @@ async function handleCustomerGetPets(tenantId, user) {
       });
     }
 
-    const ownerId = ownerResult.rows[0].id;
+    const ownerId = ownerResult.rows[0].record_id;
 
     const result = await query(
       `SELECT 
@@ -11980,7 +11980,7 @@ async function handleCustomerGetBookings(tenantId, user, queryParams) {
 
     // Find owner record for this user
     const ownerResult = await query(
-      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
+      `SELECT record_id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
       [user.id, tenantId]
     );
 
@@ -11993,7 +11993,7 @@ async function handleCustomerGetBookings(tenantId, user, queryParams) {
       });
     }
 
-    const ownerId = ownerResult.rows[0].id;
+    const ownerId = ownerResult.rows[0].record_id;
 
     let whereClause = 'b.owner_id = $1 AND b.tenant_id = $2';
     const params = [ownerId, tenantId];
@@ -12025,9 +12025,9 @@ async function handleCustomerGetBookings(tenantId, user, queryParams) {
          k.name as kennel_name,
          COALESCE(array_agg(p.name) FILTER (WHERE p.name IS NOT NULL), ARRAY[]::text[]) as pet_names
        FROM "Booking" b
-       LEFT JOIN "Service" s ON b.service_id = s.id
-       LEFT JOIN "Kennel" k ON b.kennel_id = k.id
-       LEFT JOIN "BookingPet" bp ON bp.booking_id = b.id
+       LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
+       LEFT JOIN "Kennel" k ON k.tenant_id = b.tenant_id AND b.kennel_id = k.record_id
+       LEFT JOIN "BookingPet" bp ON bp.tenant_id = b.tenant_id AND bp.booking_id = b.record_id
        LEFT JOIN "Pet" p ON p.id = bp.pet_id
        WHERE ${whereClause}
        GROUP BY b.id, s.id, k.id
@@ -12106,7 +12106,7 @@ async function handleCustomerCreateBooking(tenantId, user, body) {
 
     // Find owner record for this user
     const ownerResult = await query(
-      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
+      `SELECT record_id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
       [user.id, tenantId]
     );
 
@@ -12117,11 +12117,11 @@ async function handleCustomerCreateBooking(tenantId, user, body) {
       });
     }
 
-    const ownerId = ownerResult.rows[0].id;
+    const ownerId = ownerResult.rows[0].record_id;
 
     // Verify pets belong to this owner
     const petsResult = await query(
-      `SELECT id FROM "Pet" WHERE id = ANY($1::uuid[]) AND owner_id = $2 AND tenant_id = $3 `,
+      `SELECT record_id FROM "Pet" WHERE record_id = ANY($1::uuid[]) AND owner_id = $2 AND tenant_id = $3 `,
       [petIds, ownerId, tenantId]
     );
 
@@ -12256,7 +12256,7 @@ async function handleCustomerGetBooking(tenantId, user, bookingId) {
 
     // Find owner record for this user
     const ownerResult = await query(
-      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
+      `SELECT record_id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
       [user.id, tenantId]
     );
 
@@ -12267,7 +12267,7 @@ async function handleCustomerGetBooking(tenantId, user, bookingId) {
       });
     }
 
-    const ownerId = ownerResult.rows[0].id;
+    const ownerId = ownerResult.rows[0].record_id;
 
     // Schema: check_in, check_out (not start_date/end_date), total_price_cents (not total_price)
     // Use BookingPet junction table instead of pet_ids array
@@ -12288,11 +12288,11 @@ async function handleCustomerGetBooking(tenantId, user, bookingId) {
          k.name as kennel_name,
          COALESCE(array_agg(json_build_object('id', p.id, 'name', p.name, 'breed', p.breed)) FILTER (WHERE p.id IS NOT NULL), ARRAY[]::json[]) as pets
        FROM "Booking" b
-       LEFT JOIN "Service" s ON b.service_id = s.id
-       LEFT JOIN "Kennel" k ON b.kennel_id = k.id
-       LEFT JOIN "BookingPet" bp ON bp.booking_id = b.id
-       LEFT JOIN "Pet" p ON p.id = bp.pet_id
-       WHERE b.id = $1 AND b.owner_id = $2 AND b.tenant_id = $3       GROUP BY b.id, s.id, k.id`,
+       LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
+       LEFT JOIN "Kennel" k ON k.tenant_id = b.tenant_id AND b.kennel_id = k.record_id
+       LEFT JOIN "BookingPet" bp ON bp.tenant_id = b.tenant_id AND bp.booking_id = b.record_id
+       LEFT JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
+       WHERE b.record_id = $1 AND b.owner_id = $2 AND b.tenant_id = $3       GROUP BY b.record_id, s.record_id, k.record_id`,
       [bookingId, ownerId, tenantId]
     );
 
@@ -12351,7 +12351,7 @@ async function handleCustomerCancelBooking(tenantId, user, bookingId) {
 
     // Find owner record for this user
     const ownerResult = await query(
-      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
+      `SELECT record_id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
       [user.id, tenantId]
     );
 
@@ -12362,13 +12362,13 @@ async function handleCustomerCancelBooking(tenantId, user, bookingId) {
       });
     }
 
-    const ownerId = ownerResult.rows[0].id;
+    const ownerId = ownerResult.rows[0].record_id;
 
     // Verify booking exists and belongs to this owner
     // Schema: check_in (not start_date)
     const bookingResult = await query(
-      `SELECT id, status, check_in FROM "Booking"
-       WHERE id = $1 AND owner_id = $2 AND tenant_id = $3`,
+      `SELECT record_id, status, check_in FROM "Booking"
+       WHERE record_id = $1 AND owner_id = $2 AND tenant_id = $3`,
       [bookingId, ownerId, tenantId]
     );
 
@@ -12426,7 +12426,7 @@ async function handleCustomerCancelBooking(tenantId, user, bookingId) {
     return createResponse(200, {
       success: true,
       data: {
-        id: result.rows[0].id,
+        id: result.rows[0].record_id,
         status: result.rows[0].status,
         cancelledAt: result.rows[0].cancelled_at,
       },
@@ -12724,7 +12724,7 @@ async function handleGetStaffMember(tenantId, staffId) {
          u.phone
        FROM "Staff" s
        LEFT JOIN "User" u ON s.user_id = u.id
-       WHERE s.id = $1 AND s.tenant_id = $2`,
+       WHERE s.record_id = $1 AND s.tenant_id = $2`,
       [staffId, tenantId]
     );
 
