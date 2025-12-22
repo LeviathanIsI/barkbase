@@ -60,6 +60,11 @@ import {
   Info,
   Undo2,
   Redo2,
+  CheckSquare,
+  ListFilter,
+  Phone,
+  AtSign,
+  AlignLeft,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
@@ -125,15 +130,39 @@ const FILTER_OPERATORS = [
 const FieldTypeIcon = ({ type, className = '' }) => {
   const baseClass = cn('h-3.5 w-3.5 flex-shrink-0', className);
   switch (type) {
+    // Numeric types → #
     case 'number':
+    case 'integer':
     case 'currency':
       return (
         <span className={cn(baseClass, 'text-primary font-semibold text-[10px] leading-none flex items-center justify-center')}>
           #
         </span>
       );
+    // Date types → Calendar
     case 'date':
+    case 'datetime':
       return <Calendar className={cn(baseClass, 'text-primary')} />;
+    // Boolean → Checkbox
+    case 'boolean':
+      return <CheckSquare className={cn(baseClass, 'text-purple-500')} />;
+    // Select/Enum → Dropdown
+    case 'enum':
+    case 'select':
+    case 'multi_enum':
+      return <ListFilter className={cn(baseClass, 'text-amber-500')} />;
+    // Phone
+    case 'phone':
+      return <Phone className={cn(baseClass, 'text-green-500')} />;
+    // Email → @
+    case 'email':
+      return <AtSign className={cn(baseClass, 'text-blue-500')} />;
+    // Textarea → multi-line text
+    case 'textarea':
+      return <AlignLeft className={cn(baseClass, 'text-muted')} />;
+    // Default text → Aa
+    case 'text':
+    case 'string':
     default:
       return (
         <span className={cn(baseClass, 'text-muted font-medium text-[10px] leading-none flex items-center justify-center')}>
