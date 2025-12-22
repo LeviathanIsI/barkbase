@@ -740,13 +740,6 @@ const CustomReportBuilder = () => {
                 isClearable={false}
                 isSearchable={false}
                 className="flex-1"
-                styles={{
-                  control: (base) => ({
-                    ...base,
-                    minHeight: '28px',
-                    fontSize: '12px',
-                  }),
-                }}
               />
             </div>
           </div>
