@@ -82,83 +82,6 @@ const DATA_SOURCES = [
   { value: 'staff', label: 'Staff', icon: UserCog, color: 'bg-rose-500' },
 ];
 
-const FIELD_CONFIG = {
-  owners: {
-    dimensions: [
-      { key: 'status', label: 'Status', type: 'text' },
-      { key: 'source', label: 'Lead Source', type: 'text' },
-      { key: 'created_month', label: 'Signup Month', type: 'date' },
-      { key: 'created_date', label: 'Signup Date', type: 'date' },
-    ],
-    measures: [
-      { key: 'count', label: 'Count', type: 'number', defaultAgg: 'COUNT' },
-    ],
-  },
-  pets: {
-    dimensions: [
-      { key: 'species', label: 'Species', type: 'text' },
-      { key: 'breed', label: 'Breed', type: 'text' },
-      { key: 'size', label: 'Size', type: 'text' },
-      { key: 'gender', label: 'Gender', type: 'text' },
-      { key: 'age_range', label: 'Age Range', type: 'text' },
-      { key: 'fixed', label: 'Fixed Status', type: 'text' },
-    ],
-    measures: [
-      { key: 'count', label: 'Count', type: 'number', defaultAgg: 'COUNT' },
-    ],
-  },
-  bookings: {
-    dimensions: [
-      { key: 'status', label: 'Status', type: 'text' },
-      { key: 'service_type', label: 'Service Type', type: 'text' },
-      { key: 'booking_date', label: 'Booking Date', type: 'date' },
-      { key: 'booking_month', label: 'Booking Month', type: 'date' },
-      { key: 'booking_dow', label: 'Day of Week', type: 'text' },
-      { key: 'created_date', label: 'Created Date', type: 'date' },
-    ],
-    measures: [
-      { key: 'count', label: 'Count', type: 'number', defaultAgg: 'COUNT' },
-      { key: 'revenue', label: 'Revenue', type: 'currency', defaultAgg: 'SUM' },
-      { key: 'avg_revenue', label: 'Avg Revenue', type: 'currency', defaultAgg: 'AVG' },
-    ],
-  },
-  services: {
-    dimensions: [
-      { key: 'name', label: 'Service Name', type: 'text' },
-      { key: 'category', label: 'Category', type: 'text' },
-      { key: 'is_active', label: 'Status', type: 'text' },
-    ],
-    measures: [
-      { key: 'count', label: 'Count', type: 'number', defaultAgg: 'COUNT' },
-      { key: 'avg_price', label: 'Avg Price', type: 'currency', defaultAgg: 'AVG' },
-      { key: 'total_bookings', label: 'Total Bookings', type: 'number', defaultAgg: 'SUM' },
-    ],
-  },
-  payments: {
-    dimensions: [
-      { key: 'status', label: 'Status', type: 'text' },
-      { key: 'payment_method', label: 'Payment Method', type: 'text' },
-      { key: 'payment_date', label: 'Payment Date', type: 'date' },
-      { key: 'payment_month', label: 'Payment Month', type: 'date' },
-    ],
-    measures: [
-      { key: 'count', label: 'Count', type: 'number', defaultAgg: 'COUNT' },
-      { key: 'total', label: 'Total Amount', type: 'currency', defaultAgg: 'SUM' },
-      { key: 'avg_amount', label: 'Avg Amount', type: 'currency', defaultAgg: 'AVG' },
-    ],
-  },
-  staff: {
-    dimensions: [
-      { key: 'role', label: 'Role', type: 'text' },
-      { key: 'status', label: 'Status', type: 'text' },
-      { key: 'hire_month', label: 'Hire Month', type: 'date' },
-    ],
-    measures: [
-      { key: 'count', label: 'Count', type: 'number', defaultAgg: 'COUNT' },
-    ],
-  },
-};
-
 // Chart types organized in 2 rows for icon grid
 const CHART_TYPES = [
   // Row 1
@@ -443,6 +366,45 @@ const CustomReportBuilder = () => {
   const [chartData, setChartData] = useState([]);
   const [error, setError] = useState(null);
 
+  // Fields from API
+  const [fieldsConfig, setFieldsConfig] = useState({ dimensions: [], measures: [] });
+  const [fieldsLoading, setFieldsLoading] = useState(false);
+
+  // Fetch fields when data source changes
+  useEffect(() => {
+    const fetchFields = async () => {
+      setFieldsLoading(true);
+      try {
+        const response = await apiClient.get(`/api/v1/analytics/reports/fields?dataSource=${dataSource}`);
+        const data = response.data?.data?.[dataSource] || { dimensions: [], measures: [] };
+        // Map API response to expected format
+        setFieldsConfig({
+          dimensions: (data.dimensions || []).map(d => ({
+            key: d.key,
+            label: d.label,
+            type: d.dataType || 'text',
+            group: d.group,
+            isComputed: d.isComputed,
+          })),
+          measures: (data.measures || []).map(m => ({
+            key: m.key,
+            label: m.label,
+            type: m.dataType || 'number',
+            defaultAgg: m.defaultAggregation || 'COUNT',
+            group: m.group,
+          })),
+        });
+      } catch (err) {
+        console.error('Failed to fetch report fields:', err);
+        // Keep existing fields on error
+      } finally {
+        setFieldsLoading(false);
+      }
+    };
+
+    fetchFields();
+  }, [dataSource]);
+
   // Global drag event listeners to track drag state and item
   useEffect(() => {
     const handleDragStart = (e) => {
@@ -472,10 +434,10 @@ const CustomReportBuilder = () => {
     };
   }, []);
 
-  // Get current field config
+  // Get current field config from API
   const currentFields = useMemo(() => {
-    return FIELD_CONFIG[dataSource] || { dimensions: [], measures: [] };
-  }, [dataSource]);
+    return fieldsConfig;
+  }, [fieldsConfig]);
 
   // Filter fields by search
   const filteredDimensions = useMemo(() => {
@@ -776,9 +738,16 @@ const CustomReportBuilder = () => {
 
           {/* Field Lists - Collapsible Groups */}
           <div className="flex-1 overflow-y-auto">
+            {fieldsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="h-5 w-5 text-muted animate-spin" />
+                <span className="ml-2 text-xs text-muted">Loading fields...</span>
+              </div>
+            ) : (
+            <>
             {/* Default Measures */}
             <CollapsibleFieldGroup
-              title="Default measures"
+              title="Measures"
               defaultOpen={true}
               count={filteredMeasures.length}
             >
@@ -839,6 +808,8 @@ const CustomReportBuilder = () => {
                 )}
               </div>
             </CollapsibleFieldGroup>
+            </>
+            )}
           </div>
         </div>
 
