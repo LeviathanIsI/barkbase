@@ -2,7 +2,7 @@
  * CustomReports - Display saved custom reports created in the Builder
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BarChart3,
@@ -15,86 +15,18 @@ import {
   Edit3,
   Trash2,
   Copy,
-  Calendar,
-  User,
-  Clock,
-  Filter,
-  ArrowUpDown,
   Star,
   StarOff,
   FolderOpen,
   LayoutGrid,
   List,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
-
-// =============================================================================
-// MOCK DATA - Replace with API call
-// =============================================================================
-
-const MOCK_REPORTS = [
-  {
-    id: '1',
-    name: 'Monthly Revenue by Service',
-    description: 'Breakdown of revenue across all service types',
-    chartType: 'bar',
-    dataSource: 'bookings',
-    createdAt: '2024-12-15T10:30:00Z',
-    updatedAt: '2024-12-20T14:22:00Z',
-    createdBy: 'Admin User',
-    isFavorite: true,
-    folder: 'Financial',
-  },
-  {
-    id: '2',
-    name: 'Customer Growth Trend',
-    description: 'New customer signups over time',
-    chartType: 'line',
-    dataSource: 'owners',
-    createdAt: '2024-12-10T09:15:00Z',
-    updatedAt: '2024-12-18T11:45:00Z',
-    createdBy: 'Admin User',
-    isFavorite: true,
-    folder: 'Operations',
-  },
-  {
-    id: '3',
-    name: 'Booking Status Distribution',
-    description: 'Current bookings by status',
-    chartType: 'pie',
-    dataSource: 'bookings',
-    createdAt: '2024-12-08T16:00:00Z',
-    updatedAt: '2024-12-08T16:00:00Z',
-    createdBy: 'Admin User',
-    isFavorite: false,
-    folder: 'Operations',
-  },
-  {
-    id: '4',
-    name: 'Pet Species Breakdown',
-    description: 'Distribution of pets by species',
-    chartType: 'pie',
-    dataSource: 'pets',
-    createdAt: '2024-12-05T13:20:00Z',
-    updatedAt: '2024-12-12T09:30:00Z',
-    createdBy: 'Admin User',
-    isFavorite: false,
-    folder: null,
-  },
-  {
-    id: '5',
-    name: 'Payment Methods Analysis',
-    description: 'Revenue by payment method',
-    chartType: 'bar',
-    dataSource: 'payments',
-    createdAt: '2024-12-01T08:45:00Z',
-    updatedAt: '2024-12-01T08:45:00Z',
-    createdBy: 'Admin User',
-    isFavorite: false,
-    folder: 'Financial',
-  },
-];
+import api from '@/lib/api';
 
 // =============================================================================
 // HELPER COMPONENTS
@@ -297,69 +229,145 @@ const ReportCard = ({ report, viewMode, onEdit, onDelete, onDuplicate, onToggleF
 
 const CustomReports = () => {
   const navigate = useNavigate();
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [sortBy, setSortBy] = useState('updatedAt'); // 'name', 'updatedAt', 'createdAt'
   const [filterDataSource, setFilterDataSource] = useState('all');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
+  // Fetch reports from API
+  const fetchReports = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await api.get('/analytics/reports/saved');
+      setReports(response.data?.data || []);
+    } catch (err) {
+      console.error('Failed to fetch reports:', err);
+      setError(err.message || 'Failed to load reports');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
+
   // Filter and sort reports
   const filteredReports = useMemo(() => {
-    let reports = [...MOCK_REPORTS];
+    let filtered = [...reports];
 
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      reports = reports.filter(
-        r => r.name.toLowerCase().includes(query) || r.description.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        r => r.name?.toLowerCase().includes(query) || r.description?.toLowerCase().includes(query)
       );
     }
 
     // Data source filter
     if (filterDataSource !== 'all') {
-      reports = reports.filter(r => r.dataSource === filterDataSource);
+      filtered = filtered.filter(r => r.dataSource === filterDataSource);
     }
 
     // Favorites filter
     if (showFavoritesOnly) {
-      reports = reports.filter(r => r.isFavorite);
+      filtered = filtered.filter(r => r.isFavorite);
     }
 
     // Sort
-    reports.sort((a, b) => {
-      if (sortBy === 'name') return a.name.localeCompare(b.name);
-      if (sortBy === 'updatedAt') return new Date(b.updatedAt) - new Date(a.updatedAt);
-      if (sortBy === 'createdAt') return new Date(b.createdAt) - new Date(a.createdAt);
+    filtered.sort((a, b) => {
+      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+      if (sortBy === 'updatedAt') return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+      if (sortBy === 'createdAt') return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
       return 0;
     });
 
-    return reports;
-  }, [searchQuery, filterDataSource, showFavoritesOnly, sortBy]);
+    return filtered;
+  }, [reports, searchQuery, filterDataSource, showFavoritesOnly, sortBy]);
 
   const handleCreateNew = () => {
     navigate('/reports/builder');
   };
 
   const handleEdit = (report) => {
-    navigate(`/reports/builder?id=${report.id}`);
+    navigate(`/reports/builder?id=${report.id || report.recordId}`);
   };
 
-  const handleDelete = (report) => {
-    // TODO: Implement delete with confirmation
-    console.log('Delete report:', report.id);
+  const handleDelete = async (report) => {
+    if (!confirm(`Are you sure you want to delete "${report.name}"?`)) return;
+
+    try {
+      await api.delete(`/analytics/reports/saved/${report.id || report.recordId}`);
+      setReports(prev => prev.filter(r => r.id !== report.id && r.recordId !== report.recordId));
+    } catch (err) {
+      console.error('Failed to delete report:', err);
+      alert('Failed to delete report: ' + (err.message || 'Unknown error'));
+    }
   };
 
-  const handleDuplicate = (report) => {
-    // TODO: Implement duplicate
-    console.log('Duplicate report:', report.id);
+  const handleDuplicate = async (report) => {
+    try {
+      const response = await api.post(`/analytics/reports/saved/${report.id || report.recordId}/duplicate`);
+      if (response.data?.data) {
+        setReports(prev => [response.data.data, ...prev]);
+      }
+    } catch (err) {
+      console.error('Failed to duplicate report:', err);
+      alert('Failed to duplicate report: ' + (err.message || 'Unknown error'));
+    }
   };
 
-  const handleToggleFavorite = (report) => {
-    // TODO: Implement toggle favorite
-    console.log('Toggle favorite:', report.id);
+  const handleToggleFavorite = async (report) => {
+    try {
+      const newValue = !report.isFavorite;
+      await api.put(`/analytics/reports/saved/${report.id || report.recordId}`, {
+        isFavorite: newValue,
+      });
+      setReports(prev =>
+        prev.map(r =>
+          (r.id === report.id || r.recordId === report.recordId)
+            ? { ...r, isFavorite: newValue }
+            : r
+        )
+      );
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err);
+    }
   };
 
   const dataSources = ['all', 'owners', 'pets', 'bookings', 'payments', 'services', 'staff'];
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
+        <p className="text-sm text-muted">Loading reports...</p>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16">
+        <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+          <AlertCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+        </div>
+        <h3 className="text-sm font-medium text-text mb-1">Failed to load reports</h3>
+        <p className="text-xs text-muted mb-4">{error}</p>
+        <Button variant="outline" size="sm" onClick={fetchReports}>
+          <RefreshCw className="h-4 w-4 mr-1.5" />
+          Try Again
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

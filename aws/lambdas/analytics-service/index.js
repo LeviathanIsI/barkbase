@@ -326,6 +326,13 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // Report Field Definitions - GET available fields per data source
+    if (path === '/api/v1/analytics/reports/fields' || path === '/analytics/reports/fields') {
+      if (method === 'GET') {
+        return handleGetReportFields(queryParams);
+      }
+    }
+
     // Saved Reports - CRUD operations
     if (path === '/api/v1/analytics/reports/saved' || path === '/analytics/reports/saved') {
       if (method === 'GET') {
@@ -336,9 +343,18 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Saved Report by ID - update/delete
-    const savedReportMatch = path.match(/\/api\/v1\/analytics\/reports\/saved\/([a-f0-9-]+)$/i);
+    // Saved Report duplicate
+    const savedReportDuplicateMatch = path.match(/\/api\/v1\/analytics\/reports\/saved\/([a-zA-Z0-9_-]+)\/duplicate$/i);
+    if (savedReportDuplicateMatch && method === 'POST') {
+      return handleDuplicateSavedReport(tenantId, userId, savedReportDuplicateMatch[1]);
+    }
+
+    // Saved Report by ID - get/update/delete
+    const savedReportMatch = path.match(/\/api\/v1\/analytics\/reports\/saved\/([a-zA-Z0-9_-]+)$/i);
     if (savedReportMatch) {
+      if (method === 'GET') {
+        return handleGetSavedReportById(tenantId, savedReportMatch[1]);
+      }
       if (method === 'PUT') {
         return handleUpdateSavedReport(tenantId, userId, savedReportMatch[1], parseBody(event));
       }
@@ -1851,21 +1867,178 @@ async function handleCustomReportQuery(tenantId, body) {
 }
 
 /**
+ * Get report field definitions
+ * Returns available dimensions and measures for the custom report builder
+ */
+async function handleGetReportFields(queryParams) {
+  try {
+    const { dataSource } = queryParams;
+
+    // First try to get from database (ReportFieldDefinition table)
+    try {
+      await getPoolAsync();
+
+      let sql = `
+        SELECT
+          data_source,
+          field_key,
+          field_label,
+          field_type,
+          data_type,
+          field_group,
+          default_aggregation,
+          format_pattern,
+          is_computed,
+          display_order
+        FROM "ReportFieldDefinition"
+        WHERE is_active = true
+      `;
+      const params = [];
+
+      if (dataSource) {
+        sql += ' AND data_source = $1';
+        params.push(dataSource);
+      }
+
+      sql += ' ORDER BY data_source, display_order, field_label';
+
+      const result = await query(sql, params);
+
+      if (result.rows.length > 0) {
+        // Group by data source
+        const grouped = result.rows.reduce((acc, row) => {
+          if (!acc[row.data_source]) {
+            acc[row.data_source] = { dimensions: [], measures: [] };
+          }
+          const field = {
+            key: row.field_key,
+            label: row.field_label,
+            dataType: row.data_type,
+            group: row.field_group,
+            formatPattern: row.format_pattern,
+          };
+          if (row.field_type === 'dimension') {
+            acc[row.data_source].dimensions.push(field);
+          } else {
+            field.defaultAggregation = row.default_aggregation;
+            acc[row.data_source].measures.push(field);
+          }
+          return acc;
+        }, {});
+
+        return createResponse(200, {
+          data: grouped,
+          message: 'Report fields retrieved successfully',
+        });
+      }
+    } catch (dbError) {
+      console.log('[ANALYTICS-SERVICE] ReportFieldDefinition table not found, using DATA_SOURCE_CONFIG');
+    }
+
+    // Fallback to DATA_SOURCE_CONFIG if table doesn't exist or is empty
+    const result = {};
+    const sources = dataSource ? [dataSource] : Object.keys(DATA_SOURCE_CONFIG);
+
+    for (const source of sources) {
+      const config = DATA_SOURCE_CONFIG[source];
+      if (!config) continue;
+
+      result[source] = {
+        dimensions: Object.entries(config.dimensions).map(([key, dim]) => ({
+          key,
+          label: dim.label,
+          dataType: 'string',
+          group: 'Properties',
+        })),
+        measures: Object.entries(config.measures).map(([key, measure]) => ({
+          key,
+          label: measure.label,
+          dataType: 'number',
+          group: 'Metrics',
+          defaultAggregation: measure.agg,
+        })),
+      };
+    }
+
+    return createResponse(200, {
+      data: result,
+      message: 'Report fields retrieved successfully (from config)',
+    });
+
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Get report fields failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to get report fields',
+    });
+  }
+}
+
+/**
  * Get saved reports for user
  */
 async function handleGetSavedReports(tenantId, userId) {
   try {
     await getPoolAsync();
 
-    // Try to get saved reports from a config table or return empty
-    // For now, return empty array - saved reports can be stored in localStorage on client
-    // or we can add a SavedReport table later
+    const result = await query(
+      `SELECT
+         record_id,
+         name,
+         description,
+         data_source,
+         chart_type,
+         config,
+         visibility,
+         is_favorite,
+         folder_id,
+         last_run_at,
+         run_count,
+         created_by,
+         created_at,
+         updated_at
+       FROM "ReportDefinition"
+       WHERE tenant_id = $1
+         AND deleted_at IS NULL
+         AND (visibility = 'public' OR created_by = $2)
+       ORDER BY updated_at DESC`,
+      [tenantId, userId]
+    );
+
+    const reports = result.rows.map(row => ({
+      id: row.record_id,
+      recordId: row.record_id,
+      name: row.name,
+      description: row.description,
+      dataSource: row.data_source,
+      chartType: row.chart_type,
+      config: row.config || {},
+      visibility: row.visibility,
+      isFavorite: row.is_favorite,
+      folderId: row.folder_id,
+      lastRunAt: row.last_run_at,
+      runCount: row.run_count || 0,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
     return createResponse(200, {
-      data: [],
+      data: reports,
+      total: reports.length,
       message: 'Saved reports retrieved',
     });
 
   } catch (error) {
+    // If table doesn't exist, return empty array
+    if (error.code === '42P01' || error.message?.includes('does not exist')) {
+      console.log('[ANALYTICS-SERVICE] ReportDefinition table not found, returning empty');
+      return createResponse(200, {
+        data: [],
+        total: 0,
+        message: 'Saved reports retrieved (table pending migration)',
+      });
+    }
     console.error('[ANALYTICS-SERVICE] Get saved reports failed:', error.message);
     return createResponse(500, {
       error: 'Internal Server Error',
@@ -1878,40 +2051,313 @@ async function handleGetSavedReports(tenantId, userId) {
  * Save a report definition
  */
 async function handleSaveReport(tenantId, userId, body) {
-  // Placeholder - for MVP, reports are saved in localStorage
-  // Can implement DB storage later
-  return createResponse(200, {
-    data: {
-      id: 'local-' + Date.now(),
-      ...body,
-      savedAt: new Date().toISOString(),
-    },
-    message: 'Report configuration saved (client-side storage)',
-  });
+  try {
+    await getPoolAsync();
+
+    const { name, description, dataSource, chartType, config, visibility = 'private' } = body;
+
+    if (!name || !dataSource || !chartType) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Missing required fields: name, dataSource, chartType',
+      });
+    }
+
+    const result = await query(
+      `INSERT INTO "ReportDefinition" (
+         tenant_id, name, description, data_source, chart_type, config, visibility, created_by, updated_by
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+       RETURNING record_id, name, description, data_source, chart_type, config, visibility, is_favorite, created_at, updated_at`,
+      [tenantId, name, description || '', dataSource, chartType, JSON.stringify(config || {}), visibility, userId]
+    );
+
+    const row = result.rows[0];
+    return createResponse(201, {
+      data: {
+        id: row.record_id,
+        recordId: row.record_id,
+        name: row.name,
+        description: row.description,
+        dataSource: row.data_source,
+        chartType: row.chart_type,
+        config: row.config,
+        visibility: row.visibility,
+        isFavorite: row.is_favorite,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      },
+      message: 'Report saved successfully',
+    });
+
+  } catch (error) {
+    // If table doesn't exist, fall back to mock response
+    if (error.code === '42P01' || error.message?.includes('does not exist')) {
+      console.log('[ANALYTICS-SERVICE] ReportDefinition table not found, returning mock');
+      return createResponse(200, {
+        data: {
+          id: 'local-' + Date.now(),
+          ...body,
+          savedAt: new Date().toISOString(),
+        },
+        message: 'Report saved (table pending migration)',
+      });
+    }
+    console.error('[ANALYTICS-SERVICE] Save report failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to save report: ' + error.message,
+    });
+  }
+}
+
+/**
+ * Get a single saved report by ID
+ */
+async function handleGetSavedReportById(tenantId, reportId) {
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT
+         record_id, name, description, data_source, chart_type, config,
+         visibility, is_favorite, folder_id, last_run_at, run_count,
+         created_by, created_at, updated_at
+       FROM "ReportDefinition"
+       WHERE tenant_id = $1 AND record_id = $2 AND deleted_at IS NULL`,
+      [tenantId, reportId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Report not found',
+      });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      data: {
+        id: row.record_id,
+        recordId: row.record_id,
+        name: row.name,
+        description: row.description,
+        dataSource: row.data_source,
+        chartType: row.chart_type,
+        config: row.config || {},
+        visibility: row.visibility,
+        isFavorite: row.is_favorite,
+        folderId: row.folder_id,
+        lastRunAt: row.last_run_at,
+        runCount: row.run_count || 0,
+        createdBy: row.created_by,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      },
+      message: 'Report retrieved successfully',
+    });
+
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Get saved report failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to get report',
+    });
+  }
 }
 
 /**
  * Update a saved report
  */
 async function handleUpdateSavedReport(tenantId, userId, reportId, body) {
-  return createResponse(200, {
-    data: {
-      id: reportId,
-      ...body,
-      updatedAt: new Date().toISOString(),
-    },
-    message: 'Report updated (client-side storage)',
-  });
+  try {
+    await getPoolAsync();
+
+    const { name, description, dataSource, chartType, config, visibility, isFavorite } = body;
+
+    // Build dynamic update query
+    const updates = [];
+    const params = [tenantId, reportId];
+    let paramIndex = 3;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      params.push(name);
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      params.push(description);
+    }
+    if (dataSource !== undefined) {
+      updates.push(`data_source = $${paramIndex++}`);
+      params.push(dataSource);
+    }
+    if (chartType !== undefined) {
+      updates.push(`chart_type = $${paramIndex++}`);
+      params.push(chartType);
+    }
+    if (config !== undefined) {
+      updates.push(`config = $${paramIndex++}`);
+      params.push(JSON.stringify(config));
+    }
+    if (visibility !== undefined) {
+      updates.push(`visibility = $${paramIndex++}`);
+      params.push(visibility);
+    }
+    if (isFavorite !== undefined) {
+      updates.push(`is_favorite = $${paramIndex++}`);
+      params.push(isFavorite);
+    }
+
+    updates.push(`updated_by = $${paramIndex++}`);
+    params.push(userId);
+    updates.push('updated_at = NOW()');
+
+    const result = await query(
+      `UPDATE "ReportDefinition"
+       SET ${updates.join(', ')}
+       WHERE tenant_id = $1 AND record_id = $2 AND deleted_at IS NULL
+       RETURNING record_id, name, description, data_source, chart_type, config, visibility, is_favorite, updated_at`,
+      params
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Report not found',
+      });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      data: {
+        id: row.record_id,
+        recordId: row.record_id,
+        name: row.name,
+        description: row.description,
+        dataSource: row.data_source,
+        chartType: row.chart_type,
+        config: row.config,
+        visibility: row.visibility,
+        isFavorite: row.is_favorite,
+        updatedAt: row.updated_at,
+      },
+      message: 'Report updated successfully',
+    });
+
+  } catch (error) {
+    if (error.code === '42P01' || error.message?.includes('does not exist')) {
+      return createResponse(200, {
+        data: { id: reportId, ...body, updatedAt: new Date().toISOString() },
+        message: 'Report updated (table pending migration)',
+      });
+    }
+    console.error('[ANALYTICS-SERVICE] Update saved report failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update report',
+    });
+  }
 }
 
 /**
- * Delete a saved report
+ * Delete a saved report (soft delete)
  */
 async function handleDeleteSavedReport(tenantId, userId, reportId) {
-  return createResponse(200, {
-    data: { id: reportId },
-    message: 'Report deleted (client-side storage)',
-  });
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "ReportDefinition"
+       SET deleted_at = NOW(), updated_by = $3
+       WHERE tenant_id = $1 AND record_id = $2 AND deleted_at IS NULL
+       RETURNING record_id`,
+      [tenantId, reportId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Report not found',
+      });
+    }
+
+    return createResponse(200, {
+      data: { id: reportId },
+      message: 'Report deleted successfully',
+    });
+
+  } catch (error) {
+    if (error.code === '42P01' || error.message?.includes('does not exist')) {
+      return createResponse(200, {
+        data: { id: reportId },
+        message: 'Report deleted (table pending migration)',
+      });
+    }
+    console.error('[ANALYTICS-SERVICE] Delete saved report failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete report',
+    });
+  }
+}
+
+/**
+ * Duplicate a saved report
+ */
+async function handleDuplicateSavedReport(tenantId, userId, reportId) {
+  try {
+    await getPoolAsync();
+
+    // First get the original report
+    const original = await query(
+      `SELECT name, description, data_source, chart_type, config, visibility
+       FROM "ReportDefinition"
+       WHERE tenant_id = $1 AND record_id = $2 AND deleted_at IS NULL`,
+      [tenantId, reportId]
+    );
+
+    if (original.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Report not found',
+      });
+    }
+
+    const orig = original.rows[0];
+    const newName = `${orig.name} (Copy)`;
+
+    // Create the duplicate
+    const result = await query(
+      `INSERT INTO "ReportDefinition" (
+         tenant_id, name, description, data_source, chart_type, config, visibility, created_by, updated_by
+       ) VALUES ($1, $2, $3, $4, $5, $6, 'private', $7, $7)
+       RETURNING record_id, name, description, data_source, chart_type, config, visibility, created_at`,
+      [tenantId, newName, orig.description, orig.data_source, orig.chart_type, JSON.stringify(orig.config || {}), userId]
+    );
+
+    const row = result.rows[0];
+    return createResponse(201, {
+      data: {
+        id: row.record_id,
+        recordId: row.record_id,
+        name: row.name,
+        description: row.description,
+        dataSource: row.data_source,
+        chartType: row.chart_type,
+        config: row.config,
+        visibility: row.visibility,
+        createdAt: row.created_at,
+      },
+      message: 'Report duplicated successfully',
+    });
+
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Duplicate report failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to duplicate report',
+    });
+  }
 }
 
 // =============================================================================

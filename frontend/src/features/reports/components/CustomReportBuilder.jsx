@@ -610,25 +610,30 @@ const CustomReportBuilder = () => {
     setFilters(filters.filter((_, i) => i !== index));
   };
 
-  // Save report to localStorage
-  const saveReport = () => {
-    const report = {
-      id: `report-${Date.now()}`,
-      name: reportName,
-      dataSource,
-      chartType,
-      xAxis,
-      yAxis,
-      groupBy,
-      filters,
-      dateRange,
-      savedAt: new Date().toISOString(),
-    };
+  // Save report to API
+  const saveReport = async () => {
+    try {
+      const config = {
+        xAxis,
+        yAxis,
+        breakdown: groupBy,
+        filters,
+        dateRange,
+      };
 
-    const savedReports = JSON.parse(localStorage.getItem('barkbase_saved_reports') || '[]');
-    savedReports.push(report);
-    localStorage.setItem('barkbase_saved_reports', JSON.stringify(savedReports));
-    alert('Report saved!');
+      await apiClient.post('/analytics/reports/saved', {
+        name: reportName,
+        description: '', // Could add a description field later
+        dataSource,
+        chartType,
+        config,
+      });
+
+      alert('Report saved successfully!');
+    } catch (err) {
+      console.error('Failed to save report:', err);
+      alert('Failed to save report: ' + (err.message || 'Unknown error'));
+    }
   };
 
   // Export as CSV
