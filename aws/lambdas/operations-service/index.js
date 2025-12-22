@@ -1219,7 +1219,7 @@ async function handleGetBookings(tenantId, queryParams) {
        LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
        LEFT JOIN "BookingPet" bp ON bp.tenant_id = b.tenant_id AND bp.booking_id = b.record_id
        WHERE ${whereClause}
-       GROUP BY b.record_id, k.name, s.name, o.record_id, o.first_name, o.last_name, o.email, o.phone
+       GROUP BY b.record_id, b.tenant_id, b.owner_id, b.status, b.check_in, b.check_out, b.checked_in_at, b.checked_out_at, b.total_price_cents, b.deposit_cents, b.notes, b.special_instructions, b.kennel_id, b.service_id, b.created_at, b.updated_at, k.name, s.name, o.record_id, o.first_name, o.last_name, o.email, o.phone
        ORDER BY b.check_in DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...params, parseInt(limit), parseInt(offset)]
@@ -10119,7 +10119,7 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
 
     // Get recent completed entries (last 5)
     const recentResult = await query(
-      `SELECT id, DATE(clock_in) as date, clock_in, clock_out, break_minutes,
+      `SELECT record_id, DATE(clock_in) as date, clock_in, clock_out, break_minutes,
        ROUND(EXTRACT(EPOCH FROM (clock_out - clock_in)) / 3600 - COALESCE(break_minutes, 0) / 60.0, 1) as worked_hours
        FROM "TimeEntry"
        WHERE tenant_id = $1 AND user_id = $2 AND clock_out IS NOT NULL
@@ -10219,7 +10219,7 @@ async function handleGetTimeEntries(tenantId, queryParams) {
          approver.first_name as approved_by_first, approver.last_name as approved_by_last
        FROM "TimeEntry" te
        JOIN "User" u ON te.user_id = u.record_id
-       LEFT JOIN "User" approver ON te.approved_by = approver.id
+       LEFT JOIN "User" approver ON te.approved_by = approver.record_id
        WHERE ${whereClause}
        ORDER BY te.clock_in DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
