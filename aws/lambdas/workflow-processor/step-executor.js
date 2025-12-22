@@ -248,8 +248,8 @@ async function processStepExecution(message) {
     `SELECT we.*, w.name as workflow_name, w.object_type, w.goal_config,
             w.settings->'timingConfig' as timing_config
      FROM "WorkflowExecution" we
-     JOIN "Workflow" w ON we.workflow_id = w.id
-     WHERE we.id = $1 AND we.tenant_id = $2`,
+     JOIN "Workflow" w ON w.tenant_id = we.tenant_id AND w.record_id = we.workflow_id
+     WHERE we.record_id = $1 AND we.tenant_id = $2`,
     [executionId, tenantId]
   );
 
@@ -273,7 +273,7 @@ async function processStepExecution(message) {
   // Get step details
   console.log('[STEP EXECUTOR] Fetching step details. Step ID:', targetStepId);
   const stepResult = await query(
-    `SELECT * FROM "WorkflowStep" WHERE id = $1`,
+    `SELECT * FROM "WorkflowStep" WHERE record_id = $1`,
     [targetStepId]
   );
 
@@ -442,7 +442,7 @@ async function processStepExecution(message) {
          SET status = 'retrying',
              retry_context = $1,
              updated_at = NOW()
-         WHERE id = $2`,
+         WHERE record_id = $2`,
         [JSON.stringify(stepResult2.nextRetryContext), executionId]
       );
 
@@ -770,7 +770,7 @@ async function executeCreateTask(config, recordData, tenantId) {
          id, tenant_id, record_id, title, description, task_type, priority, status, due_at, pet_id, created_at, updated_at
        )
        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-       RETURNING id`,
+       RETURNING record_id`,
       [
         tenantId,
         taskRecordId,
@@ -830,7 +830,7 @@ async function executeUpdateField(config, execution, recordData, tenantId) {
     }
 
     await query(
-      `UPDATE "${tableName}" SET "${field}" = $1 WHERE id = $2 AND tenant_id = $3`,
+      `UPDATE "${tableName}" SET "${field}" = $1 WHERE record_id = $2 AND tenant_id = $3`,
       [interpolatedValue, execution.enrolled_record_id, tenantId]
     );
 
@@ -943,7 +943,7 @@ async function executeSendNotification(config, execution, recordData, tenantId) 
       `INSERT INTO "Notification"
          (tenant_id, record_id, title, message, type, priority, entity_type, entity_id, recipient_type, recipient_id, metadata)
        VALUES ($1, $2, $3, $4, 'workflow', $5, $6, $7, $8, $9, $10)
-       RETURNING id`,
+       RETURNING record_id`,
       [
         tenantId,
         notificationRecordId,
@@ -1392,7 +1392,7 @@ async function executeAddToSegment(config, execution, recordData, tenantId) {
 
     // Verify segment exists and is static type
     const segmentResult = await query(
-      `SELECT id, name, type FROM "Segment" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT record_id, name, type FROM "Segment" WHERE record_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [segmentId, tenantId]
     );
 
@@ -1575,7 +1575,7 @@ async function executeWait(step, execution, recordData, tenantId) {
   await query(
     `UPDATE "WorkflowExecution"
      SET status = 'paused', resume_at = $1
-     WHERE id = $2`,
+     WHERE record_id = $2`,
     [waitUntil.toISOString(), execution.id]
   );
 
@@ -1619,7 +1619,7 @@ async function executeEventWait(step, execution, config, tenantId) {
      SET status = 'waiting_for_event',
          resume_at = $1,
          metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb
-     WHERE id = $3`,
+     WHERE record_id = $3`,
     [
       maxWaitUntil.toISOString(),
       JSON.stringify({ eventWait: eventWaitMetadata }),
@@ -1832,7 +1832,7 @@ async function checkEventWaiters(eventType, recordId, tenantId) {
 
       // Get step info to find next step
       const stepResult = await query(
-        `SELECT workflow_id, parent_step_id, branch_id FROM "WorkflowStep" WHERE id = $1`,
+        `SELECT workflow_id, parent_step_id, branch_id FROM "WorkflowStep" WHERE record_id = $1`,
         [stepId]
       );
 
@@ -1851,7 +1851,7 @@ async function checkEventWaiters(eventType, recordId, tenantId) {
              current_step_id = $1,
              resume_at = NULL,
              metadata = metadata - 'eventWait'
-         WHERE id = $2`,
+         WHERE record_id = $2`,
         [nextStepId, execution.id]
       );
 
@@ -2142,7 +2142,7 @@ async function executeMultiBranching(step, branches, recordData) {
  */
 async function findFirstStepInBranch(workflowId, parentStepId, branchId) {
   const result = await query(
-    `SELECT id FROM "WorkflowStep"
+    `SELECT record_id FROM "WorkflowStep"
      WHERE workflow_id = $1
        AND parent_step_id = $2
        AND branch_id = $3
@@ -2310,7 +2310,7 @@ function evaluateCondition(condition, recordData) {
 async function findNextStep(workflowId, currentStepId, parentStepId, branchPath) {
   // First, check for explicit next_step_id connection (HubSpot approach)
   const stepResult = await query(
-    `SELECT position, next_step_id FROM "WorkflowStep" WHERE id = $1`,
+    `SELECT position, next_step_id FROM "WorkflowStep" WHERE record_id = $1`,
     [currentStepId]
   );
 
@@ -2358,7 +2358,7 @@ async function findNextStep(workflowId, currentStepId, parentStepId, branchPath)
 
   // Find next sibling at same level
   const nextSiblingResult = await query(
-    `SELECT id FROM "WorkflowStep"
+    `SELECT record_id FROM "WorkflowStep"
      WHERE workflow_id = $1
        AND parent_step_id ${parentCondition}
        AND branch_id ${branchCondition}
@@ -2375,7 +2375,7 @@ async function findNextStep(workflowId, currentStepId, parentStepId, branchPath)
   // No more siblings - if we're in a branch, go to parent's next sibling
   if (parentStepId) {
     const parentResult = await query(
-      `SELECT parent_step_id, branch_id FROM "WorkflowStep" WHERE id = $1`,
+      `SELECT parent_step_id, branch_id FROM "WorkflowStep" WHERE record_id = $1`,
       [parentStepId]
     );
 
@@ -2979,7 +2979,7 @@ async function updateCurrentStep(executionId, nextStepId) {
   await query(
     `UPDATE "WorkflowExecution"
      SET current_step_id = $1, updated_at = NOW()
-     WHERE id = $2`,
+     WHERE record_id = $2`,
     [nextStepId, executionId]
   );
 }
@@ -3157,7 +3157,7 @@ async function completeExecution(executionId, workflowId, completionReason = 'co
          completed_at = NOW(),
          completion_reason = $1,
          goal_result = $2
-     WHERE id = $3`,
+     WHERE record_id = $3`,
     [
       completionReason,
       goalResult ? JSON.stringify(goalResult) : null,
@@ -3222,7 +3222,7 @@ async function failExecution(executionId, errorMessage) {
   await query(
     `UPDATE "WorkflowExecution"
      SET status = 'failed', error_message = $1, completed_at = NOW()
-     WHERE id = $2`,
+     WHERE record_id = $2`,
     [errorMessage, executionId]
   );
 
@@ -3475,7 +3475,7 @@ async function pauseForTiming(executionId, workflowId, tenantId, resumeAt, stepI
          resume_at = $1,
          pause_reason = 'timing_restriction',
          updated_at = NOW()
-     WHERE id = $2`,
+     WHERE record_id = $2`,
     [resumeAt.toISOString(), executionId]
   );
 

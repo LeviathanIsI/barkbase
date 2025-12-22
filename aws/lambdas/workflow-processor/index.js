@@ -191,7 +191,7 @@ async function findMatchingWorkflows(tenantId, recordType, eventType) {
   console.log('[WORKFLOW TRIGGER] findMatchingWorkflows called');
   console.log('[WORKFLOW TRIGGER] Query params - tenantId:', tenantId, '| recordType:', recordType, '| eventType:', eventType);
 
-  const sqlQuery = `SELECT id, name, entry_condition, settings, suppression_segment_ids
+  const sqlQuery = `SELECT record_id, name, entry_condition, settings, suppression_segment_ids
      FROM "Workflow"
      WHERE tenant_id = $1
        AND object_type = $2
@@ -229,9 +229,8 @@ async function isRecordSuppressed(recordId, recordType, segmentIds, tenantId) {
   try {
     // Get segment details
     const segmentsResult = await query(
-      `SELECT id, name, segment_type, object_type, filters
-       FROM "Segment"
-       WHERE id = ANY($1) AND tenant_id = $2`,
+      `SELECT record_id, name, segment_type, object_type, filters
+       FROM "Segment" WHERE record_id = ANY($1) AND tenant_id = $2`,
       [segmentIds, tenantId]
     );
 
@@ -1150,8 +1149,7 @@ async function enrollInWorkflow(workflow, recordId, recordType, tenantId, eventD
 
   // Check if already enrolled
   const existingEnrollment = await query(
-    `SELECT id, enrolled_at, status
-     FROM "WorkflowExecution"
+    `SELECT record_id, enrolled_at, status FROM "WorkflowExecution"
      WHERE workflow_id = $1
        AND enrolled_record_id = $2
        AND tenant_id = $3
@@ -1213,7 +1211,7 @@ async function enrollInWorkflow(workflow, recordId, recordType, tenantId, eventD
 
   // Get the first step of the workflow (root level, position 0)
   const firstStepResult = await query(
-    `SELECT id FROM "WorkflowStep"
+    `SELECT record_id FROM "WorkflowStep"
      WHERE workflow_id = $1
        AND parent_step_id IS NULL
      ORDER BY position ASC
@@ -1235,7 +1233,7 @@ async function enrollInWorkflow(workflow, recordId, recordType, tenantId, eventD
     `INSERT INTO "WorkflowExecution"
        (workflow_id, tenant_id, enrolled_record_id, record_type, status, current_step_id, workflow_revision)
      VALUES ($1, $2, $3, $4, 'running', $5, $6)
-     RETURNING id`,
+     RETURNING record_id`,
     [workflow.id, tenantId, recordId, recordType, firstStepId, currentRevision]
   );
 
@@ -1331,7 +1329,7 @@ exports.manualEnrollHandler = async (event) => {
 
     // Verify workflow exists and is active
     const workflowResult = await query(
-      `SELECT id, name, object_type, entry_condition, settings, suppression_segment_ids
+      `SELECT record_id, name, object_type, entry_condition, settings, suppression_segment_ids
        FROM "Workflow"
        WHERE id = $1
          AND tenant_id = $2
@@ -1412,7 +1410,7 @@ exports.filterTriggerHandler = async (event) => {
     // Find all active workflows with filter_criteria or filter trigger
     // Frontend uses 'filter', backend historically used 'filter_criteria' - accept both for compatibility
     // Also check both triggerType (camelCase) and trigger_type (snake_case)
-    const filterQuery = `SELECT w.id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings, w.suppression_segment_ids
+    const filterQuery = `SELECT w.record_id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings, w.suppression_segment_ids
        FROM "Workflow" w
        WHERE w.status = 'active'
          AND w.deleted_at IS NULL

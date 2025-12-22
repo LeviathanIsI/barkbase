@@ -167,8 +167,8 @@ async function updateExecutionAsFailed(executionId, tenantId, workflowId, errorD
        SET status = 'failed',
            completed_at = NOW(),
            error_details = $3
-       WHERE id = $1 AND tenant_id = $2 AND status != 'failed'
-       RETURNING id, workflow_id`,
+       WHERE record_id = $1 AND tenant_id = $2 AND status != 'failed'
+       RETURNING record_id, workflow_id`,
       [executionId, tenantId, JSON.stringify(errorDetails)]
     );
 
@@ -202,7 +202,7 @@ async function incrementWorkflowFailedCount(workflowId, tenantId) {
       `UPDATE "Workflow"
        SET failed_count = COALESCE(failed_count, 0) + 1,
            active_count = GREATEST(COALESCE(active_count, 0) - 1, 0)
-       WHERE id = $1 AND tenant_id = $2`,
+       WHERE record_id = $1 AND tenant_id = $2`,
       [workflowId, tenantId]
     );
     console.log('[DLQ PROCESSOR] Workflow failed_count incremented');
@@ -264,7 +264,7 @@ async function sendFailureNotification(tenantId, executionId, workflowId, errorD
     let workflowName = 'Unknown Workflow';
     if (workflowId) {
       const wfResult = await query(
-        `SELECT name FROM "Workflow" WHERE id = $1`,
+        `SELECT name FROM "Workflow" WHERE record_id = $1`,
         [workflowId]
       );
       if (wfResult.rows.length > 0) {

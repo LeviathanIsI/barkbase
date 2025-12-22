@@ -136,7 +136,7 @@ async function cleanupTenantData(tenant) {
      WHERE wel.execution_id = we.id
        AND we.tenant_id = $1
        AND wel.started_at < NOW() - ($2 || ' days')::INTERVAL
-     RETURNING wel.id`,
+     RETURNING wel.record_id`,
     [tenant.id, logRetentionDays]
   );
 

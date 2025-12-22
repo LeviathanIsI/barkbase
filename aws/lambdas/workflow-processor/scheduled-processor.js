@@ -102,7 +102,7 @@ async function resumePausedExecutions() {
             w.name as workflow_name, we.resume_at, we.pause_reason,
             w.settings->'timingConfig' as timing_config
      FROM "WorkflowExecution" we
-     JOIN "Workflow" w ON we.workflow_id = w.id
+     JOIN "Workflow" w ON w.tenant_id = we.tenant_id AND w.record_id = we.workflow_id
      WHERE we.status = 'paused'
        AND we.resume_at IS NOT NULL
        AND we.resume_at <= NOW()
@@ -133,7 +133,7 @@ async function resumePausedExecutions() {
           await query(
             `UPDATE "WorkflowExecution"
              SET resume_at = $1, updated_at = NOW()
-             WHERE id = $2`,
+             WHERE record_id = $2`,
             [timingCheck.nextAllowedTime.toISOString(), execution.execution_id]
           );
 
@@ -163,7 +163,7 @@ async function resumePausedExecutions() {
       await query(
         `UPDATE "WorkflowExecution"
          SET status = 'running', resume_at = NULL, pause_reason = NULL, updated_at = NOW()
-         WHERE id = $1`,
+         WHERE record_id = $1`,
         [execution.execution_id]
       );
 
@@ -171,7 +171,7 @@ async function resumePausedExecutions() {
       const currentStepResult = await query(
         `SELECT ws.workflow_id, ws.id, ws.parent_step_id, ws.branch_path, ws.position
          FROM "WorkflowStep" ws
-         WHERE ws.id = $1`,
+         WHERE ws.record_id = $1`,
         [execution.current_step_id]
       );
 
@@ -192,7 +192,7 @@ async function resumePausedExecutions() {
           await query(
             `UPDATE "WorkflowExecution"
              SET current_step_id = $1
-             WHERE id = $2`,
+             WHERE record_id = $2`,
             [nextStepId, execution.execution_id]
           );
 
@@ -205,7 +205,7 @@ async function resumePausedExecutions() {
           await query(
             `UPDATE "WorkflowExecution"
              SET status = 'completed', completed_at = NOW()
-             WHERE id = $1`,
+             WHERE record_id = $1`,
             [execution.execution_id]
           );
 
@@ -243,7 +243,7 @@ async function processScheduleWorkflows() {
 
   // Find active workflows with schedule trigger
   const workflowsResult = await query(
-    `SELECT w.id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings, w.last_run_at, w.suppression_segment_ids
+    `SELECT w.record_id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings, w.last_run_at, w.suppression_segment_ids
      FROM "Workflow" w
      WHERE w.status = 'active'
        AND w.deleted_at IS NULL
@@ -430,7 +430,7 @@ async function processFilterWorkflows() {
   // Frontend uses 'filter', backend historically used 'filter_criteria' - accept both for compatibility
   // Also check both triggerType (camelCase) and trigger_type (snake_case)
   const workflowsResult = await query(
-    `SELECT w.id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings
+    `SELECT w.record_id, w.name, w.tenant_id, w.object_type, w.entry_condition, w.settings
      FROM "Workflow" w
      WHERE w.status = 'active'
        AND w.deleted_at IS NULL
@@ -538,7 +538,7 @@ async function processFilterWorkflow(workflow) {
 
   // Get first step for this workflow
   const firstStepResult = await query(
-    `SELECT id FROM "WorkflowStep"
+    `SELECT record_id FROM "WorkflowStep"
      WHERE workflow_id = $1 AND parent_step_id IS NULL
      ORDER BY position ASC LIMIT 1`,
     [workflowId]
@@ -559,7 +559,7 @@ async function processFilterWorkflow(workflow) {
         `INSERT INTO "WorkflowExecution"
          (workflow_id, tenant_id, enrolled_record_id, record_type, status, current_step_id, enrolled_at, created_at, updated_at)
          VALUES ($1, $2, $3, $4, 'running', $5, NOW(), NOW(), NOW())
-         RETURNING id`,
+         RETURNING record_id`,
         [workflowId, tenantId, record.id, objectType, firstStepId]
       );
 
@@ -980,7 +980,7 @@ function convertToDays(period) {
 async function findNextStep(workflowId, currentStepId, parentStepId, branchPath, currentPosition) {
   // Find next sibling at same level
   const nextSiblingResult = await query(
-    `SELECT id FROM "WorkflowStep"
+    `SELECT record_id FROM "WorkflowStep"
      WHERE workflow_id = $1
        AND COALESCE(parent_step_id::text, '') = $2
        AND COALESCE(branch_path, '') = $3
