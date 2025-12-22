@@ -65,6 +65,7 @@ import {
   Phone,
   AtSign,
   AlignLeft,
+  FolderTree,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
@@ -95,7 +96,7 @@ const CHART_TYPES = [
   { value: 'column', label: 'Column', icon: BarChart2 },
   { value: 'area', label: 'Area', icon: TrendingUp },
   { value: 'stacked', label: 'Stacked', icon: Layers },
-  { value: 'treemap', label: 'Treemap', icon: Grid3X3 },
+  { value: 'treemap', label: 'Treemap', icon: FolderTree },
   // Row 2
   { value: 'pie', label: 'Pie', icon: PieChartIcon },
   { value: 'donut', label: 'Donut', icon: Circle },
