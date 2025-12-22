@@ -603,9 +603,9 @@ async function handleRegister(event) {
       );
       const userRoleRecordId = userRoleSeqResult.rows[0].last_record_id;
       await dbClient.query(
-        `INSERT INTO "UserRole" (tenant_id, record_id, user_record_id, role_record_id, assigned_at)
+        `INSERT INTO "UserRole" (tenant_id, record_id, user_id, role_id, assigned_at)
          VALUES ($1, $2, $3, $4, NOW())
-         ON CONFLICT (user_record_id, role_record_id) DO NOTHING`,
+         ON CONFLICT (user_id, role_id) DO NOTHING`,
         [tenant.id, userRoleRecordId, user.record_id, ownerRole.record_id]
       );
     }
