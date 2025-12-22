@@ -17,6 +17,7 @@ import {
   TrendingUp,
   ChevronRight,
   Download,
+  FileBarChart,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import StyledSelect from '@/components/ui/StyledSelect';
@@ -125,6 +126,7 @@ const tabs = [
   { path: '/reports/live', label: 'Live', icon: Activity },
   { path: '/reports/scheduled', label: 'Scheduled', icon: Clock },
   { path: '/reports/builder', label: 'Builder', icon: Settings },
+  { path: '/reports/custom', label: 'Custom Reports', icon: FileBarChart },
   { path: '/reports/benchmarks', label: 'Benchmarks', icon: Target },
   { path: '/reports/predictive', label: 'Predictive', icon: Zap },
 ];
@@ -143,6 +145,7 @@ const ReportsLayout = () => {
 
   // Hide date filters on certain tabs
   const showDateFilters = !location.pathname.includes('/builder') &&
+                          !location.pathname.includes('/custom') &&
                           !location.pathname.includes('/benchmarks') &&
                           !location.pathname.includes('/predictive');
 

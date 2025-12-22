@@ -53,6 +53,7 @@ const ReportsOverview = lazy(() => import("@/features/reports/routes/ReportsOver
 const ReportsLive = lazy(() => import("@/features/reports/routes/ReportsLive"));
 const ReportsScheduled = lazy(() => import("@/features/reports/routes/ReportsScheduled"));
 const CustomReportBuilder = lazy(() => import("@/features/reports/components/CustomReportBuilder"));
+const CustomReports = lazy(() => import("@/features/reports/routes/CustomReports"));
 const ReportsBenchmarks = lazy(() => import("@/features/reports/routes/ReportsBenchmarks"));
 const ReportsPredictive = lazy(() => import("@/features/reports/routes/ReportsPredictive"));
 const Admin = lazy(() => import("@/features/admin/routes/Admin"));
@@ -279,6 +280,7 @@ export const router = createBrowserRouter([
                   { path: "live", element: <ReportsLive /> },
                   { path: "scheduled", element: <ReportsScheduled /> },
                   { path: "builder", element: <CustomReportBuilder /> },
+                  { path: "custom", element: <CustomReports /> },
                   { path: "benchmarks", element: <ReportsBenchmarks /> },
                   { path: "predictive", element: <ReportsPredictive /> },
                 ],
