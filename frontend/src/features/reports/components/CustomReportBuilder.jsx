@@ -647,17 +647,17 @@ const DropZone = ({
     }
   };
 
-  // Render a single field pill (draggable for reorder)
-  const renderFieldPill = (fieldItem, index = null) => {
-    const isDraggedPill = reorderDragIndex === index;
+  // Render a single field row (draggable for reorder) - vertical list style
+  const renderFieldRow = (fieldItem, index = null) => {
+    const isDraggedRow = reorderDragIndex === index;
     const showInsertBefore = reorderDropIndex === index && reorderDragIndex !== null && reorderDragIndex > index;
     const showInsertAfter = reorderDropIndex === index && reorderDragIndex !== null && reorderDragIndex < index;
 
     return (
-      <div key={fieldItem.key || index} className="relative flex items-center">
-        {/* Insert indicator before */}
+      <div key={fieldItem.key || index} className="relative">
+        {/* Insert indicator above */}
         {showInsertBefore && (
-          <div className="absolute -left-1 top-0 bottom-0 w-0.5 bg-primary rounded-full" />
+          <div className="absolute -top-0.5 left-0 right-0 h-0.5 bg-primary rounded-full z-10" />
         )}
         <div
           draggable={multiple && onReorder}
@@ -665,29 +665,29 @@ const DropZone = ({
           onDragEnd={handlePillDragEnd}
           onDragOver={(e) => handlePillDragOver(e, index)}
           className={cn(
-            "flex items-center gap-2 px-2.5 py-1.5 bg-white dark:bg-surface-primary rounded-md border border-border group transition-all",
+            "flex items-center gap-2 px-2 py-1.5 bg-white dark:bg-surface-primary rounded-md border border-border group transition-all w-full",
             multiple && onReorder && "cursor-grab active:cursor-grabbing",
-            isDraggedPill && "opacity-50 scale-95"
+            isDraggedRow && "opacity-50 scale-[0.98]"
           )}
         >
           {multiple && onReorder && (
-            <GripVertical className="h-3 w-3 text-muted/50 group-hover:text-muted" />
+            <GripVertical className="h-3.5 w-3.5 text-muted/40 group-hover:text-muted flex-shrink-0" />
           )}
-          <FieldTypeIcon type={fieldItem.type} />
-          <span className="text-xs text-text">{fieldItem.label}</span>
+          <FieldTypeIcon type={fieldItem.type} className="flex-shrink-0" />
+          <span className="text-xs text-text flex-1 truncate">{fieldItem.label}</span>
           <button
             onClick={(e) => {
               e.stopPropagation();
               multiple ? onRemove(index) : onRemove();
             }}
-            className="p-0.5 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="p-0.5 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
           >
             <X className="h-3 w-3" />
           </button>
         </div>
-        {/* Insert indicator after */}
+        {/* Insert indicator below */}
         {showInsertAfter && (
-          <div className="absolute -right-1 top-0 bottom-0 w-0.5 bg-primary rounded-full" />
+          <div className="absolute -bottom-0.5 left-0 right-0 h-0.5 bg-primary rounded-full z-10" />
         )}
       </div>
     );
@@ -725,26 +725,26 @@ const DropZone = ({
         )}
       >
         {multiple ? (
-          // Multiple fields mode
-          <div className="flex flex-wrap gap-1.5">
-            {fields && fields.length > 0 && fields.map((f, i) => renderFieldPill(f, i))}
-            {(!fields || fields.length === 0 || isOver) && (
-              <div className={cn(
-                "flex items-center justify-center w-full py-1.5",
-                fields && fields.length > 0 && "hidden"
+          // Multiple fields mode - vertical list
+          <div className="flex flex-col gap-1 p-2">
+            {fields && fields.length > 0 && fields.map((f, i) => renderFieldRow(f, i))}
+            {/* Always show drop prompt at bottom */}
+            <div className={cn(
+              "flex items-center justify-center py-1.5 rounded border border-dashed border-transparent transition-colors",
+              isOver && isValidTarget && "border-primary/50 bg-primary/5",
+              isOver && isInvalidTarget && "border-red-400/50 bg-red-50/50 dark:bg-red-900/10"
+            )}>
+              <span className={cn(
+                "text-xs transition-colors",
+                isOver && isValidTarget && "text-primary font-medium",
+                isOver && isInvalidTarget && "text-red-500 font-medium",
+                !isOver && "text-muted"
               )}>
-                <span className={cn(
-                  "text-xs transition-colors",
-                  isOver && isValidTarget && "text-primary font-medium",
-                  isOver && isInvalidTarget && "text-red-500 font-medium",
-                  !isOver && "text-muted"
-                )}>
-                  {isOver && isValidTarget && 'Drop here'}
-                  {isOver && isInvalidTarget && 'Cannot drop here'}
-                  {!isOver && (placeholder || 'Drag fields here')}
-                </span>
-              </div>
-            )}
+                {isOver && isValidTarget && 'Drop here'}
+                {isOver && isInvalidTarget && 'Cannot drop here'}
+                {!isOver && (fields && fields.length > 0 ? '+ Add more' : (placeholder || 'Drag fields here'))}
+              </span>
+            </div>
           </div>
         ) : (
           // Single field mode
