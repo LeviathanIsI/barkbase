@@ -1377,10 +1377,10 @@ exports.handler = async (event, context) => {
  */
 async function getUserTenantContext(cognitoSub) {
   const result = await query(
-    `SELECT u.id, u.tenant_id, r.name as role
+    `SELECT u.record_id, u.tenant_id, r.name as role
      FROM "User" u
-     LEFT JOIN "UserRole" ur ON u.id = ur.user_id
-     LEFT JOIN "Role" r ON ur.role_id = r.id
+     LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
+     LEFT JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
      WHERE u.cognito_sub = $1
      LIMIT 1`,
     [cognitoSub]
@@ -1393,7 +1393,7 @@ async function getUserTenantContext(cognitoSub) {
   const user = result.rows[0];
   return {
     tenantId: user.tenant_id,
-    userId: user.id,
+    userId: user.record_id,
     role: user.role,
   };
 }
@@ -1416,7 +1416,7 @@ async function handleGetTenantConfig(user, event) {
     // NEW SCHEMA: Tenant has NO settings/theme columns - use TenantSettings table
     const result = await query(
       `SELECT
-         u.id as user_id,
+         u.record_id as user_id,
          u.email,
          u.first_name,
          u.last_name,
@@ -1464,8 +1464,8 @@ async function handleGetTenantConfig(user, event) {
        FROM "User" u
        LEFT JOIN "Tenant" t ON u.tenant_id = t.id
        LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
-       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
-       LEFT JOIN "Role" r ON ur.role_id = r.id
+       LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
+       LEFT JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
        WHERE u.cognito_sub = $1
        LIMIT 1`,
       [cognitoSub]
@@ -1593,8 +1593,8 @@ async function handleUpdateTenantConfig(user, body) {
     const userResult = await query(
       `SELECT u.tenant_id, r.name as role
        FROM "User" u
-       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
-       LEFT JOIN "Role" r ON ur.role_id = r.id
+       LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
+       LEFT JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
        WHERE u.cognito_sub = $1`,
       [user.id]
     );
@@ -1777,8 +1777,8 @@ async function handleUpdateTenantTheme(user, body) {
     const userResult = await query(
       `SELECT u.tenant_id, r.name as role
        FROM "User" u
-       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
-       LEFT JOIN "Role" r ON ur.role_id = r.id
+       LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
+       LEFT JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
        WHERE u.cognito_sub = $1`,
       [user.id]
     );
@@ -1881,8 +1881,8 @@ async function handleUpdateTenantFeatures(user, body) {
     const userResult = await query(
       `SELECT u.tenant_id, r.name as role
        FROM "User" u
-       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
-       LEFT JOIN "Role" r ON ur.role_id = r.id
+       LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
+       LEFT JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
        WHERE u.cognito_sub = $1`,
       [user.id]
     );
@@ -2138,8 +2138,8 @@ async function handleGetMemberships(user) {
     const userResult = await query(
       `SELECT u.tenant_id, r.name as role
        FROM "User" u
-       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
-       LEFT JOIN "Role" r ON ur.role_id = r.id
+       LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
+       LEFT JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
        WHERE u.cognito_sub = $1`,
       [user.id]
     );
@@ -2165,7 +2165,7 @@ async function handleGetMemberships(user) {
     console.log('[CONFIG-SERVICE] Querying users for tenant:', tenantId);
     const result = await query(
       `SELECT
-         u.id,
+         u.record_id,
          u.tenant_id,
          u.email,
          u.first_name,
@@ -2174,8 +2174,8 @@ async function handleGetMemberships(user) {
          u.created_at,
          u.updated_at,
          (SELECT array_agg(r.name) FROM "UserRole" ur
-          JOIN "Role" r ON ur.role_id = r.id
-          WHERE ur.user_id = u.id) as roles
+          JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
+          WHERE ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id) as roles
        FROM "User" u
        WHERE u.tenant_id = $1
        ORDER BY u.created_at DESC`,
@@ -2265,8 +2265,8 @@ async function handleCreateMembership(user, body) {
     const userResult = await query(
       `SELECT u.tenant_id, r.name as role
        FROM "User" u
-       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
-       LEFT JOIN "Role" r ON ur.role_id = r.id
+       LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
+       LEFT JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
        WHERE u.cognito_sub = $1`,
       [user.id]
     );
@@ -2404,10 +2404,10 @@ async function handleUpdateMembership(user, membershipId, body) {
 
     // Get current user's tenant and role - NEW SCHEMA: Role from UserRole junction
     const userResult = await query(
-      `SELECT u.tenant_id, r.name as role, u.id as user_id
+      `SELECT u.tenant_id, r.name as role, u.record_id as user_id
        FROM "User" u
-       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
-       LEFT JOIN "Role" r ON ur.role_id = r.id
+       LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
+       LEFT JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
        WHERE u.cognito_sub = $1`,
       [user.id]
     );
@@ -2431,10 +2431,10 @@ async function handleUpdateMembership(user, membershipId, body) {
 
     // Get the membership being updated (ensure it belongs to this tenant)
     const membershipResult = await query(
-      `SELECT m.*, u.id as target_user_id
+      `SELECT m.*, u.record_id as target_user_id
        FROM "Membership" m
-       LEFT JOIN "User" u ON m.user_id = u.id
-       WHERE m.id = $1 AND m.tenant_id = $2`,
+       LEFT JOIN "User" u ON u.tenant_id = m.tenant_id AND u.record_id = m.user_id
+       WHERE m.record_id = $1 AND m.tenant_id = $2`,
       [membershipId, tenantId]
     );
 
@@ -2534,10 +2534,10 @@ async function handleDeleteMembership(user, membershipId) {
 
     // Get current user's tenant and role - NEW SCHEMA: Role from UserRole junction
     const userResult = await query(
-      `SELECT u.tenant_id, r.name as role, u.id as user_id
+      `SELECT u.tenant_id, r.name as role, u.record_id as user_id
        FROM "User" u
-       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
-       LEFT JOIN "Role" r ON ur.role_id = r.id
+       LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
+       LEFT JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
        WHERE u.cognito_sub = $1`,
       [user.id]
     );
@@ -2561,10 +2561,10 @@ async function handleDeleteMembership(user, membershipId) {
 
     // Get the membership being deleted (ensure it belongs to this tenant)
     const membershipResult = await query(
-      `SELECT m.*, u.id as target_user_id
+      `SELECT m.*, u.record_id as target_user_id
        FROM "Membership" m
-       LEFT JOIN "User" u ON m.user_id = u.id
-       WHERE m.id = $1 AND m.tenant_id = $2`,
+       LEFT JOIN "User" u ON u.tenant_id = m.tenant_id AND u.record_id = m.user_id
+       WHERE m.record_id = $1 AND m.tenant_id = $2`,
       [membershipId, tenantId]
     );
 
@@ -2655,11 +2655,11 @@ const PLAN_LIMITS = {
  */
 async function getTenantContext(user, requireAdmin = false) {
   const userResult = await query(
-    `SELECT u.id as user_id, r.name as role, u.tenant_id, t.plan
+    `SELECT u.record_id as user_id, r.name as role, u.tenant_id, t.plan
      FROM "User" u
      LEFT JOIN "Tenant" t ON u.tenant_id = t.id
-     LEFT JOIN "UserRole" ur ON u.id = ur.user_id
-     LEFT JOIN "Role" r ON ur.role_id = r.id
+     LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
+     LEFT JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
      WHERE u.cognito_sub = $1`,
     [user.id]
   );
