@@ -109,6 +109,10 @@ export const canonicalEndpoints = {
     list: '/api/v1/analytics/reports',
     detail: build('/api/v1/analytics/reports/{id}'),
     generate: '/api/v1/analytics/reports/generate',
+    // Custom Report Builder
+    query: '/api/v1/analytics/reports/query',
+    saved: '/api/v1/analytics/reports/saved',
+    savedDetail: build('/api/v1/analytics/reports/saved/{id}'),
     // Export endpoints
     exportRevenue: '/api/v1/analytics/export/revenue',
     exportBookings: '/api/v1/analytics/export/bookings',

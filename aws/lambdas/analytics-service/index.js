@@ -319,6 +319,34 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // Custom Report Query endpoint
+    if (path === '/api/v1/analytics/reports/query' || path === '/analytics/reports/query') {
+      if (method === 'POST') {
+        return handleCustomReportQuery(tenantId, parseBody(event));
+      }
+    }
+
+    // Saved Reports - CRUD operations
+    if (path === '/api/v1/analytics/reports/saved' || path === '/analytics/reports/saved') {
+      if (method === 'GET') {
+        return handleGetSavedReports(tenantId, userId);
+      }
+      if (method === 'POST') {
+        return handleSaveReport(tenantId, userId, parseBody(event));
+      }
+    }
+
+    // Saved Report by ID - update/delete
+    const savedReportMatch = path.match(/\/api\/v1\/analytics\/reports\/saved\/([a-f0-9-]+)$/i);
+    if (savedReportMatch) {
+      if (method === 'PUT') {
+        return handleUpdateSavedReport(tenantId, userId, savedReportMatch[1], parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeleteSavedReport(tenantId, userId, savedReportMatch[1]);
+      }
+    }
+
     // Report by ID
     const reportMatch = path.match(/\/api\/v1\/analytics\/reports\/([a-f0-9-]+)$/i);
     if (reportMatch) {
@@ -1525,6 +1553,364 @@ async function handleGenerateReport(tenantId, body) {
       status: 'pending',
     },
     message: 'Report generation started (feature pending implementation)',
+  });
+}
+
+// =============================================================================
+// CUSTOM REPORT BUILDER HANDLERS
+// =============================================================================
+
+/**
+ * Data source configurations for custom reports
+ * Defines available fields, dimensions, and measures for each data source
+ */
+const DATA_SOURCE_CONFIG = {
+  owners: {
+    table: '"Owner"',
+    idField: 'record_id',
+    dimensions: {
+      status: { column: 'status', label: 'Status' },
+      source: { column: 'source', label: 'Lead Source' },
+      created_month: { column: "TO_CHAR(created_at, 'YYYY-MM')", label: 'Signup Month' },
+      created_date: { column: 'DATE(created_at)', label: 'Signup Date' },
+    },
+    measures: {
+      count: { column: 'record_id', agg: 'COUNT', label: 'Count' },
+    },
+    dateField: 'created_at',
+  },
+  pets: {
+    table: '"Pet"',
+    idField: 'record_id',
+    dimensions: {
+      species: { column: 'species', label: 'Species' },
+      breed: { column: 'breed', label: 'Breed' },
+      size: { column: 'size', label: 'Size' },
+      gender: { column: 'gender', label: 'Gender' },
+      age_range: {
+        column: `CASE
+          WHEN date_of_birth IS NULL THEN 'Unknown'
+          WHEN EXTRACT(YEAR FROM AGE(date_of_birth)) < 1 THEN 'Puppy/Kitten (<1)'
+          WHEN EXTRACT(YEAR FROM AGE(date_of_birth)) < 3 THEN 'Young (1-3)'
+          WHEN EXTRACT(YEAR FROM AGE(date_of_birth)) < 7 THEN 'Adult (3-7)'
+          WHEN EXTRACT(YEAR FROM AGE(date_of_birth)) < 10 THEN 'Mature (7-10)'
+          ELSE 'Senior (10+)'
+        END`,
+        label: 'Age Range'
+      },
+      fixed: { column: "CASE WHEN is_spayed_neutered THEN 'Fixed' ELSE 'Not Fixed' END", label: 'Fixed Status' },
+    },
+    measures: {
+      count: { column: 'record_id', agg: 'COUNT', label: 'Count' },
+    },
+    dateField: 'created_at',
+  },
+  bookings: {
+    table: '"Booking"',
+    idField: 'record_id',
+    dimensions: {
+      status: { column: 'status', label: 'Status' },
+      service_type: { column: 's.name', label: 'Service Type', join: 'LEFT JOIN "Service" s ON s.record_id = t.service_id AND s.tenant_id = t.tenant_id' },
+      booking_date: { column: 'DATE(t.start_date)', label: 'Booking Date' },
+      booking_month: { column: "TO_CHAR(t.start_date, 'YYYY-MM')", label: 'Booking Month' },
+      booking_dow: { column: "TO_CHAR(t.start_date, 'Day')", label: 'Day of Week' },
+      created_date: { column: 'DATE(t.created_at)', label: 'Created Date' },
+    },
+    measures: {
+      count: { column: 'record_id', agg: 'COUNT', label: 'Count' },
+      revenue: { column: 'COALESCE(total_cents, 0)', agg: 'SUM', label: 'Revenue (cents)' },
+      avg_revenue: { column: 'COALESCE(total_cents, 0)', agg: 'AVG', label: 'Avg Revenue (cents)' },
+    },
+    dateField: 'start_date',
+  },
+  services: {
+    table: '"Service"',
+    idField: 'record_id',
+    dimensions: {
+      name: { column: 'name', label: 'Service Name' },
+      category: { column: 'category', label: 'Category' },
+      is_active: { column: "CASE WHEN is_active THEN 'Active' ELSE 'Inactive' END", label: 'Status' },
+    },
+    measures: {
+      count: { column: 'record_id', agg: 'COUNT', label: 'Count' },
+      avg_price: { column: 'COALESCE(base_price_cents, 0)', agg: 'AVG', label: 'Avg Price (cents)' },
+      total_bookings: {
+        column: '(SELECT COUNT(*) FROM "Booking" b WHERE b.service_id = t.record_id AND b.tenant_id = t.tenant_id)',
+        agg: 'SUM',
+        label: 'Total Bookings'
+      },
+    },
+    dateField: 'created_at',
+  },
+  payments: {
+    table: '"Payment"',
+    idField: 'record_id',
+    dimensions: {
+      status: { column: 'status', label: 'Status' },
+      payment_method: { column: 'payment_method', label: 'Payment Method' },
+      payment_date: { column: 'DATE(t.processed_at)', label: 'Payment Date' },
+      payment_month: { column: "TO_CHAR(t.processed_at, 'YYYY-MM')", label: 'Payment Month' },
+    },
+    measures: {
+      count: { column: 'record_id', agg: 'COUNT', label: 'Count' },
+      total: { column: 'COALESCE(amount_cents, 0)', agg: 'SUM', label: 'Total (cents)' },
+      avg_amount: { column: 'COALESCE(amount_cents, 0)', agg: 'AVG', label: 'Avg Amount (cents)' },
+    },
+    dateField: 'processed_at',
+  },
+  staff: {
+    table: '"Staff"',
+    idField: 'record_id',
+    dimensions: {
+      role: { column: 'role', label: 'Role' },
+      status: { column: 'status', label: 'Status' },
+      hire_month: { column: "TO_CHAR(hire_date, 'YYYY-MM')", label: 'Hire Month' },
+    },
+    measures: {
+      count: { column: 'record_id', agg: 'COUNT', label: 'Count' },
+    },
+    dateField: 'hire_date',
+  },
+};
+
+/**
+ * Handle custom report query
+ * Accepts a report definition and returns aggregated data
+ */
+async function handleCustomReportQuery(tenantId, body) {
+  try {
+    await getPoolAsync();
+
+    const { dataSource, dimensions = [], measures = [], filters = [], dateRange = {} } = body;
+
+    // Validate data source
+    const config = DATA_SOURCE_CONFIG[dataSource];
+    if (!config) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: `Invalid data source: ${dataSource}. Valid options: ${Object.keys(DATA_SOURCE_CONFIG).join(', ')}`,
+      });
+    }
+
+    // Build the query
+    const selectParts = [];
+    const groupByParts = [];
+    const joins = new Set();
+    const params = [tenantId];
+    let paramIndex = 2;
+
+    // Add dimensions (group by columns)
+    for (const dimKey of dimensions) {
+      const dim = config.dimensions[dimKey];
+      if (!dim) {
+        return createResponse(400, {
+          error: 'Bad Request',
+          message: `Invalid dimension: ${dimKey} for data source ${dataSource}`,
+        });
+      }
+      selectParts.push(`${dim.column} as "${dimKey}"`);
+      groupByParts.push(dim.column);
+      if (dim.join) joins.add(dim.join);
+    }
+
+    // Add measures (aggregated columns)
+    for (const measureDef of measures) {
+      const measureKey = typeof measureDef === 'string' ? measureDef : measureDef.field;
+      const aggOverride = typeof measureDef === 'object' ? measureDef.aggregation : null;
+
+      const measure = config.measures[measureKey];
+      if (!measure) {
+        return createResponse(400, {
+          error: 'Bad Request',
+          message: `Invalid measure: ${measureKey} for data source ${dataSource}`,
+        });
+      }
+
+      const agg = aggOverride || measure.agg;
+      selectParts.push(`${agg}(${measure.column}) as "${measureKey}"`);
+    }
+
+    // If no dimensions or measures, just count
+    if (selectParts.length === 0) {
+      selectParts.push(`COUNT(t.${config.idField}) as "count"`);
+    }
+
+    // Build WHERE clause
+    const whereParts = ['t.tenant_id = $1'];
+
+    // Date range filter
+    if (dateRange.startDate && config.dateField) {
+      whereParts.push(`t.${config.dateField} >= $${paramIndex}`);
+      params.push(dateRange.startDate);
+      paramIndex++;
+    }
+    if (dateRange.endDate && config.dateField) {
+      whereParts.push(`t.${config.dateField} <= $${paramIndex}`);
+      params.push(dateRange.endDate + ' 23:59:59');
+      paramIndex++;
+    }
+
+    // Custom filters
+    for (const filter of filters) {
+      const dim = config.dimensions[filter.field] || config.measures[filter.field];
+      if (!dim) continue;
+
+      const column = dim.column;
+      const operator = filter.operator || '=';
+      const value = filter.value;
+
+      switch (operator) {
+        case '=':
+        case '!=':
+        case '>':
+        case '<':
+        case '>=':
+        case '<=':
+          whereParts.push(`${column} ${operator} $${paramIndex}`);
+          params.push(value);
+          paramIndex++;
+          break;
+        case 'contains':
+          whereParts.push(`${column} ILIKE $${paramIndex}`);
+          params.push(`%${value}%`);
+          paramIndex++;
+          break;
+        case 'in':
+          if (Array.isArray(value)) {
+            const placeholders = value.map((_, i) => `$${paramIndex + i}`).join(', ');
+            whereParts.push(`${column} IN (${placeholders})`);
+            params.push(...value);
+            paramIndex += value.length;
+          }
+          break;
+        case 'is_null':
+          whereParts.push(`${column} IS NULL`);
+          break;
+        case 'is_not_null':
+          whereParts.push(`${column} IS NOT NULL`);
+          break;
+      }
+    }
+
+    // Build final query
+    const joinClause = joins.size > 0 ? Array.from(joins).join(' ') : '';
+    const whereClause = whereParts.join(' AND ');
+    const groupByClause = groupByParts.length > 0 ? `GROUP BY ${groupByParts.join(', ')}` : '';
+    const orderByClause = groupByParts.length > 0 ? `ORDER BY ${groupByParts[0]}` : '';
+
+    const sql = `
+      SELECT ${selectParts.join(', ')}
+      FROM ${config.table} t
+      ${joinClause}
+      WHERE ${whereClause}
+      ${groupByClause}
+      ${orderByClause}
+      LIMIT 1000
+    `;
+
+    console.log('[ANALYTICS-SERVICE] Custom report query:', { sql: sql.substring(0, 200), params: params.slice(0, 3) });
+
+    const result = await query(sql, params);
+
+    // Transform data for chart consumption
+    const chartData = result.rows.map(row => {
+      const transformed = {};
+      for (const key of Object.keys(row)) {
+        let value = row[key];
+        // Convert BigInt to number, handle cents to dollars for revenue
+        if (typeof value === 'bigint') {
+          value = Number(value);
+        }
+        if (typeof value === 'string' && !isNaN(value)) {
+          value = parseFloat(value);
+        }
+        transformed[key] = value;
+      }
+      return transformed;
+    });
+
+    return createResponse(200, {
+      data: chartData,
+      meta: {
+        dataSource,
+        dimensions,
+        measures,
+        rowCount: chartData.length,
+        query: { filters, dateRange },
+      },
+      message: 'Report data retrieved successfully',
+    });
+
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Custom report query failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to execute report query: ' + error.message,
+    });
+  }
+}
+
+/**
+ * Get saved reports for user
+ */
+async function handleGetSavedReports(tenantId, userId) {
+  try {
+    await getPoolAsync();
+
+    // Try to get saved reports from a config table or return empty
+    // For now, return empty array - saved reports can be stored in localStorage on client
+    // or we can add a SavedReport table later
+    return createResponse(200, {
+      data: [],
+      message: 'Saved reports retrieved',
+    });
+
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Get saved reports failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to get saved reports',
+    });
+  }
+}
+
+/**
+ * Save a report definition
+ */
+async function handleSaveReport(tenantId, userId, body) {
+  // Placeholder - for MVP, reports are saved in localStorage
+  // Can implement DB storage later
+  return createResponse(200, {
+    data: {
+      id: 'local-' + Date.now(),
+      ...body,
+      savedAt: new Date().toISOString(),
+    },
+    message: 'Report configuration saved (client-side storage)',
+  });
+}
+
+/**
+ * Update a saved report
+ */
+async function handleUpdateSavedReport(tenantId, userId, reportId, body) {
+  return createResponse(200, {
+    data: {
+      id: reportId,
+      ...body,
+      updatedAt: new Date().toISOString(),
+    },
+    message: 'Report updated (client-side storage)',
+  });
+}
+
+/**
+ * Delete a saved report
+ */
+async function handleDeleteSavedReport(tenantId, userId, reportId) {
+  return createResponse(200, {
+    data: { id: reportId },
+    message: 'Report deleted (client-side storage)',
   });
 }
 
