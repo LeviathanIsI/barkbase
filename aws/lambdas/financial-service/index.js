@@ -737,7 +737,7 @@ async function handleGetInvoices(tenantId, queryParams) {
          o.last_name as owner_last_name,
          o.email as owner_email
        FROM "Invoice" i
-       LEFT JOIN "Owner" o ON i.owner_id = o.id
+       LEFT JOIN "Owner" o ON o.tenant_id = i.tenant_id AND o.record_id = i.owner_id
        WHERE ${whereClause}
        ORDER BY i.created_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -821,8 +821,8 @@ async function handleGetInvoice(tenantId, invoiceId) {
     const result = await query(
       `SELECT i.*, o.first_name, o.last_name, o.email
        FROM "Invoice" i
-       LEFT JOIN "Owner" o ON i.owner_id = o.id
-       WHERE i.id = $1 AND i.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = i.tenant_id AND o.record_id = i.owner_id
+       WHERE i.record_id = $1 AND i.tenant_id = $2`,
       [invoiceId, tenantId]
     );
 
@@ -995,9 +995,9 @@ async function handleGenerateInvoiceFromBooking(tenantId, bookingId) {
          o.email as owner_email
        FROM "Booking" b
        LEFT JOIN "Kennel" k ON b.kennel_id = k.id
-       LEFT JOIN "Service" s ON b.service_id = s.id
-       LEFT JOIN "Owner" o ON b.owner_id = o.id
-       WHERE b.id = $1 AND b.tenant_id = $2 `,
+       LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND s.record_id = b.service_id
+       LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND o.record_id = b.owner_id
+       WHERE b.record_id = $1 AND b.tenant_id = $2 `,
       [bookingId, tenantId]
     );
 
@@ -1022,7 +1022,7 @@ async function handleGenerateInvoiceFromBooking(tenantId, bookingId) {
 
     // Check if invoice already exists for this booking
     const existingInvoice = await query(
-      `SELECT id, invoice_number, status FROM "Invoice"
+      `SELECT record_id, invoice_number, status FROM "Invoice"
        WHERE booking_id = $1 AND tenant_id = $2 `,
       [bookingId, tenantId]
     );
@@ -1033,7 +1033,7 @@ async function handleGenerateInvoiceFromBooking(tenantId, bookingId) {
         error: 'Conflict',
         message: `Invoice already exists for this booking: ${existing.invoice_number}`,
         code: 'INVOICE_EXISTS',
-        existingInvoiceId: existing.id,
+        existingInvoiceId: existing.record_id,
         existingInvoiceNumber: existing.invoice_number,
       });
     }
@@ -1119,12 +1119,12 @@ async function handleGenerateInvoiceFromBooking(tenantId, bookingId) {
 
     const invoice = result.rows[0];
 
-    console.log('[FINANCIAL-SERVICE] Invoice generated:', invoice.id, 'for booking:', bookingId);
+    console.log('[FINANCIAL-SERVICE] Invoice generated:', invoice.record_id, 'for booking:', bookingId);
 
     return createResponse(201, {
       success: true,
       invoice: {
-        id: invoice.id,
+        id: invoice.record_id,
         invoiceNumber: invoice.invoice_number,
         bookingId: invoice.booking_id,
         ownerId: invoice.owner_id,
@@ -1242,7 +1242,7 @@ async function handleUpdateInvoice(tenantId, invoiceId, body) {
     const result = await query(
       `UPDATE "Invoice"
        SET ${updates.join(', ')}
-       WHERE id = $1 AND tenant_id = $2
+       WHERE record_id = $1 AND tenant_id = $2
        RETURNING *`,
       values
     );
@@ -1295,7 +1295,7 @@ async function handleSendInvoice(tenantId, invoiceId) {
     const result = await query(
       `UPDATE "Invoice"
        SET status = 'SENT', sent_at = NOW(), updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2
+       WHERE record_id = $1 AND tenant_id = $2
        RETURNING *`,
       [invoiceId, tenantId]
     );
@@ -1329,7 +1329,7 @@ async function handleVoidInvoice(tenantId, invoiceId) {
     const result = await query(
       `UPDATE "Invoice"
        SET status = 'VOIDED', updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2
+       WHERE record_id = $1 AND tenant_id = $2
        RETURNING *`,
       [invoiceId, tenantId]
     );
@@ -1426,7 +1426,7 @@ async function handleGetPayments(tenantId, queryParams) {
          o.last_name,
          o.email as owner_email
        FROM "Payment" p
-       LEFT JOIN "Owner" o ON p.owner_id = o.id
+       LEFT JOIN "Owner" o ON o.tenant_id = p.tenant_id AND o.record_id = p.owner_id
        WHERE ${whereClause}
        ORDER BY p.processed_at DESC NULLS LAST, p.created_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -1495,8 +1495,8 @@ async function handleGetPayment(tenantId, paymentId) {
     const result = await query(
       `SELECT p.*, o.first_name, o.last_name, o.email
        FROM "Payment" p
-       LEFT JOIN "Owner" o ON p.owner_id = o.id
-       WHERE p.id = $1 AND p.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = p.tenant_id AND o.record_id = p.owner_id
+       WHERE p.record_id = $1 AND p.tenant_id = $2`,
       [paymentId, tenantId]
     );
 
@@ -1571,7 +1571,7 @@ async function handleCreatePayment(tenantId, body) {
 
     // Check if this idempotency key was already used
     const existingPayment = await query(
-      `SELECT id, amount_cents, status, method FROM "Payment"
+      `SELECT record_id, amount_cents, status, method FROM "Payment"
        WHERE tenant_id = $1 AND idempotency_key = $2`,
       [tenantId, idempotencyKey]
     );
@@ -1579,11 +1579,11 @@ async function handleCreatePayment(tenantId, body) {
     if (existingPayment.rows.length > 0) {
       // Return the existing payment instead of creating duplicate
       const existing = existingPayment.rows[0];
-      console.log('[PAYMENT] Idempotent request - returning existing payment:', existing.id);
+      console.log('[PAYMENT] Idempotent request - returning existing payment:', existing.record_id);
       return createResponse(200, {
         success: true,
         payment: {
-          id: existing.id,
+          id: existing.record_id,
           amount: existing.amount_cents / 100,
           amountCents: existing.amount_cents,
           status: existing.status,
@@ -1656,7 +1656,7 @@ async function handleRefundPayment(tenantId, paymentId, body) {
     const result = await query(
       `UPDATE "Payment"
        SET status = 'refunded', updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2
+       WHERE record_id = $1 AND tenant_id = $2
        RETURNING *`,
       [paymentId, tenantId]
     );
@@ -1690,7 +1690,7 @@ async function handleCapturePayment(tenantId, paymentId) {
     const result = await query(
       `UPDATE "Payment"
        SET status = 'CAPTURED', updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2
+       WHERE record_id = $1 AND tenant_id = $2
        RETURNING *`,
       [paymentId, tenantId]
     );
@@ -1754,9 +1754,9 @@ async function handleGetReceipt(tenantId, paymentId) {
          t.business_phone,
          t.business_email
        FROM "Payment" p
-       LEFT JOIN "Owner" o ON o.id = p.owner_id
+       LEFT JOIN "Owner" o ON o.tenant_id = p.tenant_id AND o.record_id = p.owner_id
        LEFT JOIN "Tenant" t ON t.id = p.tenant_id
-       WHERE p.id = $1 AND p.tenant_id = $2`,
+       WHERE p.record_id = $1 AND p.tenant_id = $2`,
       [paymentId, tenantId]
     );
 
@@ -1850,9 +1850,9 @@ async function handleSendReceipt(tenantId, paymentId, body) {
          o.last_name as owner_last_name,
          t.name as tenant_name
        FROM "Payment" p
-       LEFT JOIN "Owner" o ON o.id = p.owner_id
+       LEFT JOIN "Owner" o ON o.tenant_id = p.tenant_id AND o.record_id = p.owner_id
        LEFT JOIN "Tenant" t ON t.id = p.tenant_id
-       WHERE p.id = $1 AND p.tenant_id = $2`,
+       WHERE p.record_id = $1 AND p.tenant_id = $2`,
       [paymentId, tenantId]
     );
 
@@ -2018,7 +2018,7 @@ async function handleGetPricing(tenantId) {
 
     // Schema uses price_in_cents (BIGINT), NOT price
     const result = await query(
-      `SELECT id, name, description, price_in_cents, unit, is_active
+      `SELECT record_id, name, description, price_in_cents, unit, is_active
        FROM "Service"
        WHERE tenant_id = $1
        ORDER BY name`,
@@ -2026,7 +2026,7 @@ async function handleGetPricing(tenantId) {
     );
 
     const items = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       name: row.name,
       description: row.description,
       // Convert cents to dollars for frontend compatibility
@@ -2057,8 +2057,8 @@ async function handleGetPriceItem(tenantId, priceId) {
 
     // Schema uses price_in_cents (BIGINT), NOT price
     const result = await query(
-      `SELECT id, name, description, price_in_cents, unit, is_active, created_at, updated_at
-       FROM "Service" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT record_id, name, description, price_in_cents, unit, is_active, created_at, updated_at
+       FROM "Service" WHERE record_id = $1 AND tenant_id = $2`,
       [priceId, tenantId]
     );
 
@@ -2072,7 +2072,7 @@ async function handleGetPriceItem(tenantId, priceId) {
     const row = result.rows[0];
 
     return createResponse(200, {
-      id: row.id,
+      id: row.record_id,
       name: row.name,
       description: row.description,
       // Convert cents to dollars for frontend compatibility
@@ -2193,7 +2193,7 @@ async function handleUpdatePriceItem(tenantId, priceId, body) {
     const result = await query(
       `UPDATE "Service"
        SET ${updates.join(', ')}
-       WHERE id = $1 AND tenant_id = $2
+       WHERE record_id = $1 AND tenant_id = $2
        RETURNING *`,
       values
     );
@@ -2234,8 +2234,8 @@ async function handleDeletePriceItem(tenantId, priceId) {
     const result = await query(
       `UPDATE "Service"
        SET is_active = false, updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2
-       RETURNING id`,
+       WHERE record_id = $1 AND tenant_id = $2
+       RETURNING record_id`,
       [priceId, tenantId]
     );
 
@@ -2271,7 +2271,7 @@ async function handleCalculatePrice(tenantId, queryParams) {
     if (serviceId) {
       // Schema uses price_in_cents (BIGINT), NOT price
       const result = await query(
-        `SELECT price_in_cents FROM "Service" WHERE id = $1 AND tenant_id = $2`,
+        `SELECT price_in_cents FROM "Service" WHERE record_id = $1 AND tenant_id = $2`,
         [serviceId, tenantId]
       );
       basePriceCents = parseInt(result.rows[0]?.price_in_cents || 0);
@@ -2391,7 +2391,7 @@ async function handleGetBillingHistory(tenantId, queryParams) {
     await getPoolAsync();
 
     const result = await query(
-      `SELECT id, amount_cents, status, processed_at, method
+      `SELECT record_id, amount_cents, status, processed_at, method
        FROM "Payment"
        WHERE tenant_id = $1
        ORDER BY processed_at DESC NULLS LAST, created_at DESC
@@ -2402,7 +2402,7 @@ async function handleGetBillingHistory(tenantId, queryParams) {
     return createResponse(200, {
       data: {
         transactions: result.rows.map(row => ({
-          id: row.id,
+          id: row.record_id,
           amount: row.amount_cents ? row.amount_cents / 100 : 0,
           amountCents: row.amount_cents,
           status: row.status,
@@ -2441,7 +2441,7 @@ async function handleGetUpcomingCharges(tenantId) {
 
     // Get upcoming bookings that haven't been invoiced
     const result = await query(
-      `SELECT b.id, b.total_price_in_cents, b.check_in
+      `SELECT b.record_id, b.total_price_in_cents, b.check_in
        FROM "Booking" b
        WHERE b.tenant_id = $1
        AND b.status IN ('PENDING', 'CONFIRMED')
@@ -2454,7 +2454,7 @@ async function handleGetUpcomingCharges(tenantId) {
     return createResponse(200, {
       data: {
         charges: result.rows.map(row => ({
-          id: row.id,
+          id: row.record_id,
           amount: row.total_price_in_cents ? row.total_price_in_cents / 100 : 0,
           amountCents: row.total_price_in_cents,
           date: row.check_in,
@@ -2893,7 +2893,7 @@ async function handleCreatePaymentIntent(tenantId, body) {
     let stripeCustomerId = null;
     if (ownerId) {
       const ownerResult = await query(
-        `SELECT email, stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2 `,
+        `SELECT email, stripe_customer_id FROM "Owner" WHERE record_id = $1 AND tenant_id = $2 `,
         [ownerId, tenantId]
       );
       if (ownerResult.rows[0]) {
@@ -3005,15 +3005,15 @@ async function handleConfirmPayment(tenantId, body) {
 
     // Check if we already recorded this payment (idempotency)
     const existingPayment = await query(
-      `SELECT id FROM "Payment" WHERE stripe_payment_intent_id = $1 AND tenant_id = $2`,
+      `SELECT record_id FROM "Payment" WHERE stripe_payment_intent_id = $1 AND tenant_id = $2`,
       [paymentIntentId, tenantId]
     );
 
     if (existingPayment.rows.length > 0) {
-      console.log('[Stripe] Payment already recorded:', existingPayment.rows[0].id);
+      console.log('[Stripe] Payment already recorded:', existingPayment.rows[0].record_id);
       return createResponse(200, {
         success: true,
-        paymentId: existingPayment.rows[0].id,
+        paymentId: existingPayment.rows[0].record_id,
         message: 'Payment already recorded',
       });
     }
@@ -3058,16 +3058,16 @@ async function handleConfirmPayment(tenantId, body) {
                ELSE paid_at
              END,
              updated_at = NOW()
-         WHERE id = $2 AND tenant_id = $3`,
+         WHERE record_id = $2 AND tenant_id = $3`,
         [paymentIntent.amount, linkedInvoiceId, tenantId]
       );
     }
 
-    console.log('[Stripe] Payment recorded:', payment.id);
+    console.log('[Stripe] Payment recorded:', payment.record_id);
 
     return createResponse(200, {
       success: true,
-      paymentId: payment.id,
+      paymentId: payment.record_id,
       amount: payment.amount_cents / 100,
       status: payment.status,
       message: 'Payment confirmed and recorded',
@@ -3111,8 +3111,8 @@ async function handleCreateStripeCustomer(tenantId, body) {
 
     // Get owner details (exclude soft-deleted)
     const ownerResult = await query(
-      `SELECT id, first_name, last_name, email, phone, stripe_customer_id
-       FROM "Owner" WHERE id = $1 AND tenant_id = $2 `,
+      `SELECT record_id, first_name, last_name, email, phone, stripe_customer_id
+       FROM "Owner" WHERE record_id = $1 AND tenant_id = $2 `,
       [ownerId, tenantId]
     );
 
@@ -3151,7 +3151,7 @@ async function handleCreateStripeCustomer(tenantId, body) {
 
     // Save Stripe customer ID to owner record
     await query(
-      `UPDATE "Owner" SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3`,
+      `UPDATE "Owner" SET stripe_customer_id = $1, updated_at = NOW() WHERE record_id = $2 AND tenant_id = $3`,
       [customer.id, ownerId, tenantId]
     );
 
@@ -3178,8 +3178,8 @@ async function handleGetStripeCustomer(tenantId, ownerId) {
     await getPoolAsync();
 
     const result = await query(
-      `SELECT id, stripe_customer_id, first_name, last_name, email
-       FROM "Owner" WHERE id = $1 AND tenant_id = $2 `,
+      `SELECT record_id, stripe_customer_id, first_name, last_name, email
+       FROM "Owner" WHERE record_id = $1 AND tenant_id = $2 `,
       [ownerId, tenantId]
     );
 
@@ -3193,7 +3193,7 @@ async function handleGetStripeCustomer(tenantId, ownerId) {
     const owner = result.rows[0];
 
     return createResponse(200, {
-      ownerId: owner.id,
+      ownerId: owner.record_id,
       customerId: owner.stripe_customer_id,
       hasStripeCustomer: !!owner.stripe_customer_id,
       ownerName: `${owner.first_name || ''} ${owner.last_name || ''}`.trim(),
@@ -3238,7 +3238,7 @@ async function handleAttachPaymentMethod(tenantId, body) {
 
     // Get owner with Stripe customer ID (exclude soft-deleted)
     const ownerResult = await query(
-      `SELECT id, stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2 `,
+      `SELECT record_id, stripe_customer_id FROM "Owner" WHERE record_id = $1 AND tenant_id = $2 `,
       [ownerId, tenantId]
     );
 
@@ -3414,7 +3414,7 @@ async function handleDetachPaymentMethod(tenantId, stripePaymentMethodId) {
 
     // Verify the payment method belongs to this tenant
     const pmResult = await query(
-      `SELECT id, owner_id FROM "PaymentMethod"
+      `SELECT record_id, owner_id FROM "PaymentMethod"
        WHERE stripe_payment_method_id = $1 AND tenant_id = $2`,
       [stripePaymentMethodId, tenantId]
     );
@@ -3478,7 +3478,7 @@ async function handleCreateSetupIntent(tenantId, body) {
 
     // Get or create Stripe customer (exclude soft-deleted)
     const ownerResult = await query(
-      `SELECT stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2 `,
+      `SELECT stripe_customer_id FROM "Owner" WHERE record_id = $1 AND tenant_id = $2 `,
       [ownerId, tenantId]
     );
 
@@ -3582,7 +3582,7 @@ async function handleStripeWebhook(event) {
 
         // Check if payment already recorded
         const existing = await query(
-          `SELECT id FROM "Payment" WHERE stripe_payment_intent_id = $1`,
+          `SELECT record_id FROM "Payment" WHERE stripe_payment_intent_id = $1`,
           [paymentIntent.id]
         );
 
@@ -3594,7 +3594,7 @@ async function handleStripeWebhook(event) {
               tenant_id, record_id, owner_id, invoice_id, amount_cents, method, processor,
               processor_transaction_id, stripe_payment_intent_id, status, processed_at
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
-            RETURNING id`,
+            RETURNING record_id`,
             [
               tenantId,
               webhookPaymentRecordId,
@@ -3613,7 +3613,7 @@ async function handleStripeWebhook(event) {
           // Publish workflow event for successful payment
           if (paymentResult.rows.length > 0) {
             try {
-              await publishWorkflowEvent('payment.received', paymentResult.rows[0].id, 'payment', tenantId, {
+              await publishWorkflowEvent('payment.received', paymentResult.rows[0].record_id, 'payment', tenantId, {
                 amount: paymentIntent.amount / 100,
                 amountCents: paymentIntent.amount,
                 method: 'card',
@@ -3648,7 +3648,7 @@ async function handleStripeWebhook(event) {
             failure_code = EXCLUDED.failure_code,
             failure_message = EXCLUDED.failure_message,
             updated_at = NOW()
-          RETURNING id`,
+          RETURNING record_id`,
           [
             tenantId,
             failedPaymentRecordId,
@@ -3667,7 +3667,7 @@ async function handleStripeWebhook(event) {
         // Publish workflow event for failed payment
         if (failedPaymentResult.rows.length > 0) {
           try {
-            await publishWorkflowEvent('payment.failed', failedPaymentResult.rows[0].id, 'payment', tenantId, {
+            await publishWorkflowEvent('payment.failed', failedPaymentResult.rows[0].record_id, 'payment', tenantId, {
               amount: paymentIntent.amount / 100,
               amountCents: paymentIntent.amount,
               method: 'card',
@@ -3715,7 +3715,7 @@ async function handleStripeWebhook(event) {
         // Remove associated payment methods
         await query(
           `DELETE FROM "PaymentMethod"
-           WHERE owner_id IN (SELECT id FROM "Owner" WHERE stripe_customer_id = $1)`,
+           WHERE owner_id IN (SELECT record_id FROM "Owner" WHERE stripe_customer_id = $1)`,
           [customer.id]
         );
         break;
@@ -3782,7 +3782,7 @@ async function handleGetPackages(tenantId, queryParams) {
          ) as services
        FROM "Package" p
        LEFT JOIN "PackageService" ps ON p.id = ps.package_id
-       LEFT JOIN "Service" s ON ps.service_id = s.id
+       LEFT JOIN "Service" s ON s.tenant_id = p.tenant_id AND s.record_id = ps.service_id
        WHERE ${whereClause}
        GROUP BY p.id
        ORDER BY p.created_at DESC
@@ -3841,8 +3841,8 @@ async function handleGetPackage(tenantId, packageId) {
          o.email as owner_email,
          (p.total_credits - COALESCE(p.used_credits, 0)) as remaining_credits
        FROM "Package" p
-       LEFT JOIN "Owner" o ON p.owner_id = o.id
-       WHERE p.id = $1 AND p.tenant_id = $2`,
+       LEFT JOIN "Owner" o ON o.tenant_id = p.tenant_id AND o.record_id = p.owner_id
+       WHERE p.record_id = $1 AND p.tenant_id = $2`,
       [packageId, tenantId]
     );
 
@@ -3912,11 +3912,11 @@ async function handleCreatePackage(tenantId, body) {
     );
 
     const pkg = result.rows[0];
-    console.log('[Packages][create] Created:', pkg.id);
+    console.log('[Packages][create] Created:', pkg.record_id);
 
     return createResponse(201, {
       success: true,
-      id: pkg.id,
+      id: pkg.record_id,
       name: pkg.name,
       totalCredits: pkg.total_credits,
       remainingCredits: pkg.total_credits,
@@ -3963,7 +3963,7 @@ async function handleUpdatePackage(tenantId, packageId, body) {
     updates.push('updated_at = NOW()');
 
     const result = await query(
-      `UPDATE "Package" SET ${updates.join(', ')} WHERE id = $1 AND tenant_id = $2 RETURNING *`,
+      `UPDATE "Package" SET ${updates.join(', ')} WHERE record_id = $1 AND tenant_id = $2 RETURNING *`,
       values
     );
 
@@ -3999,7 +3999,7 @@ async function handleDeletePackage(tenantId, packageId) {
     await getPoolAsync();
 
     const result = await query(
-      `DELETE FROM "Package" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      `DELETE FROM "Package" WHERE record_id = $1 AND tenant_id = $2 RETURNING record_id`,
       [packageId, tenantId]
     );
 
@@ -4044,7 +4044,7 @@ async function handleUsePackageCredits(tenantId, packageId, body) {
 
     // Get current package
     const pkgResult = await query(
-      `SELECT * FROM "Package" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT * FROM "Package" WHERE record_id = $1 AND tenant_id = $2`,
       [packageId, tenantId]
     );
 
@@ -4085,7 +4085,7 @@ async function handleUsePackageCredits(tenantId, packageId, body) {
 
     // Update package credits
     await query(
-      `UPDATE "Package" SET used_credits = used_credits + $1, updated_at = NOW() WHERE id = $2`,
+      `UPDATE "Package" SET used_credits = used_credits + $1, updated_at = NOW() WHERE record_id = $2`,
       [creditsUsed, packageId]
     );
 
@@ -4130,7 +4130,7 @@ async function handleGetPackageUsage(tenantId, packageId) {
 
     // Verify package belongs to tenant
     const pkgResult = await query(
-      `SELECT id FROM "Package" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT record_id FROM "Package" WHERE record_id = $1 AND tenant_id = $2`,
       [packageId, tenantId]
     );
 
@@ -4149,8 +4149,8 @@ async function handleGetPackageUsage(tenantId, packageId) {
          b.check_out as booking_check_out,
          p.name as pet_name
        FROM "PackageUsage" pu
-       LEFT JOIN "Booking" b ON pu.booking_id = b.id
-       LEFT JOIN "Pet" p ON b.pet_id = p.id
+       LEFT JOIN "Booking" b ON b.tenant_id = pu.tenant_id AND b.record_id = pu.booking_id
+       LEFT JOIN "Pet" p ON p.tenant_id = b.tenant_id AND p.record_id = b.pet_id
        WHERE pu.package_id = $1
        ORDER BY pu.used_at DESC`,
       [packageId]
@@ -4220,8 +4220,8 @@ async function handleGetCommissionRates(tenantId, queryParams) {
          s.last_name as staff_last_name,
          svc.name as service_name
        FROM "CommissionRate" cr
-       LEFT JOIN "Staff" s ON cr.staff_id = s.id
-       LEFT JOIN "Service" svc ON cr.service_id = svc.id
+       LEFT JOIN "Staff" s ON s.tenant_id = cr.tenant_id AND s.record_id = cr.staff_id
+       LEFT JOIN "Service" svc ON svc.tenant_id = cr.tenant_id AND svc.record_id = cr.service_id
        WHERE ${whereClause}
        ORDER BY cr.created_at DESC`,
       params
@@ -4337,9 +4337,9 @@ async function handleGetCommissionRate(tenantId, rateId) {
     const result = await query(
       `SELECT cr.*, s.first_name as staff_first_name, s.last_name as staff_last_name, svc.name as service_name
        FROM "CommissionRate" cr
-       LEFT JOIN "Staff" s ON cr.staff_id = s.id
-       LEFT JOIN "Service" svc ON cr.service_id = svc.id
-       WHERE cr.id = $1 AND cr.tenant_id = $2`,
+       LEFT JOIN "Staff" s ON s.tenant_id = cr.tenant_id AND s.record_id = cr.staff_id
+       LEFT JOIN "Service" svc ON svc.tenant_id = cr.tenant_id AND svc.record_id = cr.service_id
+       WHERE cr.record_id = $1 AND cr.tenant_id = $2`,
       [rateId, tenantId]
     );
 
@@ -4425,7 +4425,7 @@ async function handleUpdateCommissionRate(tenantId, rateId, body) {
     const result = await query(
       `UPDATE "CommissionRate"
        SET ${updates.join(', ')}
-       WHERE id = $1 AND tenant_id = $2
+       WHERE record_id = $1 AND tenant_id = $2
        RETURNING *`,
       values
     );
@@ -4462,8 +4462,8 @@ async function handleDeleteCommissionRate(tenantId, rateId) {
     const result = await query(
       `UPDATE "CommissionRate"
        SET is_active = false, updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2
-       RETURNING id`,
+       WHERE record_id = $1 AND tenant_id = $2
+       RETURNING record_id`,
       [rateId, tenantId]
     );
 
@@ -4530,9 +4530,9 @@ async function handleGetCommissions(tenantId, queryParams) {
          b.end_date as booking_end_date,
          svc.name as service_name
        FROM "CommissionLedger" cl
-       LEFT JOIN "Staff" s ON cl.staff_id = s.id
-       LEFT JOIN "Booking" b ON cl.booking_id = b.id
-       LEFT JOIN "Service" svc ON cl.service_id = svc.id
+       LEFT JOIN "Staff" s ON s.tenant_id = cl.tenant_id AND s.record_id = cl.staff_id
+       LEFT JOIN "Booking" b ON b.tenant_id = cl.tenant_id AND b.record_id = cl.booking_id
+       LEFT JOIN "Service" svc ON svc.tenant_id = cl.tenant_id AND svc.record_id = cl.service_id
        WHERE ${whereClause}
        ORDER BY cl.created_at DESC
        LIMIT $${params.length}`,
@@ -4595,9 +4595,9 @@ async function handleGetCommission(tenantId, commissionId) {
     const result = await query(
       `SELECT cl.*, s.first_name as staff_first_name, s.last_name as staff_last_name, svc.name as service_name
        FROM "CommissionLedger" cl
-       LEFT JOIN "Staff" s ON cl.staff_id = s.id
-       LEFT JOIN "Service" svc ON cl.service_id = svc.id
-       WHERE cl.id = $1 AND cl.tenant_id = $2`,
+       LEFT JOIN "Staff" s ON s.tenant_id = cl.tenant_id AND s.record_id = cl.staff_id
+       LEFT JOIN "Service" svc ON svc.tenant_id = cl.tenant_id AND svc.record_id = cl.service_id
+       WHERE cl.record_id = $1 AND cl.tenant_id = $2`,
       [commissionId, tenantId]
     );
 
@@ -4672,7 +4672,7 @@ async function handleUpdateCommission(tenantId, commissionId, body) {
     const result = await query(
       `UPDATE "CommissionLedger"
        SET ${updates.join(', ')}
-       WHERE id = $1 AND tenant_id = $2
+       WHERE record_id = $1 AND tenant_id = $2
        RETURNING *`,
       values
     );
@@ -4709,7 +4709,7 @@ async function handleApproveCommission(tenantId, commissionId, user) {
     const result = await query(
       `UPDATE "CommissionLedger"
        SET status = 'approved', approved_by = $3, approved_at = NOW(), updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND status = 'pending'
+       WHERE record_id = $1 AND tenant_id = $2 AND status = 'pending'
        RETURNING *`,
       [commissionId, tenantId, user.id]
     );
@@ -4748,7 +4748,7 @@ async function handleMarkCommissionPaid(tenantId, commissionId, body) {
     const result = await query(
       `UPDATE "CommissionLedger"
        SET status = 'paid', paid_at = NOW(), payment_reference = $3, updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND status = 'approved'
+       WHERE record_id = $1 AND tenant_id = $2 AND status = 'approved'
        RETURNING *`,
       [commissionId, tenantId, paymentReference || null]
     );
@@ -4819,7 +4819,7 @@ async function handleGetStaffCommissionSummary(tenantId, staffId, queryParams) {
     const recentResult = await query(
       `SELECT cl.*, svc.name as service_name
        FROM "CommissionLedger" cl
-       LEFT JOIN "Service" svc ON cl.service_id = svc.id
+       LEFT JOIN "Service" svc ON svc.tenant_id = cl.tenant_id AND svc.record_id = cl.service_id
        WHERE cl.tenant_id = $1 AND cl.staff_id = $2
        ORDER BY cl.created_at DESC
        LIMIT 10`,
