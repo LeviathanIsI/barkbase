@@ -194,9 +194,10 @@ async function handleGetMe(event) {
     await getPoolAsync();
     console.log('[AUTH-API] Fetching user from DB for cognito_sub:', user.id);
     // NEW SCHEMA: No role column on User - fetch from UserRole junction
+    // Uses (tenant_id, record_id) composite key
     const result = await query(
       `SELECT
-         u.id,
+         u.record_id,
          u.email,
          u.first_name,
          u.last_name,
@@ -205,8 +206,8 @@ async function handleGetMe(event) {
          u.updated_at,
          COALESCE(
            (SELECT array_agg(r.name) FROM "UserRole" ur
-            JOIN "Role" r ON ur.role_id = r.id
-            WHERE ur.user_id = u.id),
+            JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
+            WHERE ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id),
            ARRAY[]::VARCHAR[]
          ) as roles
        FROM "User" u
@@ -216,7 +217,7 @@ async function handleGetMe(event) {
     );
     dbUser = result.rows[0] || null;
     if (dbUser) {
-      console.log('[AUTH-API] Found user in DB:', { id: dbUser.id, email: dbUser.email, roles: dbUser.roles });
+      console.log('[AUTH-API] Found user in DB:', { record_id: dbUser.record_id, email: dbUser.email, roles: dbUser.roles });
     } else {
       console.log('[AUTH-API] User not found in DB for cognito_sub:', user.id);
     }
@@ -232,7 +233,7 @@ async function handleGetMe(event) {
   return createResponse(200, {
     user: {
       id: user.id,
-      recordId: dbUser?.id || null,
+      recordId: dbUser?.record_id || null,
       email: user.email,
       firstName: dbUser?.first_name,
       lastName: dbUser?.last_name,
@@ -290,12 +291,12 @@ async function handleLogin(event) {
       console.log('[AUTH-API] Fetching user from DB:', { cognito_sub: payload.sub, email: payload.email });
 
       // NEW SCHEMA: Fetch user with roles from UserRole junction table
-      // No role column on User table anymore
+      // No role column on User table anymore - uses (tenant_id, record_id) composite key
       let result = await query(
         `UPDATE "User"
          SET last_login_at = NOW(), updated_at = NOW()
          WHERE cognito_sub = $1
-         RETURNING id, email, first_name, last_name, tenant_id`,
+         RETURNING record_id, email, first_name, last_name, tenant_id`,
         [payload.sub]
       );
 
@@ -307,7 +308,7 @@ async function handleLogin(event) {
           `UPDATE "User"
            SET cognito_sub = $1, last_login_at = NOW(), updated_at = NOW()
            WHERE email = $2 AND (cognito_sub IS NULL OR cognito_sub = 'PENDING')
-           RETURNING id, email, first_name, last_name, tenant_id`,
+           RETURNING record_id, email, first_name, last_name, tenant_id`,
           [payload.sub, payload.email]
         );
         if (result.rows.length > 0) {
@@ -319,16 +320,17 @@ async function handleLogin(event) {
         dbUser = result.rows[0];
 
         // Fetch roles separately from UserRole junction
+        // NEW SCHEMA: Join on (tenant_id, record_id) composite key
         const rolesResult = await query(
           `SELECT r.name FROM "UserRole" ur
-           JOIN "Role" r ON ur.role_id = r.id
-           WHERE ur.user_id = $1`,
-          [dbUser.id]
+           JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
+           WHERE ur.tenant_id = $1 AND ur.user_id = $2`,
+          [dbUser.tenant_id, dbUser.record_id]
         );
         dbUser.roles = rolesResult.rows.map(r => r.name);
 
         console.log('[AUTH-API] User found:', {
-          id: dbUser.id,
+          record_id: dbUser.record_id,
           email: dbUser.email,
           tenantId: dbUser.tenant_id,
           roles: dbUser.roles
@@ -345,13 +347,13 @@ async function handleLogin(event) {
     // Create or update session for auto-logout enforcement
     let session = null;
     console.log('[AUTH-API] Session check - dbUser:', {
-      hasId: !!dbUser?.id,
+      hasRecordId: !!dbUser?.record_id,
       hasTenantId: !!dbUser?.tenant_id,
-      userId: dbUser?.id,
+      userRecordId: dbUser?.record_id,
       tenantId: dbUser?.tenant_id
     });
 
-    if (dbUser?.id && dbUser?.tenant_id) {
+    if (dbUser?.record_id && dbUser?.tenant_id) {
       try {
         const crypto = require('crypto');
         const sessionToken = crypto.randomBytes(32).toString('hex');
@@ -364,21 +366,21 @@ async function handleLogin(event) {
                          'Unknown';
 
         console.log('[AUTH-API] Creating session for user:', {
-          userId: dbUser.id,
+          userRecordId: dbUser.record_id,
           tenantId: dbUser.tenant_id,
           cognitoSub: payload.sub
         });
 
-        // NEW SCHEMA: Deactivate sessions by user_id (not cognito_sub)
+        // NEW SCHEMA: Deactivate sessions by tenant_id + user_id (record_id)
         await query(
           `UPDATE "UserSession"
            SET is_active = false, logged_out_at = NOW()
-           WHERE user_id = $1 AND is_active = true`,
-          [dbUser.id]
+           WHERE tenant_id = $1 AND user_id = $2 AND is_active = true`,
+          [dbUser.tenant_id, dbUser.record_id]
         );
 
         // NEW SCHEMA: Create new active session
-        // - No cognito_sub column
+        // - user_id is the user's record_id
         // - Column names: session_start, last_activity (not *_time)
         const sessionRecordId = await getNextRecordId(dbUser.tenant_id, 'UserSession');
         const sessionResult = await query(
@@ -388,13 +390,13 @@ async function handleLogin(event) {
             ip_address, user_agent, is_active
           )
           VALUES ($1, $2, $3, $4, NOW(), NOW(), $5, $6, true)
-          RETURNING id, session_start, session_token`,
-          [dbUser.tenant_id, sessionRecordId, dbUser.id, sessionToken, sourceIp, userAgent]
+          RETURNING record_id, session_start, session_token`,
+          [dbUser.tenant_id, sessionRecordId, dbUser.record_id, sessionToken, sourceIp, userAgent]
         );
 
         session = sessionResult.rows[0];
         console.log('[AUTH-API] Session created:', {
-          sessionId: session.id,
+          sessionRecordId: session.record_id,
           startTime: session.session_start
         });
       } catch (sessionError) {
@@ -405,7 +407,7 @@ async function handleLogin(event) {
     } else {
       console.warn('[AUTH-API] Skipping session creation - missing user or tenant:', {
         hasUser: !!dbUser,
-        hasId: !!dbUser?.id,
+        hasRecordId: !!dbUser?.record_id,
         hasTenantId: !!dbUser?.tenant_id
       });
     }
