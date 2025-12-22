@@ -2162,7 +2162,7 @@ async function handleGetSegments(tenantId) {
     // Query segments with member counts and 7-day change calculated on-the-fly from snapshots
     const result = await query(
       `SELECT
-         s.id,
+         s.record_id,
          s.name,
          s.description,
          s.criteria,
@@ -2176,15 +2176,8 @@ async function handleGetSegments(tenantId) {
          s.seven_day_change,
          s.created_at,
          s.updated_at,
-         COALESCE(s.member_count, (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm.segment_id = s.id)) as computed_member_count,
-         (
-           SELECT snapshot.member_count
-           FROM "SegmentSnapshot" snapshot
-           WHERE snapshot.segment_id = s.id
-             AND snapshot.snapshot_date <= CURRENT_DATE - INTERVAL '7 days'
-           ORDER BY snapshot.snapshot_date DESC
-           LIMIT 1
-         ) as snapshot_7d_ago
+         COALESCE(s.member_count, (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm.segment_id = s.record_id)) as computed_member_count,
+         NULL as snapshot_7d_ago
        FROM "Segment" s
        WHERE s.tenant_id = $1
        ORDER BY s.updated_at DESC NULLS LAST, s.name ASC`,
@@ -2201,8 +2194,8 @@ async function handleGetSegments(tenantId) {
       const calculatedChange = currentCount - oldCount;
 
       return {
-        id: row.id,
-        recordId: row.id,
+        id: row.record_id,
+        recordId: row.record_id,
         name: row.name,
         description: row.description,
         criteria: row.criteria || {},
@@ -2248,10 +2241,10 @@ async function handleGetSegments(tenantId) {
       try {
         const fallbackResult = await query(
           `SELECT
-             s.id, s.name, s.description, s.criteria, s.filters, s.object_type, s.segment_type,
+             s.record_id, s.name, s.description, s.criteria, s.filters, s.object_type, s.segment_type,
              s.is_automatic, s.is_active, s.member_count, s.percent_of_total, s.seven_day_change,
              s.created_at, s.updated_at,
-             COALESCE(s.member_count, (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm.segment_id = s.id)) as computed_member_count
+             COALESCE(s.member_count, (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm.segment_id = s.record_id)) as computed_member_count
            FROM "Segment" s WHERE s.tenant_id = $1
            ORDER BY s.updated_at DESC NULLS LAST, s.name ASC`,
           [tenantId]
@@ -2260,7 +2253,7 @@ async function handleGetSegments(tenantId) {
         const segments = fallbackResult.rows.map(row => {
           const currentCount = parseInt(row.computed_member_count || row.member_count || 0);
           return {
-            id: row.id, recordId: row.id, name: row.name, description: row.description,
+            id: row.record_id, recordId: row.record_id, name: row.name, description: row.description,
             criteria: row.criteria || {}, filters: row.filters || { groups: [], groupLogic: 'OR' },
             object_type: row.object_type || 'owners', objectType: row.object_type || 'owners',
             segment_type: row.segment_type || 'active', segmentType: row.segment_type || 'active',
@@ -2283,8 +2276,8 @@ async function handleGetSegments(tenantId) {
       }
     }
 
-    // Handle missing Segment table gracefully
-    if (error.message?.includes('does not exist') || error.code === '42P01') {
+    // Handle missing Segment table gracefully - but only for actual table missing errors
+    if (error.code === '42P01') {
       console.log('[ANALYTICS-SERVICE] Segment table not found, returning empty list');
       return createResponse(200, {
         data: [],
@@ -3307,7 +3300,7 @@ async function handleUpdateSegment(tenantId, segmentId, body, userId = null) {
     updates.push('updated_at = NOW()');
 
     await query(
-      `UPDATE "Segment" SET ${updates.join(', ')} WHERE id = $1`,
+      `UPDATE "Segment" SET ${updates.join(', ')} WHERE record_id = $1 AND tenant_id = '${tenantId}'`,
       values
     );
 
@@ -3474,7 +3467,7 @@ async function handleConvertSegment(tenantId, segmentId, body) {
     await getPoolAsync();
 
     await query(
-      `UPDATE "Segment" SET segment_type = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3`,
+      `UPDATE "Segment" SET segment_type = $1, updated_at = NOW() WHERE record_id = $2 AND tenant_id = $3`,
       [targetType, segmentId, tenantId]
     );
 
@@ -3645,7 +3638,7 @@ async function handleRefreshSegment(tenantId, segmentId) {
     await query(
       `UPDATE "Segment"
        SET member_count = $1, percent_of_total = $2, seven_day_change = $3, updated_at = NOW()
-       WHERE id = $4 AND tenant_id = $5`,
+       WHERE record_id = $4 AND tenant_id = $5`,
       [count, percentOfTotal, sevenDayChange, segmentId, tenantId]
     );
 
@@ -4061,7 +4054,7 @@ async function handleMarkConversationRead(tenantId, conversationId) {
     await query(
       `UPDATE "Conversation"
        SET unread_count = 0, updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2`,
+       WHERE record_id = $1 AND tenant_id = $2`,
       [conversationId, tenantId]
     );
 
