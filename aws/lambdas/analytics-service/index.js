@@ -329,7 +329,7 @@ exports.handler = async (event, context) => {
     // Report Field Definitions - GET available fields per data source
     if (path === '/api/v1/analytics/reports/fields' || path === '/analytics/reports/fields') {
       if (method === 'GET') {
-        return handleGetReportFields(queryParams);
+        return handleGetReportFields(tenantId, queryParams);
       }
     }
 
@@ -1866,76 +1866,127 @@ async function handleCustomReportQuery(tenantId, body) {
   }
 }
 
+// Map data source names to entity_type values in SystemProperty/Property tables
+const DATA_SOURCE_TO_ENTITY = {
+  owners: 'owner',
+  pets: 'pet',
+  bookings: 'booking',
+  services: 'service',
+  payments: 'payment',
+  staff: 'staff',
+  invoices: 'invoice',
+};
+
+// Computed date fields - these are SQL transformations, not real columns
+const COMPUTED_DATE_FIELDS = [
+  { key: 'day_of_week', label: 'Day of Week', compute: "TO_CHAR({column}, 'Day')" },
+  { key: 'month', label: 'Month', compute: "TO_CHAR({column}, 'Mon YYYY')" },
+  { key: 'quarter', label: 'Quarter', compute: "'Q' || EXTRACT(QUARTER FROM {column}) || ' ' || EXTRACT(YEAR FROM {column})" },
+  { key: 'year', label: 'Year', compute: 'EXTRACT(YEAR FROM {column})' },
+];
+
+// Field types that should be measures (aggregatable)
+const MEASURE_FIELD_TYPES = ['number', 'currency'];
+
 /**
  * Get report field definitions
- * Returns available dimensions and measures for the custom report builder
+ * Dynamically reads from SystemProperty + Property tables
  */
-async function handleGetReportFields(queryParams) {
+async function handleGetReportFields(tenantId, queryParams) {
   try {
+    await getPoolAsync();
     const { dataSource } = queryParams;
 
-    // First try to get from database (ReportFieldDefinition table)
-    try {
-      await getPoolAsync();
+    const result = {};
+    const sources = dataSource ? [dataSource] : Object.keys(DATA_SOURCE_TO_ENTITY);
 
-      let sql = `
-        SELECT
-          data_source,
-          field_key,
-          field_label,
-          field_type,
-          data_type,
-          field_group,
-          default_aggregation,
-          format_pattern,
-          is_computed,
-          display_order
-        FROM "ReportFieldDefinition"
-        WHERE is_active = true
-      `;
-      const params = [];
+    for (const source of sources) {
+      const entityType = DATA_SOURCE_TO_ENTITY[source];
+      if (!entityType) continue;
 
-      if (dataSource) {
-        sql += ' AND data_source = $1';
-        params.push(dataSource);
+      result[source] = { dimensions: [], measures: [] };
+
+      // 1. Get system properties for this entity type
+      const systemProps = await query(
+        `SELECT name, label, field_type, property_group, sort_order
+         FROM "SystemProperty"
+         WHERE entity_type = $1
+         ORDER BY sort_order, label`,
+        [entityType]
+      );
+
+      // 2. Get custom tenant properties for this entity type
+      let customProps = { rows: [] };
+      if (tenantId) {
+        try {
+          customProps = await query(
+            `SELECT name, label, field_type, property_group, sort_order
+             FROM "Property"
+             WHERE tenant_id = $1 AND entity_type = $2 AND is_active = true
+             ORDER BY sort_order, label`,
+            [tenantId, entityType]
+          );
+        } catch {
+          // Property table might not exist
+        }
       }
 
-      sql += ' ORDER BY data_source, display_order, field_label';
+      // Combine all properties
+      const allProps = [...systemProps.rows, ...customProps.rows];
 
-      const result = await query(sql, params);
+      for (const prop of allProps) {
+        const field = {
+          key: prop.name,
+          label: prop.label,
+          dataType: prop.field_type,
+          group: prop.property_group || 'Properties',
+        };
 
-      if (result.rows.length > 0) {
-        // Group by data source
-        const grouped = result.rows.reduce((acc, row) => {
-          if (!acc[row.data_source]) {
-            acc[row.data_source] = { dimensions: [], measures: [] };
+        if (MEASURE_FIELD_TYPES.includes(prop.field_type)) {
+          // Measures - aggregatable fields
+          field.defaultAggregation = prop.field_type === 'currency' ? 'SUM' : 'AVG';
+          result[source].measures.push(field);
+        } else {
+          // Dimensions - group by fields
+          result[source].dimensions.push(field);
+
+          // Add computed date fields for date/datetime columns
+          if (prop.field_type === 'date' || prop.field_type === 'datetime') {
+            for (const computed of COMPUTED_DATE_FIELDS) {
+              result[source].dimensions.push({
+                key: `${prop.name}_${computed.key}`,
+                label: `${prop.label} (${computed.label})`,
+                dataType: 'string',
+                group: 'Date Properties',
+                isComputed: true,
+                sourceColumn: prop.name,
+                computeExpression: computed.compute.replace('{column}', prop.name),
+              });
+            }
           }
-          const field = {
-            key: row.field_key,
-            label: row.field_label,
-            dataType: row.data_type,
-            group: row.field_group,
-            formatPattern: row.format_pattern,
-          };
-          if (row.field_type === 'dimension') {
-            acc[row.data_source].dimensions.push(field);
-          } else {
-            field.defaultAggregation = row.default_aggregation;
-            acc[row.data_source].measures.push(field);
-          }
-          return acc;
-        }, {});
-
-        return createResponse(200, {
-          data: grouped,
-          message: 'Report fields retrieved successfully',
-        });
+        }
       }
-    } catch (dbError) {
-      console.log('[ANALYTICS-SERVICE] ReportFieldDefinition table not found, using DATA_SOURCE_CONFIG');
+
+      // 3. Add standard count measure
+      result[source].measures.unshift({
+        key: 'count',
+        label: 'Record Count',
+        dataType: 'number',
+        group: 'Metrics',
+        defaultAggregation: 'COUNT',
+      });
     }
 
-    // Fallback to DATA_SOURCE_CONFIG if table doesn't exist or is empty
+    return createResponse(200, {
+      data: result,
+      message: 'Report fields retrieved successfully',
+    });
+
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Get report fields failed:', error.message);
+
+    // Fallback to DATA_SOURCE_CONFIG if properties system fails
+    const { dataSource } = queryParams;
     const result = {};
     const sources = dataSource ? [dataSource] : Object.keys(DATA_SOURCE_CONFIG);
 
@@ -1962,14 +2013,7 @@ async function handleGetReportFields(queryParams) {
 
     return createResponse(200, {
       data: result,
-      message: 'Report fields retrieved successfully (from config)',
-    });
-
-  } catch (error) {
-    console.error('[ANALYTICS-SERVICE] Get report fields failed:', error.message);
-    return createResponse(500, {
-      error: 'Internal Server Error',
-      message: 'Failed to get report fields',
+      message: 'Report fields retrieved (fallback to config)',
     });
   }
 }
