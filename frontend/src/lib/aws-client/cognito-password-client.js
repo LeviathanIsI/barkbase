@@ -49,6 +49,18 @@ export class CognitoPasswordClient {
         needsVerification: true,
         email: email,
         message: registerData.message || 'Please check your email to verify your account',
+        user: registerData.user ? {
+          id: registerData.user.id,
+          recordId: registerData.user.recordId,
+          email: email,
+          emailVerified: false,
+          firstName: registerData.user.firstName,
+          lastName: registerData.user.lastName,
+          role: registerData.user.role || 'OWNER',
+          roles: registerData.user.roles || ['OWNER'],
+          tenantId: registerData.user.tenantId,
+        } : null,
+        tenant: registerData.tenant || null,
       };
     }
 
