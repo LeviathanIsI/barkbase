@@ -1392,7 +1392,7 @@ async function handleDisconnectEmail(event) {
  * Helper to create redirect response
  */
 function createRedirectResponse(path) {
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   const redirectUrl = path.startsWith('http') ? path : `${frontendUrl}${path}`;
 
   return {
