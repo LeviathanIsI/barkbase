@@ -851,8 +851,8 @@ async function getPets(event) {
 
     // Filter by owner via PetOwner junction table
     if (ownerId) {
-      joinClause = 'INNER JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id';
-      whereClause += ` AND po.owner_id = $${paramIndex}`;
+      joinClause = 'INNER JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_record_id = p.record_id';
+      whereClause += ` AND po.owner_record_id = $${paramIndex}`;
       params.push(ownerId);
       paramIndex++;
     }
@@ -893,8 +893,8 @@ async function getPets(event) {
               primary_owner.phone AS owner_phone
        FROM "Pet" p
        LEFT JOIN "Veterinarian" v ON v.tenant_id = p.tenant_id AND v.record_id = p.vet_id
-       LEFT JOIN "PetOwner" primary_po ON primary_po.tenant_id = p.tenant_id AND primary_po.pet_id = p.record_id AND primary_po.is_primary = true
-       LEFT JOIN "Owner" primary_owner ON primary_owner.tenant_id = p.tenant_id AND primary_owner.record_id = primary_po.owner_id
+       LEFT JOIN "PetOwner" primary_po ON primary_po.tenant_id = p.tenant_id AND primary_po.pet_record_id = p.record_id AND primary_po.is_primary = true
+       LEFT JOIN "Owner" primary_owner ON primary_owner.tenant_id = p.tenant_id AND primary_owner.record_id = primary_po.owner_record_id
        ${joinClause}
        WHERE ${whereClause}
        ORDER BY p.name
@@ -1301,7 +1301,7 @@ async function deletePet(event) {
     console.log('[Pets][delete] Deleted vaccinations for pet:', id);
 
     // Delete PetOwner junction records
-    await query(`DELETE FROM "PetOwner" WHERE pet_id = $1 AND tenant_id = $2`, [id, tenantId]);
+    await query(`DELETE FROM "PetOwner" WHERE pet_record_id = $1 AND tenant_id = $2`, [id, tenantId]);
     console.log('[Pets][delete] Deleted PetOwner records for pet:', id);
 
     // Delete the pet
@@ -1734,8 +1734,8 @@ async function exportOwnerData(event) {
     // Get all pets via PetOwner junction table (Pet has NO owner_id column)
     const petsResult = await query(
       `SELECT p.* FROM "Pet" p
-       JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id
-       WHERE po.owner_id = $1 AND p.tenant_id = $2`,
+       JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_record_id = p.record_id
+       WHERE po.owner_record_id = $1 AND p.tenant_id = $2`,
       [ownerId, tenantId]
     );
 
@@ -1912,8 +1912,8 @@ async function deleteOwnerData(event) {
     // Get all pet IDs for this owner via PetOwner junction table
     const petsResult = await query(
       `SELECT p.record_id FROM "Pet" p
-       JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id
-       WHERE po.owner_id = $1 AND p.tenant_id = $2`,
+       JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_record_id = p.record_id
+       WHERE po.owner_record_id = $1 AND p.tenant_id = $2`,
       [ownerId, tenantId]
     );
     const petIds = petsResult.rows.map(p => p.record_id);
@@ -2024,8 +2024,8 @@ async function deleteOwnerData(event) {
     // Delete PetOwner relationships (hard delete junction table - no archive needed)
     try {
       await query(
-        `DELETE FROM "PetOwner" WHERE owner_id = $1`,
-        [ownerId]
+        `DELETE FROM "PetOwner" WHERE owner_record_id = $1 AND tenant_id = $2`,
+        [ownerId, tenantId]
       );
     } catch (e) {
       console.log('[ENTITY-SERVICE] PetOwner delete skipped:', e.message);
@@ -2375,8 +2375,8 @@ async function getExpiringVaccinations(event) {
          o.phone as owner_phone
        FROM "Vaccination" v
        JOIN "Pet" p ON p.tenant_id = v.tenant_id AND p.record_id = v.pet_id
-       LEFT JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id AND po.is_primary = true
-       LEFT JOIN "Owner" o ON o.tenant_id = p.tenant_id AND o.record_id = po.owner_id
+       LEFT JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_record_id = p.record_id AND po.is_primary = true
+       LEFT JOIN "Owner" o ON o.tenant_id = p.tenant_id AND o.record_id = po.owner_record_id
        WHERE v.tenant_id = $1
        ORDER BY v.expires_at ASC NULLS LAST`,
       [tenantId]
