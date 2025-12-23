@@ -1,0 +1,517 @@
+/**
+ * EditableProperty - Inline editable property component
+ * Click to edit, save on blur/Enter, with loading and error states
+ */
+
+import { useState, useRef, useEffect } from 'react';
+import { Check, X, Loader2, Pencil } from 'lucide-react';
+import Select from 'react-select';
+import { cn } from '@/lib/utils';
+
+// Styled select for dark theme
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: state.isFocused ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+    borderRadius: '0.375rem',
+    minHeight: '32px',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
+    '&:hover': { borderColor: 'var(--bb-color-border-subtle)' },
+  }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    border: '1px solid var(--bb-color-border-subtle)',
+    borderRadius: '0.375rem',
+    zIndex: 9999,
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected ? 'var(--bb-color-accent)' : state.isFocused ? 'var(--bb-color-bg-muted)' : 'transparent',
+    color: state.isSelected ? 'white' : 'var(--bb-color-text-primary)',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    padding: '6px 12px',
+  }),
+  singleValue: (base) => ({ ...base, color: 'var(--bb-color-text-primary)', fontSize: '0.875rem' }),
+  input: (base) => ({ ...base, color: 'var(--bb-color-text-primary)', fontSize: '0.875rem' }),
+  placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)', fontSize: '0.875rem' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)', padding: '4px' }),
+};
+
+// Format date for display (handles invalid dates)
+const formatDateDisplay = (value) => {
+  if (!value || value === 'Invalid Date') return '—';
+  try {
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return '—';
+  }
+};
+
+// Format date for input (YYYY-MM-DD)
+const formatDateInput = (value) => {
+  if (!value || value === 'Invalid Date') return '';
+  try {
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return '';
+    return date.toISOString().split('T')[0];
+  } catch {
+    return '';
+  }
+};
+
+// Format boolean for display
+const formatBooleanDisplay = (value) => {
+  if (value === true || value === 'true' || value === 'Yes') return 'Yes';
+  if (value === false || value === 'false' || value === 'No') return 'No';
+  return '—';
+};
+
+// Format phone for display
+const formatPhoneDisplay = (value) => {
+  if (!value) return '—';
+  // Basic US phone formatting
+  const cleaned = String(value).replace(/\D/g, '');
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+  }
+  return value;
+};
+
+// Format currency for display
+const formatCurrencyDisplay = (value) => {
+  if (value === null || value === undefined || value === '') return '—';
+  const num = parseFloat(value);
+  if (isNaN(num)) return '—';
+  return `$${num.toFixed(2)}`;
+};
+
+/**
+ * EditableProperty Component
+ *
+ * @param {Object} property - Property config { name, label, type, value, options?, required? }
+ * @param {Function} onSave - Async function to save new value
+ * @param {string} fieldKey - The API field key to update
+ * @param {boolean} disabled - Disable editing
+ */
+export function EditableProperty({
+  property,
+  onSave,
+  fieldKey,
+  disabled = false,
+}) {
+  const { label, type = 'text', value, options = [], required = false, suffix = '' } = property;
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const inputRef = useRef(null);
+
+  // Reset edit value when prop changes
+  useEffect(() => {
+    setEditValue(value);
+  }, [value]);
+
+  // Focus input when entering edit mode
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      // Select text for text inputs
+      if (inputRef.current.select && type !== 'date' && type !== 'datetime') {
+        inputRef.current.select();
+      }
+    }
+  }, [isEditing, type]);
+
+  const handleStartEdit = () => {
+    if (disabled || saving) return;
+    setIsEditing(true);
+    setError(null);
+    // For dates, convert to input format
+    if (type === 'date' || type === 'datetime') {
+      setEditValue(formatDateInput(value));
+    } else {
+      setEditValue(value ?? '');
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditValue(value);
+    setError(null);
+  };
+
+  const handleSave = async () => {
+    if (saving) return;
+
+    // Validate required
+    if (required && !editValue && editValue !== false && editValue !== 0) {
+      setError('This field is required');
+      return;
+    }
+
+    // Don't save if unchanged
+    const normalizedEdit = editValue === '' ? null : editValue;
+    const normalizedValue = value === '' ? null : value;
+    if (normalizedEdit === normalizedValue) {
+      setIsEditing(false);
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      await onSave(fieldKey, normalizedEdit);
+      setIsEditing(false);
+    } catch (err) {
+      setError(err.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && type !== 'textarea') {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === 'Escape') {
+      handleCancel();
+    }
+  };
+
+  const handleBlur = (e) => {
+    // Don't blur if clicking within the component
+    if (e.relatedTarget?.closest('[data-editable-property]')) return;
+    handleSave();
+  };
+
+  // Get display value
+  const getDisplayValue = () => {
+    if (value === null || value === undefined || value === '' || value === 'Invalid Date') {
+      return '—';
+    }
+
+    switch (type) {
+      case 'date':
+      case 'datetime':
+        return formatDateDisplay(value);
+      case 'boolean':
+        return formatBooleanDisplay(value);
+      case 'phone':
+        return formatPhoneDisplay(value);
+      case 'currency':
+        return formatCurrencyDisplay(value);
+      case 'single-select':
+        // Find label from options if exists
+        const opt = options.find(o => (typeof o === 'object' ? o.value : o) === value);
+        return opt ? (typeof opt === 'object' ? opt.label : opt) : value;
+      default:
+        return String(value) + suffix;
+    }
+  };
+
+  // Render the appropriate input control
+  const renderInput = () => {
+    const baseInputClass = cn(
+      'w-full px-2 py-1 text-sm rounded border transition-colors',
+      'bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)]',
+      'border-[color:var(--bb-color-border-subtle)]',
+      'focus:outline-none focus:ring-1 focus:ring-[color:var(--bb-color-accent)] focus:border-[color:var(--bb-color-accent)]',
+      error && 'border-red-500 focus:ring-red-500'
+    );
+
+    switch (type) {
+      case 'textarea':
+        return (
+          <textarea
+            ref={inputRef}
+            value={editValue ?? ''}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            className={cn(baseInputClass, 'min-h-[60px] resize-y')}
+            disabled={saving}
+            data-editable-property
+          />
+        );
+
+      case 'number':
+      case 'currency':
+        return (
+          <input
+            ref={inputRef}
+            type="number"
+            step={type === 'currency' ? '0.01' : 'any'}
+            value={editValue ?? ''}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            className={baseInputClass}
+            disabled={saving}
+            data-editable-property
+          />
+        );
+
+      case 'date':
+        return (
+          <input
+            ref={inputRef}
+            type="date"
+            value={editValue ?? ''}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            className={baseInputClass}
+            disabled={saving}
+            data-editable-property
+          />
+        );
+
+      case 'datetime':
+        return (
+          <input
+            ref={inputRef}
+            type="datetime-local"
+            value={editValue ?? ''}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            className={baseInputClass}
+            disabled={saving}
+            data-editable-property
+          />
+        );
+
+      case 'boolean':
+        return (
+          <div className="flex gap-2" data-editable-property>
+            <button
+              type="button"
+              onClick={() => { setEditValue(true); }}
+              className={cn(
+                'px-3 py-1 text-sm rounded border transition-colors',
+                editValue === true
+                  ? 'bg-[color:var(--bb-color-accent)] text-white border-[color:var(--bb-color-accent)]'
+                  : 'bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)] border-[color:var(--bb-color-border-subtle)]'
+              )}
+              disabled={saving}
+            >
+              Yes
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEditValue(false); }}
+              className={cn(
+                'px-3 py-1 text-sm rounded border transition-colors',
+                editValue === false
+                  ? 'bg-[color:var(--bb-color-accent)] text-white border-[color:var(--bb-color-accent)]'
+                  : 'bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)] border-[color:var(--bb-color-border-subtle)]'
+              )}
+              disabled={saving}
+            >
+              No
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="p-1 text-green-500 hover:text-green-400"
+              disabled={saving}
+            >
+              <Check className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="p-1 text-red-500 hover:text-red-400"
+              disabled={saving}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        );
+
+      case 'single-select':
+        const selectOptions = options.map(opt =>
+          typeof opt === 'object' ? opt : { value: opt, label: opt }
+        );
+        return (
+          <div data-editable-property>
+            <Select
+              value={selectOptions.find(o => o.value === editValue) || null}
+              onChange={(opt) => {
+                setEditValue(opt?.value ?? null);
+                // Auto-save on select
+                setTimeout(async () => {
+                  setSaving(true);
+                  try {
+                    await onSave(fieldKey, opt?.value ?? null);
+                    setIsEditing(false);
+                  } catch (err) {
+                    setError(err.message || 'Failed to save');
+                  } finally {
+                    setSaving(false);
+                  }
+                }, 0);
+              }}
+              options={selectOptions}
+              styles={selectStyles}
+              menuPortalTarget={document.body}
+              isDisabled={saving}
+              isClearable
+              autoFocus
+            />
+          </div>
+        );
+
+      case 'email':
+        return (
+          <input
+            ref={inputRef}
+            type="email"
+            value={editValue ?? ''}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            className={baseInputClass}
+            disabled={saving}
+            data-editable-property
+          />
+        );
+
+      case 'phone':
+        return (
+          <input
+            ref={inputRef}
+            type="tel"
+            value={editValue ?? ''}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            className={baseInputClass}
+            disabled={saving}
+            data-editable-property
+          />
+        );
+
+      case 'url':
+        return (
+          <input
+            ref={inputRef}
+            type="url"
+            value={editValue ?? ''}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            className={baseInputClass}
+            placeholder="https://"
+            disabled={saving}
+            data-editable-property
+          />
+        );
+
+      default: // text, single-line
+        return (
+          <input
+            ref={inputRef}
+            type="text"
+            value={editValue ?? ''}
+            onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            className={baseInputClass}
+            disabled={saving}
+            data-editable-property
+          />
+        );
+    }
+  };
+
+  return (
+    <div className="group" data-editable-property>
+      {/* Label */}
+      <dt
+        className="text-xs font-medium uppercase tracking-wide mb-1"
+        style={{ color: 'var(--bb-color-text-muted)' }}
+      >
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </dt>
+
+      {/* Value / Input */}
+      <dd>
+        {isEditing ? (
+          <div className="relative">
+            {renderInput()}
+            {saving && (
+              <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                <Loader2 className="w-4 h-4 animate-spin text-[color:var(--bb-color-text-muted)]" />
+              </div>
+            )}
+            {error && (
+              <p className="text-xs text-red-500 mt-1">{error}</p>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleStartEdit}
+            disabled={disabled}
+            className={cn(
+              'w-full text-left text-sm font-normal rounded px-1 -mx-1 py-0.5 transition-colors',
+              'hover:bg-[color:var(--bb-color-bg-muted)]',
+              'focus:outline-none focus:ring-1 focus:ring-[color:var(--bb-color-accent)]',
+              disabled && 'cursor-default hover:bg-transparent'
+            )}
+            style={{ color: 'var(--bb-color-text-primary)' }}
+          >
+            <span className="flex items-center justify-between gap-2">
+              <span className={getDisplayValue() === '—' ? 'text-[color:var(--bb-color-text-muted)]' : ''}>
+                {getDisplayValue()}
+              </span>
+              {!disabled && (
+                <Pencil
+                  className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity flex-shrink-0"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                />
+              )}
+            </span>
+          </button>
+        )}
+      </dd>
+    </div>
+  );
+}
+
+/**
+ * EditablePropertyList - Renders a list of editable properties
+ */
+export function EditablePropertyList({
+  properties,
+  onSave,
+  disabled = false,
+  className,
+}) {
+  return (
+    <dl className={cn('space-y-4', className)}>
+      {properties.map((prop) => (
+        <EditableProperty
+          key={prop.fieldKey || prop.label}
+          property={prop}
+          fieldKey={prop.fieldKey}
+          onSave={onSave}
+          disabled={disabled}
+        />
+      ))}
+    </dl>
+  );
+}
+
+export default EditableProperty;

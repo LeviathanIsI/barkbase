@@ -46,9 +46,10 @@ import Badge from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { PropertyCard, PropertyList } from '@/components/ui/PropertyCard';
 import { AssociationCard, AssociationItem } from '@/components/ui/AssociationCard';
+import { EditablePropertyList } from '@/components/ui/EditableProperty';
 import { StatusPill } from '@/components/primitives';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
-import { useOwnerQuery, useDeleteOwnerMutation, useAddPetToOwnerMutation, useRemovePetFromOwnerMutation } from '../api';
+import { useOwnerQuery, useDeleteOwnerMutation, useUpdateOwnerMutation, useAddPetToOwnerMutation, useRemovePetFromOwnerMutation } from '../api';
 import { usePetsQuery, useCreatePetMutation } from '@/features/pets/api';
 import { useBookingCheckInMutation, useBookingCheckOutMutation, useUpdateBookingMutation } from '@/features/bookings/api';
 import { useCreateInvoiceMutation, useSendInvoiceEmailMutation } from '@/features/invoices/api';
@@ -100,6 +101,7 @@ const OwnerDetail = () => {
   const ownerQuery = useOwnerQuery(ownerId);
   const petsQuery = usePetsQuery();
   const deleteOwnerMutation = useDeleteOwnerMutation();
+  const updateOwnerMutation = useUpdateOwnerMutation(ownerId);
   const addPetMutation = useAddPetToOwnerMutation(ownerId);
   const removePetMutation = useRemovePetFromOwnerMutation(ownerId);
   const createPetMutation = useCreatePetMutation();
@@ -121,6 +123,25 @@ const OwnerDetail = () => {
 
   const handleEdit = () => {
     toast.info('Edit functionality coming soon');
+  };
+
+  // Handler for inline property edits
+  const handlePropertySave = async (fieldKey, value) => {
+    try {
+      // Handle nested address fields
+      if (fieldKey.startsWith('address.')) {
+        const addressKey = fieldKey.split('.')[1];
+        await updateOwnerMutation.mutateAsync({
+          address: { ...(owner.address || {}), [addressKey]: value }
+        });
+      } else {
+        await updateOwnerMutation.mutateAsync({ [fieldKey]: value });
+      }
+      toast.success('Updated successfully');
+    } catch (err) {
+      toast.error('Failed to update');
+      throw err;
+    }
   };
 
   const handleDelete = () => {
@@ -323,27 +344,39 @@ const OwnerDetail = () => {
           >
             {/* About this Owner */}
             <PropertyCard title="About" icon={UsersIcon} storageKey={`owner_${ownerId}_about`}>
-              <PropertyList
+              <EditablePropertyList
                 properties={[
-                  { label: 'Name', value: fullName },
-                  { label: 'Email', value: owner.email, type: 'email' },
-                  { label: 'Phone', value: owner.phone, type: 'phone' },
-                  { label: 'Status', value: ownerStatus, type: 'badge', variant: ownerStatusVariant },
-                  { label: 'Created', value: safeFormatDate(owner.createdAt), type: 'date' },
+                  { label: 'First Name', value: owner.firstName, fieldKey: 'firstName', type: 'text' },
+                  { label: 'Last Name', value: owner.lastName, fieldKey: 'lastName', type: 'text' },
+                  { label: 'Email', value: owner.email, fieldKey: 'email', type: 'email' },
+                  { label: 'Phone', value: owner.phone, fieldKey: 'phone', type: 'phone' },
                 ]}
+                onSave={handlePropertySave}
               />
+              {/* Status and Created are read-only */}
+              <div className="mt-4 space-y-3">
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--bb-color-text-muted)' }}>Status</dt>
+                  <dd><Badge variant={ownerStatusVariant}>{ownerStatus}</Badge></dd>
+                </div>
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--bb-color-text-muted)' }}>Created</dt>
+                  <dd className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>{safeFormatDate(owner.createdAt) || '—'}</dd>
+                </div>
+              </div>
             </PropertyCard>
 
             {/* Address */}
             <PropertyCard title="Address" icon={MapPin} storageKey={`owner_${ownerId}_address`} defaultOpen={hasAddress}>
-              <PropertyList
+              <EditablePropertyList
                 properties={[
-                  { label: 'Street', value: owner.address?.street },
-                  { label: 'City', value: owner.address?.city },
-                  { label: 'State', value: owner.address?.state },
-                  { label: 'ZIP Code', value: owner.address?.zip },
-                  { label: 'Country', value: owner.address?.country },
+                  { label: 'Street', value: owner.address?.street, fieldKey: 'address.street', type: 'text' },
+                  { label: 'City', value: owner.address?.city, fieldKey: 'address.city', type: 'text' },
+                  { label: 'State', value: owner.address?.state, fieldKey: 'address.state', type: 'text' },
+                  { label: 'ZIP Code', value: owner.address?.zip, fieldKey: 'address.zip', type: 'text' },
+                  { label: 'Country', value: owner.address?.country, fieldKey: 'address.country', type: 'text' },
                 ]}
+                onSave={handlePropertySave}
               />
             </PropertyCard>
 
@@ -354,25 +387,27 @@ const OwnerDetail = () => {
               storageKey={`owner_${ownerId}_emergency`}
               defaultOpen={!!(owner.emergencyContactName || owner.emergencyContactPhone)}
             >
-              <PropertyList
+              <EditablePropertyList
                 properties={[
-                  { label: 'Contact Name', value: owner.emergencyContactName },
-                  { label: 'Contact Phone', value: owner.emergencyContactPhone, type: 'phone' },
+                  { label: 'Contact Name', value: owner.emergencyContactName, fieldKey: 'emergencyContactName', type: 'text' },
+                  { label: 'Contact Phone', value: owner.emergencyContactPhone, fieldKey: 'emergencyContactPhone', type: 'phone' },
                 ]}
+                onSave={handlePropertySave}
               />
             </PropertyCard>
 
             {/* Preferences */}
             <PropertyCard title="Preferences" icon={MessageSquare} storageKey={`owner_${ownerId}_preferences`} defaultOpen={!!owner.notes}>
-              <PropertyList
+              <EditablePropertyList
                 properties={[
-                  { label: 'Contact Method', value: owner.preferredContactMethod },
-                  { label: 'Notes', value: owner.notes },
+                  { label: 'Contact Method', value: owner.preferredContactMethod, fieldKey: 'preferredContactMethod', type: 'single-select', options: ['Email', 'Phone', 'Text', 'No Preference'] },
+                  { label: 'Notes', value: owner.notes, fieldKey: 'notes', type: 'textarea' },
                 ]}
+                onSave={handlePropertySave}
               />
             </PropertyCard>
 
-            {/* Account */}
+            {/* Account - Read-only computed fields */}
             <PropertyCard title="Account" icon={CreditCard} storageKey={`owner_${ownerId}_account`}>
               <PropertyList
                 properties={[

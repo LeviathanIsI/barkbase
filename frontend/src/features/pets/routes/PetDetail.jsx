@@ -69,6 +69,7 @@ import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import { getBirthdateFromPet, getFormattedAgeFromPet, formatAgeFromBirthdate } from '../utils/pet-date-utils';
 import { PropertyCard, PropertyList } from '@/components/ui/PropertyCard';
 import { AssociationCard, AssociationItem, AssociationSingleItem } from '@/components/ui/AssociationCard';
+import { EditablePropertyList } from '@/components/ui/EditableProperty';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -414,27 +415,38 @@ const PetDetail = () => {
   const petAge = getFormattedAgeFromPet(pet) || pet.age;
   const hasAlerts = pet.medicalNotes || pet.behaviorNotes || pet.dietaryNotes;
 
-  // Prepare property lists for left sidebar
+  // Handler for inline property edits
+  const handlePropertySave = async (fieldKey, value) => {
+    try {
+      await updatePetMutation.mutateAsync({ [fieldKey]: value });
+      toast.success('Updated successfully');
+    } catch (err) {
+      toast.error('Failed to update');
+      throw err;
+    }
+  };
+
+  // Prepare property lists for left sidebar (editable)
   const aboutProperties = [
-    { label: 'Species', value: pet.species },
-    { label: 'Breed', value: pet.breed },
-    { label: 'Gender', value: pet.gender },
-    { label: 'Age', value: petAge },
-    { label: 'Date of Birth', value: safeFormatDate(pet.dateOfBirth), type: 'date' },
+    { label: 'Species', value: pet.species, fieldKey: 'species', type: 'single-select', options: ['Dog', 'Cat', 'Other'] },
+    { label: 'Breed', value: pet.breed, fieldKey: 'breed', type: 'text' },
+    { label: 'Gender', value: pet.gender, fieldKey: 'gender', type: 'single-select', options: ['Male', 'Female', 'Unknown'] },
+    { label: 'Age', value: petAge, fieldKey: null, type: 'text' }, // Computed, not editable
+    { label: 'Date of Birth', value: pet.dateOfBirth, fieldKey: 'dateOfBirth', type: 'date' },
   ];
 
   const physicalProperties = [
-    { label: 'Weight', value: pet.weight ? `${pet.weight} lbs` : null },
-    { label: 'Color', value: pet.color },
-    { label: 'Size', value: pet.size },
-    { label: 'Microchip #', value: pet.microchipNumber },
+    { label: 'Weight', value: pet.weight, fieldKey: 'weight', type: 'number', suffix: ' lbs' },
+    { label: 'Color', value: pet.color, fieldKey: 'color', type: 'text' },
+    { label: 'Size', value: pet.size, fieldKey: 'size', type: 'single-select', options: ['Small', 'Medium', 'Large', 'Extra Large'] },
+    { label: 'Microchip #', value: pet.microchipNumber, fieldKey: 'microchipNumber', type: 'text' },
   ];
 
   const veterinaryProperties = [
-    { label: 'Spayed/Neutered', value: pet.isSpayedNeutered, type: 'boolean' },
-    { label: 'Last Vet Visit', value: safeFormatDate(pet.lastVetVisit), type: 'date' },
-    { label: 'Vet Name', value: pet.vetName },
-    { label: 'Vet Phone', value: pet.vetPhone, type: 'phone' },
+    { label: 'Spayed/Neutered', value: pet.isSpayedNeutered, fieldKey: 'isSpayedNeutered', type: 'boolean' },
+    { label: 'Last Vet Visit', value: pet.lastVetVisit, fieldKey: 'lastVetVisit', type: 'date' },
+    { label: 'Vet Name', value: pet.vetName, fieldKey: 'vetName', type: 'text' },
+    { label: 'Vet Phone', value: pet.vetPhone, fieldKey: 'vetPhone', type: 'phone' },
   ];
 
   return (
@@ -521,7 +533,19 @@ const PetDetail = () => {
               storageKey={`pet-about-${petId}`}
               icon={PawPrint}
             >
-              <PropertyList properties={aboutProperties} />
+              <EditablePropertyList
+                properties={aboutProperties.filter(p => p.fieldKey !== null)}
+                onSave={handlePropertySave}
+              />
+              {/* Age is computed, show as read-only */}
+              <div className="mt-4">
+                <dt className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+                  Age
+                </dt>
+                <dd className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+                  {petAge || '—'}
+                </dd>
+              </div>
             </PropertyCard>
 
             {/* Physical Details */}
@@ -530,7 +554,10 @@ const PetDetail = () => {
               storageKey={`pet-physical-${petId}`}
               icon={Weight}
             >
-              <PropertyList properties={physicalProperties} />
+              <EditablePropertyList
+                properties={physicalProperties}
+                onSave={handlePropertySave}
+              />
             </PropertyCard>
 
             {/* Veterinary Info */}
@@ -539,7 +566,10 @@ const PetDetail = () => {
               storageKey={`pet-vet-${petId}`}
               icon={Syringe}
             >
-              <PropertyList properties={veterinaryProperties} />
+              <EditablePropertyList
+                properties={veterinaryProperties}
+                onSave={handlePropertySave}
+              />
             </PropertyCard>
 
             {/* Care Notes */}
