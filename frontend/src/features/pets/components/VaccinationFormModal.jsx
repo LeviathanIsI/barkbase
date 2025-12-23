@@ -49,11 +49,11 @@ const selectStyles = {
 const VACCINE_TYPES = {
   DOG: [
     'Rabies',
-    'DAPP',
     'DHPP',
     'Bordetella',
-    'Influenza',
+    'Canine Influenza',
     'Leptospirosis',
+    'Lyme',
   ],
   CAT: [
     'Rabies',

@@ -207,14 +207,34 @@ const PetDetail = () => {
     }
   }, [petBookings, bookingFilter]);
 
-  // Vaccination helpers
+  // Vaccination helpers - required vaccines are needed for boarding
   const getDefaultVaccines = (species) => {
     if (species === 'Dog') {
-      return ['Rabies', 'DAPP', 'DHPP', 'Bordetella', 'Influenza', 'Leptospirosis'];
+      return [
+        { name: 'Rabies', required: true },
+        { name: 'DHPP', required: true, label: 'DHPP/Distemper' },
+        { name: 'Bordetella', required: true, label: 'Bordetella/Kennel Cough' },
+        { name: 'Canine Influenza', required: false },
+        { name: 'Leptospirosis', required: false },
+        { name: 'Lyme', required: false },
+      ];
     } else if (species === 'Cat') {
-      return ['Rabies', 'FVRCP', 'FeLV'];
+      return [
+        { name: 'Rabies', required: true },
+        { name: 'FVRCP', required: true, label: 'FVRCP/Feline Distemper' },
+        { name: 'FeLV', required: false },
+      ];
     }
-    return ['Rabies', 'DAPP', 'DHPP'];
+    return [
+      { name: 'Rabies', required: true },
+      { name: 'DHPP', required: true },
+      { name: 'Bordetella', required: true },
+    ];
+  };
+
+  // Get only required vaccines for a species
+  const getRequiredVaccines = (species) => {
+    return getDefaultVaccines(species).filter(v => v.required);
   };
 
   const normalizeVaccineType = (type) => {
@@ -243,29 +263,38 @@ const PetDetail = () => {
   };
 
   const getVaccinationForType = (type) => {
-    const normalizedType = normalizeVaccineType(type);
+    // Handle both string and object types
+    const typeName = typeof type === 'object' ? type.name : type;
+    const normalizedType = normalizeVaccineType(typeName);
     const matchingVaccinations = vaccinations.filter(v => normalizeVaccineType(v.type) === normalizedType);
     return matchingVaccinations.sort((a, b) => new Date(b.administeredAt) - new Date(a.administeredAt))[0];
   };
 
   const vaccinationsSummary = useMemo(() => {
-    if (!pet?.species) return { status: 'unknown', overdue: 0, dueSoon: 0 };
-    // If no vaccination records exist at all, show "none" status
+    if (!pet?.species) return { status: 'unknown', overdue: 0, dueSoon: 0, missingRequired: [] };
+    const requiredVaccines = getRequiredVaccines(pet.species);
+
+    // If no vaccination records exist at all, show "none" status with all required as missing
     if (!vaccinations || vaccinations.length === 0) {
-      return { status: 'none', overdue: 0, dueSoon: 0 };
+      return { status: 'none', overdue: 0, dueSoon: 0, missingRequired: requiredVaccines };
     }
-    const defaults = getDefaultVaccines(pet.species);
+
     let overdue = 0;
     let dueSoon = 0;
-    defaults.forEach(type => {
-      const vacc = getVaccinationForType(type);
+    const missingRequired = [];
+
+    requiredVaccines.forEach(vaccine => {
+      const vacc = getVaccinationForType(vaccine.name);
       const status = getVaccinationStatus(vacc);
       if (status === 'expired') overdue++;
       else if (status === 'expiring') dueSoon++;
+      else if (status === 'missing') missingRequired.push(vaccine);
     });
-    if (overdue > 0) return { status: 'overdue', overdue, dueSoon };
-    if (dueSoon > 0) return { status: 'due-soon', overdue, dueSoon };
-    return { status: 'up-to-date', overdue, dueSoon };
+
+    if (overdue > 0) return { status: 'overdue', overdue, dueSoon, missingRequired };
+    if (dueSoon > 0) return { status: 'due-soon', overdue, dueSoon, missingRequired };
+    if (missingRequired.length > 0) return { status: 'incomplete', overdue, dueSoon, missingRequired };
+    return { status: 'up-to-date', overdue, dueSoon, missingRequired: [] };
   }, [pet?.species, vaccinations]);
 
   // Handlers
@@ -598,10 +627,12 @@ const PetDetail = () => {
                   value={vaccinationsSummary.status === 'up-to-date' ? 'Up to date' :
                          vaccinationsSummary.status === 'none' ? 'Not on file' :
                          vaccinationsSummary.status === 'due-soon' ? `${vaccinationsSummary.dueSoon} due soon` :
+                         vaccinationsSummary.status === 'incomplete' ? `${vaccinationsSummary.missingRequired?.length} missing` :
                          `${vaccinationsSummary.overdue} overdue`}
                   variant={vaccinationsSummary.status === 'up-to-date' ? 'success' :
                           vaccinationsSummary.status === 'none' ? 'neutral' :
-                          vaccinationsSummary.status === 'due-soon' ? 'warning' : 'danger'}
+                          vaccinationsSummary.status === 'due-soon' ? 'warning' :
+                          vaccinationsSummary.status === 'incomplete' ? 'warning' : 'danger'}
                 />
               </div>
             </div>
@@ -966,13 +997,16 @@ function OverviewTab({ pet, upcomingBookings, recentBookings, vaccinationsSummar
                 ? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
                 : vaccinationsSummary.status === 'due-soon'
                 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                : vaccinationsSummary.status === 'incomplete'
+                ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
                 : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
             )}
           >
             <Syringe className="w-3.5 h-3.5 inline mr-1.5" />
             Vaccinations: {vaccinationsSummary.status === 'up-to-date' ? 'Up to date' :
                           vaccinationsSummary.status === 'none' ? 'Not on file' :
-                          vaccinationsSummary.status === 'due-soon' ? 'Due soon' : 'Overdue'}
+                          vaccinationsSummary.status === 'due-soon' ? 'Due soon' :
+                          vaccinationsSummary.status === 'incomplete' ? 'Incomplete' : 'Overdue'}
           </button>
           
           <button 
@@ -1014,6 +1048,22 @@ function OverviewTab({ pet, upcomingBookings, recentBookings, vaccinationsSummar
             Behavior: {pet.behaviorNotes ? 'Needs caution' : 'Normal'}
           </button>
         </div>
+
+        {/* Missing Required Vaccines Notice */}
+        {vaccinationsSummary.missingRequired?.length > 0 && (
+          <div
+            className="mt-3 p-3 rounded-lg text-sm"
+            style={{
+              backgroundColor: 'var(--bb-color-bg-muted)',
+              color: 'var(--bb-color-text-muted)'
+            }}
+          >
+            <span className="font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+              Required vaccines not on file:
+            </span>{' '}
+            {vaccinationsSummary.missingRequired.map(v => v.label || v.name).join(', ')}
+          </div>
+        )}
       </section>
 
       {/* Upcoming & Recent Bookings */}
@@ -1133,14 +1183,15 @@ function HealthTab({
           </div>
         ) : (
           <div className="space-y-2">
-            {defaultVaccines.map((vaccineType) => {
-              const vaccination = getVaccinationForType(vaccineType);
+            {defaultVaccines.map((vaccine) => {
+              const vaccination = getVaccinationForType(vaccine.name);
               const status = getVaccinationStatus(vaccination);
               const { label, intent } = getStatusDisplay(status);
+              const displayName = vaccine.label || vaccine.name;
 
               return (
                 <div
-                  key={vaccineType}
+                  key={vaccine.name}
                   className="flex items-center justify-between p-4 border rounded-lg transition-colors hover:bg-[color:var(--bb-color-bg-elevated)]"
                   style={{ borderColor: 'var(--bb-color-border-subtle)' }}
                 >
@@ -1153,10 +1204,15 @@ function HealthTab({
                     </div>
                     <div>
                       <p className="font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
-                        {vaccineType}
+                        {displayName}
+                        {vaccine.required && (
+                          <span className="ml-2 text-xs font-normal px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bb-color-bg-muted)', color: 'var(--bb-color-text-muted)' }}>
+                            Required
+                          </span>
+                        )}
                       </p>
                       <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
-                        {vaccination 
+                        {vaccination
                           ? `Expires ${safeFormatDate(vaccination.expiresAt)}`
                           : 'Not recorded'}
                       </p>
@@ -1174,7 +1230,7 @@ function HealthTab({
                         </Button>
                       </>
                     ) : (
-                      <Button size="sm" variant="ghost" onClick={() => handleAddVaccination(vaccineType)}>
+                      <Button size="sm" variant="ghost" onClick={() => handleAddVaccination(vaccine.name)}>
                         Add
                       </Button>
                     )}
