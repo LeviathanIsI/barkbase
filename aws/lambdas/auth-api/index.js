@@ -923,12 +923,21 @@ async function handleChangePassword(event) {
 
     // Record password change timestamp in database
     try {
+      console.log('[AUTH-API] Recording password change timestamp for cognito_sub:', authResult.user.id);
       await getPoolAsync();
+      console.log('[AUTH-API] Database pool acquired, executing UPDATE...');
       const updateResult = await query(
-        `UPDATE "User" SET password_changed_at = NOW(), updated_at = NOW() WHERE cognito_sub = $1 RETURNING record_id`,
+        `UPDATE "User" SET password_changed_at = NOW(), updated_at = NOW() WHERE cognito_sub = $1 RETURNING record_id, password_changed_at`,
         [authResult.user.id]
       );
-      console.log('[AUTH-API] Password change timestamp updated, rows affected:', updateResult.rowCount, 'cognito_sub:', authResult.user.id);
+      console.log('[AUTH-API] UPDATE result:', JSON.stringify({
+        rowCount: updateResult.rowCount,
+        rows: updateResult.rows,
+        cognitoSub: authResult.user.id
+      }));
+      if (updateResult.rowCount === 0) {
+        console.warn('[AUTH-API] WARNING: No rows updated! User may not exist with cognito_sub:', authResult.user.id);
+      }
     } catch (dbError) {
       console.error('[AUTH-API] Failed to record password change timestamp:', dbError.message, dbError.stack);
       // Don't fail the request - password was already changed successfully
