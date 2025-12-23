@@ -1101,9 +1101,9 @@ async function createPet(event) {
       const ownerId = uniqueOwnerIds[i];
       const isPrimary = i === 0; // First owner is primary
       await query(
-        `INSERT INTO "PetOwner" (tenant_id, pet_id, owner_id, is_primary, relationship)
+        `INSERT INTO "PetOwner" (tenant_id, pet_record_id, owner_record_id, is_primary, relationship)
          VALUES ($1, $2, $3, $4, 'owner')
-         ON CONFLICT (pet_id, owner_id) DO NOTHING`,
+         ON CONFLICT (pet_record_id, owner_record_id) DO NOTHING`,
         [tenantId, petId, ownerId, isPrimary]
       );
     }
@@ -1527,9 +1527,9 @@ async function createOwner(event) {
     // Create PetOwner relationships for all provided pet IDs
     for (const petId of uniquePetIds) {
       await query(
-        `INSERT INTO "PetOwner" (tenant_id, pet_id, owner_id, is_primary, relationship)
+        `INSERT INTO "PetOwner" (tenant_id, pet_record_id, owner_record_id, is_primary, relationship)
          VALUES ($1, $2, $3, false, 'owner')
-         ON CONFLICT (pet_id, owner_id) DO NOTHING`,
+         ON CONFLICT (pet_record_id, owner_record_id) DO NOTHING`,
         [tenantId, petId, ownerId]
       );
     }
