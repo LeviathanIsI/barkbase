@@ -4557,7 +4557,7 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
 
     // First check Run table
     const runCheck = await query(
-      `SELECT id, name FROM "Run" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT record_id, name FROM "Run" WHERE record_id = $1 AND tenant_id = $2`,
       [runId, tenantId]
     );
 
@@ -4566,7 +4566,7 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
     } else {
       // If not found in Run, check RunTemplate and create a Run from it
       const templateCheck = await query(
-        `SELECT id, name, description, capacity, run_type FROM "RunTemplate" WHERE id = $1 AND tenant_id = $2`,
+        `SELECT record_id, name, description, capacity, run_type FROM "RunTemplate" WHERE record_id = $1 AND tenant_id = $2`,
         [runId, tenantId]
       );
 
@@ -4574,22 +4574,22 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
         const template = templateCheck.rows[0];
         console.log('[RunAssignments][assignToRun] Found RunTemplate:', template.name, '- creating Run record');
 
-        // Create a Run record from the template (using same ID for consistency)
+        // Create a Run record from the template
         const runRecordId = await getNextRecordId(tenantId, 'Run');
         const createRun = await query(
-          `INSERT INTO "Run" (id, tenant_id, record_id, name, description, capacity, run_type, is_active)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, true)
-           ON CONFLICT (id) DO NOTHING
-           RETURNING id`,
-          [template.id, tenantId, runRecordId, template.name, template.description, template.capacity, template.run_type]
+          `INSERT INTO "Run" (tenant_id, record_id, name, description, capacity, run_type, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6, true)
+           ON CONFLICT (tenant_id, record_id) DO NOTHING
+           RETURNING record_id`,
+          [tenantId, runRecordId, template.name, template.description, template.capacity, template.run_type]
         );
 
         if (createRun.rows.length > 0) {
-          console.log('[RunAssignments][assignToRun] Created Run from template:', createRun.rows[0].id);
+          console.log('[RunAssignments][assignToRun] Created Run from template:', createRun.rows[0].record_id);
         } else {
           console.log('[RunAssignments][assignToRun] Run already exists (created by concurrent request)');
         }
-        actualRunId = template.id;
+        actualRunId = template.record_id;
       } else {
         return createResponse(404, {
           error: 'Not Found',
