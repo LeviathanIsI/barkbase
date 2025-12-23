@@ -225,8 +225,8 @@ const handlers = {
 
   // Pet Vaccinations
   'GET /api/v1/entity/pets/vaccinations/expiring': getExpiringVaccinations,
-  'GET /api/v1/entity/pets/{id}/vaccinations': getPetVaccinations,
-  'POST /api/v1/entity/pets/{id}/vaccinations': createPetVaccination,
+  'GET /api/v1/entity/pets/{petId}/vaccinations': getPetVaccinations,
+  'POST /api/v1/entity/pets/{petId}/vaccinations': createPetVaccination,
   'PUT /api/v1/entity/pets/{petId}/vaccinations/{id}': updatePetVaccination,
   'DELETE /api/v1/entity/pets/{petId}/vaccinations/{id}': deletePetVaccination,
 
@@ -2457,7 +2457,7 @@ async function getExpiringVaccinations(event) {
  */
 async function getPetVaccinations(event) {
   const tenantId = resolveTenantId(event);
-  const petId = event.pathParameters?.id;
+  const petId = event.pathParameters?.petId || event.pathParameters?.id;
 
   console.log('[ENTITY-SERVICE] Getting vaccinations for pet:', petId, 'tenant:', tenantId);
 
@@ -2558,7 +2558,7 @@ async function getPetVaccinations(event) {
  */
 async function createPetVaccination(event) {
   const tenantId = resolveTenantId(event);
-  const petId = event.pathParameters?.id;
+  const petId = event.pathParameters?.petId || event.pathParameters?.id;
   const body = parseBody(event);
 
   console.log('[ENTITY-SERVICE] Creating vaccination for pet:', petId);
@@ -2655,7 +2655,7 @@ async function createPetVaccination(event) {
  */
 async function updatePetVaccination(event) {
   const tenantId = resolveTenantId(event);
-  const petId = event.pathParameters?.petId;
+  const petId = event.pathParameters?.petId || event.pathParameters?.id;
   const vaccinationId = event.pathParameters?.id;
   const body = parseBody(event);
 
@@ -2756,7 +2756,7 @@ async function updatePetVaccination(event) {
  */
 async function deletePetVaccination(event) {
   const tenantId = resolveTenantId(event);
-  const petId = event.pathParameters?.petId;
+  const petId = event.pathParameters?.petId || event.pathParameters?.id;
   const vaccinationId = event.pathParameters?.id;
   const deletedBy = event.user?.userId || null;
 
