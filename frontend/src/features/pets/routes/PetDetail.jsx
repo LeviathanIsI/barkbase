@@ -260,7 +260,7 @@ const PetDetail = () => {
     defaults.forEach(type => {
       const vacc = getVaccinationForType(type);
       const status = getVaccinationStatus(vacc);
-      if (status === 'expired' || status === 'missing') overdue++;
+      if (status === 'expired') overdue++;
       else if (status === 'expiring') dueSoon++;
     });
     if (overdue > 0) return { status: 'overdue', overdue, dueSoon };
