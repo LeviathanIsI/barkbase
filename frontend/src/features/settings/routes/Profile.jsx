@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  User, Mail, Phone, Globe, Clock, Save, AlertTriangle,
-  Camera, Shield, Key, Monitor,
-  Smartphone, BellRing, QrCode,
+  User, Mail, Phone, Save, AlertTriangle,
+  Camera, Shield, Monitor, QrCode,
   CheckCircle, Link2, Unlink, Check, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -82,15 +81,6 @@ const Profile = () => {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
 
-  // Notification preferences
-  const [notifications, setNotifications] = useState({
-    emailBookings: true,
-    emailPayments: true,
-    emailVaccinations: true,
-    smsAlerts: true,
-    pushUrgent: true,
-    frequency: 'real-time',
-  });
 
   // 2FA
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
@@ -108,13 +98,6 @@ const Profile = () => {
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Personalization settings
-  const [personalization, setPersonalization] = useState({
-    dashboardLayout: 'comfortable',
-    dateFormat: 'MM/DD/YYYY',
-    timeFormat: '12-hour',
-    numberFormat: 'us',
-  });
 
   // Active sessions
   const { data: activeSessionsData, isLoading: isLoadingSessions } = useAuthSessionsQuery();
@@ -623,103 +606,6 @@ const Profile = () => {
 
         {/* Right Column - 40% */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Notification Settings - Compact */}
-          <Card className="p-5">
-            <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
-              <BellRing className="h-4 w-4" />
-              Notifications
-            </h3>
-            <div className="space-y-2">
-              <ToggleRow
-                icon={Mail}
-                label="Email notifications"
-                checked={notifications.emailBookings}
-                onChange={(v) => setNotifications(p => ({ ...p, emailBookings: v }))}
-              />
-              <ToggleRow
-                icon={Smartphone}
-                label="SMS alerts"
-                checked={notifications.smsAlerts}
-                onChange={(v) => setNotifications(p => ({ ...p, smsAlerts: v }))}
-              />
-              <ToggleRow
-                icon={BellRing}
-                label="Push notifications"
-                checked={notifications.pushUrgent}
-                onChange={(v) => setNotifications(p => ({ ...p, pushUrgent: v }))}
-              />
-              <div className="pt-2 border-t border-border">
-                <label className="block text-xs font-medium text-muted mb-1">Frequency</label>
-                <div className="flex gap-2">
-                  {['real-time', 'daily', 'weekly'].map((freq) => (
-                    <button
-                      key={freq}
-                      type="button"
-                      onClick={() => setNotifications(p => ({ ...p, frequency: freq }))}
-                      className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
-                        notifications.frequency === freq
-                          ? 'bg-primary text-white'
-                          : 'bg-surface-secondary text-muted hover:bg-surface-elevated'
-                      }`}
-                    >
-                      {freq === 'real-time' ? 'Real-time' : freq.charAt(0).toUpperCase() + freq.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          {/* Display Preferences - Compact */}
-          <Card className="p-5">
-            <h3 className="text-sm font-semibold text-text mb-3">Display Preferences</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1">Layout</label>
-                <StyledSelect
-                  options={[
-                    { value: 'compact', label: 'Compact' },
-                    { value: 'comfortable', label: 'Comfortable' },
-                    { value: 'spacious', label: 'Spacious' },
-                  ]}
-                  value={personalization.dashboardLayout}
-                  onChange={(opt) => setPersonalization(p => ({ ...p, dashboardLayout: opt?.value || 'comfortable' }))}
-                  isClearable={false}
-                  isSearchable={false}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-medium text-muted mb-1">Date</label>
-                  <StyledSelect
-                    options={[
-                      { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
-                      { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
-                      { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
-                    ]}
-                    value={personalization.dateFormat}
-                    onChange={(opt) => setPersonalization(p => ({ ...p, dateFormat: opt?.value || 'MM/DD/YYYY' }))}
-                    isClearable={false}
-                    isSearchable={false}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted mb-1">Time</label>
-                  <StyledSelect
-                    options={[
-                      { value: '12-hour', label: '12-hour' },
-                      { value: '24-hour', label: '24-hour' },
-                    ]}
-                    value={personalization.timeFormat}
-                    onChange={(opt) => setPersonalization(p => ({ ...p, timeFormat: opt?.value || '12-hour' }))}
-                    isClearable={false}
-                    isSearchable={false}
-                  />
-                </div>
-              </div>
-            </div>
-          </Card>
-
           {/* Role & Access - Compact */}
           <Card className="p-5">
             <h3 className="text-sm font-semibold text-text mb-3">Your Role & Access</h3>
@@ -833,28 +719,5 @@ const Profile = () => {
     </div>
   );
 };
-
-// Toggle Row Component
-const ToggleRow = ({ icon: Icon, label, checked, onChange }) => (
-  <div className="flex items-center justify-between py-1.5">
-    <div className="flex items-center gap-2">
-      <Icon className="w-4 h-4 text-muted" />
-      <span className="text-sm text-text">{label}</span>
-    </div>
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-        checked ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
-      }`}
-    >
-      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-        checked ? 'translate-x-5' : 'translate-x-1'
-      }`} />
-    </button>
-  </div>
-);
 
 export default Profile;
