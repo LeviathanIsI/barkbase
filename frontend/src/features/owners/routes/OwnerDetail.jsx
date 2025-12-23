@@ -46,7 +46,7 @@ import Badge from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { PropertyCard, PropertyList } from '@/components/ui/PropertyCard';
 import { AssociationCard, AssociationItem } from '@/components/ui/AssociationCard';
-import { EditablePropertyList } from '@/components/ui/EditableProperty';
+import { EditablePropertyList, EditablePropertyProvider } from '@/components/ui/EditableProperty';
 import { StatusPill } from '@/components/primitives';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { useOwnerQuery, useDeleteOwnerMutation, useUpdateOwnerMutation, useAddPetToOwnerMutation, useRemovePetFromOwnerMutation } from '../api';
@@ -338,6 +338,7 @@ const OwnerDetail = () => {
         {/* 3-Column Layout */}
         <div className="flex-1 flex overflow-hidden">
           {/* Left Sidebar - Property Cards */}
+          <EditablePropertyProvider>
           <aside
             className="w-64 flex-shrink-0 border-r overflow-y-auto p-4 space-y-4"
             style={{ borderColor: 'var(--bb-color-border-subtle)' }}
@@ -418,6 +419,7 @@ const OwnerDetail = () => {
               />
             </PropertyCard>
           </aside>
+          </EditablePropertyProvider>
 
           {/* Middle - Stats + Tabs */}
           <main className="flex-1 overflow-y-auto">

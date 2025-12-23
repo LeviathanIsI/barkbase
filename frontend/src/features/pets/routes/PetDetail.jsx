@@ -69,7 +69,7 @@ import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import { getBirthdateFromPet, getFormattedAgeFromPet, formatAgeFromBirthdate } from '../utils/pet-date-utils';
 import { PropertyCard, PropertyList } from '@/components/ui/PropertyCard';
 import { AssociationCard, AssociationItem, AssociationSingleItem } from '@/components/ui/AssociationCard';
-import { EditablePropertyList } from '@/components/ui/EditableProperty';
+import { EditablePropertyList, EditablePropertyProvider } from '@/components/ui/EditableProperty';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -523,6 +523,7 @@ const PetDetail = () => {
           {/* ============================================================
               LEFT SIDEBAR - Property Cards (420px fixed)
           ============================================================ */}
+          <EditablePropertyProvider>
           <aside
             className="w-[420px] min-w-[420px] flex-shrink-0 border-r overflow-y-auto p-4 space-y-4"
             style={{ borderColor: 'var(--bb-color-border-subtle)' }}
@@ -629,6 +630,7 @@ const PetDetail = () => {
               )}
             </PropertyCard>
           </aside>
+          </EditablePropertyProvider>
 
           {/* ============================================================
               MIDDLE COLUMN - Stats + Tabs (flex-1)

@@ -3,10 +3,30 @@
  * Click to edit, save on blur/Enter, with loading and error states
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, createContext, useContext } from 'react';
 import { Check, X, Loader2, Pencil } from 'lucide-react';
 import Select from 'react-select';
 import { cn } from '@/lib/utils';
+
+// Context to coordinate single active edit across all property lists on a page
+const EditablePropertyContext = createContext(null);
+
+/**
+ * Provider to ensure only one property is being edited at a time across all lists
+ * Wrap your page/section with this to coordinate edits
+ */
+export function EditablePropertyProvider({ children }) {
+  const [activeEditKey, setActiveEditKey] = useState(null);
+
+  return (
+    <EditablePropertyContext.Provider value={{ activeEditKey, setActiveEditKey }}>
+      {children}
+    </EditablePropertyContext.Provider>
+  );
+}
+
+// Hook to access the shared edit context
+const useEditablePropertyContext = () => useContext(EditablePropertyContext);
 
 // Styled select for dark theme
 const selectStyles = {
@@ -509,7 +529,7 @@ export function EditableProperty({
 
 /**
  * EditablePropertyList - Renders a list of editable properties
- * Only one property can be edited at a time
+ * Only one property can be edited at a time (across all lists when using EditablePropertyProvider)
  */
 export function EditablePropertyList({
   properties,
@@ -517,7 +537,12 @@ export function EditablePropertyList({
   disabled = false,
   className,
 }) {
-  const [activeEditKey, setActiveEditKey] = useState(null);
+  // Use shared context if available, otherwise local state
+  const context = useEditablePropertyContext();
+  const [localActiveKey, setLocalActiveKey] = useState(null);
+
+  const activeEditKey = context ? context.activeEditKey : localActiveKey;
+  const setActiveEditKey = context ? context.setActiveEditKey : setLocalActiveKey;
 
   const handleStartEdit = (fieldKey) => {
     setActiveEditKey(fieldKey);
