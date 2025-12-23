@@ -180,8 +180,13 @@ const EmailConnectionModal = ({ isOpen, onClose, onConnect }) => {
               autoComplete="off"
               onSubmit={(e) => { e.preventDefault(); handleEmailSubmit(); }}
             >
+              {/* Hidden honeypot fields to absorb browser autocomplete */}
+              <input type="text" name="username" autoComplete="username" className="hidden" tabIndex={-1} aria-hidden="true" />
+              <input type="password" name="password" autoComplete="current-password" className="hidden" tabIndex={-1} aria-hidden="true" />
+              <input type="email" name="email" autoComplete="email" className="hidden" tabIndex={-1} aria-hidden="true" />
+
               <div>
-                <label className="block text-sm font-medium text-text mb-2" htmlFor="email-connect-new">
+                <label className="block text-sm font-medium text-text mb-2" htmlFor="provider-email-input">
                   Email address
                 </label>
                 <div className="relative">
@@ -194,14 +199,15 @@ const EmailConnectionModal = ({ isOpen, onClose, onConnect }) => {
                     placeholder="yours@example.com"
                     className="w-full pl-10 pr-4 py-3 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     autoFocus
-                    autoComplete="new-password"
+                    autoComplete="off"
                     autoCorrect="off"
                     autoCapitalize="off"
                     spellCheck="false"
-                    name="email-connect-new"
-                    id="email-connect-new"
+                    name={`provider_${Date.now()}`}
+                    id="provider-email-input"
                     data-lpignore="true"
                     data-form-type="other"
+                    data-1p-ignore="true"
                   />
                 </div>
               </div>
