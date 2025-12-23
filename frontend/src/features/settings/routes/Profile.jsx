@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   User, Mail, Phone, Globe, Clock, Save, AlertTriangle,
   Camera, Shield, Key, Monitor,
   Smartphone, BellRing, QrCode,
-  CheckCircle, Link2, Unlink, Check
+  CheckCircle, Link2, Unlink, Check, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Card } from '@/components/ui/Card';
@@ -16,7 +17,7 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
 import PasswordStrength from '@/components/ui/PasswordStrength';
 import { useUserProfileQuery, useUpdateUserProfileMutation } from '../api-user';
 import { useAuthStore } from '@/stores/auth';
-import { uploadFile } from '@/lib/apiClient';
+import apiClient, { uploadFile } from '@/lib/apiClient';
 import {
   useAuthSessionsQuery,
   useRevokeSessionMutation,
@@ -102,14 +103,10 @@ const Profile = () => {
 
   // Email connection
   const [showEmailModal, setShowEmailModal] = useState(false);
-  const [connectedEmail, setConnectedEmail] = useState(() => {
-    try {
-      const stored = localStorage.getItem('barkbase_connected_email');
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [connectedEmail, setConnectedEmail] = useState(null);
+  const [isLoadingEmail, setIsLoadingEmail] = useState(true);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Personalization settings
   const [personalization, setPersonalization] = useState({
@@ -137,6 +134,65 @@ const Profile = () => {
       setAvatarPreview(null);
     }
   }, [profile, user]);
+
+  // Fetch connected email status from API
+  useEffect(() => {
+    const fetchConnectedEmail = async () => {
+      try {
+        const response = await apiClient.get('/api/v1/user/connected-email');
+        if (response.data?.connected) {
+          setConnectedEmail({
+            email: response.data.email,
+            connectedAt: response.data.connectedAt,
+          });
+        } else {
+          setConnectedEmail(null);
+        }
+      } catch (error) {
+        console.error('[Profile] Failed to fetch connected email:', error);
+        setConnectedEmail(null);
+      } finally {
+        setIsLoadingEmail(false);
+      }
+    };
+
+    fetchConnectedEmail();
+  }, []);
+
+  // Handle OAuth callback params
+  useEffect(() => {
+    const oauthSuccess = searchParams.get('oauth_success');
+    const oauthError = searchParams.get('oauth_error');
+    const connectedEmailParam = searchParams.get('email');
+
+    if (oauthSuccess === 'true') {
+      toast.success(`Gmail connected: ${connectedEmailParam || 'Success'}`);
+      // Refresh connected email status
+      apiClient.get('/api/v1/user/connected-email')
+        .then(response => {
+          if (response.data?.connected) {
+            setConnectedEmail({
+              email: response.data.email,
+              connectedAt: response.data.connectedAt,
+            });
+          }
+        })
+        .catch(console.error);
+      // Clear URL params
+      setSearchParams({}, { replace: true });
+    } else if (oauthError) {
+      const errorMessages = {
+        missing_params: 'OAuth flow was interrupted',
+        invalid_state: 'Security validation failed - please try again',
+        expired: 'Connection timed out - please try again',
+        token_exchange_failed: 'Failed to connect to Gmail - please try again',
+        user_info_failed: 'Could not retrieve Gmail info - please try again',
+        storage_failed: 'Failed to save connection - please try again',
+      };
+      toast.error(errorMessages[oauthError] || `Connection failed: ${oauthError}`);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
@@ -213,13 +269,31 @@ const Profile = () => {
   };
 
   const handleEmailConnect = (connectionData) => {
-    setConnectedEmail(connectionData);
+    // This is called from the modal - refresh from API
+    apiClient.get('/api/v1/user/connected-email')
+      .then(response => {
+        if (response.data?.connected) {
+          setConnectedEmail({
+            email: response.data.email,
+            connectedAt: response.data.connectedAt,
+          });
+        }
+      })
+      .catch(console.error);
   };
 
-  const handleEmailDisconnect = () => {
-    localStorage.removeItem('barkbase_connected_email');
-    setConnectedEmail(null);
-    toast.success('Email disconnected');
+  const handleEmailDisconnect = async () => {
+    setIsDisconnecting(true);
+    try {
+      await apiClient.delete('/api/v1/user/connected-email');
+      setConnectedEmail(null);
+      toast.success('Email disconnected');
+    } catch (error) {
+      console.error('[Profile] Failed to disconnect email:', error);
+      toast.error(error.response?.data?.message || 'Failed to disconnect email');
+    } finally {
+      setIsDisconnecting(false);
+    }
   };
 
   if (error) {
@@ -419,7 +493,12 @@ const Profile = () => {
               <Mail className="h-4 w-4" />
               Email
             </h3>
-            {connectedEmail ? (
+            {isLoadingEmail ? (
+              <div className="flex items-center gap-2 text-muted">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Loading...</span>
+              </div>
+            ) : connectedEmail ? (
               /* Connected State */
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
@@ -445,10 +524,20 @@ const Profile = () => {
                   variant="outline"
                   size="sm"
                   onClick={handleEmailDisconnect}
+                  disabled={isDisconnecting}
                   className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
                 >
-                  <Unlink className="w-4 h-4 mr-2" />
-                  Disconnect
+                  {isDisconnecting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Disconnecting...
+                    </>
+                  ) : (
+                    <>
+                      <Unlink className="w-4 h-4 mr-2" />
+                      Disconnect
+                    </>
+                  )}
                 </Button>
               </div>
             ) : (

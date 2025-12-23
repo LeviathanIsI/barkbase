@@ -25,6 +25,7 @@ const auditUtils = require('./audit-utils');
 const tierEnforcement = require('./tier-enforcement');
 const workflowEvents = require('./workflow-events');
 const accountResolver = require('./account-resolver');
+const cryptoUtils = require('./crypto-utils');
 
 
 /**
@@ -318,4 +319,11 @@ module.exports = {
   getEntityTypeFromId: accountResolver.getEntityTypeFromId,
   OBJECT_TYPE_CODES: accountResolver.OBJECT_TYPE_CODES,
   TYPE_CODE_TO_ENTITY: accountResolver.TYPE_CODE_TO_ENTITY,
+
+  // Crypto Utils exports (OAuth token encryption)
+  cryptoUtils,
+  encryptToken: cryptoUtils.encryptToken,
+  decryptToken: cryptoUtils.decryptToken,
+  generateEncryptionKey: cryptoUtils.generateEncryptionKey,
+  testEncryption: cryptoUtils.testEncryption,
 };

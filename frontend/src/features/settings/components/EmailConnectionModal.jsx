@@ -8,9 +8,10 @@
  */
 
 import { useState, useEffect } from 'react';
-import { X, Mail, ChevronRight, ArrowLeft, Check, HelpCircle } from 'lucide-react';
+import { X, Mail, ChevronRight, ArrowLeft, Check, HelpCircle, Loader2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import toast from 'react-hot-toast';
+import apiClient from '@/lib/apiClient';
 
 // Provider detection based on email domain
 const detectProvider = (email) => {
@@ -113,23 +114,33 @@ const EmailConnectionModal = ({ isOpen, onClose, onConnect }) => {
   const handleProviderConnect = async (provider) => {
     setIsConnecting(true);
 
-    // Simulate connection delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // For now, just show toast and store in localStorage
     const providerName = PROVIDERS[provider]?.name || provider;
+
+    // Only Google is supported via OAuth for now
+    if (provider === 'google') {
+      try {
+        // Call the OAuth start endpoint to get the authorization URL
+        const response = await apiClient.get('/api/v1/auth/oauth/google/start');
+        const { authUrl } = response.data;
+
+        if (authUrl) {
+          // Redirect to Google OAuth - callback will handle the rest
+          window.location.href = authUrl;
+          return;
+        } else {
+          throw new Error('No authorization URL received');
+        }
+      } catch (error) {
+        console.error('[EmailConnection] OAuth start failed:', error);
+        setIsConnecting(false);
+        toast.error(error.response?.data?.message || 'Failed to start Gmail connection');
+        return;
+      }
+    }
+
+    // Microsoft and Exchange not yet implemented
     toast.success(`${providerName} integration coming soon`);
-
-    // Store mock connected state
-    const connectionData = {
-      email,
-      provider,
-      connectedAt: new Date().toISOString(),
-    };
-    localStorage.setItem('barkbase_connected_email', JSON.stringify(connectionData));
-
     setIsConnecting(false);
-    onConnect?.(connectionData);
     onClose();
   };
 

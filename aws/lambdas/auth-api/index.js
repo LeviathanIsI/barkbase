@@ -33,6 +33,8 @@ const {
   parseBody,
   validateToken,
   getAuthConfig,
+  encryptToken,
+  decryptToken,
 } = sharedLayer;
 
 // Cognito SDK for user creation
@@ -119,6 +121,29 @@ exports.handler = async (event, context) => {
 
     if (path === '/api/v1/auth/sessions' || path === '/auth/sessions') {
       return handleSessions(event, method);
+    }
+
+    // OAuth endpoints for Gmail integration
+    if (path === '/api/v1/auth/oauth/google/start' || path === '/auth/oauth/google/start') {
+      if (method === 'GET') {
+        return handleGoogleOAuthStart(event);
+      }
+    }
+
+    if (path === '/api/v1/auth/oauth/google/callback' || path === '/auth/oauth/google/callback') {
+      if (method === 'GET') {
+        return handleGoogleOAuthCallback(event);
+      }
+    }
+
+    // Connected email endpoints
+    if (path === '/api/v1/user/connected-email' || path === '/user/connected-email') {
+      if (method === 'GET') {
+        return handleGetConnectedEmail(event);
+      }
+      if (method === 'DELETE') {
+        return handleDisconnectEmail(event);
+      }
     }
 
     // Contact form submission (public endpoint - no auth required)
@@ -1046,5 +1071,337 @@ Submitted at: ${new Date().toISOString()}
       message: 'Failed to submit contact form. Please try again or email us directly at hello@barkbase.com',
     });
   }
+}
+
+// =============================================================================
+// GOOGLE OAUTH HANDLERS
+// =============================================================================
+
+/**
+ * Get Google OAuth configuration from environment
+ */
+function getGoogleOAuthConfig() {
+  return {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/v1/auth/oauth/google/callback',
+  };
+}
+
+/**
+ * Initiate Google OAuth flow
+ * GET /api/v1/auth/oauth/google/start
+ *
+ * Requires authenticated user. Returns redirect URL for frontend.
+ */
+async function handleGoogleOAuthStart(event) {
+  const authResult = await authenticateRequest(event);
+
+  if (!authResult.authenticated) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: 'Authentication required to connect Gmail',
+    });
+  }
+
+  const config = getGoogleOAuthConfig();
+
+  if (!config.clientId || !config.clientSecret) {
+    console.error('[OAuth] Google OAuth not configured');
+    return createResponse(500, {
+      error: 'Configuration Error',
+      message: 'Gmail integration is not configured',
+    });
+  }
+
+  // Generate state token (include user info for callback)
+  const crypto = require('crypto');
+  const stateData = {
+    userId: authResult.user.id,
+    tenantId: authResult.user.tenantId,
+    nonce: crypto.randomBytes(16).toString('hex'),
+    timestamp: Date.now(),
+  };
+  const state = Buffer.from(JSON.stringify(stateData)).toString('base64url');
+
+  // Store state in session for CSRF protection (using a simple approach)
+  // In production, you'd store this in Redis or DynamoDB with TTL
+  try {
+    await getPoolAsync();
+    await query(
+      `UPDATE "User" SET updated_at = NOW() WHERE cognito_sub = $1`,
+      [authResult.user.id]
+    );
+  } catch (e) {
+    console.warn('[OAuth] Could not update user record:', e.message);
+  }
+
+  // Build Google OAuth URL
+  const scopes = [
+    'https://www.googleapis.com/auth/gmail.send',
+    'https://www.googleapis.com/auth/userinfo.email',
+  ];
+
+  const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+  authUrl.searchParams.set('client_id', config.clientId);
+  authUrl.searchParams.set('redirect_uri', config.redirectUri);
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('scope', scopes.join(' '));
+  authUrl.searchParams.set('access_type', 'offline');
+  authUrl.searchParams.set('prompt', 'consent');
+  authUrl.searchParams.set('state', state);
+
+  console.log('[OAuth] Generated Google OAuth URL for user:', authResult.user.id);
+
+  return createResponse(200, {
+    authUrl: authUrl.toString(),
+    state,
+  });
+}
+
+/**
+ * Handle Google OAuth callback
+ * GET /api/v1/auth/oauth/google/callback
+ *
+ * Exchanges authorization code for tokens and stores them.
+ */
+async function handleGoogleOAuthCallback(event) {
+  const queryParams = event.queryStringParameters || {};
+  const { code, state, error, error_description } = queryParams;
+
+  // Handle OAuth errors
+  if (error) {
+    console.error('[OAuth] Google OAuth error:', error, error_description);
+    return createRedirectResponse('/settings/profile?oauth_error=' + encodeURIComponent(error_description || error));
+  }
+
+  if (!code || !state) {
+    console.error('[OAuth] Missing code or state in callback');
+    return createRedirectResponse('/settings/profile?oauth_error=missing_params');
+  }
+
+  // Decode state
+  let stateData;
+  try {
+    stateData = JSON.parse(Buffer.from(state, 'base64url').toString());
+  } catch (e) {
+    console.error('[OAuth] Invalid state parameter');
+    return createRedirectResponse('/settings/profile?oauth_error=invalid_state');
+  }
+
+  // Validate state timestamp (10 minute expiry)
+  if (Date.now() - stateData.timestamp > 10 * 60 * 1000) {
+    console.error('[OAuth] State expired');
+    return createRedirectResponse('/settings/profile?oauth_error=expired');
+  }
+
+  const config = getGoogleOAuthConfig();
+
+  // Exchange code for tokens
+  let tokens;
+  try {
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        code,
+        grant_type: 'authorization_code',
+        redirect_uri: config.redirectUri,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('[OAuth] Token exchange failed:', errorData);
+      return createRedirectResponse('/settings/profile?oauth_error=token_exchange_failed');
+    }
+
+    tokens = await response.json();
+    console.log('[OAuth] Token exchange successful');
+  } catch (e) {
+    console.error('[OAuth] Token exchange error:', e.message);
+    return createRedirectResponse('/settings/profile?oauth_error=token_exchange_error');
+  }
+
+  // Get user info from Google
+  let googleUserInfo;
+  try {
+    const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    });
+
+    if (!userInfoResponse.ok) {
+      throw new Error('Failed to fetch user info');
+    }
+
+    googleUserInfo = await userInfoResponse.json();
+    console.log('[OAuth] Got Google user info:', googleUserInfo.email);
+  } catch (e) {
+    console.error('[OAuth] Failed to get user info:', e.message);
+    return createRedirectResponse('/settings/profile?oauth_error=user_info_failed');
+  }
+
+  // Store encrypted tokens in database
+  try {
+    await getPoolAsync();
+
+    const encryptedAccessToken = encryptToken(tokens.access_token);
+    const encryptedRefreshToken = tokens.refresh_token ? encryptToken(tokens.refresh_token) : null;
+    const expiresAt = new Date(Date.now() + (tokens.expires_in || 3600) * 1000);
+
+    await query(
+      `UPDATE "User"
+       SET gmail_access_token = $1,
+           gmail_refresh_token = $2,
+           gmail_token_expires_at = $3,
+           gmail_connected_email = $4,
+           gmail_connected_at = NOW(),
+           updated_at = NOW()
+       WHERE cognito_sub = $5`,
+      [encryptedAccessToken, encryptedRefreshToken, expiresAt, googleUserInfo.email, stateData.userId]
+    );
+
+    console.log('[OAuth] Stored Gmail tokens for user:', stateData.userId, 'email:', googleUserInfo.email);
+
+    return createRedirectResponse('/settings/profile?oauth_success=true&email=' + encodeURIComponent(googleUserInfo.email));
+
+  } catch (e) {
+    console.error('[OAuth] Failed to store tokens:', e.message);
+    return createRedirectResponse('/settings/profile?oauth_error=storage_failed');
+  }
+}
+
+/**
+ * Get connected email info
+ * GET /api/v1/user/connected-email
+ */
+async function handleGetConnectedEmail(event) {
+  const authResult = await authenticateRequest(event);
+
+  if (!authResult.authenticated) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: 'Authentication required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT gmail_connected_email, gmail_connected_at, gmail_token_expires_at
+       FROM "User"
+       WHERE cognito_sub = $1`,
+      [authResult.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'User not found',
+      });
+    }
+
+    const user = result.rows[0];
+
+    if (!user.gmail_connected_email) {
+      return createResponse(200, {
+        connected: false,
+        email: null,
+        connectedAt: null,
+      });
+    }
+
+    // Check if token is expired (needs refresh)
+    const isExpired = user.gmail_token_expires_at && new Date(user.gmail_token_expires_at) < new Date();
+
+    return createResponse(200, {
+      connected: true,
+      email: user.gmail_connected_email,
+      connectedAt: user.gmail_connected_at,
+      needsRefresh: isExpired,
+    });
+
+  } catch (e) {
+    console.error('[OAuth] Failed to get connected email:', e.message);
+    return createResponse(500, {
+      error: 'Server Error',
+      message: 'Failed to get connection status',
+    });
+  }
+}
+
+/**
+ * Disconnect email
+ * DELETE /api/v1/user/connected-email
+ */
+async function handleDisconnectEmail(event) {
+  const authResult = await authenticateRequest(event);
+
+  if (!authResult.authenticated) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: 'Authentication required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get current email before clearing (for response)
+    const result = await query(
+      `SELECT gmail_connected_email FROM "User" WHERE cognito_sub = $1`,
+      [authResult.user.id]
+    );
+
+    const previousEmail = result.rows[0]?.gmail_connected_email;
+
+    // Clear all Gmail OAuth data
+    await query(
+      `UPDATE "User"
+       SET gmail_access_token = NULL,
+           gmail_refresh_token = NULL,
+           gmail_token_expires_at = NULL,
+           gmail_connected_email = NULL,
+           gmail_connected_at = NULL,
+           updated_at = NOW()
+       WHERE cognito_sub = $1`,
+      [authResult.user.id]
+    );
+
+    console.log('[OAuth] Disconnected Gmail for user:', authResult.user.id, 'email:', previousEmail);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Email disconnected successfully',
+      previousEmail,
+    });
+
+  } catch (e) {
+    console.error('[OAuth] Failed to disconnect email:', e.message);
+    return createResponse(500, {
+      error: 'Server Error',
+      message: 'Failed to disconnect email',
+    });
+  }
+}
+
+/**
+ * Helper to create redirect response
+ */
+function createRedirectResponse(path) {
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const redirectUrl = path.startsWith('http') ? path : `${frontendUrl}${path}`;
+
+  return {
+    statusCode: 302,
+    headers: {
+      Location: redirectUrl,
+      'Cache-Control': 'no-store',
+    },
+    body: '',
+  };
 }
 
