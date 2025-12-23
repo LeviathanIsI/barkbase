@@ -100,7 +100,7 @@ const VisualRunBoard = () => {
         // Filter by search term
         if (searchTerm) {
           const searchLower = searchTerm.toLowerCase();
-          const petName = booking.pet?.name || '';
+          const petName = booking.pet?.name || booking.pets?.[0]?.name || '';
           const ownerName = booking.owner ? `${booking.owner.firstName || ''} ${booking.owner.lastName || ''}`.trim() : '';
           if (!petName.toLowerCase().includes(searchLower) && 
               !ownerName.toLowerCase().includes(searchLower)) {
@@ -144,7 +144,7 @@ const VisualRunBoard = () => {
         return {
           id: booking.recordId,
           runId: booking.runTemplateId || booking.runTemplate?.recordId,
-          petName: booking.pet?.name || 'Unknown',
+          petName: booking.pet?.name || booking.pets?.[0]?.name || 'Unknown',
           ownerName: booking.owner ? `${booking.owner.firstName || ''} ${booking.owner.lastName || ''}`.trim() : 'Unknown',
           startDate: checkIn,
           endDate: checkOut,

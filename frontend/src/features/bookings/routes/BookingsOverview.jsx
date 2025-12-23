@@ -99,7 +99,7 @@ const BookingsOverview = () => {
     // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      const petName = booking.pet?.name || '';
+      const petName = booking.pet?.name || booking.pets?.[0]?.name || '';
       const ownerName = booking.owner?.name || '';
       const bookingId = booking.recordId || booking.bookingId || '';
       const matchesSearch =

@@ -342,10 +342,10 @@ const Pets = () => {
       let ownerName = 'No owner';
       let ownerId = null;
 
-      if (pet.owner_first_name || pet.owner_last_name) {
-        // New flat field format from API
-        ownerName = `${pet.owner_first_name || ''} ${pet.owner_last_name || ''}`.trim() || pet.owner_email || 'No owner';
-        ownerId = pet.owner_id;
+      if (pet.ownerFirstName || pet.ownerLastName) {
+        // New flat field format from API (camelCase after apiClient transform)
+        ownerName = `${pet.ownerFirstName || ''} ${pet.ownerLastName || ''}`.trim() || pet.ownerEmail || 'No owner';
+        ownerId = pet.ownerId;
       } else if (primaryOwner) {
         // Legacy nested format
         ownerName = primaryOwner?.name || primaryOwner?.email || 'No owner';

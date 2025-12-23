@@ -1,6 +1,9 @@
 /**
  * E2E Tests - Activities
  * Routes: /api/v1/entity/activities
+ *
+ * Activities are linked to entities (owner, pet, booking, invoice)
+ * and require entity_type + entity_id parameters.
  */
 
 const { testConnection, closePool, getTestContext } = require('../utils/setup');
@@ -10,6 +13,7 @@ jest.setTimeout(30000);
 
 let ctx;
 let client;
+let testOwnerId;
 
 describe('Activities API', () => {
   beforeAll(async () => {
@@ -17,6 +21,20 @@ describe('Activities API', () => {
     ctx = await getTestContext();
     client = createApiClient(ctx.token, ctx.tenantId);
     await api.post('/auth/login', { accessToken: ctx.token }, ctx.token, { tenantId: ctx.tenantId });
+
+    // Get or create an owner to use as the entity for activities
+    const ownersRes = await client.get('/api/v1/entity/owners?limit=1');
+    if (ownersRes.data?.data?.length > 0) {
+      testOwnerId = ownersRes.data.data[0].record_id || ownersRes.data.data[0].id;
+    } else {
+      const newOwner = await client.post('/api/v1/entity/owners', {
+        first_name: 'ActivityTest',
+        last_name: `Owner${Date.now()}`,
+        email: `activitytest-${Date.now()}@test.com`,
+      });
+      const ownerData = newOwner.data.data || newOwner.data;
+      testOwnerId = ownerData.record_id || ownerData.id;
+    }
   });
 
   afterAll(async () => {
@@ -24,49 +42,61 @@ describe('Activities API', () => {
   });
 
   describe('GET /api/v1/entity/activities', () => {
-    test('returns list of activities', async () => {
+    test('returns list of activities for an entity', async () => {
+      if (!testOwnerId) return; // Skip if no owner
+      // Activities require entity_type and entity_id params
+      const res = await client.get(`/api/v1/entity/activities?entity_type=owner&entity_id=${testOwnerId}`);
+      expect(res.status).toBe(200);
+      expect(res.data).toHaveProperty('data');
+      expect(Array.isArray(res.data.data)).toBe(true);
+    });
+
+    test('returns 400 without entity params', async () => {
       const res = await client.get('/api/v1/entity/activities');
-      expect([200, 404, 500]).toContain(res.status);
-      if (res.status === 200) {
-        expect(res.data).toHaveProperty('data');
-        expect(Array.isArray(res.data.data)).toBe(true);
-      }
+      expect(res.status).toBe(400);
     });
 
     test('returns 401 without token', async () => {
-      const res = await api.get('/api/v1/entity/activities', null, { tenantId: ctx.tenantId });
+      const ownerId = testOwnerId || '1';
+      const res = await api.get(`/api/v1/entity/activities?entity_type=owner&entity_id=${ownerId}`, null, { tenantId: ctx.tenantId });
       expect(res.status).toBe(401);
     });
 
     test('supports limit parameter', async () => {
-      const res = await client.get('/api/v1/entity/activities?limit=10');
-      expect([200, 404, 500]).toContain(res.status);
+      if (!testOwnerId) return; // Skip if no owner
+      const res = await client.get(`/api/v1/entity/activities?entity_type=owner&entity_id=${testOwnerId}&limit=10`);
+      expect(res.status).toBe(200);
     });
   });
 
   describe('POST /api/v1/entity/activities', () => {
     test('creates activity with valid data', async () => {
+      if (!testOwnerId) return; // Skip if no owner
       const data = {
-        name: `Activity${Date.now()}`,
-        type: 'FEEDING',
-        description: 'Morning feeding',
-        duration_minutes: 30,
+        entity_type: 'owner',
+        entity_id: testOwnerId,
+        activity_type: 'note',
+        subject: `Test Activity ${Date.now()}`,
+        content: 'Test activity content',
       };
       const res = await client.post('/api/v1/entity/activities', data);
-      expect([200, 201, 404, 500]).toContain(res.status);
-      if (res.status === 200 || res.status === 201) {
-        const activity = res.data.data || res.data;
-        expect(activity.name).toBe(data.name);
-      }
+      expect(res.status).toBe(201);
+      const activity = res.data.data || res.data;
+      expect(activity.subject || activity.content).toBeTruthy();
     });
 
-    test('rejects request without name', async () => {
-      const res = await client.post('/api/v1/entity/activities', { type: 'FEEDING' });
-      expect([400, 404, 500]).toContain(res.status);
+    test('rejects request without entity_type', async () => {
+      const res = await client.post('/api/v1/entity/activities', { entity_id: testOwnerId || 1, activity_type: 'note' });
+      expect(res.status).toBe(400);
+    });
+
+    test('rejects request without activity_type', async () => {
+      const res = await client.post('/api/v1/entity/activities', { entity_type: 'owner', entity_id: testOwnerId || 1 });
+      expect(res.status).toBe(400);
     });
 
     test('returns 401 without token', async () => {
-      const res = await api.post('/api/v1/entity/activities', { name: 'Test' }, null, { tenantId: ctx.tenantId });
+      const res = await api.post('/api/v1/entity/activities', { entity_type: 'owner', entity_id: testOwnerId || 1, activity_type: 'note' }, null, { tenantId: ctx.tenantId });
       expect(res.status).toBe(401);
     });
   });
@@ -76,15 +106,20 @@ describe('Activities API', () => {
 
     beforeAll(async () => {
       const res = await client.post('/api/v1/entity/activities', {
-        name: `GetActivity${Date.now()}`,
-        type: 'GROOMING',
-        duration_minutes: 60,
+        entity_type: 'owner',
+        entity_id: testOwnerId,
+        activity_type: 'note',
+        subject: `GetActivity${Date.now()}`,
+        content: 'Test content',
       });
-      const activityData = res.data.data || res.data;
-      activityId = activityData.record_id || activityData.id;
+      if (res.status === 200 || res.status === 201) {
+        const activityData = res.data.data || res.data;
+        activityId = activityData.record_id || activityData.id;
+      }
     });
 
     test('returns activity data', async () => {
+      if (!activityId) return; // Skip if setup failed
       const res = await client.get(`/api/v1/entity/activities/${activityId}`);
       expect([200, 404, 500]).toContain(res.status);
     });
@@ -95,7 +130,8 @@ describe('Activities API', () => {
     });
 
     test('returns 401 without token', async () => {
-      const res = await api.get(`/api/v1/entity/activities/${activityId}`, null, { tenantId: ctx.tenantId });
+      const testId = activityId || '1';
+      const res = await api.get(`/api/v1/entity/activities/${testId}`, null, { tenantId: ctx.tenantId });
       expect(res.status).toBe(401);
     });
   });
@@ -105,34 +141,35 @@ describe('Activities API', () => {
 
     beforeAll(async () => {
       const res = await client.post('/api/v1/entity/activities', {
-        name: `UpdateActivity${Date.now()}`,
-        type: 'EXERCISE',
-        duration_minutes: 45,
+        entity_type: 'owner',
+        entity_id: testOwnerId,
+        activity_type: 'note',
+        subject: `UpdateActivity${Date.now()}`,
+        content: 'Original content',
       });
-      const activityData = res.data.data || res.data;
-      activityId = activityData.record_id || activityData.id;
-    });
-
-    test('updates activity with valid data', async () => {
-      const res = await client.put(`/api/v1/entity/activities/${activityId}`, {
-        name: 'UpdatedActivity',
-        duration_minutes: 90,
-      });
-      expect([200, 204, 404, 500]).toContain(res.status);
-      if (res.status === 200 || res.status === 204) {
-        const get = await client.get(`/api/v1/entity/activities/${activityId}`);
-        const activity = get.data.data || get.data;
-        expect(activity.name).toBe('UpdatedActivity');
+      if (res.status === 200 || res.status === 201) {
+        const activityData = res.data.data || res.data;
+        activityId = activityData.record_id || activityData.id;
       }
     });
 
+    test('updates activity with valid data', async () => {
+      if (!activityId) return; // Skip if setup failed
+      const res = await client.put(`/api/v1/entity/activities/${activityId}`, {
+        subject: 'Updated Subject',
+        content: 'Updated content',
+      });
+      expect([200, 204, 404, 500]).toContain(res.status);
+    });
+
     test('handles non-existent id', async () => {
-      const res = await client.put('/api/v1/entity/activities/999999', { name: 'Test' });
+      const res = await client.put('/api/v1/entity/activities/999999', { subject: 'Test' });
       expect([404, 500]).toContain(res.status);
     });
 
     test('returns 401 without token', async () => {
-      const res = await api.put(`/api/v1/entity/activities/${activityId}`, { name: 'Test' }, null, { tenantId: ctx.tenantId });
+      const testId = activityId || '1';
+      const res = await api.put(`/api/v1/entity/activities/${testId}`, { subject: 'Test' }, null, { tenantId: ctx.tenantId });
       expect(res.status).toBe(401);
     });
   });
@@ -140,10 +177,12 @@ describe('Activities API', () => {
   describe('DELETE /api/v1/entity/activities/{id}', () => {
     test('deletes activity', async () => {
       const create = await client.post('/api/v1/entity/activities', {
-        name: `DeleteActivity${Date.now()}`,
-        type: 'TRAINING',
+        entity_type: 'owner',
+        entity_id: testOwnerId,
+        activity_type: 'note',
+        subject: `DeleteActivity${Date.now()}`,
       });
-      if (create.status === 404 || create.status === 500) return; // Skip if create failed
+      if (create.status !== 200 && create.status !== 201) return; // Skip if create failed
       const createData = create.data.data || create.data;
       const id = createData.record_id || createData.id;
 

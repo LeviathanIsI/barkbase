@@ -125,7 +125,7 @@ const buildReceiptHtml = ({ booking, ownerName, lateFeeCents, addOnsCents, remai
   </head>
   <body>
     <h1>${booking.tenantName ?? 'Boarding Receipt'}</h1>
-    <p><strong>Guest:</strong> ${booking.pet?.name ?? 'N/A'}<br/>
+    <p><strong>Guest:</strong> ${booking.pet?.name ?? booking.pets?.[0]?.name ?? 'N/A'}<br/>
        <strong>Owner:</strong> ${ownerName ?? 'N/A'}<br/>
        <strong>Checkout:</strong> ${printedAt}</p>
     <table>
@@ -146,7 +146,7 @@ const buildReceiptHtml = ({ booking, ownerName, lateFeeCents, addOnsCents, remai
 };
 
 const buildGoHomeHtml = ({ booking, notes, incidentSummary, pickupTime, signatureUrl }) => {
-  const petName = booking.pet?.name ?? booking.petName ?? 'Your pet';
+  const petName = booking.pet?.name ?? booking.pets?.[0]?.name ?? booking.petName ?? 'Your pet';
   return `<!doctype html>
 <html>
   <head>
@@ -340,7 +340,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
     <SlideoutPanel
       isOpen={open}
       onClose={onClose}
-      title={`Check Out ${booking.pet?.name ?? booking.petName ?? ''}`.trim()}
+      title={`Check Out ${booking.pet?.name ?? booking.pets?.[0]?.name ?? booking.petName ?? ''}`.trim()}
       description="Complete the check-out process, finalize billing, and generate reports."
       widthClass="max-w-xl"
       footer={

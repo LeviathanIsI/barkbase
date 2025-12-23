@@ -162,7 +162,7 @@ const CheckInModal = ({ booking, open, onClose }) => {
     <SlideoutPanel
       isOpen={open}
       onClose={onClose}
-      title={`Check In ${booking.pet?.name ?? booking.petName ?? ''}`.trim()}
+      title={`Check In ${booking.pet?.name ?? booking.pets?.[0]?.name ?? booking.petName ?? ''}`.trim()}
       description="Complete the check-in process for this booking."
       widthClass="max-w-lg"
       footer={

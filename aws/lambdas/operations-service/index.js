@@ -1210,7 +1210,7 @@ async function handleGetBookings(tenantId, queryParams) {
            ))
            FROM "BookingPet" bp
            JOIN "Pet" p ON p.tenant_id = bp.tenant_id AND bp.pet_id = p.record_id
-           WHERE bp.booking_id = b.record_id),
+           WHERE bp.tenant_id = b.tenant_id AND bp.booking_id = b.record_id),
            '[]'::json
          ) as pets
        FROM "Booking" b

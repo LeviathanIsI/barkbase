@@ -657,9 +657,9 @@ async function getFacility(event) {
 
   try {
     await getPoolAsync();
-    // Schema: id, tenant_id, name, size, location, max_occupancy, is_active, created_at, updated_at
+    // Schema: record_id, tenant_id, name, size, location, max_occupancy, is_active, created_at, updated_at
     const result = await query(
-      `SELECT id, tenant_id, name, size, location, max_occupancy,
+      `SELECT record_id, tenant_id, name, size, location, max_occupancy,
               is_active, created_at, updated_at
        FROM "Kennel"
        WHERE record_id = $1 AND tenant_id = $2`,
@@ -668,7 +668,7 @@ async function getFacility(event) {
     if (result.rows.length === 0) {
       return createResponse(404, { error: 'NotFound', message: 'Facility not found' });
     }
-    return createResponse(200, result.rows[0]);
+    return createResponse(200, { data: result.rows[0] });
   } catch (error) {
     console.error('[ENTITY-SERVICE] getFacility error:', error);
     return createResponse(500, { error: 'InternalServerError', message: 'Failed to get facility' });
@@ -851,7 +851,7 @@ async function getPets(event) {
 
     // Filter by owner via PetOwner junction table
     if (ownerId) {
-      joinClause = 'INNER JOIN "PetOwner" po ON po.pet_id = p.record_id';
+      joinClause = 'INNER JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_id = p.record_id';
       whereClause += ` AND po.owner_id = $${paramIndex}`;
       params.push(ownerId);
       paramIndex++;
@@ -893,7 +893,7 @@ async function getPets(event) {
               primary_owner.phone AS owner_phone
        FROM "Pet" p
        LEFT JOIN "Veterinarian" v ON v.tenant_id = p.tenant_id AND v.record_id = p.vet_id
-       LEFT JOIN "PetOwner" primary_po ON primary_po.pet_id = p.record_id AND primary_po.is_primary = true
+       LEFT JOIN "PetOwner" primary_po ON primary_po.tenant_id = p.tenant_id AND primary_po.pet_id = p.record_id AND primary_po.is_primary = true
        LEFT JOIN "Owner" primary_owner ON primary_owner.tenant_id = p.tenant_id AND primary_owner.record_id = primary_po.owner_id
        ${joinClause}
        WHERE ${whereClause}
@@ -2179,7 +2179,7 @@ async function updateStaffMember(event) {
 
     const result = await query(
       `UPDATE "Staff" SET ${updates.join(', ')}, updated_at = NOW()
-       WHERE id = $${paramIndex++} AND tenant_id = $${paramIndex}
+       WHERE record_id = $${paramIndex++} AND tenant_id = $${paramIndex}
        RETURNING *`,
       values
     );
@@ -2644,7 +2644,8 @@ async function updatePetVaccination(event) {
     const result = await query(
       `UPDATE "Vaccination"
        SET ${updates.join(', ')}
-       WHERE id = $1 AND tenant_id = $2       RETURNING *`,
+       WHERE record_id = $1 AND tenant_id = $2
+       RETURNING *`,
       values
     );
 
@@ -3209,7 +3210,7 @@ async function getActivities(event) {
   try {
     await getPoolAsync();
 
-    // Build WHERE clause
+    // Build WHERE clause using entity_id (BIGINT record_id)
     let whereClause = 'a.tenant_id = $1 AND a.entity_type = $2 AND a.entity_id = $3';
     const params = [tenantId, entityType, entityId];
     let paramIndex = 4;
@@ -3386,6 +3387,7 @@ async function createActivity(event) {
   try {
     await getPoolAsync();
 
+    // entity_id is now BIGINT, use record_id directly
     const activityRecordId = await getNextRecordId(tenantId, 'Activity');
     const result = await query(
       `INSERT INTO "Activity" (

@@ -195,7 +195,7 @@ const Bookings = () => {
       if (baseStatus === 'CHECKED_OUT') statuses.push('CHECKED_OUT');
       if (isPending && !checkInPassed) statuses.push('PENDING');
 
-      const petName = booking.pet?.name || 'Unknown Pet';
+      const petName = booking.pet?.name || booking.pets?.[0]?.name || 'Unknown Pet';
       const ownerName = booking.owner
         ? `${booking.owner.firstName || ''} ${booking.owner.lastName || ''}`.trim()
         : 'Unknown Owner';

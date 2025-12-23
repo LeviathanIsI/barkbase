@@ -185,7 +185,7 @@ const BookingCalendar = () => {
 
   const normaliseBooking = (booking) => ({
     ...booking,
-    petName: booking.pet?.name ?? booking.petName,
+    petName: booking.pet?.name ?? booking.pets?.[0]?.name ?? booking.petName,
     ownerName: booking.owner ? `${booking.owner.firstName} ${booking.owner.lastName}` : booking.ownerName,
     dateRange: { start: booking.checkIn, end: booking.checkOut },
     kennelId:

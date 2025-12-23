@@ -65,7 +65,7 @@ const QuickCheckIn = () => {
               label="Select Booking"
               options={pendingBookings.map(booking => ({
                 value: booking.recordId,
-                label: `${booking.pet?.name ?? booking.petName} - ${new Date(booking.dateRange.start).toLocaleDateString()}`
+                label: `${booking.pet?.name ?? booking.pets?.[0]?.name ?? booking.petName} - ${new Date(booking.dateRange.start).toLocaleDateString()}`
               }))}
               value={field.value}
               onChange={(opt) => field.onChange(opt?.value || '')}

@@ -262,9 +262,9 @@ async function softDelete(tableName, id, tenantId, deletedBy = null) {
   try {
     await client.query('BEGIN');
 
-    // Fetch the record to archive
+    // Fetch the record to archive (using record_id as primary key)
     const fetchResult = await client.query(
-      `SELECT * FROM "${tableName}" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT * FROM "${tableName}" WHERE record_id = $1 AND tenant_id = $2`,
       [id, tenantId]
     );
 
@@ -275,16 +275,19 @@ async function softDelete(tableName, id, tenantId, deletedBy = null) {
 
     const record = fetchResult.rows[0];
 
+    // Get next record_id for DeletedRecord table
+    const deletedRecordId = await getNextRecordId(tenantId, 'DeletedRecord');
+
     // Archive to DeletedRecord table
     await client.query(
-      `INSERT INTO "DeletedRecord" (tenant_id, original_table, original_id, data, deleted_at, deleted_by)
-       VALUES ($1, $2, $3, $4, NOW(), $5)`,
-      [tenantId, tableName, id, JSON.stringify(record), deletedBy]
+      `INSERT INTO "DeletedRecord" (record_id, tenant_id, original_table, original_id, data, deleted_at, deleted_by)
+       VALUES ($1, $2, $3, $4, $5, NOW(), $6)`,
+      [deletedRecordId, tenantId, tableName, id, JSON.stringify(record), deletedBy]
     );
 
     // Hard delete the original record
     await client.query(
-      `DELETE FROM "${tableName}" WHERE id = $1 AND tenant_id = $2`,
+      `DELETE FROM "${tableName}" WHERE record_id = $1 AND tenant_id = $2`,
       [id, tenantId]
     );
 
@@ -319,9 +322,9 @@ async function softDeleteBatch(tableName, ids, tenantId, deletedBy = null) {
   try {
     await client.query('BEGIN');
 
-    // Fetch all records to archive
+    // Fetch all records to archive (using record_id)
     const fetchResult = await client.query(
-      `SELECT * FROM "${tableName}" WHERE id = ANY($1) AND tenant_id = $2`,
+      `SELECT * FROM "${tableName}" WHERE record_id = ANY($1) AND tenant_id = $2`,
       [ids, tenantId]
     );
 
@@ -332,16 +335,17 @@ async function softDeleteBatch(tableName, ids, tenantId, deletedBy = null) {
 
     // Archive each record to DeletedRecord table
     for (const record of fetchResult.rows) {
+      const deletedRecordId = await getNextRecordId(tenantId, 'DeletedRecord');
       await client.query(
-        `INSERT INTO "DeletedRecord" (tenant_id, original_table, original_id, data, deleted_at, deleted_by)
-         VALUES ($1, $2, $3, $4, NOW(), $5)`,
-        [tenantId, tableName, record.id, JSON.stringify(record), deletedBy]
+        `INSERT INTO "DeletedRecord" (record_id, tenant_id, original_table, original_id, data, deleted_at, deleted_by)
+         VALUES ($1, $2, $3, $4, $5, NOW(), $6)`,
+        [deletedRecordId, tenantId, tableName, record.record_id, JSON.stringify(record), deletedBy]
       );
     }
 
     // Hard delete the original records
     const deleteResult = await client.query(
-      `DELETE FROM "${tableName}" WHERE id = ANY($1) AND tenant_id = $2`,
+      `DELETE FROM "${tableName}" WHERE record_id = ANY($1) AND tenant_id = $2`,
       [ids, tenantId]
     );
 
