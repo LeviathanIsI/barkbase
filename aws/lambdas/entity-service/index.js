@@ -997,7 +997,7 @@ async function createPet(event) {
     // Validate all owner IDs exist
     for (const ownerId of uniqueOwnerIds) {
       const ownerCheck = await query(
-        `SELECT id FROM "Owner" WHERE record_id = $1 AND tenant_id = $2`,
+        `SELECT record_id FROM "Owner" WHERE record_id = $1 AND tenant_id = $2`,
         [ownerId, tenantId]
       );
       if (ownerCheck.rows.length === 0) {
@@ -1480,7 +1480,7 @@ async function createOwner(event) {
     // Validate all pet IDs exist
     for (const petId of uniquePetIds) {
       const petCheck = await query(
-        `SELECT id FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`,
+        `SELECT record_id FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`,
         [petId, tenantId]
       );
       if (petCheck.rows.length === 0) {
