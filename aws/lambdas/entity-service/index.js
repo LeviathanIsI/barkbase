@@ -1094,17 +1094,27 @@ async function createPet(event) {
     );
 
     const petId = result.rows[0].record_id;
+    const petUuidVal = result.rows[0].id; // UUID from RETURNING *
 
     // Create PetOwner relationships for all provided owner IDs
+    // PetOwner uses UUID foreign keys (pet_id, owner_id), not record_id
     // First owner is marked as primary
     for (let i = 0; i < uniqueOwnerIds.length; i++) {
-      const ownerId = uniqueOwnerIds[i];
+      const ownerRecordId = uniqueOwnerIds[i];
       const isPrimary = i === 0; // First owner is primary
-      await query(
-        `INSERT INTO "PetOwner" (tenant_id, pet_record_id, owner_record_id, is_primary, relationship)
-         VALUES ($1, $2, $3, $4, 'owner')`,
-        [tenantId, petId, ownerId, isPrimary]
+      // Look up the Owner's UUID from record_id
+      const ownerUuid = await query(
+        `SELECT id FROM "Owner" WHERE record_id = $1 AND tenant_id = $2`,
+        [ownerRecordId, tenantId]
       );
+      if (ownerUuid.rows[0]) {
+        await query(
+          `INSERT INTO "PetOwner" (tenant_id, pet_id, owner_id, is_primary, relationship)
+           VALUES ($1, $2, $3, $4, 'owner')
+           ON CONFLICT (pet_id, owner_id) DO NOTHING`,
+          [tenantId, petUuidVal, ownerUuid.rows[0].id, isPrimary]
+        );
+      }
     }
 
     console.log('[ENTITY-SERVICE] Created pet:', petId, 'record_id:', recordId, 'with', uniqueOwnerIds.length, 'owners');
@@ -1522,14 +1532,24 @@ async function createOwner(event) {
     );
 
     const ownerId = result.rows[0].record_id;
+    const ownerUuidVal = result.rows[0].id; // UUID from RETURNING *
 
     // Create PetOwner relationships for all provided pet IDs
-    for (const petId of uniquePetIds) {
-      await query(
-        `INSERT INTO "PetOwner" (tenant_id, pet_record_id, owner_record_id, is_primary, relationship)
-         VALUES ($1, $2, $3, false, 'owner')`,
-        [tenantId, petId, ownerId]
+    // PetOwner uses UUID foreign keys (pet_id, owner_id), not record_id
+    for (const petRecordId of uniquePetIds) {
+      // Look up the Pet's UUID from record_id
+      const petUuid = await query(
+        `SELECT id FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`,
+        [petRecordId, tenantId]
       );
+      if (petUuid.rows[0]) {
+        await query(
+          `INSERT INTO "PetOwner" (tenant_id, pet_id, owner_id, is_primary, relationship)
+           VALUES ($1, $2, $3, false, 'owner')
+           ON CONFLICT (pet_id, owner_id) DO NOTHING`,
+          [tenantId, petUuid.rows[0].id, ownerUuidVal]
+        );
+      }
     }
 
     console.log('[ENTITY-SERVICE] Created owner:', ownerId, 'record_id:', recordId, 'with', uniquePetIds.length, 'pets');
