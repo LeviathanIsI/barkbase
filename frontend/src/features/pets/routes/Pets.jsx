@@ -7,7 +7,7 @@ import {
   SlidersHorizontal, BookmarkPlus, ArrowUpDown, ArrowUp, ArrowDown,
   GripVertical, Syringe, ShieldAlert, Calendar, Star, Dog, Cat,
   AlertCircle, CheckCircle2, Clock, User, Loader2, ShieldCheck, ShieldOff,
-  Crown, Ban, ExternalLink, Mail, Phone, AlertTriangle, FileText,
+  Crown, Ban, ExternalLink, Mail, Phone, AlertTriangle, FileText, FileQuestion,
 } from 'lucide-react';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import toast from 'react-hot-toast';
@@ -358,9 +358,9 @@ const Pets = () => {
       );
 
       // Vaccination status from calculated map (matches Vaccinations page logic)
-      // Status priority: expired > critical > expiring > current
-      const vaccinationStatus = petVaccinationStatus.get(pet.recordId) || petVaccinationStatus.get(pet.id) || 'current';
-      const hasExpiringVaccinations = vaccinationStatus !== 'current';
+      // Status priority: expired > critical > expiring > current > none (no records)
+      const vaccinationStatus = petVaccinationStatus.get(pet.recordId) || petVaccinationStatus.get(pet.id) || 'none';
+      const hasExpiringVaccinations = !['current', 'none'].includes(vaccinationStatus);
 
       // Derive age from birthdate - check multiple property names
       const birthdate = getBirthdateFromPet(pet);
@@ -909,7 +909,7 @@ const Pets = () => {
           ) : (
             <>
               {/* Desktop Table View */}
-              <ScrollableTableContainer className="hidden md:flex border rounded-t-lg" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+              <ScrollableTableContainer className="hidden md:block border rounded-t-lg" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
                 <table className="w-full text-sm min-w-[1024px]">
                   <thead className="sticky top-0 z-10">
                     <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', boxShadow: '0 1px 0 var(--bb-color-border-subtle)' }}>
@@ -1037,8 +1037,12 @@ const Pets = () => {
           try {
             await createPetMutation.mutateAsync(data);
             setPetFormModalOpen(false);
+            toast.success('Pet created successfully');
           } catch (err) {
             console.error('Failed to create pet:', err);
+            // Extract error message from API response
+            const errorMessage = err?.response?.data?.message || err?.message || 'Failed to create pet';
+            toast.error(errorMessage);
           }
         }}
         isLoading={createPetMutation.isPending}
@@ -1183,9 +1187,10 @@ const VaccinationBadge = ({ status }) => {
     critical: { variant: 'danger', icon: AlertCircle, label: 'Critical' },
     expired: { variant: 'danger', icon: AlertCircle, label: 'Expired' },
     missing: { variant: 'danger', icon: AlertCircle, label: 'Missing' },
+    none: { variant: 'neutral', icon: FileQuestion, label: 'Not on file' },
   };
 
-  const config = configs[status] || configs.current;
+  const config = configs[status] || configs.none;
   const Icon = config.icon;
 
   return (
@@ -1836,6 +1841,9 @@ const FilterPanel = ({ filters, onFiltersChange, onClose }) => (
           { value: '', label: 'Any' },
           { value: 'current', label: 'Current' },
           { value: 'expiring', label: 'Expiring Soon' },
+          { value: 'critical', label: 'Critical' },
+          { value: 'expired', label: 'Expired' },
+          { value: 'none', label: 'Not on file' },
         ]}
         value={filters.vaccinationStatus || ''}
         onChange={(opt) => onFiltersChange({ ...filters, vaccinationStatus: opt?.value || undefined })}

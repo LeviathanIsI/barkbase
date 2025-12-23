@@ -250,6 +250,10 @@ const PetDetail = () => {
 
   const vaccinationsSummary = useMemo(() => {
     if (!pet?.species) return { status: 'unknown', overdue: 0, dueSoon: 0 };
+    // If no vaccination records exist at all, show "none" status
+    if (!vaccinations || vaccinations.length === 0) {
+      return { status: 'none', overdue: 0, dueSoon: 0 };
+    }
     const defaults = getDefaultVaccines(pet.species);
     let overdue = 0;
     let dueSoon = 0;
@@ -592,9 +596,11 @@ const PetDetail = () => {
                 <MetricCard
                   label="Vaccinations"
                   value={vaccinationsSummary.status === 'up-to-date' ? 'Up to date' :
+                         vaccinationsSummary.status === 'none' ? 'Not on file' :
                          vaccinationsSummary.status === 'due-soon' ? `${vaccinationsSummary.dueSoon} due soon` :
                          `${vaccinationsSummary.overdue} overdue`}
                   variant={vaccinationsSummary.status === 'up-to-date' ? 'success' :
+                          vaccinationsSummary.status === 'none' ? 'neutral' :
                           vaccinationsSummary.status === 'due-soon' ? 'warning' : 'danger'}
                 />
               </div>
@@ -950,19 +956,22 @@ function OverviewTab({ pet, upcomingBookings, recentBookings, vaccinationsSummar
           Health Summary
         </h3>
         <div className="flex flex-wrap gap-2">
-          <button 
+          <button
             onClick={onSwitchToHealth}
             className={cn(
               "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-              vaccinationsSummary.status === 'up-to-date' 
+              vaccinationsSummary.status === 'up-to-date'
                 ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                : vaccinationsSummary.status === 'none'
+                ? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
                 : vaccinationsSummary.status === 'due-soon'
                 ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
                 : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
             )}
           >
             <Syringe className="w-3.5 h-3.5 inline mr-1.5" />
-            Vaccinations: {vaccinationsSummary.status === 'up-to-date' ? 'Up to date' : 
+            Vaccinations: {vaccinationsSummary.status === 'up-to-date' ? 'Up to date' :
+                          vaccinationsSummary.status === 'none' ? 'Not on file' :
                           vaccinationsSummary.status === 'due-soon' ? 'Due soon' : 'Overdue'}
           </button>
           
