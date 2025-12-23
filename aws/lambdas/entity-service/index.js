@@ -1279,7 +1279,6 @@ async function deletePet(event) {
   const tenantId = resolveTenantId(event);
   const pathParams = getPathParams(event);
   const id = pathParams.id || event.path?.split('/').pop();
-  const deletedBy = event.user?.userId || null;
 
   console.log('[Pets][delete] id:', id, 'tenantId:', tenantId);
 
@@ -1288,37 +1287,27 @@ async function deletePet(event) {
   }
 
   try {
-    // First, delete related vaccinations (archive them)
-    try {
-      const vacResult = await query(
-        `SELECT record_id FROM "Vaccination" WHERE pet_id = $1 AND tenant_id = $2`,
-        [id, tenantId]
-      );
-      if (vacResult.rows.length > 0) {
-        const vacIds = vacResult.rows.map(v => v.record_id);
-        await softDeleteBatch('Vaccination', vacIds, tenantId, deletedBy);
-        console.log('[Pets][delete] Deleted', vacIds.length, 'vaccinations for pet:', id);
-      }
-    } catch (e) {
-      console.log('[Pets][delete] Vaccination delete skipped:', e.message);
-    }
-
-    // Delete PetOwner junction records (hard delete - no archive needed for junction tables)
-    try {
-      await query(`DELETE FROM "PetOwner" WHERE pet_id = $1`, [id]);
-      console.log('[Pets][delete] Deleted PetOwner records for pet:', id);
-    } catch (e) {
-      console.log('[Pets][delete] PetOwner delete skipped:', e.message);
-    }
-
-    // Now soft delete the pet itself
-    const result = await softDelete('Pet', id, tenantId, deletedBy);
-
-    if (!result) {
+    // Check pet exists first
+    const petCheck = await query(
+      `SELECT record_id FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`,
+      [id, tenantId]
+    );
+    if (petCheck.rows.length === 0) {
       return createResponse(404, { error: 'NotFound', message: 'Pet not found' });
     }
 
+    // Delete vaccinations for this pet
+    await query(`DELETE FROM "Vaccination" WHERE pet_id = $1 AND tenant_id = $2`, [id, tenantId]);
+    console.log('[Pets][delete] Deleted vaccinations for pet:', id);
+
+    // Delete PetOwner junction records
+    await query(`DELETE FROM "PetOwner" WHERE pet_id = $1 AND tenant_id = $2`, [id, tenantId]);
+    console.log('[Pets][delete] Deleted PetOwner records for pet:', id);
+
+    // Delete the pet
+    await query(`DELETE FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`, [id, tenantId]);
     console.log('[ENTITY-SERVICE] Deleted pet:', id);
+
     return createResponse(204, '');
   } catch (error) {
     console.error('[ENTITY-SERVICE] deletePet error:', error);
