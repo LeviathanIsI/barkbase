@@ -36,6 +36,11 @@ describe('Authentication E2E Tests', () => {
       email: testContext.user.email,
       tenantId: testContext.tenantId,
     });
+
+    // Create session by calling /auth/login (required for /auth/me to work)
+    await api.post('/auth/login', { accessToken: authToken }, authToken, {
+      tenantId: testContext.tenantId,
+    });
   });
 
   afterAll(async () => {
@@ -47,7 +52,9 @@ describe('Authentication E2E Tests', () => {
       const res = await api.get('/auth/me', authToken, { tenantId: testContext.tenantId });
 
       expect(res.status).toBe(200);
-      expect(res.data).toHaveProperty('email');
+      expect(res.data).toHaveProperty('user');
+      expect(res.data.user).toHaveProperty('email', testContext.user.email);
+      expect(res.data.user).toHaveProperty('tenantId', testContext.tenantId);
     });
 
     test('returns 401 with no token', async () => {
