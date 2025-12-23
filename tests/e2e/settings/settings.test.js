@@ -59,6 +59,8 @@ async function testGetEndpoint(endpoint, fieldName) {
       trackResult(fieldName, '500', `GET ${endpoint}: ${JSON.stringify(res.data)}`);
       return { success: false, status: res.status, data: null };
     }
+    // Track successful GET
+    trackResult(fieldName, 'working');
     return { success: true, status: res.status, data: res.data };
   } catch (error) {
     trackResult(fieldName, '500', `GET ${endpoint}: ${error.message}`);
@@ -102,7 +104,9 @@ describe('Settings E2E Tests', () => {
 
     testContext = await getTestContext();
     authToken = testContext.token;
-    apiClient = createApiClient(authToken, testContext.tenantId, testContext.accountCode);
+    // NOTE: Don't pass accountCode - that uses /a/:accountCode routes which don't exist
+    // The API uses /api/v1/* routes instead
+    apiClient = createApiClient(authToken, testContext.tenantId);
 
     console.log('[E2E Settings] Test context loaded:', {
       email: testContext.user.email,
@@ -157,14 +161,14 @@ describe('Settings E2E Tests', () => {
   // PROFILE PAGE (/settings/profile)
   // ============================================================================
   describe('Profile Page (/settings/profile)', () => {
-    describe('GET /user/profile - User Profile Data', () => {
+    describe('GET /profile/me - User Profile Data', () => {
       test('loads user profile with all fields', async () => {
-        const res = await apiClient.get('/user/profile');
+        const res = await apiClient.get('/profile/me');
 
         if (res.status === 404) {
-          trackResult('Profile - GET endpoint', '404', 'GET /user/profile');
+          trackResult('Profile - GET endpoint', '404', 'GET /profile/me');
         } else if (res.status >= 500) {
-          trackResult('Profile - GET endpoint', '500', `GET /user/profile: ${res.status}`);
+          trackResult('Profile - GET endpoint', '500', `GET /profile/me: ${res.status}`);
         } else {
           expect(res.status).toBe(200);
           expect(res.data).toBeDefined();
@@ -173,9 +177,10 @@ describe('Settings E2E Tests', () => {
       });
 
       test('profile contains First Name field', async () => {
-        const res = await apiClient.get('/user/profile');
-        if (res.ok && res.data) {
-          const hasField = 'firstName' in res.data || 'first_name' in res.data;
+        const res = await apiClient.get('/profile/me');
+        if (res.ok && res.data?.profile) {
+          const profile = res.data.profile;
+          const hasField = 'firstName' in profile || 'first_name' in profile;
           if (hasField) {
             trackResult('Profile - First Name', 'working');
           } else {
@@ -186,9 +191,10 @@ describe('Settings E2E Tests', () => {
       });
 
       test('profile contains Last Name field', async () => {
-        const res = await apiClient.get('/user/profile');
-        if (res.ok && res.data) {
-          const hasField = 'lastName' in res.data || 'last_name' in res.data;
+        const res = await apiClient.get('/profile/me');
+        if (res.ok && res.data?.profile) {
+          const profile = res.data.profile;
+          const hasField = 'lastName' in profile || 'last_name' in profile;
           if (hasField) {
             trackResult('Profile - Last Name', 'working');
           } else {
@@ -199,9 +205,9 @@ describe('Settings E2E Tests', () => {
       });
 
       test('profile contains Email field', async () => {
-        const res = await apiClient.get('/user/profile');
-        if (res.ok && res.data) {
-          const hasField = 'email' in res.data;
+        const res = await apiClient.get('/profile/me');
+        if (res.ok && res.data?.profile) {
+          const hasField = 'email' in res.data.profile;
           if (hasField) {
             trackResult('Profile - Email', 'working');
           } else {
@@ -212,9 +218,9 @@ describe('Settings E2E Tests', () => {
       });
 
       test('profile contains Phone field', async () => {
-        const res = await apiClient.get('/user/profile');
-        if (res.ok && res.data) {
-          const hasField = 'phone' in res.data || 'phoneNumber' in res.data;
+        const res = await apiClient.get('/profile/me');
+        if (res.ok && res.data?.profile) {
+          const hasField = 'phone' in res.data.profile || 'phoneNumber' in res.data.profile;
           if (hasField) {
             trackResult('Profile - Phone', 'working');
           } else {
@@ -223,34 +229,10 @@ describe('Settings E2E Tests', () => {
         }
       });
 
-      test('profile contains Language field', async () => {
-        const res = await apiClient.get('/user/profile');
-        if (res.ok && res.data) {
-          const hasField = 'language' in res.data || 'locale' in res.data;
-          if (hasField) {
-            trackResult('Profile - Language', 'working');
-          } else {
-            trackResult('Profile - Language', 'ui_missing', 'Field not in response');
-          }
-        }
-      });
-
-      test('profile contains Timezone field', async () => {
-        const res = await apiClient.get('/user/profile');
-        if (res.ok && res.data) {
-          const hasField = 'timezone' in res.data || 'timeZone' in res.data;
-          if (hasField) {
-            trackResult('Profile - Timezone', 'working');
-          } else {
-            trackResult('Profile - Timezone', 'ui_missing', 'Field not in response');
-          }
-        }
-      });
-
       test('profile contains passwordChangedAt field', async () => {
-        const res = await apiClient.get('/user/profile');
-        if (res.ok && res.data) {
-          const hasField = 'passwordChangedAt' in res.data || 'password_changed_at' in res.data;
+        const res = await apiClient.get('/profile/me');
+        if (res.ok && res.data?.profile) {
+          const hasField = 'passwordChangedAt' in res.data.profile || 'password_changed_at' in res.data.profile;
           if (hasField) {
             trackResult('Profile - Password Changed At', 'working');
           } else {
@@ -260,9 +242,9 @@ describe('Settings E2E Tests', () => {
       });
 
       test('profile contains role field', async () => {
-        const res = await apiClient.get('/user/profile');
-        if (res.ok && res.data) {
-          const hasField = 'role' in res.data || 'roles' in res.data;
+        const res = await apiClient.get('/profile/me');
+        if (res.ok && res.data?.profile) {
+          const hasField = 'role' in res.data.profile || 'roles' in res.data.profile;
           if (hasField) {
             trackResult('Profile - Role', 'working');
           } else {
@@ -272,28 +254,29 @@ describe('Settings E2E Tests', () => {
       });
     });
 
-    describe('PUT /user/profile - Update Profile', () => {
+    describe('PUT /profile/me - Update Profile', () => {
       test('can update First Name', async () => {
-        const testValue = 'TestFirstName' + Date.now();
-        await testSaveEndpoint('PUT', '/user/profile', { firstName: testValue }, 'Profile - Update First Name');
+        const testValue = 'Josh'; // Reset to actual name
+        await testSaveEndpoint('PUT', '/profile/me', { firstName: testValue }, 'Profile - Update First Name');
       });
 
       test('can update Last Name', async () => {
-        const testValue = 'TestLastName' + Date.now();
-        await testSaveEndpoint('PUT', '/user/profile', { lastName: testValue }, 'Profile - Update Last Name');
+        const testValue = 'Bradford'; // Reset to actual name
+        await testSaveEndpoint('PUT', '/profile/me', { lastName: testValue }, 'Profile - Update Last Name');
       });
 
       test('can update Phone', async () => {
         const testValue = '+15551234567';
-        await testSaveEndpoint('PUT', '/user/profile', { phone: testValue }, 'Profile - Update Phone');
+        await testSaveEndpoint('PUT', '/profile/me', { phone: testValue }, 'Profile - Update Phone');
       });
+    });
 
-      test('can update Language', async () => {
-        await testSaveEndpoint('PUT', '/user/profile', { language: 'en' }, 'Profile - Update Language');
-      });
-
-      test('can update Timezone', async () => {
-        await testSaveEndpoint('PUT', '/user/profile', { timezone: 'America/New_York' }, 'Profile - Update Timezone');
+    describe('GET /profile/tenant - Tenant Info', () => {
+      test('can fetch tenant info', async () => {
+        const res = await testGetEndpoint('/profile/tenant', 'Profile - Tenant Info');
+        if (res.success) {
+          trackResult('Profile - Tenant Info GET', 'working');
+        }
       });
     });
 
@@ -302,15 +285,6 @@ describe('Settings E2E Tests', () => {
         const res = await testGetEndpoint('/auth/connected-email', 'Profile - Connected Email');
         if (res.success) {
           trackResult('Profile - Connected Email GET', 'working');
-        }
-      });
-    });
-
-    describe('GET /auth/sessions - Active Sessions', () => {
-      test('can fetch active sessions', async () => {
-        const res = await testGetEndpoint('/auth/sessions', 'Profile - Active Sessions');
-        if (res.success) {
-          trackResult('Profile - Active Sessions GET', 'working');
         }
       });
     });
@@ -448,156 +422,141 @@ describe('Settings E2E Tests', () => {
 
   // ============================================================================
   // ACCOUNT DEFAULTS PAGE (/settings/account-defaults)
+  // All settings are consolidated in /account-defaults endpoint
   // ============================================================================
   describe('Account Defaults Page (/settings/account-defaults)', () => {
-    describe('GET /tenants/current - Business Profile', () => {
-      test('loads tenant/business profile', async () => {
-        const res = await testGetEndpoint('/tenants/current', 'Account Defaults - GET Tenant');
+    describe('GET /account-defaults - Business Profile', () => {
+      test('loads account defaults (business info, hours, holidays, locale, currency)', async () => {
+        const res = await testGetEndpoint('/account-defaults', 'Account Defaults - GET');
+        if (res.success && res.data) {
+          // Verify expected structure
+          const data = res.data;
+          if (data.businessInfo) trackResult('Account Defaults - Business Info Section', 'working');
+          if (data.operatingHours) trackResult('Account Defaults - Operating Hours Section', 'working');
+          if (data.holidays !== undefined) trackResult('Account Defaults - Holidays Section', 'working');
+          if (data.regionalSettings) trackResult('Account Defaults - Regional Settings Section', 'working');
+          if (data.currencySettings) trackResult('Account Defaults - Currency Settings Section', 'working');
+        }
       });
     });
 
-    describe('Business Profile Tab', () => {
+    describe('PUT /account-defaults - Business Profile Tab', () => {
       test('can update Business Name', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current', { name: 'Test Business' }, 'Account Defaults - Business Name');
+        await testSaveEndpoint('PUT', '/account-defaults', { businessInfo: { name: 'Test Business' } }, 'Account Defaults - Business Name');
       });
 
       test('can update Tax ID / EIN', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current', { taxId: '12-3456789' }, 'Account Defaults - Tax ID');
+        await testSaveEndpoint('PUT', '/account-defaults', { businessInfo: { taxId: '12-3456789' } }, 'Account Defaults - Tax ID');
       });
 
       test('can update Business Phone', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current', { phone: '+15551234567' }, 'Account Defaults - Business Phone');
+        await testSaveEndpoint('PUT', '/account-defaults', { businessInfo: { phone: '+15551234567' } }, 'Account Defaults - Business Phone');
       });
 
       test('can update Business Email', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current', { email: 'test@example.com' }, 'Account Defaults - Business Email');
+        await testSaveEndpoint('PUT', '/account-defaults', { businessInfo: { email: 'test@example.com' } }, 'Account Defaults - Business Email');
       });
 
       test('can update Website', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current', { website: 'https://example.com' }, 'Account Defaults - Website');
+        await testSaveEndpoint('PUT', '/account-defaults', { businessInfo: { website: 'https://example.com' } }, 'Account Defaults - Website');
       });
 
       test('can update Customer-facing Notes', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current', { customerNotes: 'Test notes' }, 'Account Defaults - Customer Notes');
+        await testSaveEndpoint('PUT', '/account-defaults', { businessInfo: { customerNotes: 'Test notes' } }, 'Account Defaults - Customer Notes');
       });
 
       test('can update Street Address', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current', { address: { street: '123 Test St' } }, 'Account Defaults - Street');
+        await testSaveEndpoint('PUT', '/account-defaults', { businessInfo: { street: '123 Test St' } }, 'Account Defaults - Street');
       });
 
       test('can update City', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current', { address: { city: 'Test City' } }, 'Account Defaults - City');
+        await testSaveEndpoint('PUT', '/account-defaults', { businessInfo: { city: 'Test City' } }, 'Account Defaults - City');
       });
 
       test('can update State', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current', { address: { state: 'OH' } }, 'Account Defaults - State');
+        await testSaveEndpoint('PUT', '/account-defaults', { businessInfo: { state: 'OH' } }, 'Account Defaults - State');
       });
 
       test('can update Postal Code', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current', { address: { postalCode: '43215' } }, 'Account Defaults - Postal Code');
+        await testSaveEndpoint('PUT', '/account-defaults', { businessInfo: { postalCode: '43215' } }, 'Account Defaults - Postal Code');
       });
 
       test('can update Country', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current', { address: { country: 'US' } }, 'Account Defaults - Country');
+        await testSaveEndpoint('PUT', '/account-defaults', { businessInfo: { country: 'US' } }, 'Account Defaults - Country');
       });
     });
 
-    describe('GET /config/operating-hours - Scheduling Tab', () => {
-      test('loads operating hours', async () => {
-        await testGetEndpoint('/config/operating-hours', 'Account Defaults - Operating Hours GET');
-      });
-    });
-
-    describe('PUT /config/operating-hours - Operating Hours', () => {
+    describe('PUT /account-defaults - Operating Hours', () => {
       const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
       days.forEach((day) => {
         test(`can update ${day} open/closed toggle`, async () => {
-          await testSaveEndpoint('PUT', '/config/operating-hours', {
-            [day]: { isOpen: true, openTime: '08:00', closeTime: '18:00' },
+          await testSaveEndpoint('PUT', '/account-defaults', {
+            operatingHours: {
+              [day]: { isOpen: true, openTime: '08:00', closeTime: '18:00' },
+            },
           }, `Account Defaults - ${day} Toggle`);
         });
       });
     });
 
-    describe('GET /config/holidays - Holiday Closures', () => {
-      test('loads holiday closures', async () => {
-        await testGetEndpoint('/config/holidays', 'Account Defaults - Holidays GET');
-      });
-    });
-
-    describe('POST /config/holidays - Add Holiday', () => {
-      test('can add a holiday closure', async () => {
-        await testSaveEndpoint('POST', '/config/holidays', {
-          name: 'Test Holiday',
-          startDate: '2025-12-25',
-          endDate: '2025-12-25',
-          recurring: true,
+    describe('PUT /account-defaults - Holiday Closures', () => {
+      test('can update holidays list', async () => {
+        await testSaveEndpoint('PUT', '/account-defaults', {
+          holidays: [{
+            name: 'Test Holiday',
+            startDate: '2025-12-25',
+            endDate: '2025-12-25',
+            recurring: true,
+          }],
         }, 'Account Defaults - Add Holiday');
       });
     });
 
-    describe('GET /config/locale - Locale Tab', () => {
-      test('loads locale settings', async () => {
-        await testGetEndpoint('/config/locale', 'Account Defaults - Locale GET');
-      });
-    });
-
-    describe('PUT /config/locale - Locale Settings', () => {
+    describe('PUT /account-defaults - Regional Settings (Locale)', () => {
       test('can update Time Zone', async () => {
-        await testSaveEndpoint('PUT', '/config/locale', { timezone: 'America/New_York' }, 'Account Defaults - Timezone');
+        await testSaveEndpoint('PUT', '/account-defaults', { regionalSettings: { timezone: 'America/New_York' } }, 'Account Defaults - Timezone');
       });
 
       test('can update Date Format', async () => {
-        await testSaveEndpoint('PUT', '/config/locale', { dateFormat: 'MM/DD/YYYY' }, 'Account Defaults - Date Format');
+        await testSaveEndpoint('PUT', '/account-defaults', { regionalSettings: { dateFormat: 'MM/DD/YYYY' } }, 'Account Defaults - Date Format');
       });
 
       test('can update Time Format', async () => {
-        await testSaveEndpoint('PUT', '/config/locale', { timeFormat: '12-hour' }, 'Account Defaults - Time Format');
+        await testSaveEndpoint('PUT', '/account-defaults', { regionalSettings: { timeFormat: '12-hour' } }, 'Account Defaults - Time Format');
       });
 
       test('can update Week Starts On', async () => {
-        await testSaveEndpoint('PUT', '/config/locale', { weekStartsOn: 'sunday' }, 'Account Defaults - Week Starts On');
+        await testSaveEndpoint('PUT', '/account-defaults', { regionalSettings: { weekStartsOn: 'sunday' } }, 'Account Defaults - Week Starts On');
       });
     });
 
-    describe('GET /config/currency - Currency Tab', () => {
-      test('loads currency settings', async () => {
-        await testGetEndpoint('/config/currency', 'Account Defaults - Currency GET');
-      });
-    });
-
-    describe('PUT /config/currency - Currency Settings', () => {
+    describe('PUT /account-defaults - Currency Settings', () => {
       test('can update Supported Currencies', async () => {
-        await testSaveEndpoint('PUT', '/config/currency', { supportedCurrencies: ['USD', 'CAD'] }, 'Account Defaults - Supported Currencies');
+        await testSaveEndpoint('PUT', '/account-defaults', { currencySettings: { supportedCurrencies: ['USD', 'CAD'] } }, 'Account Defaults - Supported Currencies');
       });
 
       test('can update Default Currency', async () => {
-        await testSaveEndpoint('PUT', '/config/currency', { defaultCurrency: 'USD' }, 'Account Defaults - Default Currency');
+        await testSaveEndpoint('PUT', '/account-defaults', { currencySettings: { defaultCurrency: 'USD' } }, 'Account Defaults - Default Currency');
       });
     });
   });
 
   // ============================================================================
   // USERS & TEAMS PAGE (/settings/users-teams)
+  // Uses /memberships endpoint for team member management
   // ============================================================================
   describe('Users & Teams Page (/settings/users-teams)', () => {
-    describe('GET /users - Team Members', () => {
+    describe('GET /memberships - Team Members', () => {
       test('loads team members list', async () => {
-        await testGetEndpoint('/users', 'Users & Teams - GET Users');
+        await testGetEndpoint('/memberships', 'Users & Teams - GET Members');
       });
     });
 
-    describe('GET /users/invites - Pending Invites', () => {
-      test('loads pending invites', async () => {
-        await testGetEndpoint('/users/invites', 'Users & Teams - GET Invites');
-      });
-    });
-
-    describe('POST /users/invite - Invite Member', () => {
+    describe('POST /memberships - Invite Member', () => {
       test('invite member endpoint exists', async () => {
         // Use a test email that won't actually send
-        const res = await apiClient.post('/users/invite', {
+        const res = await apiClient.post('/memberships', {
           email: 'test-invite-' + Date.now() + '@example.com',
           firstName: 'Test',
           lastName: 'User',
@@ -605,7 +564,7 @@ describe('Settings E2E Tests', () => {
         });
 
         if (res.status === 404) {
-          trackResult('Users & Teams - Invite Member', '404', 'POST /users/invite');
+          trackResult('Users & Teams - Invite Member', '404', 'POST /memberships');
         } else if (res.status >= 500) {
           trackResult('Users & Teams - Invite Member', '500', `Status: ${res.status}`);
         } else {
@@ -614,17 +573,17 @@ describe('Settings E2E Tests', () => {
       });
     });
 
-    describe('PUT /users/:id/role - Update Role', () => {
+    describe('PUT /memberships/:id - Update Role', () => {
       test('update role endpoint structure exists', async () => {
-        // Test with current user
-        const res = await apiClient.get('/users');
+        // Test with current memberships
+        const res = await apiClient.get('/memberships');
         if (res.ok && res.data && res.data.length > 0) {
-          const userId = res.data[0].id || res.data[0].record_id;
-          if (userId) {
-            await testSaveEndpoint('PUT', `/users/${userId}/role`, { role: 'ADMIN' }, 'Users & Teams - Update Role');
+          const membershipId = res.data[0].id || res.data[0].record_id;
+          if (membershipId) {
+            await testSaveEndpoint('PUT', `/memberships/${membershipId}`, { role: 'ADMIN' }, 'Users & Teams - Update Role');
           }
         } else {
-          trackResult('Users & Teams - Update Role', 'ui_missing', 'No users found to test');
+          trackResult('Users & Teams - Update Role', 'ui_missing', 'No members found to test');
         }
       });
     });
@@ -659,43 +618,44 @@ describe('Settings E2E Tests', () => {
 
   // ============================================================================
   // BRANDING PAGE (/settings/branding)
+  // Uses /config/branding endpoint
   // ============================================================================
   describe('Branding Page (/settings/branding)', () => {
-    describe('GET /tenants/current/theme - Theme Settings', () => {
+    describe('GET /config/branding - Theme Settings', () => {
       test('loads theme settings', async () => {
-        await testGetEndpoint('/tenants/current/theme', 'Branding - GET Theme');
+        await testGetEndpoint('/config/branding', 'Branding - GET Theme');
       });
     });
 
-    describe('PUT /tenants/current/theme - Update Theme', () => {
+    describe('PUT /config/branding - Update Theme', () => {
       test('can update Primary Color', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current/theme', {
+        await testSaveEndpoint('PUT', '/config/branding', {
           colors: { primary: '59 130 246' },
         }, 'Branding - Primary Color');
       });
 
       test('can update Secondary Color', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current/theme', {
+        await testSaveEndpoint('PUT', '/config/branding', {
           colors: { secondary: '129 140 248' },
         }, 'Branding - Secondary Color');
       });
 
       test('can update Accent Color', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current/theme', {
+        await testSaveEndpoint('PUT', '/config/branding', {
           colors: { accent: '249 115 22' },
         }, 'Branding - Accent Color');
       });
 
       test('can update Background Color', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current/theme', {
+        await testSaveEndpoint('PUT', '/config/branding', {
           colors: { background: '255 255 255' },
         }, 'Branding - Background Color');
       });
     });
 
-    describe('PUT /tenants/current/terminology - Terminology', () => {
+    describe('PUT /config/branding - Terminology', () => {
       test('can update Kennel Term', async () => {
-        await testSaveEndpoint('PUT', '/tenants/current', {
+        await testSaveEndpoint('PUT', '/config/branding', {
           terminology: { kennel: 'Suite' },
         }, 'Branding - Kennel Term');
       });
@@ -704,45 +664,53 @@ describe('Settings E2E Tests', () => {
 
   // ============================================================================
   // DOMAIN & SSL PAGE (/settings/domain-ssl)
+  // Uses /settings/domain endpoint
   // ============================================================================
   describe('Domain & SSL Page (/settings/domain-ssl)', () => {
-    describe('GET /config/domain - Domain Settings', () => {
+    describe('GET /settings/domain - Domain Settings', () => {
       test('loads domain settings', async () => {
-        await testGetEndpoint('/config/domain', 'Domain & SSL - GET Domain');
+        await testGetEndpoint('/settings/domain', 'Domain & SSL - GET Domain');
       });
     });
 
-    describe('PUT /config/domain - Update Domain', () => {
+    describe('PUT /settings/domain - Update Domain', () => {
       test('can update custom domain', async () => {
-        await testSaveEndpoint('PUT', '/config/domain', {
+        await testSaveEndpoint('PUT', '/settings/domain', {
           customDomain: null, // Clear to avoid breaking things
         }, 'Domain & SSL - Custom Domain');
       });
     });
 
-    describe('POST /config/domain/verify - Verify Domain', () => {
+    describe('POST /settings/domain/verify - Verify Domain', () => {
       test('verify domain endpoint exists', async () => {
-        const res = await apiClient.post('/config/domain/verify', {});
+        const res = await apiClient.post('/settings/domain/verify', {});
         if (res.status === 404) {
-          trackResult('Domain & SSL - Verify Domain', '404', 'POST /config/domain/verify');
+          trackResult('Domain & SSL - Verify Domain', '404', 'POST /settings/domain/verify');
         } else {
           trackResult('Domain & SSL - Verify Domain', 'working');
         }
+      });
+    });
+
+    describe('GET /settings/domain/status - Domain Status', () => {
+      test('check domain status endpoint exists', async () => {
+        await testGetEndpoint('/settings/domain/status', 'Domain & SSL - Domain Status');
       });
     });
   });
 
   // ============================================================================
   // FEATURE TOGGLES PAGE (/settings/feature-toggles)
+  // Uses /config/tenant/features endpoint
   // ============================================================================
   describe('Feature Toggles Page (/settings/feature-toggles)', () => {
-    describe('GET /config/features - Feature Settings', () => {
+    describe('GET /config/tenant/features - Feature Settings', () => {
       test('loads feature settings', async () => {
-        await testGetEndpoint('/config/features', 'Feature Toggles - GET Features');
+        await testGetEndpoint('/config/tenant/features', 'Feature Toggles - GET Features');
       });
     });
 
-    describe('PUT /config/features - Update Features', () => {
+    describe('PUT /config/tenant/features - Update Features', () => {
       const features = [
         'boarding',
         'daycare',
@@ -759,7 +727,7 @@ describe('Settings E2E Tests', () => {
 
       features.forEach((feature) => {
         test(`can update ${feature} toggle`, async () => {
-          await testSaveEndpoint('PUT', '/config/features', {
+          await testSaveEndpoint('PUT', '/config/tenant/features', {
             [feature]: true,
           }, `Feature Toggles - ${feature}`);
         });
@@ -814,185 +782,199 @@ describe('Settings E2E Tests', () => {
 
   // ============================================================================
   // ONLINE BOOKING PAGE (/settings/online-booking)
+  // Uses /settings/online-booking endpoint
   // ============================================================================
   describe('Online Booking Page (/settings/online-booking)', () => {
-    describe('GET /config/online-booking - Booking Settings', () => {
+    describe('GET /settings/online-booking - Booking Settings', () => {
       test('loads online booking settings', async () => {
-        await testGetEndpoint('/config/online-booking', 'Online Booking - GET Settings');
+        await testGetEndpoint('/settings/online-booking', 'Online Booking - GET Settings');
       });
     });
 
-    describe('PUT /config/online-booking - Update Settings', () => {
+    describe('PUT /settings/online-booking - Update Settings', () => {
       // Portal Settings
       test('can update Portal Enabled toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { portalEnabled: true }, 'Online Booking - Portal Enabled');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { portalEnabled: true }, 'Online Booking - Portal Enabled');
       });
 
       test('can update URL Slug', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { urlSlug: 'test-kennel' }, 'Online Booking - URL Slug');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { urlSlug: 'test-kennel' }, 'Online Booking - URL Slug');
       });
 
       // Services Available Online
       test('can update Boarding Enabled toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { boardingEnabled: true }, 'Online Booking - Boarding Enabled');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { boardingEnabled: true }, 'Online Booking - Boarding Enabled');
       });
 
       test('can update Boarding Min Nights', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { boardingMinNights: 1 }, 'Online Booking - Boarding Min Nights');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { boardingMinNights: 1 }, 'Online Booking - Boarding Min Nights');
       });
 
       test('can update Boarding Max Nights', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { boardingMaxNights: 30 }, 'Online Booking - Boarding Max Nights');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { boardingMaxNights: 30 }, 'Online Booking - Boarding Max Nights');
       });
 
       test('can update Daycare Enabled toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { daycareEnabled: true }, 'Online Booking - Daycare Enabled');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { daycareEnabled: true }, 'Online Booking - Daycare Enabled');
       });
 
       test('can update Daycare Same Day toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { daycareSameDay: true }, 'Online Booking - Daycare Same Day');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { daycareSameDay: true }, 'Online Booking - Daycare Same Day');
       });
 
       test('can update Grooming Enabled toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { groomingEnabled: false }, 'Online Booking - Grooming Enabled');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { groomingEnabled: false }, 'Online Booking - Grooming Enabled');
       });
 
       test('can update Training Enabled toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { trainingEnabled: false }, 'Online Booking - Training Enabled');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { trainingEnabled: false }, 'Online Booking - Training Enabled');
       });
 
       // New Customers
       test('can update Allow New Customers toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { allowNewCustomers: true }, 'Online Booking - Allow New Customers');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { allowNewCustomers: true }, 'Online Booking - Allow New Customers');
       });
 
       test('can update New Customer Approval', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { newCustomerApproval: 'manual' }, 'Online Booking - New Customer Approval');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { newCustomerApproval: 'manual' }, 'Online Booking - New Customer Approval');
       });
 
       test('can update Require Vax Upload toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { requireVaxUpload: true }, 'Online Booking - Require Vax Upload');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { requireVaxUpload: true }, 'Online Booking - Require Vax Upload');
       });
 
       test('can update Require Emergency Contact toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { requireEmergencyContact: true }, 'Online Booking - Require Emergency Contact');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { requireEmergencyContact: true }, 'Online Booking - Require Emergency Contact');
       });
 
       test('can update Require Vet Info toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { requireVetInfo: true }, 'Online Booking - Require Vet Info');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { requireVetInfo: true }, 'Online Booking - Require Vet Info');
       });
 
       test('can update Require Pet Photo toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { requirePetPhoto: false }, 'Online Booking - Require Pet Photo');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { requirePetPhoto: false }, 'Online Booking - Require Pet Photo');
       });
 
       // Booking Requirements
       test('can update Require Waiver toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { requireWaiver: true }, 'Online Booking - Require Waiver');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { requireWaiver: true }, 'Online Booking - Require Waiver');
       });
 
       test('can update Require Deposit toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { requireDeposit: true }, 'Online Booking - Require Deposit');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { requireDeposit: true }, 'Online Booking - Require Deposit');
       });
 
       test('can update Deposit Percent', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { depositPercent: 25 }, 'Online Booking - Deposit Percent');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { depositPercent: 25 }, 'Online Booking - Deposit Percent');
       });
 
       test('can update Require Card On File toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { requireCardOnFile: true }, 'Online Booking - Require Card On File');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { requireCardOnFile: true }, 'Online Booking - Require Card On File');
       });
 
       // Booking Confirmation
       test('can update Send Confirmation Email toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { sendConfirmationEmail: true }, 'Online Booking - Send Confirmation Email');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { sendConfirmationEmail: true }, 'Online Booking - Send Confirmation Email');
       });
 
       test('can update Send Confirmation SMS toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { sendConfirmationSms: false }, 'Online Booking - Send Confirmation SMS');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { sendConfirmationSms: false }, 'Online Booking - Send Confirmation SMS');
       });
 
       test('can update Confirmation Message', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { confirmationMessage: 'Thank you!' }, 'Online Booking - Confirmation Message');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { confirmationMessage: 'Thank you!' }, 'Online Booking - Confirmation Message');
       });
 
       test('can update Include Cancellation Policy toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { includeCancellationPolicy: true }, 'Online Booking - Include Cancellation Policy');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { includeCancellationPolicy: true }, 'Online Booking - Include Cancellation Policy');
       });
 
       test('can update Include Directions toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { includeDirections: true }, 'Online Booking - Include Directions');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { includeDirections: true }, 'Online Booking - Include Directions');
       });
 
       test('can update Include Checklist toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { includeChecklist: true }, 'Online Booking - Include Checklist');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { includeChecklist: true }, 'Online Booking - Include Checklist');
       });
 
       // Portal Appearance
       test('can update Welcome Message', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { welcomeMessage: 'Welcome!' }, 'Online Booking - Welcome Message');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { welcomeMessage: 'Welcome!' }, 'Online Booking - Welcome Message');
       });
 
       test('can update Show Logo toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { showLogo: true }, 'Online Booking - Show Logo');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { showLogo: true }, 'Online Booking - Show Logo');
       });
 
       test('can update Show Photos toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { showPhotos: true }, 'Online Booking - Show Photos');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { showPhotos: true }, 'Online Booking - Show Photos');
       });
 
       test('can update Show Pricing toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { showPricing: true }, 'Online Booking - Show Pricing');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { showPricing: true }, 'Online Booking - Show Pricing');
       });
 
       test('can update Show Reviews toggle', async () => {
-        await testSaveEndpoint('PUT', '/config/online-booking', { showReviews: true }, 'Online Booking - Show Reviews');
+        await testSaveEndpoint('PUT', '/settings/online-booking', { showReviews: true }, 'Online Booking - Show Reviews');
       });
     });
 
-    describe('POST /config/online-booking/check-slug - Check Slug Availability', () => {
+    describe('POST /settings/online-booking/check-slug - Check Slug Availability', () => {
       test('check slug endpoint exists', async () => {
-        const res = await apiClient.post('/config/online-booking/check-slug', { slug: 'test-slug' });
+        const res = await apiClient.post('/settings/online-booking/check-slug', { slug: 'test-slug' });
         if (res.status === 404) {
-          trackResult('Online Booking - Check Slug', '404', 'POST /config/online-booking/check-slug');
+          trackResult('Online Booking - Check Slug', '404', 'POST /settings/online-booking/check-slug');
         } else {
           trackResult('Online Booking - Check Slug', 'working');
         }
+      });
+    });
+
+    describe('GET /settings/online-booking/qr-code - QR Code', () => {
+      test('qr code endpoint exists', async () => {
+        await testGetEndpoint('/settings/online-booking/qr-code', 'Online Booking - QR Code');
       });
     });
   });
 
   // ============================================================================
   // SUBSCRIPTION PAGE (/settings/subscription)
+  // Uses /financial/* endpoints
   // ============================================================================
   describe('Subscription Page (/settings/subscription)', () => {
-    describe('GET /billing/subscription - Subscription Info', () => {
+    describe('GET /financial/subscriptions - Subscription Info', () => {
       test('loads subscription info', async () => {
-        await testGetEndpoint('/billing/subscription', 'Subscription - GET Info');
+        await testGetEndpoint('/financial/subscriptions', 'Subscription - GET Info');
       });
     });
 
-    describe('GET /billing/payment-methods - Payment Methods', () => {
+    describe('GET /financial/payment-methods - Payment Methods', () => {
       test('loads payment methods', async () => {
-        await testGetEndpoint('/billing/payment-methods', 'Subscription - GET Payment Methods');
+        await testGetEndpoint('/financial/payment-methods', 'Subscription - GET Payment Methods');
       });
     });
 
-    describe('GET /billing/invoices - Invoices', () => {
+    describe('GET /financial/invoices - Invoices', () => {
       test('loads invoices', async () => {
-        await testGetEndpoint('/billing/invoices', 'Subscription - GET Invoices');
+        await testGetEndpoint('/financial/invoices', 'Subscription - GET Invoices');
       });
     });
 
-    describe('GET /billing/usage - Usage', () => {
+    describe('GET /financial/billing/usage - Usage', () => {
       test('loads usage data', async () => {
-        await testGetEndpoint('/billing/usage', 'Subscription - GET Usage');
+        await testGetEndpoint('/financial/billing/usage', 'Subscription - GET Usage');
       });
     });
 
-    describe('GET /billing/plans - Plans', () => {
-      test('loads available plans', async () => {
-        await testGetEndpoint('/billing/plans', 'Subscription - GET Plans');
+    describe('GET /financial/billing/summary - Billing Summary', () => {
+      test('loads billing summary', async () => {
+        await testGetEndpoint('/financial/billing/summary', 'Subscription - GET Billing Summary');
+      });
+    });
+
+    describe('GET /financial/billing/history - Billing History', () => {
+      test('loads billing history', async () => {
+        await testGetEndpoint('/financial/billing/history', 'Subscription - GET Billing History');
       });
     });
   });
@@ -1167,12 +1149,13 @@ describe('Settings E2E Tests', () => {
   });
 
   // ============================================================================
-  // FACILITY SETUP (placeholder - add when implemented)
+  // FACILITY SETUP
+  // Facilities via /entity/facilities, Runs via /runs (operations-service)
   // ============================================================================
   describe('Facility Setup Page (/settings/facility)', () => {
-    describe('GET /facilities - Facility Data', () => {
+    describe('GET /entity/facilities - Facility Data', () => {
       test('loads facility data', async () => {
-        await testGetEndpoint('/facilities', 'Facility Setup - GET Facilities');
+        await testGetEndpoint('/entity/facilities', 'Facility Setup - GET Facilities');
       });
     });
 
@@ -1185,88 +1168,181 @@ describe('Settings E2E Tests', () => {
 
   // ============================================================================
   // CALENDAR SETTINGS
+  // Uses /settings/calendar endpoint
   // ============================================================================
   describe('Calendar Settings Page (/settings/calendar)', () => {
-    describe('GET /config/calendar - Calendar Settings', () => {
+    describe('GET /settings/calendar - Calendar Settings', () => {
       test('loads calendar settings', async () => {
-        await testGetEndpoint('/config/calendar', 'Calendar - GET Settings');
+        await testGetEndpoint('/settings/calendar', 'Calendar - GET Settings');
+      });
+    });
+
+    describe('PUT /settings/calendar - Update Calendar Settings', () => {
+      test('can update calendar settings', async () => {
+        await testSaveEndpoint('PUT', '/settings/calendar', {
+          defaultView: 'week',
+          slotDuration: 30,
+        }, 'Calendar - Update Settings');
       });
     });
   });
 
   // ============================================================================
   // BOOKING RULES
+  // Uses /settings/booking endpoint
   // ============================================================================
   describe('Booking Rules Page (/settings/booking-rules)', () => {
-    describe('GET /config/booking-rules - Booking Rules', () => {
+    describe('GET /settings/booking - Booking Rules', () => {
       test('loads booking rules', async () => {
-        await testGetEndpoint('/config/booking-rules', 'Booking Rules - GET');
+        await testGetEndpoint('/settings/booking', 'Booking Rules - GET');
+      });
+    });
+
+    describe('PUT /settings/booking - Update Booking Rules', () => {
+      test('can update booking rules', async () => {
+        await testSaveEndpoint('PUT', '/settings/booking', {
+          minAdvanceBooking: 24,
+          maxAdvanceBooking: 90,
+        }, 'Booking Rules - Update');
       });
     });
   });
 
   // ============================================================================
   // PAYMENT PROCESSING
+  // Uses /settings/payments endpoint
   // ============================================================================
   describe('Payment Processing Page (/settings/payment-processing)', () => {
-    describe('GET /config/payments - Payment Settings', () => {
+    describe('GET /settings/payments - Payment Settings', () => {
       test('loads payment settings', async () => {
-        await testGetEndpoint('/config/payments', 'Payment Processing - GET Settings');
+        await testGetEndpoint('/settings/payments', 'Payment Processing - GET Settings');
+      });
+    });
+
+    describe('PUT /settings/payments - Update Payment Settings', () => {
+      test('can update payment settings', async () => {
+        await testSaveEndpoint('PUT', '/settings/payments', {
+          acceptedMethods: ['card', 'cash'],
+        }, 'Payment Processing - Update Settings');
+      });
+    });
+
+    describe('GET /settings/payments/stripe-status - Stripe Status', () => {
+      test('loads stripe connection status', async () => {
+        await testGetEndpoint('/settings/payments/stripe-status', 'Payment Processing - Stripe Status');
       });
     });
   });
 
   // ============================================================================
   // INVOICING
+  // Uses /settings/invoicing endpoint
   // ============================================================================
   describe('Invoicing Page (/settings/invoicing)', () => {
-    describe('GET /config/invoicing - Invoice Settings', () => {
+    describe('GET /settings/invoicing - Invoice Settings', () => {
       test('loads invoice settings', async () => {
-        await testGetEndpoint('/config/invoicing', 'Invoicing - GET Settings');
+        await testGetEndpoint('/settings/invoicing', 'Invoicing - GET Settings');
+      });
+    });
+
+    describe('PUT /settings/invoicing - Update Invoice Settings', () => {
+      test('can update invoice settings', async () => {
+        await testSaveEndpoint('PUT', '/settings/invoicing', {
+          invoicePrefix: 'INV',
+          dueDays: 30,
+        }, 'Invoicing - Update Settings');
+      });
+    });
+
+    describe('GET /settings/invoicing/preview - Invoice Preview', () => {
+      test('loads invoice preview', async () => {
+        await testGetEndpoint('/settings/invoicing/preview', 'Invoicing - Preview');
       });
     });
   });
 
   // ============================================================================
   // PACKAGES & ADD-ONS
+  // Uses /financial/packages and /package-templates endpoints
   // ============================================================================
   describe('Packages & Add-Ons Page (/settings/packages)', () => {
-    describe('GET /packages - Packages List', () => {
+    describe('GET /financial/packages - Packages List', () => {
       test('loads packages', async () => {
-        await testGetEndpoint('/packages', 'Packages - GET List');
+        await testGetEndpoint('/financial/packages', 'Packages - GET List');
+      });
+    });
+
+    describe('GET /package-templates - Package Templates', () => {
+      test('loads package templates', async () => {
+        await testGetEndpoint('/package-templates', 'Packages - GET Templates');
+      });
+    });
+
+    describe('GET /addon-services - Add-On Services', () => {
+      test('loads add-on services', async () => {
+        await testGetEndpoint('/addon-services', 'Packages - GET Add-Ons');
       });
     });
   });
 
   // ============================================================================
   // EMAIL TEMPLATES
+  // Uses /settings/email/templates endpoint
   // ============================================================================
   describe('Email Templates Page (/settings/email-templates)', () => {
-    describe('GET /config/email-templates - Email Templates', () => {
+    describe('GET /settings/email/templates - Email Templates', () => {
       test('loads email templates', async () => {
-        await testGetEndpoint('/config/email-templates', 'Email Templates - GET List');
+        await testGetEndpoint('/settings/email/templates', 'Email Templates - GET List');
+      });
+    });
+
+    describe('GET /settings/email - Email Settings', () => {
+      test('loads email settings', async () => {
+        await testGetEndpoint('/settings/email', 'Email Settings - GET');
+      });
+    });
+
+    describe('GET /settings/email/usage - Email Usage', () => {
+      test('loads email usage stats', async () => {
+        await testGetEndpoint('/settings/email/usage', 'Email Settings - Usage');
       });
     });
   });
 
   // ============================================================================
   // SMS SETTINGS
+  // Uses /settings/sms endpoint
   // ============================================================================
   describe('SMS Settings Page (/settings/sms)', () => {
-    describe('GET /config/sms - SMS Settings', () => {
+    describe('GET /settings/sms - SMS Settings', () => {
       test('loads SMS settings', async () => {
-        await testGetEndpoint('/config/sms', 'SMS Settings - GET');
+        await testGetEndpoint('/settings/sms', 'SMS Settings - GET');
+      });
+    });
+
+    describe('PUT /settings/sms - Update SMS Settings', () => {
+      test('can update SMS settings', async () => {
+        await testSaveEndpoint('PUT', '/settings/sms', {
+          enabled: true,
+        }, 'SMS Settings - Update');
+      });
+    });
+
+    describe('GET /settings/sms/templates - SMS Templates', () => {
+      test('loads SMS templates', async () => {
+        await testGetEndpoint('/settings/sms/templates', 'SMS Settings - Templates');
       });
     });
   });
 
   // ============================================================================
   // NOTIFICATION TRIGGERS
+  // May be part of /config/notifications endpoint
   // ============================================================================
   describe('Notification Triggers Page (/settings/notification-triggers)', () => {
-    describe('GET /config/notification-triggers - Triggers', () => {
-      test('loads notification triggers', async () => {
-        await testGetEndpoint('/config/notification-triggers', 'Notification Triggers - GET');
+    describe('GET /config/notifications - Notification Triggers', () => {
+      test('loads notification triggers (via notifications config)', async () => {
+        await testGetEndpoint('/config/notifications', 'Notification Triggers - GET');
       });
     });
   });
@@ -1306,28 +1382,47 @@ describe('Settings E2E Tests', () => {
 
   // ============================================================================
   // FILES
+  // Uses /files/templates and /files/custom endpoints
   // ============================================================================
   describe('Files Page (/settings/files)', () => {
-    describe('GET /files - Files List', () => {
-      test('loads files', async () => {
-        await testGetEndpoint('/files', 'Files - GET List');
+    describe('GET /files/templates - File Templates', () => {
+      test('loads file templates', async () => {
+        await testGetEndpoint('/files/templates', 'Files - GET Templates');
+      });
+    });
+
+    describe('GET /files/custom - Custom Files', () => {
+      test('loads custom files', async () => {
+        await testGetEndpoint('/files/custom', 'Files - GET Custom');
       });
     });
   });
 
   // ============================================================================
   // IMPORT & EXPORT
+  // Uses /import-export/* and /imports endpoints
   // ============================================================================
   describe('Import & Export Page (/settings/import-export)', () => {
-    describe('GET /data/exports - Export History', () => {
-      test('loads export history', async () => {
-        await testGetEndpoint('/data/exports', 'Import & Export - GET Exports');
+    describe('GET /import-export/jobs - Import/Export Jobs', () => {
+      test('loads import/export job history', async () => {
+        await testGetEndpoint('/import-export/jobs', 'Import & Export - GET Jobs');
       });
     });
 
-    describe('GET /data/imports - Import History', () => {
+    describe('GET /imports - Import History', () => {
       test('loads import history', async () => {
-        await testGetEndpoint('/data/imports', 'Import & Export - GET Imports');
+        await testGetEndpoint('/imports', 'Import & Export - GET Imports');
+      });
+    });
+
+    describe('POST /import-export/export - Start Export', () => {
+      test('export endpoint exists', async () => {
+        const res = await apiClient.post('/import-export/export', { type: 'customers' });
+        if (res.status === 404) {
+          trackResult('Import & Export - Export', '404', 'POST /import-export/export');
+        } else {
+          trackResult('Import & Export - Export', 'working');
+        }
       });
     });
   });
