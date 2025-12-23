@@ -1517,7 +1517,7 @@ async function createOwner(event) {
         body.notes || null,
         body.tags || [],
         body.isActive !== false,
-        event.user?.userId || null
+        null
       ]
     );
 
