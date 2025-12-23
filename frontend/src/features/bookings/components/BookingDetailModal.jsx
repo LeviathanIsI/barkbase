@@ -21,7 +21,7 @@ import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import { useKennels } from '@/features/kennels/api';
 import { useAssignKennelMutation, useDeleteBookingMutation, useBookingCheckInMutation, useBookingCheckOutMutation } from '@/features/bookings/api';
 import { useRunTemplatesQuery } from '@/features/daycare/api-templates';
-import { useUpdateRunAssignmentMutation } from '@/features/daycare/api';
+import { useUpdateRunAssignmentMutation, useRemovePetFromRunMutation } from '@/features/daycare/api';
 import { useAuthStore } from '@/stores/auth';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
@@ -35,6 +35,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
   const checkInMutation = useBookingCheckInMutation();
   const checkOutMutation = useBookingCheckOutMutation();
   const updateAssignmentMutation = useUpdateRunAssignmentMutation();
+  const removeFromRunMutation = useRemovePetFromRunMutation();
 
   // Get current user for audit fields
   const userId = useAuthStore((state) => state.user?.id);
@@ -1203,16 +1204,39 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
       <ConfirmDialog
         isOpen={showEndEarlyDialog}
         onClose={() => setShowEndEarlyDialog(false)}
-        onConfirm={() => {
-          // TODO: Call API to end the run assignment early
-          toast.success(`${displayBooking.pet.name || 'Pet'}'s run assignment ended`);
-          setShowEndEarlyDialog(false);
+        onConfirm={async () => {
+          try {
+            const runId = displayBooking.runId;
+            const petId = displayBooking.pet?.recordId || displayBooking.pet?.id || displayBooking.petId;
+            const assignmentId = displayBooking.id || displayBooking.assignmentId;
+            const date = displayBooking.assignedDate || new Date().toISOString().split('T')[0];
+
+            if (!runId || !petId) {
+              toast.error('Missing run or pet information');
+              return;
+            }
+
+            await removeFromRunMutation.mutateAsync({
+              runId,
+              petIds: [petId],
+              assignmentIds: assignmentId ? [assignmentId] : undefined,
+              date,
+            });
+
+            toast.success(`${displayBooking.pet?.name || 'Pet'}'s run assignment ended`);
+            setShowEndEarlyDialog(false);
+            onClose?.();
+          } catch (error) {
+            console.error('[BookingDetail] End early failed:', error);
+            toast.error(error?.message || 'Failed to end assignment');
+          }
         }}
         title="End Assignment Early"
-        message={`Are you sure you want to end ${displayBooking.pet.name || 'this pet'}'s run assignment early? They were scheduled until ${displayBooking.endTime ? formatTimeString(displayBooking.endTime) : 'the end of their session'}.`}
+        message={`Are you sure you want to end ${displayBooking.pet?.name || 'this pet'}'s run assignment early? They were scheduled until ${displayBooking.endTime ? formatTimeString(displayBooking.endTime) : 'the end of their session'}.`}
         confirmText="Yes, End Now"
         cancelText="Keep Running"
         variant="warning"
+        isLoading={removeFromRunMutation.isPending}
       />
     </>
   );

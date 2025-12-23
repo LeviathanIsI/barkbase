@@ -4693,12 +4693,12 @@ async function handleClearRunAssignments(tenantId, runId, body) {
     }
 
     if (Array.isArray(petIds) && petIds.length > 0) {
-      deleteQuery += ` AND pet_id = ANY($${paramIndex++}::uuid[])`;
+      deleteQuery += ` AND pet_id = ANY($${paramIndex++}::bigint[])`;
       params.push(petIds);
     }
 
     if (Array.isArray(assignmentIds) && assignmentIds.length > 0) {
-      deleteQuery += ` AND record_id = ANY($${paramIndex++}::uuid[])`;
+      deleteQuery += ` AND record_id = ANY($${paramIndex++}::bigint[])`;
       params.push(assignmentIds);
     }
 
