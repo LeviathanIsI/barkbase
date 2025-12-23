@@ -9868,7 +9868,7 @@ async function handleClockOut(tenantId, user, body) {
     if (entryId) {
       activeResult = await query(
         `SELECT * FROM "TimeEntry"
-         WHERE id = $1 AND tenant_id = $2 AND clock_out IS NULL`,
+         WHERE record_id = $1 AND tenant_id = $2 AND clock_out IS NULL`,
         [entryId, tenantId]
       );
     } else {
@@ -9906,7 +9906,7 @@ async function handleClockOut(tenantId, user, body) {
            is_on_break = false,
            break_start = NULL,
            updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2
+       WHERE record_id = $1 AND tenant_id = $2
        RETURNING *`,
       [active.record_id, tenantId, notes, totalBreakMinutes]
     );
@@ -9954,7 +9954,7 @@ async function handleStartBreak(tenantId, user, body) {
     const params = [tenantId];
 
     if (entryId) {
-      whereClause += ' AND id = $2';
+      whereClause += ' AND record_id = $2';
       params.push(entryId);
     } else if (userId) {
       whereClause += ' AND user_id = $2';
@@ -9986,7 +9986,7 @@ async function handleStartBreak(tenantId, user, body) {
     const result = await query(
       `UPDATE "TimeEntry"
        SET is_on_break = true, break_start = NOW(), updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2
+       WHERE record_id = $1 AND tenant_id = $2
        RETURNING *`,
       [active.record_id, tenantId]
     );
@@ -10024,7 +10024,7 @@ async function handleEndBreak(tenantId, user, body) {
     const params = [tenantId];
 
     if (entryId) {
-      whereClause += ' AND id = $2';
+      whereClause += ' AND record_id = $2';
       params.push(entryId);
     } else if (userId) {
       whereClause += ' AND user_id = $2';
@@ -10050,7 +10050,7 @@ async function handleEndBreak(tenantId, user, body) {
     const result = await query(
       `UPDATE "TimeEntry"
        SET is_on_break = false, break_start = NULL, break_minutes = $3, updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2
+       WHERE record_id = $1 AND tenant_id = $2
        RETURNING *`,
       [active.record_id, tenantId, totalBreakMinutes]
     );
