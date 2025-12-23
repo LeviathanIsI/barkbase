@@ -105,10 +105,18 @@ export function EditableProperty({
   onSave,
   fieldKey,
   disabled = false,
+  // Controlled mode props (optional - used by EditablePropertyList)
+  isEditingControlled,
+  onStartEdit,
+  onStopEdit,
 }) {
   const { label, type = 'text', value, options = [], required = false, suffix = '' } = property;
 
-  const [isEditing, setIsEditing] = useState(false);
+  // Use controlled mode if onStartEdit is provided, otherwise internal state
+  const isControlled = typeof onStartEdit === 'function';
+  const [internalEditing, setInternalEditing] = useState(false);
+  const isEditing = isControlled ? isEditingControlled : internalEditing;
+
   const [editValue, setEditValue] = useState(value);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -130,9 +138,18 @@ export function EditableProperty({
     }
   }, [isEditing, type]);
 
+  const setEditing = (editing) => {
+    if (isControlled) {
+      if (editing) onStartEdit?.(fieldKey);
+      else onStopEdit?.();
+    } else {
+      setInternalEditing(editing);
+    }
+  };
+
   const handleStartEdit = () => {
     if (disabled || saving) return;
-    setIsEditing(true);
+    setEditing(true);
     setError(null);
     // For dates, convert to input format
     if (type === 'date' || type === 'datetime') {
@@ -143,7 +160,7 @@ export function EditableProperty({
   };
 
   const handleCancel = () => {
-    setIsEditing(false);
+    setEditing(false);
     setEditValue(value);
     setError(null);
   };
@@ -161,7 +178,7 @@ export function EditableProperty({
     const normalizedEdit = editValue === '' ? null : editValue;
     const normalizedValue = value === '' ? null : value;
     if (normalizedEdit === normalizedValue) {
-      setIsEditing(false);
+      setEditing(false);
       return;
     }
 
@@ -170,7 +187,7 @@ export function EditableProperty({
 
     try {
       await onSave(fieldKey, normalizedEdit);
-      setIsEditing(false);
+      setEditing(false);
     } catch (err) {
       setError(err.message || 'Failed to save');
     } finally {
@@ -353,7 +370,7 @@ export function EditableProperty({
                   setSaving(true);
                   try {
                     await onSave(fieldKey, opt?.value ?? null);
-                    setIsEditing(false);
+                    setEditing(false);
                   } catch (err) {
                     setError(err.message || 'Failed to save');
                   } finally {
@@ -492,6 +509,7 @@ export function EditableProperty({
 
 /**
  * EditablePropertyList - Renders a list of editable properties
+ * Only one property can be edited at a time
  */
 export function EditablePropertyList({
   properties,
@@ -499,6 +517,16 @@ export function EditablePropertyList({
   disabled = false,
   className,
 }) {
+  const [activeEditKey, setActiveEditKey] = useState(null);
+
+  const handleStartEdit = (fieldKey) => {
+    setActiveEditKey(fieldKey);
+  };
+
+  const handleStopEdit = () => {
+    setActiveEditKey(null);
+  };
+
   return (
     <dl className={cn('space-y-4', className)}>
       {properties.map((prop) => (
@@ -507,7 +535,10 @@ export function EditablePropertyList({
           property={prop}
           fieldKey={prop.fieldKey}
           onSave={onSave}
-          disabled={disabled}
+          disabled={disabled || (prop.fieldKey === null)}
+          isEditingControlled={activeEditKey === prop.fieldKey}
+          onStartEdit={handleStartEdit}
+          onStopEdit={handleStopEdit}
         />
       ))}
     </dl>
