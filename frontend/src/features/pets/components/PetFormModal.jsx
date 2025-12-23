@@ -110,7 +110,8 @@ const PetFormModal = ({
   // Fetch owners for the dropdown
   const { data: ownersData } = useOwnersQuery();
   const ownerOptions = useMemo(() => {
-    const owners = ownersData?.owners || ownersData?.items || [];
+    // useOwnersQuery returns array directly
+    const owners = Array.isArray(ownersData) ? ownersData : [];
     return owners.map(owner => ({
       value: owner.recordId || owner.record_id || owner.id,
       label: owner.name || `${owner.firstName || owner.first_name || ''} ${owner.lastName || owner.last_name || ''}`.trim() || owner.email || 'Unknown',
