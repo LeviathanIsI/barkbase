@@ -234,12 +234,69 @@ function getInvalidToken() {
   return 'invalid.token.here';
 }
 
+/**
+ * Object type codes for the record_id system
+ * Must match aws/layers/db-layer/nodejs/db.js OBJECT_TYPE_CODES
+ */
+const OBJECT_TYPE_CODES = {
+  Owner: 1,
+  Pet: 2,
+  Booking: 3,
+  Payment: 4,
+  Invoice: 5,
+  InvoiceLine: 6,
+  Task: 7,
+  Note: 8,
+  Vaccination: 9,
+  Incident: 10,
+  Workflow: 20,
+  WorkflowStep: 21,
+  WorkflowExecution: 22,
+  Service: 30,
+  Package: 31,
+  Run: 40,
+  Kennel: 41,
+  RunAssignment: 43,
+  User: 50,
+  Role: 52,
+  UserRole: 53,
+  TimeEntry: 55,
+  Conversation: 60,
+  Message: 61,
+  Notification: 62,
+  Segment: 27,
+  SegmentMember: 28,
+  AuditLog: 90,
+};
+
+/**
+ * Get the next record_id for a table using the database function
+ * @param {string} tenantId - Tenant UUID
+ * @param {string} tableName - Table name (e.g., "User", "Owner")
+ * @returns {Promise<number>} Next record_id
+ */
+async function getNextRecordId(tenantId, tableName) {
+  const objectTypeCode = OBJECT_TYPE_CODES[tableName];
+  if (!objectTypeCode) {
+    throw new Error(`Unknown table "${tableName}" - not registered in OBJECT_TYPE_CODES`);
+  }
+
+  const result = await query(
+    'SELECT next_record_id($1, $2) as record_id',
+    [tenantId, objectTypeCode]
+  );
+
+  return result.rows[0].record_id;
+}
+
 module.exports = {
   // Database
   getPool,
   query,
   closePool,
   testConnection,
+  getNextRecordId,
+  OBJECT_TYPE_CODES,
 
   // Cognito authentication (real tokens)
   authenticateWithCognito,
