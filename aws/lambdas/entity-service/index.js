@@ -2480,7 +2480,7 @@ async function getPetVaccinations(event) {
 
     // Verify pet belongs to tenant
     const petResult = await query(
-      `SELECT id FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`,
+      `SELECT record_id FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`,
       [petId, tenantId]
     );
 
