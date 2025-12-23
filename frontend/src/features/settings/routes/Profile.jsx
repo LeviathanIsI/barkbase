@@ -3,7 +3,7 @@ import {
   User, Mail, Phone, Globe, Clock, Save, AlertTriangle,
   Camera, Shield, Key, Monitor,
   Smartphone, BellRing, QrCode,
-  CheckCircle
+  CheckCircle, Link2, Unlink, Check
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Card } from '@/components/ui/Card';
@@ -24,6 +24,7 @@ import {
   useChangePasswordMutation,
   useResendVerificationMutation,
 } from '@/features/auth/api';
+import EmailConnectionModal from '../components/EmailConnectionModal';
 
 // Helper function to parse user agent string into readable device name
 const parseUserAgent = (ua) => {
@@ -98,6 +99,17 @@ const Profile = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const changePassword = useChangePasswordMutation();
+
+  // Email connection
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [connectedEmail, setConnectedEmail] = useState(() => {
+    try {
+      const stored = localStorage.getItem('barkbase_connected_email');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
 
   // Personalization settings
   const [personalization, setPersonalization] = useState({
@@ -198,6 +210,16 @@ const Profile = () => {
     } catch (error) {
       toast.error(error.message || 'Failed to send');
     }
+  };
+
+  const handleEmailConnect = (connectionData) => {
+    setConnectedEmail(connectionData);
+  };
+
+  const handleEmailDisconnect = () => {
+    localStorage.removeItem('barkbase_connected_email');
+    setConnectedEmail(null);
+    toast.success('Email disconnected');
   };
 
   if (error) {
@@ -389,6 +411,72 @@ const Profile = () => {
                 </Button>
               </div>
             </div>
+          </Card>
+
+          {/* Email Connection */}
+          <Card className="p-5">
+            <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Email
+            </h3>
+            {connectedEmail ? (
+              /* Connected State */
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <Badge variant="success" size="sm">Connected</Badge>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-surface-secondary rounded-lg">
+                  <div className="w-8 h-8 rounded-full bg-surface-elevated flex items-center justify-center">
+                    <Mail className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text truncate">{connectedEmail.email}</p>
+                    <p className="text-xs text-muted">
+                      Connected on {new Date(connectedEmail.connectedAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEmailDisconnect}
+                  className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
+                >
+                  <Unlink className="w-4 h-4 mr-2" />
+                  Disconnect
+                </Button>
+              </div>
+            ) : (
+              /* Disconnected State */
+              <div className="space-y-3">
+                <p className="text-sm text-muted">
+                  Connect your personal email to send and track communications from BarkBase
+                </p>
+                <ul className="space-y-1.5">
+                  <li className="flex items-center gap-2 text-xs text-muted">
+                    <Check className="w-3.5 h-3.5 text-green-600" />
+                    Send emails to clients directly from BarkBase
+                  </li>
+                  <li className="flex items-center gap-2 text-xs text-muted">
+                    <Check className="w-3.5 h-3.5 text-green-600" />
+                    Log all email communication automatically
+                  </li>
+                  <li className="flex items-center gap-2 text-xs text-muted">
+                    <Check className="w-3.5 h-3.5 text-green-600" />
+                    Track when clients open your emails
+                  </li>
+                </ul>
+                <Button onClick={() => setShowEmailModal(true)}>
+                  <Link2 className="w-4 h-4 mr-2" />
+                  Connect personal email
+                </Button>
+              </div>
+            )}
           </Card>
 
           {/* Active Sessions - Compact */}
@@ -627,6 +715,13 @@ const Profile = () => {
           </div>
         </div>
       )}
+
+      {/* Email Connection Modal */}
+      <EmailConnectionModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        onConnect={handleEmailConnect}
+      />
     </div>
   );
 };
