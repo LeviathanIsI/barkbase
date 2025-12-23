@@ -1375,11 +1375,11 @@ async function getOwners(event) {
               COALESCE(invoice_stats.pending_balance, 0) AS pending_balance
        FROM "Owner" o
        LEFT JOIN (
-         SELECT owner_id, COUNT(*) AS pet_count
+         SELECT owner_record_id, COUNT(*) AS pet_count
          FROM "PetOwner"
          WHERE tenant_id = $1
-         GROUP BY owner_id
-       ) pet_counts ON pet_counts.owner_id = o.record_id
+         GROUP BY owner_record_id
+       ) pet_counts ON pet_counts.owner_record_id = o.record_id
        LEFT JOIN (
          SELECT b.owner_id,
                 COUNT(*) AS bookings_count,
