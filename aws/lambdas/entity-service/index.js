@@ -1102,8 +1102,7 @@ async function createPet(event) {
       const isPrimary = i === 0; // First owner is primary
       await query(
         `INSERT INTO "PetOwner" (tenant_id, pet_record_id, owner_record_id, is_primary, relationship)
-         VALUES ($1, $2, $3, $4, 'owner')
-         ON CONFLICT (pet_record_id, owner_record_id) DO NOTHING`,
+         VALUES ($1, $2, $3, $4, 'owner')`,
         [tenantId, petId, ownerId, isPrimary]
       );
     }
@@ -1528,8 +1527,7 @@ async function createOwner(event) {
     for (const petId of uniquePetIds) {
       await query(
         `INSERT INTO "PetOwner" (tenant_id, pet_record_id, owner_record_id, is_primary, relationship)
-         VALUES ($1, $2, $3, false, 'owner')
-         ON CONFLICT (pet_record_id, owner_record_id) DO NOTHING`,
+         VALUES ($1, $2, $3, false, 'owner')`,
         [tenantId, petId, ownerId]
       );
     }
