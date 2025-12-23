@@ -141,6 +141,7 @@ async function handleGetProfile(user) {
          u.tenant_id,
          u.created_at,
          u.updated_at,
+         u.password_changed_at,
          t.name as tenant_name,
          t.slug as tenant_slug,
          t.plan as tenant_plan,
@@ -196,6 +197,7 @@ async function handleGetProfile(user) {
         } : null,
         createdAt: profile.created_at,
         updatedAt: profile.updated_at,
+        passwordChangedAt: profile.password_changed_at,
       },
     });
 

@@ -478,7 +478,15 @@ const Profile = () => {
               <div className="flex items-center justify-between p-3 border border-border rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-text">Password</p>
-                  <p className="text-xs text-muted">Last changed: Never</p>
+                  <p className="text-xs text-muted">
+                    Last changed: {profile?.passwordChangedAt
+                      ? new Date(profile.passwordChangedAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })
+                      : 'Never'}
+                  </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setShowPasswordModal(true)}>
                   Change
@@ -732,49 +740,60 @@ const Profile = () => {
       </div>
 
       {/* Password Change Modal */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-surface-primary rounded-lg p-6 w-full max-w-sm mx-4">
-            <h3 className="text-lg font-semibold mb-4">Change Password</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1">Current Password</label>
-                <input
-                  type="password"
-                  value={passwordForm.current}
-                  onChange={(e) => setPasswordForm(p => ({ ...p, current: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-border rounded-md"
-                />
+      {showPasswordModal && (() => {
+        const passwordsMatch = passwordForm.new === passwordForm.confirm;
+        const showMismatch = passwordForm.confirm.length > 0 && !passwordsMatch;
+        const canSubmit = passwordForm.current && passwordForm.new.length >= 8 && passwordsMatch;
+
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-surface-primary rounded-lg p-6 w-full max-w-sm mx-4">
+              <h3 className="text-lg font-semibold mb-4">Change Password</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1">Current Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.current}
+                    onChange={(e) => setPasswordForm(p => ({ ...p, current: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-border rounded-md"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1">New Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.new}
+                    onChange={(e) => setPasswordForm(p => ({ ...p, new: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-border rounded-md"
+                  />
+                  <PasswordStrength password={passwordForm.new} className="mt-2" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1">Confirm Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.confirm}
+                    onChange={(e) => setPasswordForm(p => ({ ...p, confirm: e.target.value }))}
+                    className={`w-full px-3 py-2 text-sm border rounded-md ${
+                      showMismatch ? 'border-red-500 focus:ring-red-500' : 'border-border'
+                    }`}
+                  />
+                  <p className={`text-xs mt-1 h-4 ${showMismatch ? 'text-red-500' : 'text-transparent'}`}>
+                    {showMismatch ? 'Passwords do not match' : '\u00A0'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1">New Password</label>
-                <input
-                  type="password"
-                  value={passwordForm.new}
-                  onChange={(e) => setPasswordForm(p => ({ ...p, new: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-border rounded-md"
-                />
-                <PasswordStrength password={passwordForm.new} className="mt-2" />
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" size="sm" onClick={() => setShowPasswordModal(false)}>Cancel</Button>
+                <Button size="sm" onClick={handlePasswordSubmit} disabled={!canSubmit || changePassword.isPending}>
+                  {changePassword.isPending ? 'Updating...' : 'Update'}
+                </Button>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-muted mb-1">Confirm Password</label>
-                <input
-                  type="password"
-                  value={passwordForm.confirm}
-                  onChange={(e) => setPasswordForm(p => ({ ...p, confirm: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-border rounded-md"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" size="sm" onClick={() => setShowPasswordModal(false)}>Cancel</Button>
-              <Button size="sm" onClick={handlePasswordSubmit} disabled={changePassword.isPending}>
-                {changePassword.isPending ? 'Updating...' : 'Update'}
-              </Button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 2FA Setup Modal */}
       {show2FAModal && (
