@@ -1156,7 +1156,7 @@ async function updatePet(event) {
     if (body.breed !== undefined) { updates.push(`breed = $${paramIndex++}`); values.push(body.breed); }
     if (body.gender !== undefined) { updates.push(`gender = $${paramIndex++}`); values.push(body.gender); }
     if (body.color !== undefined) { updates.push(`color = $${paramIndex++}`); values.push(body.color); }
-    if (body.weight !== undefined) { updates.push(`weight = $${paramIndex++}`); values.push(body.weight); }
+    if (body.weight !== undefined) { updates.push(`weight = $${paramIndex++}`); values.push(body.weight === '' ? null : body.weight); }
     if (body.dateOfBirth !== undefined || body.date_of_birth !== undefined) {
       updates.push(`date_of_birth = $${paramIndex++}`);
       values.push(body.dateOfBirth || body.date_of_birth);
