@@ -1208,7 +1208,8 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
           try {
             const runId = displayBooking.runId;
             const petId = displayBooking.pet?.recordId || displayBooking.pet?.id || displayBooking.petId;
-            const assignmentId = displayBooking.id || displayBooking.assignmentId;
+            // Use runAssignmentId (the actual RunAssignment.record_id), not id (which is booking ID)
+            const assignmentId = displayBooking.runAssignmentId || displayBooking.assignmentId;
             const date = displayBooking.assignedDate || new Date().toISOString().split('T')[0];
 
             if (!runId || !petId) {

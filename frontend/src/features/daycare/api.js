@@ -168,8 +168,16 @@ export const useRemovePetFromRunMutation = () => {
       return res.data;
     },
     onSuccess: (data, variables) => {
+      // Invalidate both 'today' and 'assignments' query types
       queryClient.invalidateQueries({
         queryKey: queryKeys.runs(tenantKey, { date: variables.date, type: 'today' })
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.runs(tenantKey, { type: 'assignments' })
+      });
+      // Also invalidate without specific params to catch all runs queries
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.runs(tenantKey, {})
       });
     },
   });
