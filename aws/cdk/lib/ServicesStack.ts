@@ -209,6 +209,11 @@ export class ServicesStack extends cdk.Stack {
       COGNITO_JWKS_URL: jwksUrl,
       COGNITO_ISSUER_URL: `https://cognito-idp.${config.region}.amazonaws.com/${userPoolId}`,
       DATABASE_URL: envConfig.DATABASE_URL,
+      // Google OAuth configuration
+      GOOGLE_CLIENT_ID: envConfig.GOOGLE_CLIENT_ID || '',
+      GOOGLE_CLIENT_SECRET: envConfig.GOOGLE_CLIENT_SECRET || '',
+      GOOGLE_REDIRECT_URI: envConfig.GOOGLE_REDIRECT_URI || '',
+      TOKEN_ENCRYPTION_KEY: envConfig.TOKEN_ENCRYPTION_KEY || '',
       // Workflow execution engine queue URLs
       WORKFLOW_TRIGGER_QUEUE_URL: this.workflowTriggerQueue.queueUrl,
       WORKFLOW_STEP_QUEUE_URL: this.workflowStepQueue.queueUrl,
