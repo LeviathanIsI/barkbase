@@ -3,13 +3,14 @@
  * Token-based styling for consistent theming.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import Select from 'react-select';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
+import { usePetsQuery } from '@/features/pets/api';
 
 const selectStyles = {
   control: (base, state) => ({
@@ -19,6 +20,7 @@ const selectStyles = {
     borderRadius: '0.5rem',
     minHeight: '40px',
     boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
+    '&:hover': { borderColor: 'var(--bb-color-border-subtle)' },
   }),
   menu: (base) => ({
     ...base,
@@ -42,6 +44,24 @@ const selectStyles = {
   placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
   indicatorSeparator: () => ({ display: 'none' }),
   dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  multiValue: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-accent)',
+    borderRadius: '0.375rem',
+  }),
+  multiValueLabel: (base) => ({
+    ...base,
+    color: 'white',
+    padding: '2px 6px',
+  }),
+  multiValueRemove: (base) => ({
+    ...base,
+    color: 'white',
+    ':hover': {
+      backgroundColor: 'var(--bb-color-accent-dark, #2563eb)',
+      color: 'white',
+    },
+  }),
 };
 
 const OwnerFormModal = ({
@@ -75,6 +95,19 @@ const OwnerFormModal = ({
     },
   });
 
+  // Pet selection state
+  const [selectedPets, setSelectedPets] = useState([]);
+
+  // Fetch pets for the dropdown
+  const { data: petsData } = usePetsQuery();
+  const petOptions = useMemo(() => {
+    const pets = petsData?.pets || petsData?.items || [];
+    return pets.map(pet => ({
+      value: pet.recordId || pet.record_id || pet.id,
+      label: `${pet.name || 'Unnamed'}${pet.species ? ` (${pet.species})` : ''}`,
+    }));
+  }, [petsData]);
+
   // Reset form when owner changes or modal opens
   useEffect(() => {
     if (owner) {
@@ -91,6 +124,16 @@ const OwnerFormModal = ({
           country: 'US',
         },
       });
+      // Set selected pets when editing an owner
+      if (owner.pets && Array.isArray(owner.pets)) {
+        const petSelections = owner.pets.map(pet => ({
+          value: pet.recordId || pet.record_id || pet.id,
+          label: `${pet.name || 'Unnamed'}${pet.species ? ` (${pet.species})` : ''}`,
+        }));
+        setSelectedPets(petSelections);
+      } else {
+        setSelectedPets([]);
+      }
     } else if (open) {
       reset({
         firstName: '',
@@ -105,11 +148,14 @@ const OwnerFormModal = ({
           country: 'US',
         },
       });
+      setSelectedPets([]);
     }
   }, [owner, open, reset]);
 
   const handleFormSubmit = async (data) => {
-    await onSubmit(data);
+    // Include selected pet IDs in the submission
+    const petIds = selectedPets.map(p => p.value);
+    await onSubmit({ ...data, petIds });
   };
 
   // Common input styles
@@ -340,6 +386,36 @@ const OwnerFormModal = ({
               />
             </div>
           </FormGrid>
+        </FormSection>
+
+        {/* Pet Association */}
+        <FormSection title="Pet Association">
+          <div className="space-y-[var(--bb-space-2,0.5rem)]">
+            <label
+              className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              Associate Pets
+            </label>
+            <p
+              className="text-[var(--bb-font-size-xs,0.75rem)] mb-[var(--bb-space-2,0.5rem)]"
+              style={{ color: 'var(--bb-color-text-muted)' }}
+            >
+              Select pets to associate with this owner
+            </p>
+            <Select
+              isMulti
+              options={petOptions}
+              value={selectedPets}
+              onChange={(selected) => setSelectedPets(selected || [])}
+              placeholder="Search and select pets..."
+              isClearable
+              isSearchable
+              styles={selectStyles}
+              menuPortalTarget={document.body}
+              noOptionsMessage={() => 'No pets found'}
+            />
+          </div>
         </FormSection>
 
         {/* Actions */}

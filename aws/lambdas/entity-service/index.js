@@ -987,8 +987,15 @@ async function createPet(event) {
     }
 
     // Validate foreign key references
-    const ownerId = body.ownerId || body.owner_id;
-    if (ownerId) {
+    // Support both single ownerId and array of ownerIds
+    const singleOwnerId = body.ownerId || body.owner_id;
+    const ownerIdsArray = body.ownerIds || body.owner_ids || [];
+    const allOwnerIds = singleOwnerId ? [singleOwnerId, ...ownerIdsArray] : ownerIdsArray;
+    // Deduplicate owner IDs
+    const uniqueOwnerIds = [...new Set(allOwnerIds.filter(Boolean))];
+
+    // Validate all owner IDs exist
+    for (const ownerId of uniqueOwnerIds) {
       const ownerCheck = await query(
         `SELECT id FROM "Owner" WHERE record_id = $1 AND tenant_id = $2`,
         [ownerId, tenantId]
@@ -1039,6 +1046,24 @@ async function createPet(event) {
     // Get next record_id for Pet table
     const recordId = await getNextRecordId(tenantId, 'Pet');
 
+    // Normalize species/gender/status to uppercase (schema uses CHECK constraints)
+    const species = (body.species || 'DOG').toUpperCase();
+    const gender = body.gender ? body.gender.toUpperCase() : null;
+    const status = (body.status || 'ACTIVE').toUpperCase();
+
+    // Validate species
+    if (!['DOG', 'CAT', 'OTHER'].includes(species)) {
+      return createResponse(400, { error: 'BadRequest', message: `Invalid species: ${species}. Must be DOG, CAT, or OTHER` });
+    }
+    // Validate gender if provided
+    if (gender && !['MALE', 'FEMALE', 'UNKNOWN'].includes(gender)) {
+      return createResponse(400, { error: 'BadRequest', message: `Invalid gender: ${gender}. Must be MALE, FEMALE, or UNKNOWN` });
+    }
+    // Validate status
+    if (!['ACTIVE', 'INACTIVE', 'DECEASED'].includes(status)) {
+      return createResponse(400, { error: 'BadRequest', message: `Invalid status: ${status}. Must be ACTIVE, INACTIVE, or DECEASED` });
+    }
+
     // Schema: Pet table has vet_id FK, NOT embedded vet fields
     const result = await query(
       `INSERT INTO "Pet" (tenant_id, record_id, name, species, breed, gender, color, weight, date_of_birth,
@@ -1050,9 +1075,9 @@ async function createPet(event) {
         tenantId,
         recordId,
         body.name,
-        body.species || 'Dog',
+        species,
         body.breed || null,
-        body.gender || null,
+        gender,
         body.color || null,
         body.weight || null,
         body.dateOfBirth || body.date_of_birth || null,
@@ -1060,7 +1085,7 @@ async function createPet(event) {
         body.medicalNotes || body.medical_notes || null,
         body.behaviorNotes || body.behavior_notes || null,
         body.dietaryNotes || body.dietary_notes || null,
-        body.status || 'ACTIVE',
+        status,
         body.photoUrl || body.photo_url || null,
         body.isActive !== false,
         vetId,
@@ -1070,18 +1095,20 @@ async function createPet(event) {
 
     const petId = result.rows[0].record_id;
 
-    // If ownerId is provided, create PetOwner relationship
-    // (ownerId was validated above if provided)
-    if (ownerId) {
+    // Create PetOwner relationships for all provided owner IDs
+    // First owner is marked as primary
+    for (let i = 0; i < uniqueOwnerIds.length; i++) {
+      const ownerId = uniqueOwnerIds[i];
+      const isPrimary = i === 0; // First owner is primary
       await query(
         `INSERT INTO "PetOwner" (tenant_id, pet_id, owner_id, is_primary, relationship)
-         VALUES ($1, $2, $3, true, 'owner')
+         VALUES ($1, $2, $3, $4, 'owner')
          ON CONFLICT (pet_id, owner_id) DO NOTHING`,
-        [tenantId, petId, ownerId]
+        [tenantId, petId, ownerId, isPrimary]
       );
     }
 
-    console.log('[ENTITY-SERVICE] Created pet:', petId, 'record_id:', recordId);
+    console.log('[ENTITY-SERVICE] Created pet:', petId, 'record_id:', recordId, 'with', uniqueOwnerIds.length, 'owners');
 
     // Publish workflow event
     try {
@@ -1089,7 +1116,7 @@ async function createPet(event) {
         name: result.rows[0].name,
         species: result.rows[0].species,
         breed: result.rows[0].breed,
-        ownerId: ownerId || null,
+        ownerIds: uniqueOwnerIds,
       });
     } catch (err) {
       console.error('[ENTITY-SERVICE] Failed to publish pet.created event:', err.message);
@@ -1098,7 +1125,9 @@ async function createPet(event) {
     return createResponse(201, { data: result.rows[0] });
   } catch (error) {
     console.error('[ENTITY-SERVICE] createPet error:', error);
-    return createResponse(500, { error: 'InternalServerError', message: 'Failed to create pet' });
+    // Return actual error message for debugging
+    const errorMessage = error.message || 'Failed to create pet';
+    return createResponse(500, { error: 'InternalServerError', message: errorMessage });
   }
 }
 
@@ -1259,7 +1288,30 @@ async function deletePet(event) {
   }
 
   try {
-    // Use softDelete helper - archives to DeletedRecord table then hard deletes
+    // First, delete related vaccinations (archive them)
+    try {
+      const vacResult = await query(
+        `SELECT record_id FROM "Vaccination" WHERE pet_id = $1 AND tenant_id = $2`,
+        [id, tenantId]
+      );
+      if (vacResult.rows.length > 0) {
+        const vacIds = vacResult.rows.map(v => v.record_id);
+        await softDeleteBatch('Vaccination', vacIds, tenantId, deletedBy);
+        console.log('[Pets][delete] Deleted', vacIds.length, 'vaccinations for pet:', id);
+      }
+    } catch (e) {
+      console.log('[Pets][delete] Vaccination delete skipped:', e.message);
+    }
+
+    // Delete PetOwner junction records (hard delete - no archive needed for junction tables)
+    try {
+      await query(`DELETE FROM "PetOwner" WHERE pet_id = $1`, [id]);
+      console.log('[Pets][delete] Deleted PetOwner records for pet:', id);
+    } catch (e) {
+      console.log('[Pets][delete] PetOwner delete skipped:', e.message);
+    }
+
+    // Now soft delete the pet itself
     const result = await softDelete('Pet', id, tenantId, deletedBy);
 
     if (!result) {
@@ -1270,7 +1322,7 @@ async function deletePet(event) {
     return createResponse(204, '');
   } catch (error) {
     console.error('[ENTITY-SERVICE] deletePet error:', error);
-    return createResponse(500, { error: 'InternalServerError', message: 'Failed to delete pet' });
+    return createResponse(500, { error: 'InternalServerError', message: error.message || 'Failed to delete pet' });
   }
 }
 
@@ -1432,6 +1484,24 @@ async function createOwner(event) {
   try {
     await getPoolAsync();
 
+    // Support petIds array for associating pets with owner
+    const petIdsArray = body.petIds || body.pet_ids || [];
+    const uniquePetIds = [...new Set(petIdsArray.filter(Boolean))];
+
+    // Validate all pet IDs exist
+    for (const petId of uniquePetIds) {
+      const petCheck = await query(
+        `SELECT id FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`,
+        [petId, tenantId]
+      );
+      if (petCheck.rows.length === 0) {
+        return createResponse(400, {
+          error: 'BadRequest',
+          message: `Pet with ID ${petId} not found`,
+        });
+      }
+    }
+
     // Get next record_id for Owner table
     const recordId = await getNextRecordId(tenantId, 'Owner');
 
@@ -1449,11 +1519,11 @@ async function createOwner(event) {
         body.lastName || body.last_name || null,
         body.email || null,
         body.phone || null,
-        body.addressStreet || body.address_street || body.address || null,
-        body.addressCity || body.address_city || body.city || null,
-        body.addressState || body.address_state || body.state || null,
-        body.addressZip || body.address_zip || body.zipCode || body.zip_code || null,
-        body.addressCountry || body.address_country || body.country || 'US',
+        body.addressStreet || body.address_street || body.address?.street || null,
+        body.addressCity || body.address_city || body.address?.city || null,
+        body.addressState || body.address_state || body.address?.state || null,
+        body.addressZip || body.address_zip || body.zipCode || body.zip_code || body.address?.zip || null,
+        body.addressCountry || body.address_country || body.address?.country || 'US',
         body.emergencyContactName || body.emergency_contact_name || null,
         body.emergencyContactPhone || body.emergency_contact_phone || null,
         body.notes || null,
@@ -1463,14 +1533,27 @@ async function createOwner(event) {
       ]
     );
 
-    console.log('[ENTITY-SERVICE] Created owner:', result.rows[0].record_id, 'record_id:', recordId);
+    const ownerId = result.rows[0].record_id;
+
+    // Create PetOwner relationships for all provided pet IDs
+    for (const petId of uniquePetIds) {
+      await query(
+        `INSERT INTO "PetOwner" (tenant_id, pet_id, owner_id, is_primary, relationship)
+         VALUES ($1, $2, $3, false, 'owner')
+         ON CONFLICT (pet_id, owner_id) DO NOTHING`,
+        [tenantId, petId, ownerId]
+      );
+    }
+
+    console.log('[ENTITY-SERVICE] Created owner:', ownerId, 'record_id:', recordId, 'with', uniquePetIds.length, 'pets');
 
     // Publish workflow event
     try {
-      await publishWorkflowEvent('owner.created', result.rows[0].record_id, 'owner', tenantId, {
+      await publishWorkflowEvent('owner.created', ownerId, 'owner', tenantId, {
         firstName: result.rows[0].first_name,
         lastName: result.rows[0].last_name,
         email: result.rows[0].email,
+        petIds: uniquePetIds,
       });
     } catch (err) {
       console.error('[ENTITY-SERVICE] Failed to publish owner.created event:', err.message);
@@ -1568,7 +1651,7 @@ async function updateOwner(event) {
 
     const result = await query(
       `UPDATE "Owner" SET ${updates.join(', ')}, updated_at = NOW()
-       WHERE id = $${paramIndex++} AND tenant_id = $${paramIndex}
+       WHERE record_id = $${paramIndex++} AND tenant_id = $${paramIndex}
        RETURNING *`,
       values
     );
@@ -1591,7 +1674,9 @@ async function updateOwner(event) {
     return createResponse(200, { data: result.rows[0] });
   } catch (error) {
     console.error('[ENTITY-SERVICE] updateOwner error:', error);
-    return createResponse(500, { error: 'InternalServerError', message: 'Failed to update owner' });
+    // Return actual error message for debugging
+    const errorMessage = error.message || 'Failed to update owner';
+    return createResponse(500, { error: 'InternalServerError', message: errorMessage });
   }
 }
 

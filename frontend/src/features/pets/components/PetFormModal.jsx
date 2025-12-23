@@ -3,13 +3,14 @@
  * Token-based styling for consistent theming.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import Select from 'react-select';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
+import { useOwnersQuery } from '@/features/owners/api';
 
 const selectStyles = {
   control: (base, state) => ({
@@ -43,6 +44,24 @@ const selectStyles = {
   placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
   indicatorSeparator: () => ({ display: 'none' }),
   dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  multiValue: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-accent)',
+    borderRadius: '0.375rem',
+  }),
+  multiValueLabel: (base) => ({
+    ...base,
+    color: 'white',
+    padding: '2px 6px',
+  }),
+  multiValueRemove: (base) => ({
+    ...base,
+    color: 'white',
+    ':hover': {
+      backgroundColor: 'var(--bb-color-accent-dark, #2563eb)',
+      color: 'white',
+    },
+  }),
 };
 
 const PetFormModal = ({
@@ -85,6 +104,19 @@ const PetFormModal = ({
     },
   });
 
+  // Owner selection state
+  const [selectedOwners, setSelectedOwners] = useState([]);
+
+  // Fetch owners for the dropdown
+  const { data: ownersData } = useOwnersQuery();
+  const ownerOptions = useMemo(() => {
+    const owners = ownersData?.owners || ownersData?.items || [];
+    return owners.map(owner => ({
+      value: owner.recordId || owner.record_id || owner.id,
+      label: owner.name || `${owner.firstName || owner.first_name || ''} ${owner.lastName || owner.last_name || ''}`.trim() || owner.email || 'Unknown',
+    }));
+  }, [ownersData]);
+
   // Reset form when pet changes or modal opens
   useEffect(() => {
     if (pet) {
@@ -110,6 +142,16 @@ const PetFormModal = ({
         vetEmail: pet.vetEmail || pet.vet_email || '',
         vetNotes: pet.vetNotes || pet.vet_notes || '',
       });
+      // Set selected owners when editing a pet
+      if (pet.owners && Array.isArray(pet.owners)) {
+        const ownerSelections = pet.owners.map(owner => ({
+          value: owner.recordId || owner.record_id || owner.id,
+          label: owner.name || `${owner.firstName || owner.first_name || ''} ${owner.lastName || owner.last_name || ''}`.trim() || owner.email || 'Unknown',
+        }));
+        setSelectedOwners(ownerSelections);
+      } else {
+        setSelectedOwners([]);
+      }
     } else if (open) {
       reset({
         name: '',
@@ -132,11 +174,14 @@ const PetFormModal = ({
         vetEmail: '',
         vetNotes: '',
       });
+      setSelectedOwners([]);
     }
   }, [pet, open, reset]);
 
   const handleFormSubmit = async (data) => {
-    await onSubmit(data);
+    // Include selected owner IDs in the submission
+    const ownerIds = selectedOwners.map(o => o.value);
+    await onSubmit({ ...data, ownerIds });
   };
 
   const normalizeBehaviorFlags = (value) => {
@@ -308,6 +353,36 @@ const PetFormModal = ({
               />
             </div>
           </FormGrid>
+        </FormSection>
+
+        {/* Owner Association */}
+        <FormSection title="Owner Association">
+          <div className="space-y-[var(--bb-space-2,0.5rem)]">
+            <label
+              className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              Associate Owners
+            </label>
+            <p
+              className="text-[var(--bb-font-size-xs,0.75rem)] mb-[var(--bb-space-2,0.5rem)]"
+              style={{ color: 'var(--bb-color-text-muted)' }}
+            >
+              Select one or more owners for this pet (e.g., couples or families)
+            </p>
+            <Select
+              isMulti
+              options={ownerOptions}
+              value={selectedOwners}
+              onChange={(selected) => setSelectedOwners(selected || [])}
+              placeholder="Search and select owners..."
+              isClearable
+              isSearchable
+              styles={selectStyles}
+              menuPortalTarget={document.body}
+              noOptionsMessage={() => 'No owners found'}
+            />
+          </div>
         </FormSection>
 
         {/* Health Information */}
