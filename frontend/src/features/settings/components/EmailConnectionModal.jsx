@@ -175,51 +175,39 @@ const EmailConnectionModal = ({ isOpen, onClose, onConnect }) => {
         <div className="p-6">
           {/* Step 1: Enter Email */}
           {step === 1 && (
-            <form
-              className="space-y-4"
-              autoComplete="off"
-              onSubmit={(e) => { e.preventDefault(); handleEmailSubmit(); }}
-            >
-              {/* Hidden honeypot fields to absorb browser autocomplete */}
-              <input type="text" name="username" autoComplete="username" className="hidden" tabIndex={-1} aria-hidden="true" />
-              <input type="password" name="password" autoComplete="current-password" className="hidden" tabIndex={-1} aria-hidden="true" />
-              <input type="email" name="email" autoComplete="email" className="hidden" tabIndex={-1} aria-hidden="true" />
-
+            <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-text mb-2" htmlFor="provider-email-input">
-                  Email address
+                <label className="block text-sm font-medium text-text mb-2">
+                  Enter your address
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
                   <input
                     type="text"
-                    inputMode="email"
+                    readOnly
+                    onFocus={(e) => e.target.removeAttribute('readOnly')}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleEmailSubmit()}
                     placeholder="yours@example.com"
                     className="w-full pl-10 pr-4 py-3 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     autoFocus
-                    autoComplete="off"
+                    autoComplete="off-xyz"
                     autoCorrect="off"
                     autoCapitalize="off"
-                    spellCheck="false"
-                    name={`provider_${Date.now()}`}
-                    id="provider-email-input"
-                    data-lpignore="true"
-                    data-form-type="other"
-                    data-1p-ignore="true"
+                    spellCheck={false}
                   />
                 </div>
               </div>
               <Button
-                type="submit"
+                onClick={handleEmailSubmit}
                 disabled={!isValidEmail(email)}
                 className="w-full"
               >
                 Next
                 <ChevronRight className="w-4 h-4 ml-2" />
               </Button>
-            </form>
+            </div>
           )}
 
           {/* Step 2: Provider Recommendation */}
