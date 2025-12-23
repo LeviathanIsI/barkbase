@@ -44,6 +44,7 @@ const {
   AdminConfirmSignUpCommand,
   InitiateAuthCommand,
   AdminDeleteUserCommand,
+  ChangePasswordCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
 
 const cognitoClient = new CognitoIdentityProviderClient({
@@ -116,6 +117,12 @@ exports.handler = async (event, context) => {
     if (path === '/api/v1/auth/logout' || path === '/auth/logout') {
       if (method === 'POST') {
         return handleLogout(event);
+      }
+    }
+
+    if (path === '/api/v1/auth/change-password' || path === '/auth/change-password') {
+      if (method === 'POST') {
+        return handleChangePassword(event);
       }
     }
 
@@ -855,6 +862,100 @@ async function handleLogout(event) {
     success: true,
     message: 'Logged out successfully',
   });
+}
+
+/**
+ * Handle password change
+ * POST /api/v1/auth/change-password
+ *
+ * Requires authenticated user with valid access token.
+ * Uses Cognito ChangePassword API which requires current password verification.
+ */
+async function handleChangePassword(event) {
+  const authResult = await authenticateRequest(event);
+
+  if (!authResult.authenticated) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: authResult.error || 'Authentication required',
+    });
+  }
+
+  const body = parseBody(event);
+
+  if (!body.currentPassword || !body.newPassword) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'currentPassword and newPassword are required',
+    });
+  }
+
+  // Validate new password requirements
+  if (body.newPassword.length < 8) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'New password must be at least 8 characters',
+    });
+  }
+
+  // Get the access token from the Authorization header
+  const authHeader = event.headers?.authorization || event.headers?.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: 'Access token required',
+    });
+  }
+
+  const accessToken = authHeader.replace('Bearer ', '');
+
+  try {
+    // Use Cognito ChangePassword - requires valid access token and current password
+    const command = new ChangePasswordCommand({
+      AccessToken: accessToken,
+      PreviousPassword: body.currentPassword,
+      ProposedPassword: body.newPassword,
+    });
+
+    await cognitoClient.send(command);
+
+    console.log('[AUTH-API] Password changed successfully for user:', authResult.user.id);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Password changed successfully',
+    });
+
+  } catch (error) {
+    console.error('[AUTH-API] Password change failed:', error.name, error.message);
+
+    // Handle specific Cognito errors
+    if (error.name === 'NotAuthorizedException') {
+      return createResponse(401, {
+        error: 'Unauthorized',
+        message: 'Current password is incorrect',
+      });
+    }
+
+    if (error.name === 'InvalidPasswordException') {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: error.message || 'New password does not meet requirements',
+      });
+    }
+
+    if (error.name === 'LimitExceededException') {
+      return createResponse(429, {
+        error: 'Too Many Requests',
+        message: 'Too many password change attempts. Please try again later.',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Server Error',
+      message: 'Failed to change password. Please try again.',
+    });
+  }
 }
 
 /**
