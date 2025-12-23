@@ -139,7 +139,7 @@ const Profile = () => {
   useEffect(() => {
     const fetchConnectedEmail = async () => {
       try {
-        const response = await apiClient.get('/api/v1/user/connected-email');
+        const response = await apiClient.get('/api/v1/auth/connected-email');
         if (response.data?.connected) {
           setConnectedEmail({
             email: response.data.email,
@@ -168,7 +168,7 @@ const Profile = () => {
     if (oauthSuccess === 'true') {
       toast.success(`Gmail connected: ${connectedEmailParam || 'Success'}`);
       // Refresh connected email status
-      apiClient.get('/api/v1/user/connected-email')
+      apiClient.get('/api/v1/auth/connected-email')
         .then(response => {
           if (response.data?.connected) {
             setConnectedEmail({
@@ -270,7 +270,7 @@ const Profile = () => {
 
   const handleEmailConnect = (connectionData) => {
     // This is called from the modal - refresh from API
-    apiClient.get('/api/v1/user/connected-email')
+    apiClient.get('/api/v1/auth/connected-email')
       .then(response => {
         if (response.data?.connected) {
           setConnectedEmail({
@@ -285,7 +285,7 @@ const Profile = () => {
   const handleEmailDisconnect = async () => {
     setIsDisconnecting(true);
     try {
-      await apiClient.delete('/api/v1/user/connected-email');
+      await apiClient.delete('/api/v1/auth/connected-email');
       setConnectedEmail(null);
       toast.success('Email disconnected');
     } catch (error) {

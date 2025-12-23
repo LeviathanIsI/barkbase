@@ -137,7 +137,7 @@ exports.handler = async (event, context) => {
     }
 
     // Connected email endpoints
-    if (path === '/api/v1/user/connected-email' || path === '/user/connected-email') {
+    if (path === '/api/v1/auth/connected-email' || path === '/auth/connected-email') {
       if (method === 'GET') {
         return handleGetConnectedEmail(event);
       }
