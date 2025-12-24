@@ -25,6 +25,8 @@ export const canonicalEndpoints = {
     vaccinations: build('/api/v1/entity/pets/{id}/vaccinations'),
     vaccinationDetail: (petId: string, vaccinationId: string) =>
       `/api/v1/entity/pets/${petId}/vaccinations/${vaccinationId}`,
+    vaccinationRenew: (petId: string, vaccinationId: string) =>
+      `/api/v1/entity/pets/${petId}/vaccinations/${vaccinationId}/renew`,
     expiringVaccinations: '/api/v1/entity/pets/vaccinations/expiring',
     medicalAlerts: '/api/v1/entity/pets/medical-alerts',
     ownerLink: '/api/v1/entity/pets/owners',

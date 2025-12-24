@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   Clock,
   ChevronRight,
+  ChevronDown,
   Download,
   Upload,
   ExternalLink,
@@ -39,6 +40,7 @@ import {
   Palette,
   Hash,
   MessageSquare,
+  Archive,
 } from 'lucide-react';
 import { format, formatDistanceToNow, isAfter, isBefore, startOfToday } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -62,8 +64,10 @@ import { useBookingsQuery } from '@/features/bookings/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTenantStore } from '@/stores/tenant';
 import { queryKeys } from '@/lib/queryKeys';
-import { VaccinationFormModal } from '../components';
+import { VaccinationFormModal, RenewVaccinationModal } from '../components';
 import { cn, formatCurrency } from '@/lib/utils';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
+import apiClient from '@/lib/apiClient';
 import { ActivityTimeline } from '@/features/activities';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import { getBirthdateFromPet, getFormattedAgeFromPet, formatAgeFromBirthdate } from '../utils/pet-date-utils';
@@ -149,6 +153,11 @@ const PetDetail = () => {
   const [deletePetDialogOpen, setDeletePetDialogOpen] = useState(false);
   const [isDeletingPet, setIsDeletingPet] = useState(false);
   const [bookingFilter, setBookingFilter] = useState('all');
+
+  // Renewal modal state
+  const [renewModalOpen, setRenewModalOpen] = useState(false);
+  const [vaccinationToRenew, setVaccinationToRenew] = useState(null);
+  const [isRenewing, setIsRenewing] = useState(false);
 
   // API Queries
   const petQuery = usePetQuery(petId);
@@ -351,6 +360,50 @@ const PetDetail = () => {
       console.error('Failed to save vaccination:', error);
       toast.error(error?.message || 'Failed to save vaccination');
     }
+  };
+
+  // Renewal handlers
+  const handleRenewClick = (vaccination) => {
+    setVaccinationToRenew(vaccination);
+    setRenewModalOpen(true);
+  };
+
+  const handleRenewSubmit = async (data) => {
+    if (!vaccinationToRenew) return;
+
+    setIsRenewing(true);
+    try {
+      await apiClient.post(
+        canonicalEndpoints.pets.vaccinationRenew(
+          String(petId),
+          String(vaccinationToRenew.recordId)
+        ),
+        {
+          administeredAt: data.administeredAt,
+          expiresAt: data.expiresAt,
+          provider: data.provider || null,
+          lotNumber: data.lotNumber || null,
+          notes: data.notes || null,
+        }
+      );
+
+      toast.success(`${vaccinationToRenew.type} renewed successfully`);
+      setRenewModalOpen(false);
+      setVaccinationToRenew(null);
+
+      // Refresh the vaccinations data
+      queryClient.invalidateQueries({ queryKey: ['pet-vaccinations', petId] });
+    } catch (error) {
+      console.error('Failed to renew vaccination:', error);
+      toast.error(error.response?.data?.message || 'Failed to renew vaccination');
+    } finally {
+      setIsRenewing(false);
+    }
+  };
+
+  const handleRenewCancel = () => {
+    setRenewModalOpen(false);
+    setVaccinationToRenew(null);
   };
 
   const handleEdit = () => {
@@ -720,6 +773,7 @@ const PetDetail = () => {
                     handleAddVaccination={handleAddVaccination}
                     handleEditVaccination={handleEditVaccination}
                     handleDeleteClick={handleDeleteClick}
+                    handleRenewClick={handleRenewClick}
                     onEdit={handleEdit}
                   />
                 </TabsContent>
@@ -940,6 +994,15 @@ const PetDetail = () => {
         selectedVaccineType={selectedVaccineType}
         onSubmit={handleVaccinationSubmit}
         isLoading={createVaccinationMutation.isPending || updateVaccinationMutation.isPending}
+      />
+
+      <RenewVaccinationModal
+        open={renewModalOpen}
+        onClose={handleRenewCancel}
+        onSubmit={handleRenewSubmit}
+        vaccination={vaccinationToRenew}
+        petName={pet?.name}
+        isLoading={isRenewing}
       />
 
       <ConfirmDialog
@@ -1191,9 +1254,40 @@ function HealthTab({
   handleAddVaccination,
   handleEditVaccination,
   handleDeleteClick,
+  handleRenewClick,
   onEdit,
 }) {
+  const [showHistory, setShowHistory] = useState(false);
   const defaultVaccines = getDefaultVaccines(pet.species);
+
+  // Separate active and archived vaccinations
+  const activeVaccinations = useMemo(() => {
+    return vaccinations.filter(v => v.status !== 'archived' && !v.isArchived);
+  }, [vaccinations]);
+
+  const archivedVaccinations = useMemo(() => {
+    return vaccinations.filter(v => v.status === 'archived' || v.isArchived)
+      .sort((a, b) => new Date(b.administeredAt) - new Date(a.administeredAt));
+  }, [vaccinations]);
+
+  // Get active vaccination for a vaccine type (exclude archived)
+  const getActiveVaccinationForType = (type) => {
+    const typeName = typeof type === 'object' ? type.name : type;
+    const normalizedType = typeName?.toLowerCase()?.trim();
+
+    // Normalize common variations
+    const normalize = (t) => {
+      const n = t?.toLowerCase()?.trim();
+      if (n === 'dhpp' || n === 'dapp/dhpp') return 'dapp';
+      if (n === 'fvr' || n === 'fvr/c') return 'fvrcp';
+      return n;
+    };
+
+    const matchingVaccinations = activeVaccinations.filter(
+      v => normalize(v.type) === normalize(normalizedType)
+    );
+    return matchingVaccinations.sort((a, b) => new Date(b.administeredAt) - new Date(a.administeredAt))[0];
+  };
 
   return (
     <div className="space-y-8">
@@ -1216,10 +1310,13 @@ function HealthTab({
         ) : (
           <div className="space-y-2">
             {defaultVaccines.map((vaccine) => {
-              const vaccination = getVaccinationForType(vaccine.name);
+              const vaccination = getActiveVaccinationForType(vaccine.name);
               const status = getVaccinationStatus(vaccination);
               const { label, intent } = getStatusDisplay(status);
               const displayName = vaccine.label || vaccine.name;
+
+              // Determine if this vaccine needs renewal (expired or expiring soon)
+              const needsRenewal = vaccination && (status === 'expired' || status === 'expiring');
 
               return (
                 <div
@@ -1229,8 +1326,12 @@ function HealthTab({
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="flex h-10 w-10 items-center justify-center rounded-full"
-                      style={{ backgroundColor: 'var(--bb-color-info-soft)', color: 'var(--bb-color-info)' }}
+                      className={cn(
+                        "flex h-10 w-10 items-center justify-center rounded-full",
+                        status === 'expired' && "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
+                        status === 'expiring' && "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
+                        status !== 'expired' && status !== 'expiring' && "bg-[color:var(--bb-color-info-soft)] text-[color:var(--bb-color-info)]"
+                      )}
                     >
                       <Syringe className="h-5 w-5" />
                     </div>
@@ -1254,6 +1355,16 @@ function HealthTab({
                     <StatusPill intent={intent}>{label}</StatusPill>
                     {vaccination ? (
                       <>
+                        {/* Renew button - shown for active vaccinations, highlighted if expired/expiring */}
+                        <Button
+                          size="sm"
+                          variant={needsRenewal ? 'primary' : 'ghost'}
+                          onClick={() => handleRenewClick(vaccination)}
+                          className={cn(needsRenewal && 'gap-1')}
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          {needsRenewal && <span>Renew</span>}
+                        </Button>
                         <Button size="sm" variant="ghost" onClick={() => handleEditVaccination(vaccination)}>
                           Edit
                         </Button>
@@ -1273,6 +1384,56 @@ function HealthTab({
           </div>
         )}
       </section>
+
+      {/* Vaccination History Section */}
+      {archivedVaccinations.length > 0 && (
+        <section>
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="flex items-center gap-2 mb-4 text-sm font-medium transition-colors hover:text-[color:var(--bb-color-accent)]"
+            style={{ color: 'var(--bb-color-text-muted)' }}
+          >
+            <ChevronDown className={cn("w-4 h-4 transition-transform", showHistory && "rotate-180")} />
+            <Archive className="w-4 h-4" />
+            Vaccination History ({archivedVaccinations.length} archived records)
+          </button>
+
+          {showHistory && (
+            <div className="space-y-2 pl-6 border-l-2" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+              {archivedVaccinations.map((vaccination) => (
+                <div
+                  key={vaccination.recordId}
+                  className="flex items-center justify-between p-3 rounded-lg transition-colors"
+                  style={{ backgroundColor: 'var(--bb-color-bg-muted)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex h-8 w-8 items-center justify-center rounded-full"
+                      style={{ backgroundColor: 'var(--bb-color-bg-elevated)', color: 'var(--bb-color-text-muted)' }}
+                    >
+                      <Syringe className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                        {vaccination.type}
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                        Administered: {safeFormatDate(vaccination.administeredAt)} •
+                        Expired: {safeFormatDate(vaccination.expiresAt)}
+                        {vaccination.provider && ` • ${vaccination.provider}`}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="neutral" size="sm">
+                    <Archive className="w-3 h-3 mr-1" />
+                    Archived
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Medical Notes Section */}
       <section>

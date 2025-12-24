@@ -5,6 +5,7 @@ import {
   Download, SlidersHorizontal, BookmarkPlus, Check, X, Mail, FileCheck,
   Calendar, Syringe, AlertTriangle, CheckCircle2, Clock, AlertCircle,
   LayoutList, LayoutGrid, MoreHorizontal, Dog, Cat, User, Send, Loader2,
+  Archive,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -16,6 +17,8 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useExpiringVaccinationsQuery } from '@/features/pets/api-vaccinations';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import StyledSelect from '@/components/ui/StyledSelect';
+import { RenewVaccinationModal } from '@/features/pets/components';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import apiClient from '@/lib/apiClient';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -76,6 +79,14 @@ const Vaccinations = () => {
 
   // Email modal state
   const [emailModalOpen, setEmailModalOpen] = useState(false);
+
+  // Renewal modal state
+  const [renewModalOpen, setRenewModalOpen] = useState(false);
+  const [vaccinationToRenew, setVaccinationToRenew] = useState(null);
+  const [isRenewing, setIsRenewing] = useState(false);
+
+  // Status filter state (active/archived/all)
+  const [statusFilter, setStatusFilter] = useState('active');
 
   // Reviewed records state (persisted in localStorage)
   const [reviewedRecords, setReviewedRecords] = useState(() => {
@@ -161,6 +172,15 @@ const Vaccinations = () => {
     const filters = { ...activeViewFilters, ...customFilters };
 
     return allRecords.filter(record => {
+      // Record status filter (active/archived/all) - from the toolbar toggle
+      let matchesRecordStatus = true;
+      if (statusFilter === 'active') {
+        matchesRecordStatus = record.recordStatus !== 'archived' && record.isArchived !== true;
+      } else if (statusFilter === 'archived') {
+        matchesRecordStatus = record.recordStatus === 'archived' || record.isArchived === true;
+      }
+      // 'all' shows everything
+
       // Search filter
       const matchesSearch = !searchTerm ||
         record.petName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -168,7 +188,7 @@ const Vaccinations = () => {
         record.ownerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         record.ownerEmail?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      // Status filter
+      // Status filter (from saved views - overdue, expiring, etc.)
       let matchesStatus = true;
       if (filters.status) {
         matchesStatus = record.status === filters.status;
@@ -211,9 +231,9 @@ const Vaccinations = () => {
         }
       }
 
-      return matchesSearch && matchesStatus && matchesMaxDays && matchesVaccineType && matchesSpecies && matchesDateRange;
+      return matchesRecordStatus && matchesSearch && matchesStatus && matchesMaxDays && matchesVaccineType && matchesSpecies && matchesDateRange;
     });
-  }, [allRecords, searchTerm, activeViewFilters, customFilters]);
+  }, [allRecords, searchTerm, activeViewFilters, customFilters, statusFilter]);
 
   // Sort records
   const sortedRecords = useMemo(() => {
@@ -365,6 +385,51 @@ const Vaccinations = () => {
     });
   }, [openSlideout]);
 
+  // Handle vaccination renewal
+  const handleRenewClick = useCallback((record) => {
+    setVaccinationToRenew(record);
+    setRenewModalOpen(true);
+  }, []);
+
+  const handleRenewSubmit = async (data) => {
+    if (!vaccinationToRenew) return;
+
+    setIsRenewing(true);
+    try {
+      const response = await apiClient.post(
+        canonicalEndpoints.pets.vaccinationRenew(
+          String(vaccinationToRenew.petId),
+          String(vaccinationToRenew.recordId ?? vaccinationToRenew.id)
+        ),
+        {
+          administeredAt: data.administeredAt,
+          expiresAt: data.expiresAt,
+          provider: data.provider || null,
+          lotNumber: data.lotNumber || null,
+          notes: data.notes || null,
+        }
+      );
+
+      toast.success(`${vaccinationToRenew.type} renewed successfully`);
+      setRenewModalOpen(false);
+      setVaccinationToRenew(null);
+
+      // Refresh the data
+      queryClient.invalidateQueries({ queryKey: ['vaccinations', 'expiring'] });
+      refetch();
+    } catch (error) {
+      console.error('Failed to renew vaccination:', error);
+      toast.error(error.response?.data?.message || 'Failed to renew vaccination');
+    } finally {
+      setIsRenewing(false);
+    }
+  };
+
+  const handleRenewCancel = () => {
+    setRenewModalOpen(false);
+    setVaccinationToRenew(null);
+  };
+
   const hasActiveFilters = searchTerm || Object.keys(customFilters).length > 0 || activeView !== 'all';
 
   return (
@@ -474,6 +539,48 @@ const Vaccinations = () => {
                   color: 'var(--bb-color-text-primary)',
                 }}
               />
+            </div>
+
+            {/* Status Filter Toggle (Active/Archived/All) */}
+            <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+              <Button
+                variant={statusFilter === 'active' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => setStatusFilter('active')}
+                className={cn(
+                  'rounded-none px-3 h-9',
+                  statusFilter !== 'active' && 'bg-[color:var(--bb-color-bg-body)]'
+                )}
+                title="Show active vaccinations only"
+              >
+                <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                Active
+              </Button>
+              <Button
+                variant={statusFilter === 'archived' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => setStatusFilter('archived')}
+                className={cn(
+                  'rounded-none px-3 h-9',
+                  statusFilter !== 'archived' && 'bg-[color:var(--bb-color-bg-body)]'
+                )}
+                title="Show archived vaccinations only"
+              >
+                <Archive className="h-4 w-4 mr-1.5" />
+                Archived
+              </Button>
+              <Button
+                variant={statusFilter === 'all' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => setStatusFilter('all')}
+                className={cn(
+                  'rounded-none px-3 h-9',
+                  statusFilter !== 'all' && 'bg-[color:var(--bb-color-bg-body)]'
+                )}
+                title="Show all vaccinations"
+              >
+                All
+              </Button>
             </div>
 
             {/* View Toggle */}
@@ -644,6 +751,7 @@ const Vaccinations = () => {
                 onSelect={() => handleSelectRow(record.recordId ?? record.id)}
                 onDelete={() => handleDeleteClick(record)}
                 onEdit={() => handleEditVaccination(record)}
+                onRenew={() => handleRenewClick(record)}
                 onClearReviewed={() => handleClearReviewed(record.recordId ?? record.id)}
               />
             ))}
@@ -711,6 +819,16 @@ const Vaccinations = () => {
         onClose={() => setEmailModalOpen(false)}
         records={selectedRecordsData}
       />
+
+      {/* Renew Vaccination Modal */}
+      <RenewVaccinationModal
+        open={renewModalOpen}
+        onClose={handleRenewCancel}
+        onSubmit={handleRenewSubmit}
+        vaccination={vaccinationToRenew}
+        petName={vaccinationToRenew?.petName}
+        isLoading={isRenewing}
+      />
     </div>
   );
 };
@@ -745,7 +863,7 @@ const FilterTag = ({ label, onRemove }) => (
 );
 
 // Vaccination Row Component
-const VaccinationRow = ({ record, viewMode, isSelected, isReviewed, onSelect, onDelete, onEdit, onClearReviewed }) => {
+const VaccinationRow = ({ record, viewMode, isSelected, isReviewed, onSelect, onDelete, onEdit, onRenew, onClearReviewed }) => {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
 
@@ -901,6 +1019,17 @@ const VaccinationRow = ({ record, viewMode, isSelected, isReviewed, onSelect, on
             {showMenu && (
               <div className="absolute right-0 top-full mt-1 w-40 rounded-lg border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
                 <div className="py-1">
+                  {/* Renew - only for active records */}
+                  {record.recordStatus !== 'archived' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); onRenew?.(); setShowMenu(false); }}
+                      className="w-full justify-start gap-2 text-[color:var(--bb-color-accent)]"
+                    >
+                      <RefreshCw className="h-4 w-4" />Renew Vaccination
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"

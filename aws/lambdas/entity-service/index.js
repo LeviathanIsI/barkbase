@@ -229,6 +229,7 @@ const handlers = {
   'POST /api/v1/entity/pets/{petId}/vaccinations': createPetVaccination,
   'PUT /api/v1/entity/pets/{petId}/vaccinations/{id}': updatePetVaccination,
   'DELETE /api/v1/entity/pets/{petId}/vaccinations/{id}': deletePetVaccination,
+  'POST /api/v1/entity/pets/{petId}/vaccinations/{id}/renew': renewPetVaccination,
 
   // Owners
   'GET /api/v1/entity/owners': getOwners,
@@ -2353,8 +2354,21 @@ async function getExpiringVaccinations(event) {
   try {
     await getPoolAsync();
 
+    // Get query params for status filtering
+    const queryParams = getQueryParams(event);
+    const statusFilter = queryParams.statusFilter || 'active'; // 'active', 'archived', 'all'
+
+    // Build status condition - default to active only (excludes archived)
+    let statusCondition = '';
+    if (statusFilter === 'active') {
+      statusCondition = ` AND (v.status = 'active' OR v.status IS NULL)`;
+    } else if (statusFilter === 'archived') {
+      statusCondition = ` AND v.status = 'archived'`;
+    }
+    // 'all' shows everything
+
     // Get vaccinations expiring within daysAhead days
-    // Also include recently expired (within 7 days past) to show overdue
+    // Only includes active vaccinations by default (excludes archived)
     const result = await query(
       `SELECT
          v.record_id as id,
@@ -2364,6 +2378,9 @@ async function getExpiringVaccinations(event) {
          v.expires_at,
          v.provider,
          v.notes,
+         v.status as record_status,
+         v.renewed_from_id,
+         v.renewed_by_id,
          v.created_at,
          p.name as pet_name,
          p.species as pet_species,
@@ -2377,25 +2394,32 @@ async function getExpiringVaccinations(event) {
        JOIN "Pet" p ON p.tenant_id = v.tenant_id AND p.record_id = v.pet_id
        LEFT JOIN "PetOwner" po ON po.tenant_id = p.tenant_id AND po.pet_record_id = p.record_id AND po.is_primary = true
        LEFT JOIN "Owner" o ON o.tenant_id = p.tenant_id AND o.record_id = po.owner_record_id
-       WHERE v.tenant_id = $1
+       WHERE v.tenant_id = $1${statusCondition}
        ORDER BY v.expires_at ASC NULLS LAST`,
       [tenantId]
     );
 
     const vaccinations = result.rows.map(row => {
-      // Determine status based on expiry
-      const expiresAt = new Date(row.expires_at);
+      // Determine display status based on expiry and record status
+      const expiresAt = row.expires_at ? new Date(row.expires_at) : null;
       const now = new Date();
-      let status = 'valid';
-      if (expiresAt < now) {
-        status = 'expired';
-      } else if (expiresAt <= new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000)) {
-        status = 'expiring_soon';
+      const recordStatus = row.record_status || 'active';
+
+      // Compute display status for UI
+      let displayStatus = 'current';
+      if (recordStatus === 'archived') {
+        displayStatus = 'archived';
+      } else if (expiresAt && expiresAt < now) {
+        displayStatus = 'overdue';
+      } else if (expiresAt && expiresAt <= new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)) {
+        displayStatus = 'critical';
+      } else if (expiresAt && expiresAt <= new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)) {
+        displayStatus = 'expiring';
       }
 
       return {
         id: row.id,
-        recordId: row.id, // Alias for frontend compatibility
+        recordId: row.id,
         petId: row.pet_id,
         petName: row.pet_name,
         petSpecies: row.pet_species,
@@ -2405,7 +2429,15 @@ async function getExpiringVaccinations(event) {
         expiresAt: row.expires_at,
         provider: row.provider,
         notes: row.notes,
-        status,
+        // Record status from database
+        recordStatus: recordStatus,
+        status: displayStatus,
+        // Renewal tracking
+        renewedFromId: row.renewed_from_id,
+        renewedById: row.renewed_by_id,
+        isArchived: recordStatus === 'archived',
+        isActive: recordStatus === 'active' || !recordStatus,
+        // Owner info
         owner: row.owner_id ? {
           id: row.owner_id,
           firstName: row.owner_first_name,
@@ -2454,12 +2486,19 @@ async function getExpiringVaccinations(event) {
 
 /**
  * Get all vaccinations for a pet
+ *
+ * Query params:
+ * - status: 'active' | 'archived' | 'expired' | 'all' (default: 'all')
+ * - includeHistory: boolean - if true, includes renewal chain info
  */
 async function getPetVaccinations(event) {
   const tenantId = resolveTenantId(event);
   const petId = event.pathParameters?.petId || event.pathParameters?.id;
+  const queryParams = getQueryParams(event);
+  const statusFilter = queryParams.status || 'all';
+  const includeHistory = queryParams.includeHistory === 'true';
 
-  console.log('[ENTITY-SERVICE] Getting vaccinations for pet:', petId, 'tenant:', tenantId);
+  console.log('[ENTITY-SERVICE] Getting vaccinations for pet:', petId, 'tenant:', tenantId, 'status:', statusFilter);
 
   if (!tenantId) {
     return createResponse(400, {
@@ -2491,23 +2530,33 @@ async function getPetVaccinations(event) {
       });
     }
 
-    // Actual Vaccination schema columns:
-    // id, tenant_id, pet_id, type, administered_at, expires_at, provider, lot_number, notes, document_url, created_at, updated_at
+    // Build status filter condition
+    let statusCondition = '';
+    const params = [petId, tenantId];
+    if (statusFilter !== 'all') {
+      statusCondition = ` AND v.status = $3`;
+      params.push(statusFilter);
+    }
+
+    // Vaccination schema columns including renewal system fields
     const result = await query(
       `SELECT
          v.record_id, v.pet_id, v.type, v.administered_at, v.expires_at,
          v.provider, v.lot_number, v.notes, v.document_url,
+         v.status, v.renewed_from_id, v.renewed_by_id,
          v.created_at, v.updated_at
        FROM "Vaccination" v
-       WHERE v.pet_id = $1 AND v.tenant_id = $2       ORDER BY v.expires_at ASC NULLS LAST, v.administered_at DESC`,
-      [petId, tenantId]
+       WHERE v.pet_id = $1 AND v.tenant_id = $2${statusCondition}
+       ORDER BY v.status ASC, v.expires_at ASC NULLS LAST, v.administered_at DESC`,
+      params
     );
 
     const vaccinations = result.rows.map(row => ({
       id: row.record_id,
+      recordId: row.record_id,
       petId: row.pet_id,
       // Map to camelCase for frontend compatibility
-      vaccineName: row.type, // Schema uses 'type' column
+      vaccineName: row.type,
       type: row.type,
       administeredDate: row.administered_at,
       administeredAt: row.administered_at,
@@ -2517,10 +2566,17 @@ async function getPetVaccinations(event) {
       lotNumber: row.lot_number,
       notes: row.notes,
       documentUrl: row.document_url,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      // Renewal system fields
+      status: row.status || 'active',
+      renewedFromId: row.renewed_from_id,
+      renewedById: row.renewed_by_id,
+      // Computed status helpers
       isExpired: row.expires_at ? new Date(row.expires_at) < new Date() : false,
       isExpiringSoon: row.expires_at ? (new Date(row.expires_at) - new Date()) / (1000 * 60 * 60 * 24) <= 30 : false,
+      isArchived: row.status === 'archived',
+      isActive: row.status === 'active' || !row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     }));
 
     console.log('[ENTITY-SERVICE] Found', vaccinations.length, 'vaccinations for pet');
@@ -2530,6 +2586,7 @@ async function getPetVaccinations(event) {
       vaccinations: vaccinations,
       total: vaccinations.length,
       petId: petId,
+      statusFilter: statusFilter,
       message: 'Vaccinations retrieved successfully',
     });
 
@@ -2800,6 +2857,174 @@ async function deletePetVaccination(event) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to delete vaccination record',
+    });
+  }
+}
+
+/**
+ * Renew a vaccination record
+ *
+ * This creates a NEW vaccination record and archives the old one.
+ * The renewal chain is maintained via renewed_from_id and renewed_by_id.
+ *
+ * Required body:
+ * - administeredAt: date when the new vaccine was administered
+ * - expiresAt: date when the new vaccine expires
+ *
+ * Optional body:
+ * - provider: who administered the vaccine
+ * - lotNumber: lot number of the vaccine
+ * - notes: any notes about the renewal
+ */
+async function renewPetVaccination(event) {
+  const tenantId = resolveTenantId(event);
+  const petId = event.pathParameters?.petId;
+  const vaccinationId = event.pathParameters?.id;
+  const body = parseBody(event);
+
+  console.log('[ENTITY-SERVICE] Renewing vaccination:', vaccinationId, 'for pet:', petId);
+
+  if (!tenantId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Missing tenant context',
+    });
+  }
+
+  if (!vaccinationId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Vaccination ID is required',
+    });
+  }
+
+  const { administeredAt, expiresAt, provider, lotNumber, notes } = body;
+
+  if (!administeredAt) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Administration date is required for renewal',
+    });
+  }
+
+  if (!expiresAt) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Expiration date is required for renewal',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+    const client = await getClient();
+
+    try {
+      await client.query('BEGIN');
+
+      // 1. Fetch the existing vaccination record
+      const existingResult = await client.query(
+        `SELECT * FROM "Vaccination" WHERE record_id = $1 AND tenant_id = $2`,
+        [vaccinationId, tenantId]
+      );
+
+      if (existingResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return createResponse(404, {
+          error: 'Not Found',
+          message: 'Vaccination record not found',
+        });
+      }
+
+      const existingVaccine = existingResult.rows[0];
+
+      // 2. Check if already archived (can't renew archived records)
+      if (existingVaccine.status === 'archived') {
+        await client.query('ROLLBACK');
+        return createResponse(400, {
+          error: 'Bad Request',
+          message: 'Cannot renew an archived vaccination record',
+        });
+      }
+
+      // 3. Create the NEW vaccination record
+      const newRecordId = await getNextRecordId(tenantId, 'Vaccination');
+
+      const newVaccineResult = await client.query(
+        `INSERT INTO "Vaccination" (
+           tenant_id, record_id, pet_id, type, administered_at, expires_at,
+           provider, lot_number, notes, document_url,
+           status, renewed_from_id, renewed_by_id,
+           created_at, updated_at
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active', $11, NULL, NOW(), NOW())
+         RETURNING *`,
+        [
+          tenantId,
+          newRecordId,
+          existingVaccine.pet_id,
+          existingVaccine.type, // Same vaccine type
+          administeredAt,
+          expiresAt,
+          provider || existingVaccine.provider, // Use new or inherit
+          lotNumber || null,
+          notes || null,
+          existingVaccine.document_url, // Inherit document
+          vaccinationId, // renewed_from_id points to old record
+        ]
+      );
+
+      const newVaccine = newVaccineResult.rows[0];
+
+      // 4. Archive the OLD vaccination record and link to new one
+      await client.query(
+        `UPDATE "Vaccination"
+         SET status = 'archived',
+             renewed_by_id = $3,
+             updated_at = NOW()
+         WHERE record_id = $1 AND tenant_id = $2`,
+        [vaccinationId, tenantId, newRecordId]
+      );
+
+      await client.query('COMMIT');
+
+      console.log('[ENTITY-SERVICE] Renewed vaccination:', vaccinationId, '-> new record:', newRecordId);
+
+      return createResponse(201, {
+        success: true,
+        message: 'Vaccination renewed successfully',
+        newVaccination: {
+          id: newVaccine.record_id,
+          recordId: newVaccine.record_id,
+          petId: newVaccine.pet_id,
+          type: newVaccine.type,
+          administeredAt: newVaccine.administered_at,
+          expiresAt: newVaccine.expires_at,
+          provider: newVaccine.provider,
+          lotNumber: newVaccine.lot_number,
+          notes: newVaccine.notes,
+          status: 'active',
+          renewedFromId: newVaccine.renewed_from_id,
+        },
+        archivedVaccination: {
+          id: vaccinationId,
+          recordId: vaccinationId,
+          status: 'archived',
+          renewedById: newRecordId,
+        },
+      });
+
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] Failed to renew vaccination:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to renew vaccination record',
     });
   }
 }
