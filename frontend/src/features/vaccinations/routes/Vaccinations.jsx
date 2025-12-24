@@ -732,7 +732,7 @@ const StatBadge = ({ icon: Icon, value, label, variant = 'default' }) => {
     <div className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium', variants[variant])}>
       <Icon className="h-3 w-3" />
       <span className="font-semibold">{value}</span>
-      <span className="opacity-70">{label}</span>
+      <span>{label}</span>
     </div>
   );
 };

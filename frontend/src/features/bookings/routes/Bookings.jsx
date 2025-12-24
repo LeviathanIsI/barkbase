@@ -597,13 +597,13 @@ const Bookings = () => {
 
                 {/* Date Navigation */}
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="sm" onClick={() => navigatePeriod(-1)} className="px-2 h-8">
+                  <Button variant="ghost" size="sm" onClick={() => navigatePeriod(-1)} className="px-2 h-8" aria-label="Previous period">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] min-w-[180px] text-center">
                     {dateRangeDisplay}
                   </span>
-                  <Button variant="ghost" size="sm" onClick={() => navigatePeriod(1)} className="px-2 h-8">
+                  <Button variant="ghost" size="sm" onClick={() => navigatePeriod(1)} className="px-2 h-8" aria-label="Next period">
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -1061,6 +1061,7 @@ const DayBookingsModal = ({ date, bookings, onClose, onBookingClick, onNewBookin
             type="button"
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]"
+            aria-label="Close"
           >
             <X className="h-5 w-5" />
           </button>
@@ -1537,17 +1538,17 @@ const ListView = ({
             {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sortedBookings.length)} of {sortedBookings.length}
           </span>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" onClick={() => onPageChange(1)} disabled={currentPage === 1} className="px-2 h-8">
+            <Button variant="outline" size="sm" onClick={() => onPageChange(1)} disabled={currentPage === 1} className="px-2 h-8" aria-label="First page">
               <ChevronLeft className="h-4 w-4" /><ChevronLeft className="h-4 w-4 -ml-2" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="px-2 h-8">
+            <Button variant="outline" size="sm" onClick={() => onPageChange(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="px-2 h-8" aria-label="Previous page">
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="px-3 text-sm font-medium text-[color:var(--bb-color-text-primary)]">{currentPage}</span>
-            <Button variant="outline" size="sm" onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="px-2 h-8">
+            <Button variant="outline" size="sm" onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} className="px-2 h-8" aria-label="Next page">
               <ChevronRight className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages} className="px-2 h-8">
+            <Button variant="outline" size="sm" onClick={() => onPageChange(totalPages)} disabled={currentPage === totalPages} className="px-2 h-8" aria-label="Last page">
               <ChevronRight className="h-4 w-4" /><ChevronRight className="h-4 w-4 -ml-2" />
             </Button>
           </div>

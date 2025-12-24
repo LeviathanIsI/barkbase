@@ -238,6 +238,7 @@ const StyledSelect = React.forwardRef(({
         ref={ref}
         inputId={id}
         name={name}
+        aria-label={label || placeholder || 'Select option'}
         options={options}
         value={getValue()}
         onChange={handleChange}

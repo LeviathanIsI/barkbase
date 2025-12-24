@@ -358,10 +358,11 @@ const Profile = () => {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-medium text-muted mb-1">Full Name</label>
+                <label htmlFor="profile-name" className="block text-xs font-medium text-muted mb-1">Full Name</label>
                 <div className="relative">
                   <User className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
                   <input
+                    id="profile-name"
                     type="text"
                     name="name"
                     value={formData.name}
@@ -372,10 +373,11 @@ const Profile = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-muted mb-1">Email</label>
+                <label htmlFor="profile-email" className="block text-xs font-medium text-muted mb-1">Email</label>
                 <div className="relative">
                   <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
                   <input
+                    id="profile-email"
                     type="email"
                     value={profile?.email || user?.email}
                     disabled

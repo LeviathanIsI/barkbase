@@ -313,8 +313,8 @@ export default function SettingsLayout() {
                   className={cn(
                     "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors",
                     isCollapsed
-                      ? "text-gray-600 hover:text-gray-500"
-                      : "text-gray-500 hover:text-gray-400"
+                      ? "text-gray-400 hover:text-gray-300"
+                      : "text-gray-300 hover:text-gray-200"
                   )}
                 >
                   <span>{section.title}</span>
@@ -382,7 +382,7 @@ export default function SettingsLayout() {
                                       className={cn(
                                         "group flex items-center justify-between rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
                                         isChildActive
-                                          ? "bg-primary-500/10 text-primary-500 border-l-2 border-primary-500"
+                                          ? "bg-primary-500/10 text-primary-400 border-l-2 border-primary-400"
                                           : "text-gray-300 hover:bg-gray-800 hover:text-white"
                                       )}
                                     >
@@ -391,7 +391,7 @@ export default function SettingsLayout() {
                                         className={cn(
                                           "h-3 w-3 transition-opacity",
                                           isChildActive
-                                            ? "opacity-100 text-primary-500"
+                                            ? "opacity-100 text-primary-400"
                                             : "opacity-0 group-hover:opacity-60"
                                         )}
                                       />
@@ -415,7 +415,7 @@ export default function SettingsLayout() {
                           className={cn(
                             "group flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors",
                             isActive
-                              ? "bg-primary-500/10 text-primary-500 border-l-2 border-primary-500"
+                              ? "bg-primary-500/10 text-primary-400 border-l-2 border-primary-400"
                               : "text-gray-300 hover:bg-gray-800 hover:text-white"
                           )}
                         >
@@ -424,7 +424,7 @@ export default function SettingsLayout() {
                               className={cn(
                                 "h-[18px] w-[18px] flex-shrink-0",
                                 isActive
-                                  ? "text-primary-500"
+                                  ? "text-primary-400"
                                   : "text-white/70 group-hover:text-white"
                               )}
                             />
@@ -434,7 +434,7 @@ export default function SettingsLayout() {
                             className={cn(
                               "h-3.5 w-3.5 transition-opacity",
                               isActive
-                                ? "opacity-100 text-primary-500"
+                                ? "opacity-100 text-primary-400"
                                 : "opacity-0 group-hover:opacity-60"
                             )}
                           />

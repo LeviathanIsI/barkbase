@@ -933,6 +933,7 @@ const Pets = () => {
                                 type="checkbox"
                                 checked={selectedRows.size === paginatedPets.length && paginatedPets.length > 0}
                                 onChange={handleSelectAll}
+                                aria-label="Select all pets"
                                 className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
                               />
                             ) : (
@@ -1010,17 +1011,17 @@ const Pets = () => {
                   {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sortedPets.length)} of {sortedPets.length}
                 </span>
                 <div className="flex items-center gap-1">
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 h-8">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 h-8" aria-label="First page">
                     <ChevronLeft className="h-4 w-4" /><ChevronLeft className="h-4 w-4 -ml-2" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2 h-8">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2 h-8" aria-label="Previous page">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="px-3 text-sm font-medium text-[color:var(--bb-color-text-primary)]">{currentPage}</span>
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 h-8">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 h-8" aria-label="Next page">
                     <ChevronRight className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 h-8">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 h-8" aria-label="Last page">
                     <ChevronRight className="h-4 w-4" /><ChevronRight className="h-4 w-4 -ml-2" />
                   </Button>
                 </div>
@@ -1158,7 +1159,7 @@ const StatBadge = ({ icon: Icon, value, label, variant = 'default' }) => {
     <div className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium', variants[variant])}>
       <Icon className="h-3 w-3" />
       <span className="font-semibold">{value}</span>
-      <span className="opacity-70">{label}</span>
+      <span>{label}</span>
     </div>
   );
 };
@@ -1551,7 +1552,7 @@ const PetRow = ({
       case 'select':
         return (
           <td key={column.id} className={cn(cellPadding, 'text-center')} onClick={(e) => e.stopPropagation()}>
-            <input type="checkbox" checked={isSelected} onChange={onSelect} className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]" />
+            <input type="checkbox" checked={isSelected} onChange={onSelect} aria-label="Select pet" className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]" />
           </td>
         );
       case 'pet':
@@ -1739,6 +1740,7 @@ const MobilePetCard = ({ pet, isSelected, onSelect, onView }) => {
           type="checkbox"
           checked={isSelected}
           onChange={onSelect}
+          aria-label="Select pet"
           className="mt-1 h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
           onClick={(e) => e.stopPropagation()}
         />

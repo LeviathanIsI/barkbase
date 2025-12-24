@@ -695,6 +695,7 @@ const DataTable = ({
                     type="checkbox"
                     checked={selectedRows.size === paginatedData.length && paginatedData.length > 0}
                     onChange={handleSelectAll}
+                    aria-label="Select all rows"
                     className="h-4 w-4 rounded"
                     style={{
                       borderColor: 'var(--bb-color-border-subtle)',
@@ -775,6 +776,7 @@ const DataTable = ({
                           e.stopPropagation();
                           handleSelectRow(row.recordId);
                         }}
+                        aria-label="Select row"
                         className="h-4 w-4 rounded"
                         style={{
                           borderColor: 'var(--bb-color-border-subtle)',
