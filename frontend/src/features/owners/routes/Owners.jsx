@@ -484,10 +484,9 @@ const Owners = () => {
 
                 {/* Clear Filters */}
                 {hasActiveFilters && (
-                  <button type="button" onClick={clearFilters} className="flex items-center gap-1 text-sm text-[color:var(--bb-color-accent)] hover:underline">
-                    <X className="h-3.5 w-3.5" />
+                  <Button variant="link" size="sm" onClick={clearFilters} leftIcon={<X className="h-3.5 w-3.5" />}>
                     Clear all
-                  </button>
+                  </Button>
                 )}
 
                 {/* Results Count */}
@@ -538,9 +537,9 @@ const Owners = () => {
                 <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => setSmsModalOpen(true)}><MessageSquare className="h-3.5 w-3.5" />SMS</Button>
                 <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={handleExportSelected}><Download className="h-3.5 w-3.5" />Export</Button>
               </div>
-              <button type="button" onClick={() => setSelectedRows(new Set())} className="ml-auto text-sm text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedRows(new Set())} className="ml-auto">
                 Clear selection
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -725,9 +724,10 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStat
       case 'owner':
         return (
           <td key={column.id} className={cellPadding}>
-            <button
-              type="button"
-              className="flex items-center gap-3 text-left hover:opacity-80 transition-opacity cursor-pointer"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-auto p-0 gap-3"
               onClick={(e) => {
                 e.stopPropagation();
                 onView();
@@ -736,11 +736,11 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStat
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold bg-slate-600 dark:bg-slate-500 text-white">
                 {owner.fullName?.[0]?.toUpperCase() || 'O'}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 text-left">
                 <p className="font-semibold text-[color:var(--bb-color-text-primary)]">{owner.fullName}</p>
                 <p className="text-xs text-[color:var(--bb-color-text-muted)]">{owner.email || 'No email'}</p>
               </div>
-            </button>
+            </Button>
           </td>
         );
       case 'contact':
@@ -860,15 +860,15 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStat
         return (
           <td key={column.id} className={cn(cellPadding, 'text-right')}>
             <div className={cn('flex items-center justify-end gap-1 transition-opacity', showActions ? 'opacity-100' : 'opacity-0')}>
-              <button type="button" onClick={(e) => { e.stopPropagation(); onView(); }} className="p-2 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] transition-colors" title="View profile">
+              <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); onView(); }} title="View profile">
                 <Eye className="h-4 w-4" />
-              </button>
-              <button type="button" onClick={(e) => e.stopPropagation()} className="p-2 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] transition-colors" title="Send message">
+              </Button>
+              <Button variant="ghost" size="icon-sm" onClick={(e) => e.stopPropagation()} title="Send message">
                 <MessageSquare className="h-4 w-4" />
-              </button>
-              <button type="button" onClick={(e) => e.stopPropagation()} className="p-2 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] transition-colors" title="More actions">
+              </Button>
+              <Button variant="ghost" size="icon-sm" onClick={(e) => e.stopPropagation()} title="More actions">
                 <MoreHorizontal className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
           </td>
         );
@@ -894,7 +894,7 @@ const FilterPanel = ({ filters, onFiltersChange, onClose }) => (
   <div className="absolute left-0 top-full mt-2 w-72 rounded-xl border p-4 shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
     <div className="flex items-center justify-between mb-4">
       <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Filters</h3>
-      <button type="button" onClick={onClose} className="text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]"><X className="h-4 w-4" /></button>
+      <Button variant="ghost" size="icon-sm" onClick={onClose}><X className="h-4 w-4" /></Button>
     </div>
     <div className="space-y-4">
       <div>
@@ -932,10 +932,16 @@ const ViewsDropdown = ({ views, activeView, onSelectView }) => (
   <div className="absolute left-0 top-full mt-2 w-52 rounded-xl border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
     <div className="py-1">
       {views.map((view) => (
-        <button key={view.id} type="button" onClick={() => onSelectView(view.id)} className={cn('flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-[color:var(--bb-color-bg-elevated)]', activeView === view.id && 'bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]')}>
+        <Button
+          key={view.id}
+          variant="ghost"
+          size="sm"
+          onClick={() => onSelectView(view.id)}
+          className={cn('w-full justify-start gap-2', activeView === view.id && 'bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]')}
+        >
           {activeView === view.id && <Check className="h-4 w-4" />}
           <span className={activeView !== view.id ? 'ml-6' : ''}>{view.name}</span>
-        </button>
+        </Button>
       ))}
     </div>
   </div>
@@ -1066,11 +1072,12 @@ const StatusBadgeDropdown = ({ owner, onStatusChange }) => {
 
   return (
     <div className="relative inline-block" ref={dropdownRef}>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => setIsOpen(!isOpen)}
         disabled={isUpdating}
-        className="inline-flex items-center gap-1 transition-all hover:opacity-80"
+        className="p-0 h-auto"
       >
         <Badge variant={currentStatus.variant} className="cursor-pointer gap-1">
           {isUpdating ? (
@@ -1081,7 +1088,7 @@ const StatusBadgeDropdown = ({ owner, onStatusChange }) => {
           {currentStatus.label}
           <ChevronDown className={cn('h-3 w-3 transition-transform', isOpen && 'rotate-180')} />
         </Badge>
-      </button>
+      </Button>
 
       {isOpen && (
         <div
@@ -1095,20 +1102,20 @@ const StatusBadgeDropdown = ({ owner, onStatusChange }) => {
             const OptionIcon = option.icon;
             const isSelected = option.value === owner.isActive;
             return (
-              <button
+              <Button
                 key={option.label}
-                type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => handleStatusSelect(option)}
                 className={cn(
-                  'w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-[var(--bb-color-bg-elevated)]',
+                  'w-full justify-start gap-2',
                   isSelected && 'bg-[var(--bb-color-accent-soft)]'
                 )}
-                style={{ color: 'var(--bb-color-text-primary)' }}
               >
                 <OptionIcon className={cn('h-4 w-4', option.color)} />
                 <span>{option.label}</span>
                 {isSelected && <Check className="h-3.5 w-3.5 ml-auto text-[color:var(--bb-color-accent)]" />}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -1241,13 +1248,14 @@ const BookingsHoverCard = ({ ownerId, bookingsCount, navigate, children }) => {
             className="px-3 py-2 border-t"
             style={{ borderColor: 'var(--bb-color-border-subtle)' }}
           >
-            <button
-              type="button"
+            <Button
+              variant="link"
+              size="sm"
               onClick={() => navigate(`/customers/${ownerId}?tab=bookings`)}
-              className="w-full text-sm font-medium text-[color:var(--bb-color-accent)] hover:underline"
+              className="w-full justify-center"
             >
               View all bookings →
-            </button>
+            </Button>
           </div>
         </div>
       )}

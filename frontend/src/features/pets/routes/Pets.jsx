@@ -803,10 +803,9 @@ const Pets = () => {
 
                 {/* Clear Filters */}
                 {hasActiveFilters && (
-                  <button type="button" onClick={clearFilters} className="flex items-center gap-1 text-sm text-[color:var(--bb-color-accent)] hover:underline">
-                    <X className="h-3.5 w-3.5" />
+                  <Button variant="link" size="sm" onClick={clearFilters} leftIcon={<X className="h-3.5 w-3.5" />}>
                     Clear all
-                  </button>
+                  </Button>
                 )}
 
                 {/* Results Count */}
@@ -893,9 +892,9 @@ const Pets = () => {
                 <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={handleExportSelected}><Download className="h-3.5 w-3.5" />Export</Button>
                 <Button variant="outline" size="sm" className="gap-1.5 h-8 text-red-500 hover:text-red-600" onClick={() => setDeleteModalOpen(true)}><Trash2 className="h-3.5 w-3.5" />Delete</Button>
               </div>
-              <button type="button" onClick={() => setSelectedRows(new Set())} className="ml-auto text-sm text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedRows(new Set())} className="ml-auto">
                 Clear selection
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -1174,9 +1173,9 @@ const SortIcon = ({ active, direction }) => {
 const FilterTag = ({ label, onRemove }) => (
   <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]">
     {label}
-    <button type="button" onClick={onRemove} className="hover:bg-[color:var(--bb-color-accent)]/20 rounded-full p-0.5">
+    <Button variant="ghost" size="icon-xs" onClick={onRemove} className="hover:bg-[color:var(--bb-color-accent)]/20 rounded-full">
       <X className="h-3 w-3" />
-    </button>
+    </Button>
   </span>
 );
 
@@ -1235,10 +1234,11 @@ const StatusBadgeDropdown = ({ pet, onStatusChange }) => {
 
   return (
     <div className="relative inline-block" ref={dropdownRef}>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-        className="group inline-flex items-center gap-1.5 cursor-pointer"
+        className="p-0 h-auto"
         disabled={isLoading}
       >
         <Badge
@@ -1255,41 +1255,39 @@ const StatusBadgeDropdown = ({ pet, onStatusChange }) => {
           {isActive ? 'Active' : 'Inactive'}
           <ChevronDown className={cn('h-3 w-3 transition-transform', isOpen && 'rotate-180')} />
         </Badge>
-      </button>
+      </Button>
 
       {isOpen && (
         <div
           className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 w-36 rounded-lg border shadow-lg py-1"
           style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
         >
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => handleStatusChange('active')}
             className={cn(
-              'flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors',
-              isActive
-                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
-                : 'hover:bg-[var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-primary)]'
+              'w-full justify-start gap-2',
+              isActive && 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
             )}
           >
             <ShieldCheck className="h-4 w-4" />
             Active
             {isActive && <Check className="h-4 w-4 ml-auto" />}
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => handleStatusChange('inactive')}
             className={cn(
-              'flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors',
-              !isActive
-                ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
-                : 'hover:bg-[var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-primary)]'
+              'w-full justify-start gap-2',
+              !isActive && 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
             )}
           >
             <ShieldOff className="h-4 w-4" />
             Inactive
             {!isActive && <Check className="h-4 w-4 ml-auto" />}
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -1434,8 +1432,9 @@ const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children })
           const expiresDate = vacc.expiresAt ? new Date(vacc.expiresAt) : null;
 
           return (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
               key={vacc.id || vacc.recordId || idx}
               onClick={(e) => {
                 e.stopPropagation();
@@ -1448,9 +1447,9 @@ const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children })
                   title: `Update Vaccinations (${petVaccinations.length})`,
                 });
               }}
-              className="w-full text-left px-3 py-2 hover:bg-[var(--bb-color-bg-elevated)] transition-colors cursor-pointer rounded"
+              className="w-full h-auto py-2 justify-start text-left flex-col items-start"
             >
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 w-full">
                 <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] truncate">
                   {vacc.type || vacc.name || vacc.vaccineName || 'Vaccination'}
                 </span>
@@ -1464,25 +1463,26 @@ const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children })
                   ? formatDistanceToNow(expiresDate, { addSuffix: true })
                   : 'date unknown'}
               </p>
-            </button>
+            </Button>
           );
         })}
       </div>
 
       <div className="px-3 py-2 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-        <button
-          type="button"
+        <Button
+          variant="link"
+          size="sm"
           onClick={(e) => {
             e.stopPropagation();
             setIsHovering(false);
             navigate(`/pets/${pet.recordId || pet.id}`);
           }}
-          className="w-full flex items-center justify-center gap-1.5 text-sm font-medium text-[color:var(--bb-color-accent)] hover:underline"
+          className="w-full justify-center"
+          leftIcon={<Syringe className="h-3.5 w-3.5" />}
+          rightIcon={<ExternalLink className="h-3 w-3" />}
         >
-          <Syringe className="h-3.5 w-3.5" />
           Update Vaccinations
-          <ExternalLink className="h-3 w-3" />
-        </button>
+        </Button>
       </div>
     </div>,
     document.body
@@ -1558,24 +1558,27 @@ const PetRow = ({
       case 'pet':
         return (
           <td key={column.id} className={cellPadding}>
-            <button
-              type="button"
-              className="group flex items-center gap-3 text-left rounded-xl px-3 py-2 -mx-3 -my-2 cursor-pointer transition-all duration-150 hover:bg-[var(--bb-color-bg-elevated)] hover:ring-1 hover:ring-[var(--bb-color-border-subtle)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="group h-auto p-0 rounded-xl px-3 py-2 -mx-3 -my-2 hover:ring-1 hover:ring-[var(--bb-color-border-subtle)]"
               onClick={(e) => {
                 e.stopPropagation();
                 onView();
               }}
             >
-              <div className="transition-transform duration-150 group-hover:scale-105">
-                <PetAvatar pet={pet} size="md" showStatus={false} />
+              <div className="flex items-center gap-3 text-left">
+                <div className="transition-transform duration-150 group-hover:scale-105">
+                  <PetAvatar pet={pet} size="md" showStatus={false} />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-[color:var(--bb-color-text-primary)] group-hover:text-[var(--bb-color-accent)] transition-colors duration-150">{pet.name}</p>
+                  <p className="text-xs text-[color:var(--bb-color-text-muted)]">
+                    {pet.species || 'Dog'} • {pet.breed || 'Unknown breed'}
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-[color:var(--bb-color-text-primary)] group-hover:text-[var(--bb-color-accent)] transition-colors duration-150">{pet.name}</p>
-                <p className="text-xs text-[color:var(--bb-color-text-muted)]">
-                  {pet.species || 'Dog'} • {pet.breed || 'Unknown breed'}
-                </p>
-              </div>
-            </button>
+            </Button>
           </td>
         );
       case 'owner':
@@ -1591,9 +1594,10 @@ const PetRow = ({
               lookupLoading={ownersLoading}
             >
               {pet.ownerId ? (
-                <button
-                  type="button"
-                  className="flex items-center gap-2 hover:text-[color:var(--bb-color-accent)] transition-colors text-left"
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto p-0 gap-2"
                   onClick={(e) => {
                     e.stopPropagation();
                     onOwnerClick?.(pet.ownerId);
@@ -1603,7 +1607,7 @@ const PetRow = ({
                     <User className="h-4 w-4" />
                   </div>
                   <span className="text-[color:var(--bb-color-text-primary)]">{pet.ownerName}</span>
-                </button>
+                </Button>
               ) : (
                 <span className="text-[color:var(--bb-color-text-muted)]">{pet.ownerName || 'No owner'}</span>
               )}
@@ -1668,33 +1672,33 @@ const PetRow = ({
         return (
           <td key={column.id} className={cn(cellPadding, 'text-right')}>
             <span className={cn('inline-flex items-center gap-1 transition-opacity', showActions ? 'opacity-100' : 'opacity-0')} ref={actionsRef}>
-              <button type="button" onClick={(e) => { e.stopPropagation(); onView(); }} className="p-2 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] transition-colors" title="View profile">
+              <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); onView(); }} title="View profile">
                 <Eye className="h-4 w-4" />
-              </button>
-              <button type="button" onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-2 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] transition-colors" title="Edit">
+              </Button>
+              <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); onEdit(); }} title="Edit">
                 <Edit className="h-4 w-4" />
-              </button>
+              </Button>
               <div className="relative">
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={(e) => { e.stopPropagation(); setShowActionsMenu(!showActionsMenu); }}
-                  className="p-2 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] transition-colors"
                   title="More actions"
                 >
                   <MoreHorizontal className="h-4 w-4" />
-                </button>
+                </Button>
                 {showActionsMenu && (
                   <div className="absolute right-0 top-full mt-1 w-40 rounded-lg border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
                     <div className="py-1">
-                      <button type="button" onClick={(e) => { e.stopPropagation(); onView(); setShowActionsMenu(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-primary)]">
+                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onView(); setShowActionsMenu(false); }} className="w-full justify-start gap-2">
                         <Eye className="h-4 w-4" />View Profile
-                      </button>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); onEdit(); setShowActionsMenu(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-primary)]">
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onEdit(); setShowActionsMenu(false); }} className="w-full justify-start gap-2">
                         <Edit className="h-4 w-4" />Edit
-                      </button>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); onDelete(); setShowActionsMenu(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] text-red-500">
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onDelete(); setShowActionsMenu(false); }} className="w-full justify-start gap-2 text-red-500 hover:text-red-600">
                         <Trash2 className="h-4 w-4" />Delete
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -1747,21 +1751,24 @@ const MobilePetCard = ({ pet, isSelected, onSelect, onView }) => {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-2">
-            <button
-              type="button"
-              className="group flex items-center gap-3 text-left cursor-pointer rounded-lg px-2 py-1 -mx-2 -my-1 transition-all duration-150 hover:bg-[var(--bb-color-bg-elevated)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="group h-auto p-0 rounded-lg px-2 py-1 -mx-2 -my-1"
               onClick={onView}
             >
-              <div className="transition-transform duration-150 group-hover:scale-105">
-                <PetAvatar pet={pet} size="md" showStatus={false} />
+              <div className="flex items-center gap-3 text-left">
+                <div className="transition-transform duration-150 group-hover:scale-105">
+                  <PetAvatar pet={pet} size="md" showStatus={false} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-[color:var(--bb-color-text-primary)] truncate group-hover:text-[var(--bb-color-accent)] transition-colors duration-150">{pet.name}</p>
+                  <p className="text-xs text-[color:var(--bb-color-text-muted)]">
+                    {pet.species || 'Dog'} • {pet.breed || 'Unknown breed'}
+                  </p>
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-[color:var(--bb-color-text-primary)] truncate group-hover:text-[var(--bb-color-accent)] transition-colors duration-150">{pet.name}</p>
-                <p className="text-xs text-[color:var(--bb-color-text-muted)]">
-                  {pet.species || 'Dog'} • {pet.breed || 'Unknown breed'}
-                </p>
-              </div>
-            </button>
+            </Button>
             <Badge variant={pet.status === 'active' ? 'success' : 'neutral'} size="sm">
               {pet.status === 'active' ? 'Active' : 'Inactive'}
             </Badge>
@@ -1792,13 +1799,14 @@ const MobilePetCard = ({ pet, isSelected, onSelect, onView }) => {
           )}
         </div>
 
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => setExpanded(!expanded)}
-          className="p-1 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]"
+          className="text-[color:var(--bb-color-text-muted)]"
         >
           <ChevronDown className={cn('h-5 w-5 transition-transform', expanded && 'rotate-180')} />
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1809,7 +1817,7 @@ const FilterPanel = ({ filters, onFiltersChange, onClose }) => (
   <div className="absolute left-0 top-full mt-2 w-72 rounded-xl border p-4 shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
     <div className="flex items-center justify-between mb-4">
       <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Filters</h3>
-      <button type="button" onClick={onClose} className="text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]"><X className="h-4 w-4" /></button>
+      <Button variant="ghost" size="icon-sm" onClick={onClose}><X className="h-4 w-4" /></Button>
     </div>
     <div className="space-y-4">
       <StyledSelect
@@ -1865,10 +1873,16 @@ const ViewsDropdown = ({ views, activeView, onSelectView }) => (
   <div className="absolute left-0 top-full mt-2 w-52 rounded-xl border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
     <div className="py-1">
       {views.map((view) => (
-        <button key={view.id} type="button" onClick={() => onSelectView(view.id)} className={cn('flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-[color:var(--bb-color-bg-elevated)]', activeView === view.id && 'bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]')}>
+        <Button
+          key={view.id}
+          variant="ghost"
+          size="sm"
+          onClick={() => onSelectView(view.id)}
+          className={cn('w-full justify-start gap-2', activeView === view.id && 'bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]')}
+        >
           {activeView === view.id && <Check className="h-4 w-4" />}
           <span className={activeView !== view.id ? 'ml-6' : ''}>{view.name}</span>
-        </button>
+        </Button>
       ))}
     </div>
   </div>

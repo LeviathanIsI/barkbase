@@ -523,32 +523,30 @@ const Bookings = () => {
         <div className="flex items-center justify-between mt-4">
           {/* View Mode Tabs - Calendar and List View */}
           <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-            <button
-              type="button"
+            <Button
+              variant={viewMode === VIEW_MODES.CALENDAR ? 'primary' : 'ghost'}
+              size="sm"
               onClick={() => setViewMode(VIEW_MODES.CALENDAR)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors',
-                viewMode === VIEW_MODES.CALENDAR
-                  ? 'bg-[color:var(--bb-color-accent)] text-[color:var(--bb-color-text-on-accent)]'
-                  : 'bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]'
+                'rounded-none gap-2',
+                viewMode !== VIEW_MODES.CALENDAR && 'bg-[color:var(--bb-color-bg-surface)]'
               )}
+              leftIcon={<Calendar className="h-4 w-4" />}
             >
-              <Calendar className="h-4 w-4" />
               Calendar
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant={viewMode === VIEW_MODES.LIST ? 'primary' : 'ghost'}
+              size="sm"
               onClick={() => setViewMode(VIEW_MODES.LIST)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors',
-                viewMode === VIEW_MODES.LIST
-                  ? 'bg-[color:var(--bb-color-accent)] text-[color:var(--bb-color-text-on-accent)]'
-                  : 'bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]'
+                'rounded-none gap-2',
+                viewMode !== VIEW_MODES.LIST && 'bg-[color:var(--bb-color-bg-surface)]'
               )}
+              leftIcon={<List className="h-4 w-4" />}
             >
-              <List className="h-4 w-4" />
               List View
-            </button>
+            </Button>
           </div>
 
           <Button size="sm" onClick={() => setShowNewBooking(true)} className="gap-1.5 h-9">
@@ -574,19 +572,18 @@ const Bookings = () => {
                 {/* Period Toggles */}
                 <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
                   {Object.entries(PERIOD_MODES).map(([key, value]) => (
-                    <button
+                    <Button
                       key={value}
-                      type="button"
+                      variant={periodMode === value ? 'primary' : 'ghost'}
+                      size="sm"
                       onClick={() => setPeriodMode(value)}
                       className={cn(
-                        'px-3 py-1.5 text-sm font-medium transition-colors',
-                        periodMode === value
-                          ? 'bg-[color:var(--bb-color-accent)] text-[color:var(--bb-color-text-on-accent)]'
-                          : 'bg-[color:var(--bb-color-bg-body)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]'
+                        'rounded-none h-8',
+                        periodMode !== value && 'bg-[color:var(--bb-color-bg-body)]'
                       )}
                     >
                       {key.charAt(0) + key.slice(1).toLowerCase()}
-                    </button>
+                    </Button>
                   ))}
                 </div>
 
@@ -698,9 +695,9 @@ const Bookings = () => {
             {searchTerm && (
               <FilterTag label={`Search: "${searchTerm}"`} onRemove={() => setSearchTerm('')} />
             )}
-            <button type="button" onClick={clearFilters} className="text-sm text-[color:var(--bb-color-accent)] hover:underline">
+            <Button variant="link" size="sm" onClick={clearFilters}>
               Clear all
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -1057,14 +1054,14 @@ const DayBookingsModal = ({ date, bookings, onClose, onBookingClick, onNewBookin
               {bookings.length} booking{bookings.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Bookings List */}
@@ -1473,9 +1470,9 @@ const ListView = ({
               <Trash2 className="h-3.5 w-3.5" />Cancel
             </Button>
           </div>
-          <button type="button" onClick={() => onSelectAll()} className="ml-auto text-sm text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]">
+          <Button variant="ghost" size="sm" onClick={() => onSelectAll()} className="ml-auto">
             Clear selection
-          </button>
+          </Button>
         </div>
       )}
 
@@ -1613,9 +1610,10 @@ const BookingRow = ({ booking, isSelected, onSelect, onClick, isEven }) => {
         />
       </td>
       <td className="px-4 py-3">
-        <button
-          type="button"
-          className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity cursor-pointer"
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-auto p-0 gap-2"
           onClick={(e) => {
             e.stopPropagation();
             onClick();
@@ -1625,7 +1623,7 @@ const BookingRow = ({ booking, isSelected, onSelect, onClick, isEven }) => {
             <PawPrint className="h-4 w-4" />
           </div>
           <span className="font-medium text-[color:var(--bb-color-text-primary)]">{booking.petName}</span>
-        </button>
+        </Button>
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
@@ -1670,12 +1668,12 @@ const BookingRow = ({ booking, isSelected, onSelect, onClick, isEven }) => {
       </td>
       <td className="px-4 py-3 last:pr-6 lg:last:pr-12">
         <div className={cn('flex items-center gap-1 transition-opacity', showActions ? 'opacity-100' : 'opacity-0')}>
-          <button type="button" onClick={(e) => { e.stopPropagation(); onClick(); }} className="p-1.5 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]" title="View">
+          <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); onClick(); }} title="View">
             <Eye className="h-4 w-4" />
-          </button>
-          <button type="button" className="p-1.5 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]" title="Edit">
+          </Button>
+          <Button variant="ghost" size="icon-sm" title="Edit">
             <Edit className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </td>
     </tr>
@@ -1692,9 +1690,9 @@ const SortIcon = ({ active, direction }) => {
 const FilterTag = ({ label, onRemove }) => (
   <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]">
     {label}
-    <button type="button" onClick={onRemove} className="hover:bg-[color:var(--bb-color-accent)]/20 rounded-full p-0.5">
+    <Button variant="ghost" size="icon-xs" onClick={onRemove} className="hover:bg-[color:var(--bb-color-accent)]/20 rounded-full">
       <X className="h-3 w-3" />
-    </button>
+    </Button>
   </span>
 );
 
@@ -1703,9 +1701,9 @@ const FilterPanel = ({ statusFilter, onStatusChange, onClose, onClear }) => (
   <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border p-4 shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
     <div className="flex items-center justify-between mb-4">
       <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Filters</h3>
-      <button type="button" onClick={onClose} className="text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]">
+      <Button variant="ghost" size="icon-sm" onClick={onClose}>
         <X className="h-4 w-4" />
-      </button>
+      </Button>
     </div>
     <div className="space-y-4">
       <StyledSelect

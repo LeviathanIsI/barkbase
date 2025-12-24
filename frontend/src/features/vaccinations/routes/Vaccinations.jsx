@@ -443,10 +443,9 @@ const Vaccinations = () => {
 
             {/* Clear Filters */}
             {hasActiveFilters && (
-              <button type="button" onClick={clearFilters} className="flex items-center gap-1 text-sm text-[color:var(--bb-color-accent)] hover:underline">
-                <X className="h-3.5 w-3.5" />
+              <Button variant="link" size="sm" onClick={clearFilters} leftIcon={<X className="h-3.5 w-3.5" />}>
                 Clear all
-              </button>
+              </Button>
             )}
 
             {/* Results Count */}
@@ -479,32 +478,30 @@ const Vaccinations = () => {
 
             {/* View Toggle */}
             <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-              <button
-                type="button"
+              <Button
+                variant={viewMode === 'compact' ? 'primary' : 'ghost'}
+                size="icon-sm"
                 onClick={() => setViewMode('compact')}
                 className={cn(
-                  'p-2 transition-colors',
-                  viewMode === 'compact'
-                    ? 'bg-[color:var(--bb-color-accent)] text-white'
-                    : 'bg-[color:var(--bb-color-bg-body)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]'
+                  'rounded-none',
+                  viewMode !== 'compact' && 'bg-[color:var(--bb-color-bg-body)]'
                 )}
                 title="Compact view"
               >
                 <LayoutList className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant={viewMode === 'expanded' ? 'primary' : 'ghost'}
+                size="icon-sm"
                 onClick={() => setViewMode('expanded')}
                 className={cn(
-                  'p-2 transition-colors',
-                  viewMode === 'expanded'
-                    ? 'bg-[color:var(--bb-color-accent)] text-white'
-                    : 'bg-[color:var(--bb-color-bg-body)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]'
+                  'rounded-none',
+                  viewMode !== 'expanded' && 'bg-[color:var(--bb-color-bg-body)]'
                 )}
                 title="Expanded view"
               >
                 <LayoutGrid className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
 
             <Button variant="outline" size="sm" onClick={handleExportAll} className="gap-1.5 h-9">
@@ -570,9 +567,9 @@ const Vaccinations = () => {
                 <FileCheck className="h-3.5 w-3.5" />Mark Reviewed
               </Button>
             </div>
-            <button type="button" onClick={() => setSelectedRows(new Set())} className="ml-auto text-sm text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]">
+            <Button variant="ghost" size="sm" onClick={() => setSelectedRows(new Set())} className="ml-auto">
               Clear selection
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -741,9 +738,9 @@ const StatBadge = ({ icon: Icon, value, label, variant = 'default' }) => {
 const FilterTag = ({ label, onRemove }) => (
   <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]">
     {label}
-    <button type="button" onClick={onRemove} className="hover:bg-[color:var(--bb-color-accent)]/20 rounded-full p-0.5">
+    <Button variant="ghost" size="icon-xs" onClick={onRemove} className="hover:bg-[color:var(--bb-color-accent)]/20 rounded-full">
       <X className="h-3 w-3" />
-    </button>
+    </Button>
   </span>
 );
 
@@ -893,39 +890,43 @@ const VaccinationRow = ({ record, viewMode, isSelected, isReviewed, onSelect, on
         {/* Right: Actions (Menu only) */}
         <div className="flex items-center gap-2 shrink-0" data-menu>
           <div className="relative" ref={menuRef}>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-              className="p-2 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+              className="opacity-0 group-hover:opacity-100 focus:opacity-100"
             >
               <MoreHorizontal className="h-4 w-4" />
-            </button>
+            </Button>
             {showMenu && (
               <div className="absolute right-0 top-full mt-1 w-40 rounded-lg border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
                 <div className="py-1">
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={(e) => { e.stopPropagation(); onEdit?.(); setShowMenu(false); }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-primary)]"
+                    className="w-full justify-start gap-2"
                   >
                     <Syringe className="h-4 w-4" />Edit Vaccination
-                  </button>
+                  </Button>
                   {isReviewed && (
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={(e) => { e.stopPropagation(); onClearReviewed?.(); setShowMenu(false); }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-primary)]"
+                      className="w-full justify-start gap-2"
                     >
                       <X className="h-4 w-4" />Clear Reviewed
-                    </button>
+                    </Button>
                   )}
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={(e) => { e.stopPropagation(); onDelete(); setShowMenu(false); }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] text-red-500"
+                    className="w-full justify-start gap-2 text-red-500 hover:text-red-600"
                   >
                     <Trash2 className="h-4 w-4" />Delete
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -963,7 +964,7 @@ const FilterPanel = ({ filters, onFiltersChange, onClose }) => {
     <div className="absolute left-0 top-full mt-2 w-80 rounded-xl border p-4 shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Filters</h3>
-        <button type="button" onClick={onClose} className="text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]"><X className="h-4 w-4" /></button>
+        <Button variant="ghost" size="icon-sm" onClick={onClose}><X className="h-4 w-4" /></Button>
       </div>
       <div className="space-y-4">
         {/* Vaccine Types */}
@@ -971,19 +972,18 @@ const FilterPanel = ({ filters, onFiltersChange, onClose }) => {
           <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-2">Vaccine Type</label>
           <div className="flex flex-wrap gap-1.5">
             {VACCINE_TYPES.map((type) => (
-              <button
+              <Button
                 key={type}
-                type="button"
+                variant={(localFilters.vaccineTypes || []).includes(type) ? 'primary' : 'ghost'}
+                size="xs"
                 onClick={() => toggleVaccineType(type)}
                 className={cn(
-                  'px-2 py-1 rounded-full text-xs font-medium transition-colors',
-                  (localFilters.vaccineTypes || []).includes(type)
-                    ? 'bg-[color:var(--bb-color-accent)] text-white'
-                    : 'bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:bg-[color:var(--bb-color-bg-body)]'
+                  'rounded-full',
+                  !(localFilters.vaccineTypes || []).includes(type) && 'bg-[color:var(--bb-color-bg-elevated)]'
                 )}
               >
                 {type}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -1059,10 +1059,10 @@ const ViewsDropdown = ({ views, activeView, onSelectView }) => (
   <div className="absolute left-0 top-full mt-2 w-56 rounded-xl border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
     <div className="py-1">
       {views.map((view) => (
-        <button key={view.id} type="button" onClick={() => onSelectView(view.id)} className={cn('flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-[color:var(--bb-color-bg-elevated)]', activeView === view.id && 'bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]')}>
+        <Button key={view.id} variant="ghost" size="sm" onClick={() => onSelectView(view.id)} className={cn('w-full justify-start gap-2', activeView === view.id && 'bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]')}>
           {activeView === view.id && <Check className="h-4 w-4" />}
           <span className={activeView !== view.id ? 'ml-6' : ''}>{view.name}</span>
-        </button>
+        </Button>
       ))}
     </div>
   </div>
