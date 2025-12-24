@@ -744,22 +744,19 @@ function VaccinationEditForm({ vaccinations = [], initialIndex = 0, petId, petNa
         {hasMultiple && (
           <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
             <div className="flex items-center justify-between gap-2">
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => navigateTo(currentIndex - 1)}
                 disabled={currentIndex === 0 || isLoading}
-                className={cn(
-                  'flex items-center gap-1 px-2 py-1 rounded text-sm transition-colors',
-                  currentIndex === 0
-                    ? 'opacity-40 cursor-not-allowed text-[color:var(--bb-color-text-muted)]'
-                    : 'hover:bg-[var(--bb-color-bg-elevated)] text-[color:var(--bb-color-accent)]'
-                )}
+                leftIcon={
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                }
               >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
                 Previous
-              </button>
+              </Button>
 
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">
@@ -772,22 +769,19 @@ function VaccinationEditForm({ vaccinations = [], initialIndex = 0, petId, petNa
                 )}
               </div>
 
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => navigateTo(currentIndex + 1)}
                 disabled={currentIndex === totalCount - 1 || isLoading}
-                className={cn(
-                  'flex items-center gap-1 px-2 py-1 rounded text-sm transition-colors',
-                  currentIndex === totalCount - 1
-                    ? 'opacity-40 cursor-not-allowed text-[color:var(--bb-color-text-muted)]'
-                    : 'hover:bg-[var(--bb-color-bg-elevated)] text-[color:var(--bb-color-accent)]'
-                )}
+                rightIcon={
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                }
               >
                 Next
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+              </Button>
             </div>
 
             {/* Vaccination pills/tabs */}
@@ -798,23 +792,20 @@ function VaccinationEditForm({ vaccinations = [], initialIndex = 0, petId, petNa
                 const isUpdated = updatedIndices.has(idx);
 
                 return (
-                  <button
+                  <Button
                     key={vacc?.id || vacc?.recordId || idx}
-                    type="button"
+                    variant={isActive ? 'primary' : 'ghost'}
+                    size="xs"
                     onClick={() => navigateTo(idx)}
                     disabled={isLoading}
                     className={cn(
-                      'px-2 py-1 rounded-full text-xs font-medium transition-all',
-                      isActive
-                        ? 'bg-[var(--bb-color-accent)] text-white'
-                        : isUpdated
-                          ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/60'
-                          : 'bg-[var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:bg-[var(--bb-color-border-subtle)]'
+                      'rounded-full',
+                      !isActive && isUpdated && 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400'
                     )}
                   >
                     {isUpdated && !isActive && '✓ '}
                     {vaccName}
-                  </button>
+                  </Button>
                 );
               })}
             </div>

@@ -7,6 +7,7 @@ import { useState, useRef, useEffect, createContext, useContext } from 'react';
 import { Check, X, Loader2, Pencil } from 'lucide-react';
 import Select from 'react-select';
 import { cn } from '@/lib/utils';
+import Button from './Button';
 
 // Context to coordinate single active edit across all property lists on a page
 const EditablePropertyContext = createContext(null);
@@ -330,48 +331,40 @@ export function EditableProperty({
       case 'boolean':
         return (
           <div className="flex gap-2" data-editable-property>
-            <button
-              type="button"
+            <Button
+              variant={editValue === true ? 'primary' : 'outline'}
+              size="xs"
               onClick={() => { setEditValue(true); }}
-              className={cn(
-                'px-3 py-1 text-sm rounded border transition-colors',
-                editValue === true
-                  ? 'bg-[color:var(--bb-color-accent)] text-white border-[color:var(--bb-color-accent)]'
-                  : 'bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)] border-[color:var(--bb-color-border-subtle)]'
-              )}
               disabled={saving}
             >
               Yes
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant={editValue === false ? 'primary' : 'outline'}
+              size="xs"
               onClick={() => { setEditValue(false); }}
-              className={cn(
-                'px-3 py-1 text-sm rounded border transition-colors',
-                editValue === false
-                  ? 'bg-[color:var(--bb-color-accent)] text-white border-[color:var(--bb-color-accent)]'
-                  : 'bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)] border-[color:var(--bb-color-border-subtle)]'
-              )}
               disabled={saving}
             >
               No
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={handleSave}
-              className="p-1 text-green-500 hover:text-green-400"
               disabled={saving}
+              className="text-green-500 hover:text-green-400"
             >
               <Check className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={handleCancel}
-              className="p-1 text-red-500 hover:text-red-400"
               disabled={saving}
+              className="text-red-500 hover:text-red-400"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
         );
 
@@ -497,30 +490,26 @@ export function EditableProperty({
             )}
           </div>
         ) : (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleStartEdit}
             disabled={disabled}
             className={cn(
-              'w-full text-left text-sm font-normal rounded px-1 -mx-1 py-0.5 transition-colors',
-              'hover:bg-[color:var(--bb-color-bg-muted)]',
-              'focus:outline-none focus:ring-1 focus:ring-[color:var(--bb-color-accent)]',
+              'w-full justify-between text-left font-normal px-1 -mx-1 py-0.5 h-auto',
               disabled && 'cursor-default hover:bg-transparent'
             )}
-            style={{ color: 'var(--bb-color-text-primary)' }}
           >
-            <span className="flex items-center justify-between gap-2">
-              <span className={getDisplayValue() === '—' ? 'text-[color:var(--bb-color-text-muted)]' : ''}>
-                {getDisplayValue()}
-              </span>
-              {!disabled && (
-                <Pencil
-                  className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity flex-shrink-0"
-                  style={{ color: 'var(--bb-color-text-muted)' }}
-                />
-              )}
+            <span className={getDisplayValue() === '—' ? 'text-[color:var(--bb-color-text-muted)]' : ''}>
+              {getDisplayValue()}
             </span>
-          </button>
+            {!disabled && (
+              <Pencil
+                className="w-3 h-3 opacity-0 group-hover:opacity-50 transition-opacity flex-shrink-0"
+                style={{ color: 'var(--bb-color-text-muted)' }}
+              />
+            )}
+          </Button>
         )}
       </dd>
     </div>

@@ -161,12 +161,14 @@ const EmailConnectionModal = ({ isOpen, onClose, onConnect }) => {
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-3">
             {step > 1 && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 onClick={handleBack}
-                className="p-1 -ml-1 rounded-md hover:bg-surface-secondary transition-colors"
+                className="-ml-1"
               >
-                <ArrowLeft className="w-5 h-5 text-muted" />
-              </button>
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
             )}
             <h2 className="text-lg font-semibold text-text">
               {step === 1 && 'Set up your email account'}
@@ -174,12 +176,13 @@ const EmailConnectionModal = ({ isOpen, onClose, onConnect }) => {
               {step === 3 && 'Choose your email provider'}
             </h2>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={onClose}
-            className="p-1 rounded-md hover:bg-surface-secondary transition-colors"
           >
-            <X className="w-5 h-5 text-muted" />
-          </button>
+            <X className="w-5 h-5" />
+          </Button>
         </div>
 
         {/* Content */}
@@ -258,12 +261,14 @@ const EmailConnectionModal = ({ isOpen, onClose, onConnect }) => {
                 )}
               </Button>
 
-              <button
+              <Button
+                variant="link"
+                size="sm"
                 onClick={() => setStep(3)}
-                className="w-full text-sm text-primary hover:underline"
+                className="w-full"
               >
                 I want to choose my email provider myself
-              </button>
+              </Button>
             </div>
           )}
 
@@ -285,32 +290,34 @@ const EmailConnectionModal = ({ isOpen, onClose, onConnect }) => {
                   { id: 'microsoft', label: 'Outlook' },
                   { id: 'exchange', label: 'Exchange' },
                 ].map((provider) => (
-                  <button
+                  <Button
                     key={provider.id}
+                    variant="outline"
                     onClick={() => handleProviderConnect(provider.id)}
                     disabled={isConnecting}
                     className={`
-                      flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all
+                      flex flex-col items-center gap-2 p-4 h-auto border-2
                       ${PROVIDERS[provider.id].bgColor}
                       ${PROVIDERS[provider.id].borderColor}
                       ${PROVIDERS[provider.id].hoverColor}
                       hover:shadow-md
-                      disabled:opacity-50 disabled:cursor-not-allowed
                     `}
                   >
                     <ProviderIcon provider={provider.id} className="w-10 h-10" />
                     <span className="text-sm font-medium text-text">{provider.label}</span>
-                  </button>
+                  </Button>
                 ))}
               </div>
 
-              <button
+              <Button
+                variant="link"
+                size="sm"
                 onClick={() => toast('Google = Gmail or Google Workspace\nMicrosoft = Outlook.com, Hotmail, Live\nExchange = Corporate Microsoft servers', { duration: 5000 })}
-                className="flex items-center gap-1 text-sm text-muted hover:text-text mx-auto"
+                className="mx-auto"
+                leftIcon={<HelpCircle className="w-4 h-4" />}
               >
-                <HelpCircle className="w-4 h-4" />
                 Not sure which to choose?
-              </button>
+              </Button>
             </div>
           )}
         </div>
