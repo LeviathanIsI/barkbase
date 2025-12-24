@@ -46,6 +46,7 @@ import StyledSelect from '@/components/ui/StyledSelect';
 import { Card, MetricCard } from '@/components/ui/Card';
 import { PropertyCard, PropertyList } from '@/components/ui/PropertyCard';
 import { AssociationCard, AssociationItem } from '@/components/ui/AssociationCard';
+import { EditablePropertyList, EditablePropertyProvider } from '@/components/ui/EditableProperty';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useOwner, useDeleteOwnerMutation, useUpdateOwnerMutation } from '@/features/owners/api';
@@ -179,6 +180,26 @@ export default function CustomerDetail() {
       toast.error('Failed to delete customer');
     }
     setShowDeleteConfirm(false);
+  };
+
+  // Handle inline property edits
+  const handlePropertySave = async (fieldKey, value) => {
+    try {
+      // Handle nested address fields
+      if (fieldKey.startsWith('address.')) {
+        const addressKey = fieldKey.split('.')[1];
+        await updateMutation.mutateAsync({
+          address: { ...(owner.address || {}), [addressKey]: value }
+        });
+      } else {
+        await updateMutation.mutateAsync({ [fieldKey]: value });
+      }
+      toast.success('Updated successfully');
+      refetchOwner();
+    } catch (err) {
+      toast.error('Failed to update');
+      throw err;
+    }
   };
 
   // Derived data
@@ -376,21 +397,33 @@ export default function CustomerDetail() {
       {/* 3-Column Layout */}
       <div className="flex-1 flex overflow-hidden">
         {/* LEFT SIDEBAR - Property Cards (420px fixed) */}
+        <EditablePropertyProvider>
         <aside
           className="w-[420px] min-w-[420px] flex-shrink-0 border-r overflow-y-auto p-4 space-y-4"
           style={{ borderColor: 'var(--bb-color-border-subtle)' }}
         >
-          {/* About this Owner */}
+          {/* About this Customer */}
           <PropertyCard title="About this Customer" icon={User} storageKey={`customer_${ownerId}_about`}>
-            <PropertyList
+            <EditablePropertyList
               properties={[
-                { label: 'Name', value: fullName },
-                { label: 'Email', value: owner.email, type: 'email' },
-                { label: 'Phone', value: owner.phone, type: 'phone' },
-                { label: 'Status', value: customerStatus, type: 'badge', variant: customerStatusVariant },
-                { label: 'Customer Since', value: safeFormatDate(owner.createdAt) },
+                { label: 'First Name', value: owner.firstName, fieldKey: 'firstName', type: 'text' },
+                { label: 'Last Name', value: owner.lastName, fieldKey: 'lastName', type: 'text' },
+                { label: 'Email', value: owner.email, fieldKey: 'email', type: 'email' },
+                { label: 'Phone', value: owner.phone, fieldKey: 'phone', type: 'phone' },
               ]}
+              onSave={handlePropertySave}
             />
+            {/* Status and Customer Since are read-only */}
+            <div className="mt-4 space-y-3">
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--bb-color-text-muted)' }}>Status</dt>
+                <dd><Badge variant={customerStatusVariant}>{customerStatus}</Badge></dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--bb-color-text-muted)' }}>Customer Since</dt>
+                <dd className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>{safeFormatDate(owner.createdAt) || '—'}</dd>
+              </div>
+            </div>
           </PropertyCard>
 
           {/* Address */}
@@ -400,14 +433,15 @@ export default function CustomerDetail() {
             storageKey={`customer_${ownerId}_address`}
             defaultOpen={!!hasAddress}
           >
-            <PropertyList
+            <EditablePropertyList
               properties={[
-                { label: 'Street', value: owner.address?.street },
-                { label: 'City', value: owner.address?.city || owner.city },
-                { label: 'State', value: owner.address?.state },
-                { label: 'ZIP Code', value: owner.address?.zip },
-                { label: 'Country', value: owner.address?.country },
+                { label: 'Street', value: owner.address?.street, fieldKey: 'address.street', type: 'text' },
+                { label: 'City', value: owner.address?.city || owner.city, fieldKey: 'address.city', type: 'text' },
+                { label: 'State', value: owner.address?.state, fieldKey: 'address.state', type: 'text' },
+                { label: 'ZIP Code', value: owner.address?.zip, fieldKey: 'address.zip', type: 'text' },
+                { label: 'Country', value: owner.address?.country, fieldKey: 'address.country', type: 'text' },
               ]}
+              onSave={handlePropertySave}
             />
           </PropertyCard>
 
@@ -418,11 +452,12 @@ export default function CustomerDetail() {
             storageKey={`customer_${ownerId}_emergency`}
             defaultOpen={!!(owner.emergencyContactName || owner.emergencyContactPhone)}
           >
-            <PropertyList
+            <EditablePropertyList
               properties={[
-                { label: 'Contact Name', value: owner.emergencyContactName },
-                { label: 'Contact Phone', value: owner.emergencyContactPhone, type: 'phone' },
+                { label: 'Contact Name', value: owner.emergencyContactName, fieldKey: 'emergencyContactName', type: 'text' },
+                { label: 'Contact Phone', value: owner.emergencyContactPhone, fieldKey: 'emergencyContactPhone', type: 'phone' },
               ]}
+              onSave={handlePropertySave}
             />
           </PropertyCard>
 
@@ -433,18 +468,15 @@ export default function CustomerDetail() {
             storageKey={`customer_${ownerId}_notes`}
             defaultOpen={!!owner.notes}
           >
-            {owner.notes ? (
-              <p className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
-                {owner.notes}
-              </p>
-            ) : (
-              <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
-                No notes
-              </p>
-            )}
+            <EditablePropertyList
+              properties={[
+                { label: 'Notes', value: owner.notes, fieldKey: 'notes', type: 'textarea' },
+              ]}
+              onSave={handlePropertySave}
+            />
           </PropertyCard>
 
-          {/* Account */}
+          {/* Account - Read-only computed fields */}
           <PropertyCard title="Account" icon={CreditCard} storageKey={`customer_${ownerId}_account`}>
             <PropertyList
               properties={[
@@ -455,6 +487,7 @@ export default function CustomerDetail() {
             />
           </PropertyCard>
         </aside>
+        </EditablePropertyProvider>
 
         {/* MIDDLE COLUMN - Stats + Tabs (flex-1) */}
         <main className="flex-1 min-w-0 overflow-y-auto">
