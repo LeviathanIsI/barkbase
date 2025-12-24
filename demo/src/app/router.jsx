@@ -20,7 +20,7 @@ const PetDetail = lazy(() => import('@/features/pets/routes/PetDetail'));
 const Owners = lazy(() => import('@/features/owners/routes/Owners'));
 const OwnerDetail = lazy(() => import('@/features/owners/routes/OwnerDetail'));
 const Vaccinations = lazy(() => import('@/features/vaccinations/routes/Vaccinations'));
-const Tasks = lazy(() => import('@/features/tasks/routes/Tasks'));
+const CheckIn = lazy(() => import('@/features/check-in/routes/CheckIn'));
 
 // Wrapper component for lazy-loaded routes
 const LazyRoute = ({ children }) => (
@@ -76,14 +76,14 @@ export const router = createBrowserRouter([
         element: <LazyRoute><Vaccinations /></LazyRoute>,
       },
 
-      // Check-in / Tasks
-      {
-        path: 'tasks',
-        element: <LazyRoute><Tasks /></LazyRoute>,
-      },
+      // Check-in
       {
         path: 'check-in',
-        element: <LazyRoute><Tasks /></LazyRoute>,
+        element: <LazyRoute><CheckIn /></LazyRoute>,
+      },
+      {
+        path: 'tasks',
+        element: <LazyRoute><CheckIn /></LazyRoute>,
       },
 
       // Redirect legacy routes
