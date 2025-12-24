@@ -25,6 +25,7 @@
     "test:visual:pages": "playwright test e2e/tests/visual/pages.visual.spec.js --project=chromium",
     "test:visual:responsive": "playwright test e2e/tests/visual/responsive.visual.spec.js --project=chromium",
     "test:visual:a11y": "playwright test e2e/tests/visual/accessibility.visual.spec.js --project=chromium",
+    "test:a11y": "playwright test e2e/tests/accessibility.spec.js --project=chromium",
     "test:visual:report": "playwright show-report e2e/reports/html",
     "test:orchestrate": "node test-orchestration/orchestrator.js",
     "test:orchestrate:quick": "node test-orchestration/orchestrator.js --strategy quick",
@@ -78,6 +79,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
     "@eslint/js": "^9.36.0",
     "@faker-js/faker": "^10.1.0",
     "@playwright/test": "^1.49.0",
