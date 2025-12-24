@@ -15,7 +15,7 @@ try {
   sharedLayer = require('../../layers/shared-layer/nodejs/index');
 }
 
-const { getPoolAsync, query, softDelete, softDeleteBatch, getNextRecordId } = dbLayer;
+const { getPoolAsync, query, getClient, softDelete, softDeleteBatch, getNextRecordId } = dbLayer;
 const { createResponse, authenticateRequest, parseBody, getQueryParams, getPathParams } = sharedLayer;
 const { enforceLimit, getLimit, getTenantPlan, createTierErrorResponse } = sharedLayer;
 const { resolveAccountContext, rewritePathToLegacy, OBJECT_TYPE_CODES } = sharedLayer;
