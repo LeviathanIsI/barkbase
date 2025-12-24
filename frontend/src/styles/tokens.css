@@ -53,20 +53,21 @@
   --bb-color-sidebar-border: var(--color-gray-200, #e5e7eb);
   --bb-color-sidebar-text-primary: var(--color-gray-900, #111827);
   --bb-color-sidebar-text-muted: var(--color-gray-500, #6b7280);
-  --bb-color-sidebar-item-hover-bg: rgba(37, 99, 235, 0.06);
-  --bb-color-sidebar-item-active-bg: rgba(37, 99, 235, 0.12);
-  --bb-color-sidebar-item-active-border: var(--color-primary-600, #2563eb);
-  --bb-color-sidebar-item-active-text: var(--color-primary-700, #1d4ed8);
+  --bb-color-sidebar-item-hover-bg: rgba(217, 119, 6, 0.08); /* amber-600 */
+  --bb-color-sidebar-item-active-bg: rgba(217, 119, 6, 0.15); /* amber-600 */
+  --bb-color-sidebar-item-active-border: var(--color-primary-600, #d97706); /* amber-600 */
+  --bb-color-sidebar-item-active-text: var(--color-primary-700, #b45309); /* amber-700 */
 
   /* Topbar (light) */
   --bb-color-topbar-bg: #ffffff;
   --bb-color-topbar-border: var(--color-gray-200, #e5e7eb);
   --bb-color-topbar-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 
-  /* Accent */
-  --bb-color-accent: var(--color-primary-600, #2563eb);
-  --bb-color-accent-soft: rgba(37, 99, 235, 0.12);
-  --bb-color-text-on-accent: #ffffff;
+  /* Accent - Amber (dark text for WCAG contrast) */
+  --bb-color-accent: var(--color-primary-500, #f59e0b); /* amber-500 */
+  --bb-color-accent-soft: rgba(245, 158, 11, 0.15); /* amber-500 */
+  --bb-color-accent-text: var(--color-primary-700, #b45309); /* amber-700 for text usage */
+  --bb-color-text-on-accent: #18181b; /* dark text on amber for 7:1+ contrast */
 
   /* Status - Semantic colors for badges, pills, and alerts */
   --bb-color-status-positive: #16a34a;
@@ -189,10 +190,10 @@
   --bb-color-border-subtle: #3a3f4a;
   --bb-color-border-strong: #444955;
 
-  /* Text */
+  /* Text - Improved contrast for WCAG compliance */
   --bb-color-text-primary: #f0f2f4;
-  --bb-color-text-muted: #a8adbb;
-  --bb-color-text-subtle: #8b909e;
+  --bb-color-text-muted: #b8bdc9;
+  --bb-color-text-subtle: #9ca1af;
 
   /* Sidebar */
   --bb-color-sidebar-bg: #24262d;
@@ -200,21 +201,24 @@
   --bb-color-sidebar-text-primary: #e5e7eb;
   --bb-color-sidebar-text-muted: #9ca2b3;
 
-  /* Sidebar hover/active */
+  /* Sidebar hover/active - Amber */
   --bb-color-sidebar-item-hover-bg: rgba(255, 255, 255, 0.05);
-  --bb-color-sidebar-item-active-bg: rgba(96, 165, 250, 0.20);
-  --bb-color-sidebar-item-active-border: #60a5fa;
-  --bb-color-sidebar-item-active-text: #e5edff;
+  --bb-color-sidebar-item-active-bg: rgba(251, 191, 36, 0.20); /* amber-400 */
+  --bb-color-sidebar-item-active-border: #fbbf24; /* amber-400 */
+  --bb-color-sidebar-item-active-text: #fef3c7; /* amber-100 for contrast */
 
   /* Topbar */
   --bb-color-topbar-bg: #292c33;
   --bb-color-topbar-border: #3a3e49;
   --bb-color-topbar-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
 
-  /* Accent */
-  --bb-color-accent: #60a5fa;
-  --bb-color-accent-soft: rgba(96, 165, 250, 0.22);
-  --bb-color-text-on-accent: #0c1018;
+  /* Accent - Amber for dark mode */
+  --bb-color-accent: #f59e0b; /* amber-500 */
+  --bb-color-accent-soft: rgba(251, 191, 36, 0.18); /* amber-400 */
+  --bb-color-text-on-accent: #18181b; /* dark text on amber for contrast */
+
+  /* Accent text color - lighter amber for WCAG contrast when used as text */
+  --bb-color-accent-text: #fcd34d; /* amber-300 for excellent dark mode contrast */
 
   /* Status colors - Dark mode with better contrast */
   --bb-color-status-positive: #22c55e;

@@ -9,17 +9,17 @@
      COLOR SYSTEM - Professional B2B Palette
      ======================================== */
   
-  /* Primary - Professional Blue (Trust & Reliability) */
-  --color-primary-900: #1E3A8A; /* AAA compliant dark */
-  --color-primary-800: #1E40AF;
-  --color-primary-700: #1D4ED8;
-  --color-primary-600: #2563EB; /* Brand primary */
-  --color-primary-500: #3B82F6;
-  --color-primary-400: #60A5FA;
-  --color-primary-300: #93C5FD;
-  --color-primary-200: #BFDBFE;
-  --color-primary-100: #DBEAFE;
-  --color-primary-50: #EFF6FF;
+  /* Primary - Amber (Warm & Professional) */
+  --color-primary-900: #78350f; /* AAA compliant dark */
+  --color-primary-800: #92400e;
+  --color-primary-700: #b45309;
+  --color-primary-600: #d97706; /* Brand primary - amber-600 */
+  --color-primary-500: #f59e0b; /* amber-500 */
+  --color-primary-400: #fbbf24; /* amber-400 */
+  --color-primary-300: #fcd34d; /* amber-300 */
+  --color-primary-200: #fde68a;
+  --color-primary-100: #fef3c7;
+  --color-primary-50: #fffbeb;
 
   /* Secondary - Forest Green (Health & Growth) */
   --color-secondary-900: #064E3B;
@@ -220,7 +220,7 @@
   /* Interactive States */
   --hover-overlay: rgba(0, 0, 0, 0.04);
   --active-overlay: rgba(0, 0, 0, 0.08);
-  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  --focus-ring: 0 0 0 3px rgba(217, 119, 6, 0.2); /* amber-600 with opacity */
 
   /* Component Specific */
   --input-height: 40px;
@@ -255,13 +255,13 @@
   --border-color: rgba(255, 255, 255, 0.08);     /* Subtle borders */
   --border-light: rgba(255, 255, 255, 0.05);     /* Very subtle dividers */
   --border-strong: rgba(255, 255, 255, 0.12);    /* Emphasized borders */
-  --border-focus: #7C7EF5;            /* Focus state (desaturated primary) */
+  --border-focus: #fbbf24;            /* Focus state - amber-400 */
 
   /* ===== INPUTS ===== */
   --input-bg: #2d3139;                /* Input field backgrounds - matches bg-tertiary */
   --input-border: rgba(255, 255, 255, 0.08);     /* Input borders - subtle */
   --input-border-hover: rgba(255, 255, 255, 0.12); /* Hover state */
-  --input-border-focus: #7C7EF5;      /* Focus state */
+  --input-border-focus: #fbbf24;      /* Focus state - amber-400 */
 
   /* ===== STATUS COLORS - MUTED for professional dark mode ===== */
   /* Success (Green) - More muted */
@@ -287,13 +287,14 @@
   --color-info-light: rgba(66, 165, 245, 0.1);
   --color-info-dark: #1E88E5;
 
-  /* ===== PRIMARY BRAND - Professional indigo for dark mode ===== */
-  --color-primary-400: #8196f8;       /* Lighter shade */
-  --color-primary-500: #6366f1;       /* Main brand - indigo-500 */
-  --color-primary-600: #4f46e5;       /* Slightly darker - indigo-600 */
-  --color-primary-700: #4338ca;       /* Hover/active state - indigo-700 */
-  --color-primary-800: #3730a3;       /* Pressed state - indigo-800 */
-  --color-primary-light: rgba(99, 102, 241, 0.1);
+  /* ===== PRIMARY BRAND - Amber for dark mode WCAG contrast ===== */
+  --color-primary-300: #fcd34d;       /* amber-300 - lightest for highest contrast */
+  --color-primary-400: #fbbf24;       /* amber-400 - main text on dark backgrounds */
+  --color-primary-500: #f59e0b;       /* amber-500 - links/interactive */
+  --color-primary-600: #d97706;       /* amber-600 - hover state */
+  --color-primary-700: #b45309;       /* amber-700 - pressed state */
+  --color-primary-800: #92400e;       /* amber-800 - darkest */
+  --color-primary-light: rgba(251, 191, 36, 0.15); /* amber-400 with opacity */
 
   /* ===== SECONDARY (Green) - Desaturated for dark mode ===== */
   --color-secondary-400: #7EDB97;
@@ -302,13 +303,13 @@
   --color-secondary-700: #4EBF6B;
   --color-secondary-light: rgba(94, 204, 123, 0.1);
 
-  /* ===== ACCENT (Blue) - Desaturated for dark mode ===== */
-  --color-accent: #5B9CFF;            /* Was #3B82F6 - desaturated */
-  --color-accent-light: rgba(91, 156, 255, 0.1);
+  /* ===== ACCENT (Amber) - For dark mode ===== */
+  --color-accent: #fbbf24;            /* amber-400 - primary accent */
+  --color-accent-light: rgba(251, 191, 36, 0.15);
 
   /* ===== SEMANTIC COLORS ===== */
-  --color-link: #5B9CFF;              /* Links in dark mode */
-  --color-link-hover: #7CAFFF;        /* Link hover */
+  --color-link: #fbbf24;              /* Links in dark mode - amber-400 */
+  --color-link-hover: #fcd34d;        /* Link hover - amber-300 */
 
   /* ===== SHADOWS - Lighter for dark mode ===== */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);

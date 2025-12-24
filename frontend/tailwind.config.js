@@ -30,7 +30,7 @@ export default {
           inverse: 'var(--text-inverse)',
         },
 
-        // Primary - Professional Blue (from design-tokens.css)
+        // Primary - Amber (from design-tokens.css)
         primary: {
           50: 'var(--color-primary-50)',
           100: 'var(--color-primary-100)',
@@ -38,7 +38,7 @@ export default {
           300: 'var(--color-primary-300)',
           400: 'var(--color-primary-400)',
           500: 'var(--color-primary-500)',
-          600: 'var(--color-primary-600)', // Brand primary #2563EB
+          600: 'var(--color-primary-600)', // Brand primary #d97706 (amber-600)
           700: 'var(--color-primary-700)',
           800: 'var(--color-primary-800)',
           900: 'var(--color-primary-900)',

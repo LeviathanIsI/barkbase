@@ -529,7 +529,7 @@ const Bookings = () => {
               className={cn(
                 'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors',
                 viewMode === VIEW_MODES.CALENDAR
-                  ? 'bg-[color:var(--bb-color-accent)] text-white'
+                  ? 'bg-[color:var(--bb-color-accent)] text-[color:var(--bb-color-text-on-accent)]'
                   : 'bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]'
               )}
             >
@@ -542,7 +542,7 @@ const Bookings = () => {
               className={cn(
                 'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors',
                 viewMode === VIEW_MODES.LIST
-                  ? 'bg-[color:var(--bb-color-accent)] text-white'
+                  ? 'bg-[color:var(--bb-color-accent)] text-[color:var(--bb-color-text-on-accent)]'
                   : 'bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]'
               )}
             >
@@ -581,7 +581,7 @@ const Bookings = () => {
                       className={cn(
                         'px-3 py-1.5 text-sm font-medium transition-colors',
                         periodMode === value
-                          ? 'bg-[color:var(--bb-color-accent)] text-white'
+                          ? 'bg-[color:var(--bb-color-accent)] text-[color:var(--bb-color-text-on-accent)]'
                           : 'bg-[color:var(--bb-color-bg-body)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]'
                       )}
                     >
@@ -969,7 +969,7 @@ const MonthCalendarView = ({
                       <span
                         className={cn(
                           'flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium',
-                          isToday && 'bg-[color:var(--bb-color-accent)] text-white',
+                          isToday && 'bg-[color:var(--bb-color-accent)] text-[color:var(--bb-color-text-on-accent)]',
                           !isToday && isCurrentMonth && 'text-[color:var(--bb-color-text-primary)]',
                           !isToday && !isCurrentMonth && 'text-[color:var(--bb-color-text-muted)]'
                         )}
@@ -1253,20 +1253,29 @@ const WeeklyCalendarView = ({
                   backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-elevated)',
                 }}
               >
-                <div className="text-xs text-[color:var(--bb-color-text-muted)] font-medium uppercase">
+                <div className={cn(
+                  'text-xs font-medium uppercase',
+                  isToday ? 'text-[color:var(--bb-color-text-primary)]' : 'text-[color:var(--bb-color-text-muted)]'
+                )}>
                   {date.toLocaleDateString('en-US', { weekday: 'short' })}
                 </div>
                 <div className={cn(
                   'text-2xl font-bold',
-                  isToday ? 'text-[color:var(--bb-color-accent)]' : 'text-[color:var(--bb-color-text-primary)]'
+                  isToday ? 'text-[color:var(--bb-color-accent-text)]' : 'text-[color:var(--bb-color-text-primary)]'
                 )}>
                   {date.getDate()}
                 </div>
-                <div className="text-xs text-[color:var(--bb-color-text-muted)]">
+                <div className={cn(
+                  'text-xs',
+                  isToday ? 'text-[color:var(--bb-color-text-primary)]' : 'text-[color:var(--bb-color-text-muted)]'
+                )}>
                   {date.toLocaleDateString('en-US', { month: 'short' })}
                 </div>
                 {dayData.count > 0 && (
-                  <div className="mt-1 text-xs font-medium text-[color:var(--bb-color-accent)]">
+                  <div className={cn(
+                    'mt-1 text-xs font-medium',
+                    isToday ? 'text-[color:var(--bb-color-accent-text)]' : 'text-[color:var(--bb-color-accent)]'
+                  )}>
                     {dayData.count} booking{dayData.count !== 1 ? 's' : ''}
                   </div>
                 )}
@@ -1292,6 +1301,9 @@ const WeeklyCalendarView = ({
               <div
                 key={idx}
                 className="p-2 flex flex-col gap-1.5 overflow-y-auto"
+                tabIndex={0}
+                role="region"
+                aria-label={`Bookings for ${date.toLocaleDateString()}`}
                 style={{
                   backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)',
                   maxHeight: '500px'

@@ -321,7 +321,7 @@ const Profile = () => {
           <AlertTriangle className="w-4 h-4" />
           <AlertTitle className="text-sm">Email Not Verified</AlertTitle>
           <AlertDescription className="text-sm">
-            <button onClick={handleResendVerification} disabled={resendVerification.isPending} className="text-blue-600 underline ml-1">
+            <button onClick={handleResendVerification} disabled={resendVerification.isPending} className="font-medium underline ml-1 hover:opacity-80">
               {resendVerification.isPending ? 'Sending...' : 'Resend verification'}
             </button>
           </AlertDescription>
