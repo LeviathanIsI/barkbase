@@ -371,12 +371,18 @@ const PetDetail = () => {
   const handleRenewSubmit = async (data) => {
     if (!vaccinationToRenew) return;
 
+    const vaccinationId = vaccinationToRenew.recordId || vaccinationToRenew.id;
+    if (!vaccinationId) {
+      toast.error('Unable to identify vaccination record');
+      return;
+    }
+
     setIsRenewing(true);
     try {
       await apiClient.post(
         canonicalEndpoints.pets.vaccinationRenew(
           String(petId),
-          String(vaccinationToRenew.recordId)
+          String(vaccinationId)
         ),
         {
           administeredAt: data.administeredAt,
