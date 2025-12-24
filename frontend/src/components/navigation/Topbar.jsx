@@ -24,6 +24,7 @@ import {
   Clock,
 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
+import Button from '@/components/ui/Button';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
@@ -371,15 +372,15 @@ const NotificationsButton = () => {
               )}
             </div>
             {unreadCount > 0 && (
-              <button
-                type="button"
+              <Button
+                variant="link"
+                size="xs"
                 onClick={handleMarkAllRead}
                 disabled={markAllReadMutation.isPending}
-                className="flex items-center gap-1 text-xs text-[color:var(--bb-color-accent)] hover:underline disabled:opacity-50"
+                leftIcon={<CheckCheck className="h-3.5 w-3.5" />}
               >
-                <CheckCheck className="h-3.5 w-3.5" />
                 Mark all read
-              </button>
+              </Button>
             )}
           </div>
 
@@ -692,13 +693,13 @@ const HelpButton = () => {
                   Keyboard Shortcuts
                 </h2>
               </div>
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 onClick={() => setShowKeyboardShortcuts(false)}
-                className="rounded p-1 hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
               >
-                <X className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
-              </button>
+                <X className="h-5 w-5" />
+              </Button>
             </div>
 
             {/* Modal Content */}
