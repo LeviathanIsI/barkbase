@@ -2394,8 +2394,8 @@ async function getExpiringVaccinations(event) {
       }
 
       return {
-        id: row.record_id,
-        recordId: row.record_id, // Alias for frontend compatibility
+        id: row.id,
+        recordId: row.id, // Alias for frontend compatibility
         petId: row.pet_id,
         petName: row.pet_name,
         petSpecies: row.pet_species,
