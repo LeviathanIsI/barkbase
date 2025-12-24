@@ -83,7 +83,7 @@ Default settings in `api-load-test.js`:
 
 - `GET /entity/owners` - List owners
 - `GET /entity/pets` - List pets
-- `GET /entity/bookings` - List bookings
+- `GET /operations/bookings` - List bookings
 
 ## Metrics Tracked
 

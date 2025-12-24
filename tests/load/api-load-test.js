@@ -4,7 +4,7 @@
  * Tests the main API endpoints under load:
  * - GET /entity/owners
  * - GET /entity/pets
- * - GET /entity/bookings
+ * - GET /operations/bookings
  *
  * Run with: k6 run api-load-test.js
  *
@@ -98,8 +98,8 @@ export default function () {
   apiGet('/entity/pets', petsLatency);
   sleep(0.5);
 
-  // Test GET /entity/bookings
-  apiGet('/entity/bookings', bookingsLatency);
+  // Test GET /operations/bookings
+  apiGet('/operations/bookings', bookingsLatency);
   sleep(0.5);
 }
 
