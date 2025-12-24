@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
-import api from '@/lib/api';
+import apiClient from '@/lib/apiClient';
 
 // =============================================================================
 // HELPER COMPONENTS
@@ -243,7 +243,7 @@ const CustomReports = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await api.get('/analytics/reports/saved');
+      const response = await apiClient.get('/analytics/reports/saved');
       setReports(response.data?.data || []);
     } catch (err) {
       console.error('Failed to fetch reports:', err);
@@ -302,7 +302,7 @@ const CustomReports = () => {
     if (!confirm(`Are you sure you want to delete "${report.name}"?`)) return;
 
     try {
-      await api.delete(`/analytics/reports/saved/${report.id || report.recordId}`);
+      await apiClient.delete(`/analytics/reports/saved/${report.id || report.recordId}`);
       setReports(prev => prev.filter(r => r.id !== report.id && r.recordId !== report.recordId));
     } catch (err) {
       console.error('Failed to delete report:', err);
@@ -312,7 +312,7 @@ const CustomReports = () => {
 
   const handleDuplicate = async (report) => {
     try {
-      const response = await api.post(`/analytics/reports/saved/${report.id || report.recordId}/duplicate`);
+      const response = await apiClient.post(`/analytics/reports/saved/${report.id || report.recordId}/duplicate`);
       if (response.data?.data) {
         setReports(prev => [response.data.data, ...prev]);
       }
@@ -325,7 +325,7 @@ const CustomReports = () => {
   const handleToggleFavorite = async (report) => {
     try {
       const newValue = !report.isFavorite;
-      await api.put(`/analytics/reports/saved/${report.id || report.recordId}`, {
+      await apiClient.put(`/analytics/reports/saved/${report.id || report.recordId}`, {
         isFavorite: newValue,
       });
       setReports(prev =>

@@ -17,6 +17,7 @@ module.exports = {
 
       // Base URL for the dev server
       url: [
+        'http://localhost:5173/',
         'http://localhost:5173/login',
         'http://localhost:5173/signup',
       ],

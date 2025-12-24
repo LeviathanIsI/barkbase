@@ -81,21 +81,27 @@ export default defineConfig(({ mode }) => {
             // Core React ecosystem
             'vendor-react': ['react', 'react-dom', 'react-router-dom'],
             // Data fetching and state
-            'vendor-query': ['@tanstack/react-query'],
+            'vendor-query': ['@tanstack/react-query', 'zustand'],
             // UI animation and icons
             'vendor-ui': ['framer-motion', 'lucide-react'],
+            // AWS SDK (large - only needed for auth)
+            'vendor-aws': ['@aws-sdk/client-cognito-identity-provider'],
             // Charts (large dependency)
             'charts': ['recharts'],
             // Calendar (large dependency)
-            'calendar': [
-              '@fullcalendar/core',
-            ],
+            'calendar': ['@fullcalendar/core'],
             // Form handling
             'forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
             // Drag and drop
-            'dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+            'dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities', '@dnd-kit/modifiers'],
             // Virtualization
             'virtual': ['@tanstack/react-virtual'],
+            // Date utilities
+            'date-fns': ['date-fns'],
+            // React Flow (if used)
+            'flow': ['reactflow'],
+            // Select component
+            'select': ['react-select'],
           },
         },
       },
