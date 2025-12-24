@@ -90,6 +90,10 @@ export const router = createBrowserRouter([
       { path: 'dashboard', element: <Navigate to="/today" replace /> },
       { path: 'calendar', element: <Navigate to="/bookings" replace /> },
       { path: 'customers', element: <Navigate to="/owners" replace /> },
+      {
+        path: 'customers/:ownerId',
+        element: <LazyRoute><OwnerDetail /></LazyRoute>,
+      },
 
       // Catch-all for routes not in demo
       { path: '*', element: <NotFound /> },
