@@ -174,6 +174,7 @@ export const usePetsQuery = (options = {}) => {
       const paginatedData = enriched.slice(start, end);
 
       return {
+        pets: paginatedData,
         data: paginatedData,
         meta: {
           total,
