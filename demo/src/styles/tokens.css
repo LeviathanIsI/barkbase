@@ -1,0 +1,305 @@
+:root {
+  /* Layout primitives */
+  --bb-sidebar-width: 240px;
+  --bb-topbar-height: 56px;
+
+  /* Spacing scale (4px rhythm) */
+  --bb-space-1: 0.25rem; /* 4px */
+  --bb-space-2: 0.5rem; /* 8px */
+  --bb-space-3: 0.75rem; /* 12px */
+  --bb-space-4: 1rem; /* 16px */
+  --bb-space-5: 1.25rem; /* 20px */
+  --bb-space-6: 1.5rem; /* 24px */
+  --bb-space-8: 2rem; /* 32px */
+  --bb-space-10: 2.5rem; /* 40px */
+  --bb-space-12: 3rem; /* 48px */
+
+  /* Typography scale */
+  --bb-text-sm: 0.875rem;
+  --bb-text-base: 1rem;
+  --bb-text-lg: 1.125rem;
+  --bb-text-xl: 1.25rem;
+  --bb-text-2xl: 1.5rem;
+
+  /* Neutral palette (Tailwind neutral) */
+  --bb-color-neutral-50: #fafafa;
+  --bb-color-neutral-100: #f4f4f5;
+  --bb-color-neutral-200: #e4e4e7;
+  --bb-color-neutral-300: #d4d4d8;
+  --bb-color-neutral-400: #a1a1aa;
+  --bb-color-neutral-500: #71717a;
+  --bb-color-neutral-600: #52525b;
+  --bb-color-neutral-700: #3f3f46;
+  --bb-color-neutral-800: #27272a;
+  --bb-color-neutral-900: #18181b;
+
+  --bb-elevation-subtle: 0 1px 2px rgb(15 23 42 / 0.06);
+  --bb-elevation-card: 0 8px 30px rgb(15 23 42 / 0.08);
+
+  /* LIGHT THEME – app shell & text */
+  --bb-color-bg-body: var(--color-gray-50, #f9fafb);
+  --bb-color-bg-surface: #ffffff;
+  --bb-color-bg-elevated: var(--color-gray-100, #f3f4f6);
+
+  --bb-color-border-subtle: var(--color-gray-200, #e5e7eb);
+  --bb-color-border-strong: var(--color-gray-300, #d1d5db);
+
+  --bb-color-text-primary: var(--color-gray-900, #111827);
+  --bb-color-text-muted: var(--color-gray-500, #6b7280);
+  --bb-color-text-subtle: var(--color-gray-400, #9ca3af);
+
+  /* Sidebar (light) */
+  --bb-color-sidebar-bg: var(--color-gray-50, #f9fafb);
+  --bb-color-sidebar-border: var(--color-gray-200, #e5e7eb);
+  --bb-color-sidebar-text-primary: var(--color-gray-900, #111827);
+  --bb-color-sidebar-text-muted: var(--color-gray-500, #6b7280);
+  --bb-color-sidebar-item-hover-bg: rgba(217, 119, 6, 0.08); /* amber-600 */
+  --bb-color-sidebar-item-active-bg: rgba(217, 119, 6, 0.15); /* amber-600 */
+  --bb-color-sidebar-item-active-border: var(--color-primary-600, #d97706); /* amber-600 */
+  --bb-color-sidebar-item-active-text: var(--color-primary-700, #b45309); /* amber-700 */
+
+  /* Topbar (light) */
+  --bb-color-topbar-bg: #ffffff;
+  --bb-color-topbar-border: var(--color-gray-200, #e5e7eb);
+  --bb-color-topbar-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+
+  /* Accent - Amber (dark text for WCAG contrast) */
+  --bb-color-accent: var(--color-primary-500, #f59e0b); /* amber-500 */
+  --bb-color-accent-soft: rgba(245, 158, 11, 0.15); /* amber-500 */
+  --bb-color-accent-text: var(--color-primary-700, #b45309); /* amber-700 for text usage */
+  --bb-color-text-on-accent: #18181b; /* dark text on amber for 7:1+ contrast */
+
+  /* Status - Semantic colors for badges, pills, and alerts */
+  --bb-color-status-positive: #16a34a;
+  --bb-color-status-positive-soft: rgba(22, 163, 74, 0.12);
+  --bb-color-status-positive-text: #15803d;
+
+  --bb-color-status-warning: #d97706;
+  --bb-color-status-warning-soft: rgba(217, 119, 6, 0.12);
+  --bb-color-status-warning-text: #b45309;
+
+  --bb-color-status-negative: #dc2626;
+  --bb-color-status-negative-soft: rgba(220, 38, 38, 0.12);
+  --bb-color-status-negative-text: #b91c1c;
+
+  --bb-color-status-info: #2563eb;
+  --bb-color-status-info-soft: rgba(37, 99, 235, 0.12);
+  --bb-color-status-info-text: #1d4ed8;
+
+  /* Alert tokens - derived from status tokens */
+  --bb-color-alert-info-bg: var(--bb-color-status-info-soft);
+  --bb-color-alert-info-border: var(--bb-color-status-info);
+  --bb-color-alert-info-text: var(--bb-color-status-info-text);
+
+  --bb-color-alert-success-bg: var(--bb-color-status-positive-soft);
+  --bb-color-alert-success-border: var(--bb-color-status-positive);
+  --bb-color-alert-success-text: var(--bb-color-status-positive-text);
+
+  --bb-color-alert-warning-bg: var(--bb-color-status-warning-soft);
+  --bb-color-alert-warning-border: var(--bb-color-status-warning);
+  --bb-color-alert-warning-text: var(--bb-color-status-warning-text);
+
+  --bb-color-alert-danger-bg: var(--bb-color-status-negative-soft);
+  --bb-color-alert-danger-border: var(--bb-color-status-negative);
+  --bb-color-alert-danger-text: var(--bb-color-status-negative-text);
+
+  --bb-color-alert-neutral-bg: var(--bb-color-bg-elevated);
+  --bb-color-alert-neutral-border: var(--bb-color-border-subtle);
+  --bb-color-alert-neutral-text: var(--bb-color-text-primary);
+
+  /* Utility surfaces */
+  --bb-color-overlay-scrim: rgba(15, 23, 42, 0.45);
+
+  /* Theme toggle */
+  --bb-color-toggle-track-bg: var(--color-gray-200, #e5e7eb);
+  --bb-color-toggle-track-border: var(--color-gray-300, #d1d5db);
+  --bb-color-toggle-knob-bg: #ffffff;
+  --bb-color-toggle-icon-sun: #f59e0b;
+  --bb-color-toggle-icon-moon: #0f172a;
+
+  --bb-font-size-xs: var(--bb-text-sm);
+  --bb-font-size-sm: var(--bb-text-base);
+  --bb-font-size-md: var(--bb-text-lg);
+  --bb-font-size-lg: var(--bb-text-xl);
+  --bb-font-size-xl: var(--bb-text-2xl);
+
+  --bb-font-weight-regular: 400;
+  --bb-font-weight-medium: 500;
+  --bb-font-weight-semibold: 600;
+  --bb-font-weight-bold: 700;
+
+  --bb-leading-tight: 1.15;
+  --bb-leading-normal: 1.35;
+  --bb-leading-relaxed: 1.5;
+
+  /* Additional font sizes */
+  --bb-font-size-2xl: 1.5rem;
+  --bb-font-size-3xl: 1.875rem;
+
+  /* Border radius */
+  --bb-radius-sm: 0.25rem;
+  --bb-radius-md: 0.375rem;
+  --bb-radius-lg: 0.5rem;
+  --bb-radius-xl: 0.75rem;
+
+  /* Chart colors - Primary palette */
+  --bb-color-chart-blue: #2563eb;
+  --bb-color-chart-green: #16a34a;
+  --bb-color-chart-yellow: #d97706;
+  --bb-color-chart-red: #dc2626;
+  --bb-color-chart-purple: #7c3aed;
+  --bb-color-chart-teal: #0d9488;
+  --bb-color-chart-pink: #db2777;
+  --bb-color-chart-orange: #ea580c;
+
+  /* Chart colors - Soft fills for area charts */
+  --bb-color-chart-blue-soft: rgba(37, 99, 235, 0.15);
+  --bb-color-chart-green-soft: rgba(22, 163, 74, 0.15);
+  --bb-color-chart-yellow-soft: rgba(217, 119, 6, 0.15);
+  --bb-color-chart-red-soft: rgba(220, 38, 38, 0.15);
+  --bb-color-chart-purple-soft: rgba(124, 58, 237, 0.15);
+  --bb-color-chart-teal-soft: rgba(13, 148, 136, 0.15);
+  --bb-color-chart-pink-soft: rgba(219, 39, 119, 0.15);
+  --bb-color-chart-orange-soft: rgba(234, 88, 12, 0.15);
+
+  /* Chart grid and axis */
+  --bb-color-chart-grid: var(--bb-color-border-subtle);
+  --bb-color-chart-axis: var(--bb-color-text-muted);
+  --bb-color-chart-tooltip-bg: var(--bb-color-bg-surface);
+  --bb-color-chart-tooltip-border: var(--bb-color-border-subtle);
+
+  /* Purple accent (for variety) */
+  --bb-color-purple: #7c3aed;
+  --bb-color-purple-soft: rgba(124, 58, 237, 0.12);
+
+  /* Skeleton animation */
+  --bb-color-skeleton-base: var(--bb-color-bg-elevated);
+  --bb-color-skeleton-highlight: rgba(255, 255, 255, 0.5);
+  --bb-skeleton-duration: 1.5s;
+}
+
+.dark {
+  /* === CHARCOAL MODE – Soft, lighter dark === */
+
+  /* Shell background & surfaces */
+  --bb-color-bg-body: #262830;
+  --bb-color-bg-surface: #2c2f36;
+  --bb-color-bg-elevated: #32353d;
+
+  /* Borders */
+  --bb-color-border-subtle: #3a3f4a;
+  --bb-color-border-strong: #444955;
+
+  /* Text - Improved contrast for WCAG compliance */
+  --bb-color-text-primary: #f0f2f4;
+  --bb-color-text-muted: #b8bdc9;
+  --bb-color-text-subtle: #9ca1af;
+
+  /* Sidebar */
+  --bb-color-sidebar-bg: #24262d;
+  --bb-color-sidebar-border: #2f323a;
+  --bb-color-sidebar-text-primary: #e5e7eb;
+  --bb-color-sidebar-text-muted: #9ca2b3;
+
+  /* Sidebar hover/active - Amber */
+  --bb-color-sidebar-item-hover-bg: rgba(255, 255, 255, 0.05);
+  --bb-color-sidebar-item-active-bg: rgba(251, 191, 36, 0.20); /* amber-400 */
+  --bb-color-sidebar-item-active-border: #fbbf24; /* amber-400 */
+  --bb-color-sidebar-item-active-text: #fef3c7; /* amber-100 for contrast */
+
+  /* Topbar */
+  --bb-color-topbar-bg: #292c33;
+  --bb-color-topbar-border: #3a3e49;
+  --bb-color-topbar-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+
+  /* Accent - Amber for dark mode */
+  --bb-color-accent: #f59e0b; /* amber-500 */
+  --bb-color-accent-soft: rgba(251, 191, 36, 0.18); /* amber-400 */
+  --bb-color-text-on-accent: #18181b; /* dark text on amber for contrast */
+
+  /* Accent text color - lighter amber for WCAG contrast when used as text */
+  --bb-color-accent-text: #fcd34d; /* amber-300 for excellent dark mode contrast */
+
+  /* Status colors - Dark mode with better contrast */
+  --bb-color-status-positive: #22c55e;
+  --bb-color-status-positive-soft: rgba(34, 197, 94, 0.18);
+  --bb-color-status-positive-text: #4ade80;
+
+  --bb-color-status-warning: #f59e0b;
+  --bb-color-status-warning-soft: rgba(245, 158, 11, 0.18);
+  --bb-color-status-warning-text: #fbbf24;
+
+  --bb-color-status-negative: #ef7070;
+  --bb-color-status-negative-soft: rgba(248, 113, 113, 0.2);
+  --bb-color-status-negative-text: #fca5a5;
+
+  --bb-color-status-info: #60a5fa;
+  --bb-color-status-info-soft: rgba(96, 165, 250, 0.22);
+  --bb-color-status-info-text: #93c5fd;
+
+  /* Alert tokens - dark mode (slightly boosted alpha for visibility) */
+  --bb-color-alert-info-bg: rgba(96, 165, 250, 0.15);
+  --bb-color-alert-success-bg: rgba(34, 197, 94, 0.15);
+  --bb-color-alert-warning-bg: rgba(245, 158, 11, 0.15);
+  --bb-color-alert-danger-bg: rgba(248, 113, 113, 0.18);
+  --bb-color-alert-neutral-bg: var(--bb-color-bg-elevated);
+
+  /* Overlay */
+  --bb-color-overlay-scrim: rgba(15, 23, 42, 0.5);
+
+  /* Theme toggle (dark) */
+  --bb-color-toggle-track-bg: #2c2f36;
+  --bb-color-toggle-track-border: #3a3f4a;
+  --bb-color-toggle-knob-bg: #e5e7eb;
+  --bb-color-toggle-icon-sun: #fbbf24;
+  --bb-color-toggle-icon-moon: #262830;
+
+  /* Chart colors - Dark mode (slightly brighter for visibility) */
+  --bb-color-chart-blue: #60a5fa;
+  --bb-color-chart-green: #4ade80;
+  --bb-color-chart-yellow: #fbbf24;
+  --bb-color-chart-red: #f87171;
+  --bb-color-chart-purple: #a78bfa;
+  --bb-color-chart-teal: #2dd4bf;
+  --bb-color-chart-pink: #f472b6;
+  --bb-color-chart-orange: #fb923c;
+
+  /* Chart colors - Soft fills (boosted alpha for dark mode) */
+  --bb-color-chart-blue-soft: rgba(96, 165, 250, 0.20);
+  --bb-color-chart-green-soft: rgba(74, 222, 128, 0.20);
+  --bb-color-chart-yellow-soft: rgba(251, 191, 36, 0.20);
+  --bb-color-chart-red-soft: rgba(248, 113, 113, 0.20);
+  --bb-color-chart-purple-soft: rgba(167, 139, 250, 0.20);
+  --bb-color-chart-teal-soft: rgba(45, 212, 191, 0.20);
+  --bb-color-chart-pink-soft: rgba(244, 114, 182, 0.20);
+  --bb-color-chart-orange-soft: rgba(251, 146, 60, 0.20);
+
+  /* Chart grid and axis - Dark mode */
+  --bb-color-chart-grid: var(--bb-color-border-subtle);
+  --bb-color-chart-axis: var(--bb-color-text-muted);
+  --bb-color-chart-tooltip-bg: var(--bb-color-bg-elevated);
+  --bb-color-chart-tooltip-border: var(--bb-color-border-subtle);
+
+  /* Purple accent - Dark mode */
+  --bb-color-purple: #a78bfa;
+  --bb-color-purple-soft: rgba(167, 139, 250, 0.18);
+
+  /* Skeleton animation - Dark mode */
+  --bb-color-skeleton-base: var(--bb-color-bg-elevated);
+  --bb-color-skeleton-highlight: rgba(255, 255, 255, 0.08);
+}
+
+/* Skeleton pulse animation */
+@keyframes bb-skeleton-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.bb-skeleton-pulse {
+  animation: bb-skeleton-pulse var(--bb-skeleton-duration) ease-in-out infinite;
+}
+
