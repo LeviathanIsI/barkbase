@@ -34,12 +34,15 @@
  * =============================================================================
  */
 
-import { LambdaAuthClient } from './lambda-auth-client';
-import { CognitoPasswordClient } from './cognito-password-client';
-import { DbAuthClient } from './db-auth-client';
+// Lazy-load auth clients to reduce initial bundle size
+// AWS Cognito SDK is ~113KB - only load when actually needed
 import { S3Client } from './aws-s3-client';
 import { ApiClient } from './aws-api-client';
 import { config } from '@/config/env';
+
+// Cached auth client instance
+let cachedAuthClient = null;
+let cachedAuthMode = null;
 
 /**
  * Check if running in production mode
@@ -47,78 +50,129 @@ import { config } from '@/config/env';
 const isProduction = import.meta.env.PROD;
 
 /**
+ * Lazily load and cache the auth client based on mode
+ * This defers the heavy AWS SDK import until actually needed
+ */
+const getAuthClient = async (clientConfig, mode) => {
+  // Return cached client if same mode
+  if (cachedAuthClient && cachedAuthMode === mode) {
+    return cachedAuthClient;
+  }
+
+  let auth;
+  switch (mode) {
+    case 'embedded':
+    case 'password': {
+      // Dynamically import Cognito client (includes AWS SDK ~113KB)
+      const { CognitoPasswordClient } = await import('./cognito-password-client');
+      auth = new CognitoPasswordClient(clientConfig);
+      break;
+    }
+
+    case 'hosted': {
+      const { LambdaAuthClient } = await import('./lambda-auth-client');
+      auth = new LambdaAuthClient(clientConfig);
+      break;
+    }
+
+    case 'db': {
+      if (isProduction) {
+        console.error(
+          '[BarkBase Auth] ERROR: AUTH_MODE="db" is not supported in production. ' +
+          'Falling back to Cognito embedded auth.'
+        );
+        const { CognitoPasswordClient } = await import('./cognito-password-client');
+        auth = new CognitoPasswordClient(clientConfig);
+      } else {
+        console.warn('[BarkBase Auth] WARNING: Using legacy DB auth mode (DEV-ONLY).');
+        const { DbAuthClient } = await import('./db-auth-client');
+        auth = new DbAuthClient(clientConfig);
+      }
+      break;
+    }
+
+    default: {
+      if (mode !== 'embedded') {
+        console.warn(`[BarkBase Auth] Unknown AUTH_MODE="${mode}". Falling back to "embedded".`);
+      }
+      const { CognitoPasswordClient } = await import('./cognito-password-client');
+      auth = new CognitoPasswordClient(clientConfig);
+      break;
+    }
+  }
+
+  cachedAuthClient = auth;
+  cachedAuthMode = mode;
+  return auth;
+};
+
+/**
  * Factory function to create a new AWS client.
- * @param {object} overrideConfig - Optional configuration overrides
- * @returns {object} Client with auth, storage, and from methods
+ * Auth client is lazy-loaded to reduce initial bundle size.
  */
 export const createAWSClient = (overrideConfig = {}) => {
-  // Merge environment config with any overrides
   const clientConfig = {
     region: config.awsRegion,
     userPoolId: config.cognitoUserPoolId,
     clientId: config.cognitoClientId,
     apiUrl: config.apiBaseUrl,
-    cognitoDomain: config.cognitoDomainUrl, // Full URL with https://
+    cognitoDomain: config.cognitoDomainUrl,
     redirectUri: config.redirectUri,
     logoutUri: config.logoutUri,
     ...overrideConfig,
   };
 
-  // Select auth client based on mode
   const mode = (overrideConfig.authMode || config.authMode || 'embedded').toLowerCase();
 
-  let auth;
-  switch (mode) {
-    case 'embedded':
-    case 'password':
-      // Direct Cognito USER_PASSWORD_AUTH from BarkBase's own login form
-      // This is the RECOMMENDED mode for production deployments
-      auth = new CognitoPasswordClient(clientConfig);
-      break;
+  // Create a lazy auth proxy that loads the real client on first use
+  const lazyAuth = {
+    _client: null,
+    _loading: null,
 
-    case 'hosted':
-      // Cognito Hosted UI with OAuth2 + PKCE redirect
-      // Good for SSO/social login integrations
-      auth = new LambdaAuthClient(clientConfig);
-      break;
+    async _getClient() {
+      if (this._client) return this._client;
+      if (this._loading) return this._loading;
+      this._loading = getAuthClient(clientConfig, mode);
+      this._client = await this._loading;
+      this._loading = null;
+      return this._client;
+    },
 
-    case 'db':
-      // LEGACY: Database-based authentication - DEV ONLY
-      // This mode is BLOCKED in production builds
-      if (isProduction) {
-        console.error(
-          '[BarkBase Auth] ERROR: AUTH_MODE="db" is not supported in production. ' +
-          'DB auth is a legacy/dev-only mode that does not integrate with Cognito. ' +
-          'Please use AUTH_MODE="embedded" (recommended) or AUTH_MODE="hosted". ' +
-          'Falling back to Cognito embedded auth.'
-        );
-        auth = new CognitoPasswordClient(clientConfig);
-      } else {
-        // Allow in development with a clear warning
-        console.warn(
-          '[BarkBase Auth] WARNING: Using legacy DB auth mode. ' +
-          'This mode is DEV-ONLY and will be blocked in production. ' +
-          'SignUp flow is BROKEN in this mode. Use Cognito-based auth for full functionality.'
-        );
-        auth = new DbAuthClient(clientConfig);
-      }
-      break;
+    // Proxy all auth methods to lazy-load the client
+    async signIn(credentials) {
+      const client = await this._getClient();
+      return client.signIn(credentials);
+    },
 
-    default:
-      // Default to embedded (direct Cognito) for BarkBase-branded login
-      if (mode !== 'embedded') {
-        console.warn(
-          `[BarkBase Auth] Unknown AUTH_MODE="${mode}". ` +
-          'Falling back to "embedded" (Cognito USER_PASSWORD_AUTH).'
-        );
-      }
-      auth = new CognitoPasswordClient(clientConfig);
-      break;
-  }
+    async signOut() {
+      const client = await this._getClient();
+      return client.signOut();
+    },
+
+    async handleCallback(code) {
+      const client = await this._getClient();
+      return client.handleCallback?.(code);
+    },
+
+    async refreshSession() {
+      const client = await this._getClient();
+      return client.refreshSession?.();
+    },
+
+    async getIdToken() {
+      const client = await this._getClient();
+      return client.getIdToken?.();
+    },
+
+    async getAccessToken() {
+      const client = await this._getClient();
+      return client.getAccessToken?.();
+    },
+  };
 
   return {
-    auth,
-    storage: new S3Client(clientConfig, auth),
-    from: (table) => new ApiClient(table, clientConfig, auth),
+    auth: lazyAuth,
+    storage: new S3Client(clientConfig, lazyAuth),
+    from: (table) => new ApiClient(table, clientConfig, lazyAuth),
   };
 };
