@@ -1136,17 +1136,26 @@ function OverviewTab({ pet, upcomingBookings, recentBookings, vaccinationsSummar
             Diet: {pet.dietaryNotes ? 'Special' : 'Standard'}
           </button>
 
-          <button 
+          <button
             onClick={onSwitchToHealth}
             className={cn(
               "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
-              pet.behaviorNotes 
-                ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+              (() => {
+                const flags = Array.isArray(pet.behaviorFlags) ? pet.behaviorFlags : [];
+                const cautionFlags = ['Aggressive', 'Reactive', 'Anxious'];
+                const hasCaution = flags.some(f => cautionFlags.includes(f));
+                return hasCaution
+                  ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                  : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+              })()
             )}
           >
             <Shield className="w-3.5 h-3.5 inline mr-1.5" />
-            Behavior: {pet.behaviorNotes ? 'Needs caution' : 'Normal'}
+            Behavior: {(() => {
+              const flags = Array.isArray(pet.behaviorFlags) ? pet.behaviorFlags : [];
+              const cautionFlags = ['Aggressive', 'Reactive', 'Anxious'];
+              return flags.some(f => cautionFlags.includes(f)) ? 'Needs caution' : 'Normal';
+            })()}
           </button>
         </div>
 
