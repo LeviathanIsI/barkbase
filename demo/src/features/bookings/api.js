@@ -2,12 +2,14 @@
  * Demo Bookings API
  * Provides mock data hooks for bookings management.
  * Replaces real API calls with static demo data.
+ * Generates dynamic dates centered around current week.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import bookingsData from '@/data/bookings.json';
+import { useState, useCallback } from 'react';
 import petsData from '@/data/pets.json';
 import ownersData from '@/data/owners.json';
+import toast from 'react-hot-toast';
 
 // ============================================================================
 // BOOKING STATUS ENUM
@@ -22,23 +24,218 @@ export const BOOKING_STATUS = {
   NO_SHOW: 'NO_SHOW',
 };
 
-// Map from JSON status values to canonical status
-const statusMap = {
-  arriving: BOOKING_STATUS.CONFIRMED,
-  confirmed: BOOKING_STATUS.CONFIRMED,
-  pending: BOOKING_STATUS.PENDING,
-  checked_in: BOOKING_STATUS.CHECKED_IN,
-  departing: BOOKING_STATUS.CHECKED_IN, // Departing means they're still checked in
-  checked_out: BOOKING_STATUS.CHECKED_OUT,
-  cancelled: BOOKING_STATUS.CANCELLED,
+// ============================================================================
+// DATE HELPERS
+// ============================================================================
+
+const formatDate = (date) => {
+  return date.toISOString().split('T')[0];
+};
+
+const addDays = (date, days) => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
+
+const getWeekStart = (date) => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
 };
 
 // ============================================================================
-// MOCK DATA HELPERS
+// DYNAMIC BOOKINGS GENERATOR
 // ============================================================================
 
+// Local bookings state (persists during session)
+let localBookingsStore = null;
+
 /**
- * Normalize a booking from JSON data
+ * Generate bookings with dynamic dates centered around current week
+ */
+const generateDynamicBookings = () => {
+  if (localBookingsStore !== null) {
+    return localBookingsStore;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const weekStart = getWeekStart(today);
+
+  // Create sample bookings across the current week
+  const sampleBookings = [
+    // Currently checked in - started yesterday, ends tomorrow
+    {
+      id: 'bk-demo-001',
+      petId: 'pet-001',
+      ownerId: 'owner-001',
+      serviceName: 'Overnight Boarding',
+      serviceId: 'svc-boarding',
+      status: BOOKING_STATUS.CHECKED_IN,
+      checkInDate: formatDate(addDays(today, -1)),
+      checkOutDate: formatDate(addDays(today, 1)),
+      checkInTime: '10:00',
+      checkOutTime: '16:00',
+      notes: 'Loves belly rubs. Feed twice daily.',
+      subtotal: 150,
+      addons: ['Premium Food', 'Extra Playtime'],
+    },
+    // Arriving today - confirmed
+    {
+      id: 'bk-demo-002',
+      petId: 'pet-002',
+      ownerId: 'owner-002',
+      serviceName: 'Weekend Stay',
+      serviceId: 'svc-boarding',
+      status: BOOKING_STATUS.CONFIRMED,
+      checkInDate: formatDate(today),
+      checkOutDate: formatDate(addDays(today, 2)),
+      checkInTime: '09:00',
+      checkOutTime: '17:00',
+      notes: 'Shy around other dogs initially.',
+      subtotal: 200,
+      addons: ['Grooming'],
+    },
+    // Departing today - checked in, needs checkout
+    {
+      id: 'bk-demo-003',
+      petId: 'pet-003',
+      ownerId: 'owner-003',
+      serviceName: 'Overnight Boarding',
+      serviceId: 'svc-boarding',
+      status: BOOKING_STATUS.CHECKED_IN,
+      checkInDate: formatDate(addDays(today, -2)),
+      checkOutDate: formatDate(today),
+      checkInTime: '14:00',
+      checkOutTime: '11:00',
+      notes: 'Medication at 8 AM and 8 PM.',
+      subtotal: 100,
+      addons: [],
+    },
+    // Tomorrow arrival
+    {
+      id: 'bk-demo-004',
+      petId: 'pet-004',
+      ownerId: 'owner-004',
+      serviceName: 'Extended Stay',
+      serviceId: 'svc-boarding',
+      status: BOOKING_STATUS.CONFIRMED,
+      checkInDate: formatDate(addDays(today, 1)),
+      checkOutDate: formatDate(addDays(today, 5)),
+      checkInTime: '10:00',
+      checkOutTime: '16:00',
+      notes: 'Allergic to chicken.',
+      subtotal: 350,
+      addons: ['Special Diet'],
+    },
+    // Day after tomorrow
+    {
+      id: 'bk-demo-005',
+      petId: 'pet-005',
+      ownerId: 'owner-005',
+      serviceName: 'Daycare',
+      serviceId: 'svc-daycare',
+      status: BOOKING_STATUS.CONFIRMED,
+      checkInDate: formatDate(addDays(today, 2)),
+      checkOutDate: formatDate(addDays(today, 2)),
+      checkInTime: '08:00',
+      checkOutTime: '18:00',
+      notes: '',
+      subtotal: 45,
+      addons: [],
+    },
+    // Long stay - already here
+    {
+      id: 'bk-demo-006',
+      petId: 'pet-006',
+      ownerId: 'owner-006',
+      serviceName: 'Extended Vacation Stay',
+      serviceId: 'svc-boarding',
+      status: BOOKING_STATUS.CHECKED_IN,
+      checkInDate: formatDate(addDays(today, -3)),
+      checkOutDate: formatDate(addDays(today, 4)),
+      checkInTime: '11:00',
+      checkOutTime: '15:00',
+      notes: 'Very friendly, loves other dogs.',
+      subtotal: 550,
+      addons: ['Daily Walks', 'Extra Playtime'],
+    },
+    // Pending confirmation
+    {
+      id: 'bk-demo-007',
+      petId: 'pet-007',
+      ownerId: 'owner-007',
+      serviceName: 'Overnight Boarding',
+      serviceId: 'svc-boarding',
+      status: BOOKING_STATUS.PENDING,
+      checkInDate: formatDate(addDays(today, 3)),
+      checkOutDate: formatDate(addDays(today, 5)),
+      checkInTime: '14:00',
+      checkOutTime: '12:00',
+      notes: 'Awaiting vaccination records.',
+      subtotal: 200,
+      addons: [],
+    },
+    // Completed yesterday
+    {
+      id: 'bk-demo-008',
+      petId: 'pet-008',
+      ownerId: 'owner-008',
+      serviceName: 'Weekend Stay',
+      serviceId: 'svc-boarding',
+      status: BOOKING_STATUS.CHECKED_OUT,
+      checkInDate: formatDate(addDays(today, -4)),
+      checkOutDate: formatDate(addDays(today, -1)),
+      checkInTime: '09:00',
+      checkOutTime: '17:00',
+      notes: 'Great stay!',
+      subtotal: 250,
+      addons: ['Grooming', 'Bath'],
+    },
+    // Daycare today
+    {
+      id: 'bk-demo-009',
+      petId: 'pet-009',
+      ownerId: 'owner-009',
+      serviceName: 'Full Day Daycare',
+      serviceId: 'svc-daycare',
+      status: BOOKING_STATUS.CHECKED_IN,
+      checkInDate: formatDate(today),
+      checkOutDate: formatDate(today),
+      checkInTime: '07:30',
+      checkOutTime: '18:00',
+      notes: '',
+      subtotal: 50,
+      addons: [],
+    },
+    // Next week booking
+    {
+      id: 'bk-demo-010',
+      petId: 'pet-010',
+      ownerId: 'owner-010',
+      serviceName: 'Overnight Boarding',
+      serviceId: 'svc-boarding',
+      status: BOOKING_STATUS.CONFIRMED,
+      checkInDate: formatDate(addDays(today, 6)),
+      checkOutDate: formatDate(addDays(today, 8)),
+      checkInTime: '10:00',
+      checkOutTime: '16:00',
+      notes: 'Prefers quiet areas.',
+      subtotal: 180,
+      addons: ['Quiet Room'],
+    },
+  ];
+
+  localBookingsStore = sampleBookings;
+  return sampleBookings;
+};
+
+/**
+ * Normalize a booking with pet and owner data
  */
 const normalizeBooking = (booking) => {
   if (!booking) return null;
@@ -47,12 +244,9 @@ const normalizeBooking = (booking) => {
   const pet = petsData.find((p) => p.id === booking.petId);
   const owner = ownersData.find((o) => o.id === booking.ownerId);
 
-  const status = statusMap[booking.status?.toLowerCase()] || BOOKING_STATUS.PENDING;
-
   return {
     ...booking,
     recordId: booking.id,
-    status,
     // Date fields
     checkIn: booking.checkInDate,
     checkOut: booking.checkOutDate,
@@ -62,17 +256,17 @@ const normalizeBooking = (booking) => {
     checkOutTime: booking.checkOutTime,
     // Pet info
     petId: booking.petId,
-    petName: booking.petName || pet?.name,
+    petName: pet?.name || 'Unknown Pet',
     petBreed: pet?.breed,
     petPhotoUrl: pet?.photoUrl,
-    petSpecies: pet?.species || 'dog',
-    pet: pet || { id: booking.petId, name: booking.petName },
+    petSpecies: pet?.species || 'Dog',
+    pet: pet || { id: booking.petId, name: 'Unknown Pet' },
     // Owner info
     ownerId: booking.ownerId,
-    ownerName: booking.ownerName || (owner ? `${owner.firstName} ${owner.lastName}` : 'Unknown Owner'),
+    ownerName: owner ? `${owner.firstName} ${owner.lastName}` : 'Unknown Owner',
     ownerPhone: owner?.phone,
     ownerEmail: owner?.email,
-    owner: owner || { id: booking.ownerId, name: booking.ownerName },
+    owner: owner || { id: booking.ownerId, name: 'Unknown Owner' },
     // Service info
     serviceType: booking.serviceName?.toLowerCase().includes('daycare')
       ? 'daycare'
@@ -95,7 +289,17 @@ const normalizeBooking = (booking) => {
  * Get all bookings normalized
  */
 const getAllBookings = () => {
-  return bookingsData.map(normalizeBooking);
+  return generateDynamicBookings().map(normalizeBooking);
+};
+
+/**
+ * Add a booking to local state
+ */
+const addBookingToStore = (booking) => {
+  if (localBookingsStore === null) {
+    generateDynamicBookings();
+  }
+  localBookingsStore = [booking, ...localBookingsStore];
 };
 
 // ============================================================================
@@ -154,7 +358,7 @@ export const useBookingQuery = useBookingDetailQuery;
 // ============================================================================
 
 /**
- * Create a new booking (demo - just simulates success)
+ * Create a new booking - adds to local state and shows toast
  */
 export const useCreateBookingMutation = () => {
   const queryClient = useQueryClient();
@@ -162,16 +366,36 @@ export const useCreateBookingMutation = () => {
   return useMutation({
     mutationFn: async (payload) => {
       await new Promise((r) => setTimeout(r, 800));
-      return {
-        id: `booking-new-${Date.now()}`,
-        ...payload,
+
+      const newBooking = {
+        id: `bk-new-${Date.now()}`,
+        petId: payload.petId,
+        ownerId: payload.ownerId,
+        serviceName: payload.serviceName || 'Overnight Boarding',
+        serviceId: payload.serviceId || 'svc-boarding',
         status: BOOKING_STATUS.CONFIRMED,
+        checkInDate: payload.startDate || payload.checkIn,
+        checkOutDate: payload.endDate || payload.checkOut,
+        checkInTime: payload.checkInTime || '10:00',
+        checkOutTime: payload.checkOutTime || '16:00',
+        notes: payload.notes || '',
+        subtotal: payload.subtotal || 100,
+        addons: payload.addons || [],
         createdAt: new Date().toISOString(),
       };
+
+      // Add to local store
+      addBookingToStore(newBooking);
+
+      return newBooking;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      toast.success('Booking created successfully!');
       queryClient.invalidateQueries({ queryKey: ['demo', 'bookings'] });
       queryClient.invalidateQueries({ queryKey: ['demo', 'today-bookings'] });
+    },
+    onError: (error) => {
+      toast.error(error?.message || 'Failed to create booking');
     },
   });
 };
