@@ -169,6 +169,8 @@ test-results/
 playwright-report/
 test-results/
 .coverage/
+lighthouse-reports/
+.lighthouseci/
 
 # IDE & Editor files
 .vscode/
