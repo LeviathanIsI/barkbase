@@ -17,17 +17,21 @@ const useTenantReady = () => {
  *
  * Backend returns: { data: [...], items: [...], total: N, daysAhead: N }
  * Each item: { id, petId, petName, ownerName, type, administeredAt, expiresAt, provider, status }
+ *
+ * @param {number} daysAhead - Number of days ahead to check for expiring vaccinations
+ * @param {string} statusFilter - Filter by record status: 'active', 'archived', or 'all'
+ * @param {object} options - React Query options
  */
-export const useExpiringVaccinationsQuery = (daysAhead = 30, options = {}) => {
+export const useExpiringVaccinationsQuery = (daysAhead = 30, statusFilter = 'all', options = {}) => {
   const tenantKey = useTenantKey();
   const isTenantReady = useTenantReady();
 
   return useQuery({
-    queryKey: ['vaccinations', 'expiring', tenantKey, daysAhead],
+    queryKey: ['vaccinations', 'expiring', tenantKey, daysAhead, statusFilter],
     enabled: isTenantReady && (options.enabled !== false),
     queryFn: async () => {
       const response = await apiClient.get(canonicalEndpoints.pets.expiringVaccinations, {
-        params: { daysAhead }
+        params: { daysAhead, statusFilter }
       });
       const data = response?.data;
       // Normalize response to array

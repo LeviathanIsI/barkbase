@@ -114,8 +114,8 @@ const Vaccinations = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch vaccinations expiring within 1 year (max allowed by API)
-  const { data, isLoading, refetch, isFetching } = useExpiringVaccinationsQuery(365);
+  // Fetch ALL vaccinations (statusFilter='all' gets all records including archived/expired)
+  const { data, isLoading, refetch, isFetching } = useExpiringVaccinationsQuery(365, 'all');
 
   // Helper to detect if a vaccine is appropriate for the pet's species
   const isVaccineAppropriate = useCallback((vaccine, species) => {
