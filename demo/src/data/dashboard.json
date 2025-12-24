@@ -1,0 +1,132 @@
+{
+  "today": {
+    "date": "2024-12-24",
+    "dayOfWeek": "Tuesday",
+    "arrivals": [
+      { "petId": "pet-011", "petName": "Bruno", "ownerName": "Robert Martinez", "time": "08:30", "service": "Standard Boarding" },
+      { "petId": "pet-012", "petName": "Coco", "ownerName": "Robert Martinez", "time": "08:30", "service": "Standard Boarding" },
+      { "petId": "pet-006", "petName": "Pixel", "ownerName": "David Chen", "time": "07:30", "service": "Full Day Daycare" },
+      { "petId": "pet-004", "petName": "Luna", "ownerName": "Amanda Rodriguez", "time": "10:00", "service": "Full Groom" }
+    ],
+    "departures": [
+      { "petId": "pet-008", "petName": "Rocky", "ownerName": "James O'Brien", "time": "12:00", "service": "Standard Boarding" },
+      { "petId": "pet-009", "petName": "Rosie", "ownerName": "James O'Brien", "time": "12:00", "service": "Standard Boarding" }
+    ],
+    "currentOccupancy": {
+      "boarding": { "occupied": 8, "capacity": 30, "percentage": 27 },
+      "daycare": { "current": 1, "capacity": 25, "percentage": 4 }
+    },
+    "tasks": [
+      { "id": "task-001", "title": "Administer Winston's Apoquel", "pet": "Winston", "time": "08:00", "status": "completed", "assignee": "Kevin Park" },
+      { "id": "task-002", "title": "Give Duke his Rimadyl with breakfast", "pet": "Duke", "time": "07:30", "status": "completed", "assignee": "Kevin Park" },
+      { "id": "task-003", "title": "Check in Bruno & Coco (Martinez)", "pet": null, "time": "08:30", "status": "pending", "assignee": "Ashley Martinez" },
+      { "id": "task-004", "title": "Luna grooming appointment", "pet": "Luna", "time": "10:00", "status": "pending", "assignee": "Emily Chen" },
+      { "id": "task-005", "title": "Rocky & Rosie checkout", "pet": null, "time": "12:00", "status": "pending", "assignee": "Ashley Martinez" },
+      { "id": "task-006", "title": "Send photo updates to William Jackson", "pet": "Hendrix, Bowie", "time": "14:00", "status": "pending", "assignee": "Maria Garcia" },
+      { "id": "task-007", "title": "Give Duke his evening Rimadyl", "pet": "Duke", "time": "17:00", "status": "pending", "assignee": "Jake Williams" },
+      { "id": "task-008", "title": "Administer Winston's evening Apoquel", "pet": "Winston", "time": "18:00", "status": "pending", "assignee": "Jake Williams" }
+    ],
+    "alerts": [
+      { "type": "vaccine_expiring", "message": "Winston's Bordetella expires in 2 days", "petId": "pet-003", "severity": "warning" },
+      { "type": "vaccine_expiring", "message": "Luna's vaccines expire Jan 10 - owner notified", "petId": "pet-004", "severity": "info" },
+      { "type": "vaccine_expired", "message": "Rosie's Rabies expired - owner scheduled update", "petId": "pet-009", "severity": "error" },
+      { "type": "vaccine_expired", "message": "Bailey's Rabies overdue - appointment 12/28", "petId": "pet-013", "severity": "error" }
+    ]
+  },
+  "metrics": {
+    "overview": {
+      "totalActiveClients": 10,
+      "totalActivePets": 15,
+      "averageOccupancyRate": 72,
+      "monthlyRevenue": 28450.00,
+      "revenueGrowth": 12.5
+    },
+    "monthToDate": {
+      "revenue": 24680.00,
+      "bookings": 47,
+      "newClients": 2,
+      "daycareVisits": 89,
+      "groomingAppointments": 23
+    },
+    "yearToDate": {
+      "revenue": 342580.00,
+      "totalBookings": 1247,
+      "newClients": 38,
+      "repeatRate": 89.2
+    },
+    "revenueByService": [
+      { "service": "Boarding", "revenue": 156420.00, "percentage": 45.7 },
+      { "service": "Daycare", "revenue": 98340.00, "percentage": 28.7 },
+      { "service": "Grooming", "revenue": 67890.00, "percentage": 19.8 },
+      { "service": "Training", "revenue": 15680.00, "percentage": 4.6 },
+      { "service": "Transport", "revenue": 4250.00, "percentage": 1.2 }
+    ],
+    "weeklyTrend": [
+      { "day": "Mon", "boarding": 24, "daycare": 18, "grooming": 6 },
+      { "day": "Tue", "boarding": 26, "daycare": 22, "grooming": 4 },
+      { "day": "Wed", "boarding": 28, "daycare": 20, "grooming": 8 },
+      { "day": "Thu", "boarding": 27, "daycare": 19, "grooming": 5 },
+      { "day": "Fri", "boarding": 30, "daycare": 24, "grooming": 7 },
+      { "day": "Sat", "boarding": 30, "daycare": 15, "grooming": 10 },
+      { "day": "Sun", "boarding": 28, "daycare": 0, "grooming": 0 }
+    ],
+    "topClients": [
+      { "id": "owner-010", "name": "William Jackson", "totalSpent": 8920.00, "visits": 35 },
+      { "id": "owner-005", "name": "Patricia Williams", "totalSpent": 5890.00, "visits": 42 },
+      { "id": "owner-008", "name": "Robert Martinez", "totalSpent": 4780.00, "visits": 24 },
+      { "id": "owner-001", "name": "Jennifer Mitchell", "totalSpent": 4250.00, "visits": 28 },
+      { "id": "owner-006", "name": "James O'Brien", "totalSpent": 3420.00, "visits": 31 }
+    ],
+    "vaccineCompliance": {
+      "compliant": 11,
+      "expiringSoon": 2,
+      "expired": 2,
+      "complianceRate": 73.3
+    }
+  },
+  "upcomingBookings": [
+    { "date": "2024-12-26", "count": 3, "type": "mixed" },
+    { "date": "2024-12-27", "count": 2, "type": "departures" },
+    { "date": "2024-12-28", "count": 2, "type": "arrivals" },
+    { "date": "2024-12-29", "count": 2, "type": "departures" },
+    { "date": "2024-12-30", "count": 1, "type": "arrivals" },
+    { "date": "2024-12-31", "count": 1, "type": "departures" },
+    { "date": "2025-01-02", "count": 1, "type": "departures" },
+    { "date": "2025-01-03", "count": 1, "type": "departures" },
+    { "date": "2025-01-05", "count": 2, "type": "departures" }
+  ],
+  "recentActivity": [
+    { "time": "2024-12-24T07:30:00Z", "action": "Medication administered", "details": "Duke received morning Rimadyl", "user": "Kevin Park" },
+    { "time": "2024-12-24T07:15:00Z", "action": "Feeding completed", "details": "All boarding guests fed breakfast", "user": "Kevin Park" },
+    { "time": "2024-12-24T06:00:00Z", "action": "Shift started", "details": "Morning shift began", "user": "Kevin Park" },
+    { "time": "2024-12-23T22:00:00Z", "action": "Shift ended", "details": "Evening rounds completed, all guests settled", "user": "Jake Williams" },
+    { "time": "2024-12-23T18:00:00Z", "action": "Medication administered", "details": "Winston received evening Apoquel", "user": "Jake Williams" },
+    { "time": "2024-12-23T17:00:00Z", "action": "Medication administered", "details": "Duke received evening Rimadyl", "user": "Jake Williams" },
+    { "time": "2024-12-23T14:00:00Z", "action": "Photo update sent", "details": "Daily photos sent to William Jackson (Hendrix & Bowie)", "user": "Maria Garcia" },
+    { "time": "2024-12-23T10:05:00Z", "action": "Check-in completed", "details": "Duke checked in for boarding", "user": "Ashley Martinez" }
+  ],
+  "weather": {
+    "current": {
+      "temp": 52,
+      "condition": "Partly Cloudy",
+      "icon": "partly-cloudy"
+    },
+    "forecast": [
+      { "day": "Today", "high": 58, "low": 42, "condition": "Partly Cloudy" },
+      { "day": "Wed", "high": 62, "low": 45, "condition": "Sunny" },
+      { "day": "Thu", "high": 65, "low": 48, "condition": "Sunny" },
+      { "day": "Fri", "high": 60, "low": 44, "condition": "Cloudy" },
+      { "day": "Sat", "high": 55, "low": 40, "condition": "Rain" }
+    ],
+    "alerts": []
+  },
+  "quickStats": {
+    "petsOnsite": 8,
+    "arrivalsToday": 4,
+    "departuresToday": 2,
+    "groomingToday": 1,
+    "staffOnDuty": 5,
+    "openTasks": 6,
+    "vaccineAlerts": 4
+  }
+}
