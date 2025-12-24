@@ -397,8 +397,8 @@ const PetDetail = () => {
       setRenewModalOpen(false);
       setVaccinationToRenew(null);
 
-      // Refresh the vaccinations data
-      queryClient.invalidateQueries({ queryKey: ['pet-vaccinations', petId] });
+      // Refresh the vaccinations data - use correct query key format
+      queryClient.invalidateQueries({ queryKey: ['petVaccinations'] });
     } catch (error) {
       console.error('Failed to renew vaccination:', error);
       toast.error(error.response?.data?.message || 'Failed to renew vaccination');

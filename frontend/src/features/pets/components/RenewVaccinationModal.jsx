@@ -103,13 +103,13 @@ const RenewVaccinationModal = ({
     const daysRemaining = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
 
     if (daysRemaining < 0) {
-      return { label: 'Expired', variant: 'destructive', days: Math.abs(daysRemaining) };
+      return { label: 'Expired', variant: 'destructive', days: Math.abs(daysRemaining), isExpired: true };
     } else if (daysRemaining <= 7) {
-      return { label: 'Critical', variant: 'warning', days: daysRemaining };
+      return { label: 'Critical', variant: 'warning', days: daysRemaining, isExpired: false };
     } else if (daysRemaining <= 30) {
-      return { label: 'Expiring Soon', variant: 'warning', days: daysRemaining };
+      return { label: 'Expiring Soon', variant: 'warning', days: daysRemaining, isExpired: false };
     }
-    return { label: 'Current', variant: 'success', days: daysRemaining };
+    return { label: 'Current', variant: 'success', days: daysRemaining, isExpired: false };
   };
 
   const oldStatus = getOldVaccinationStatus();
@@ -157,7 +157,7 @@ const RenewVaccinationModal = ({
                 {oldStatus.label}
                 {oldStatus.days !== undefined && (
                   <span className="ml-1">
-                    ({oldStatus.days < 0 ? `${Math.abs(oldStatus.days)}d ago` : `${oldStatus.days}d left`})
+                    ({oldStatus.isExpired ? `${oldStatus.days}d ago` : `${oldStatus.days}d left`})
                   </span>
                 )}
               </Badge>
