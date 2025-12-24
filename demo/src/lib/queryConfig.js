@@ -1,6 +1,6 @@
 /**
  * Shared React Query configuration
- *
+ * 
  * Use these defaults to prevent skeleton flashing on background refetches:
  * - staleTime: Data is fresh for a reasonable time
  * - refetchOnWindowFocus: false - Don't refetch when user switches tabs
@@ -66,13 +66,14 @@ export const stableKey = (base, params = {}) => {
     }
     return acc;
   }, {});
-
+  
   // Return just the base if no params
   if (Object.keys(filteredParams).length === 0) {
     return Array.isArray(base) ? base : [base];
   }
-
+  
   // Serialize params for stable key
   const paramKey = JSON.stringify(filteredParams);
   return Array.isArray(base) ? [...base, paramKey] : [base, paramKey];
 };
+

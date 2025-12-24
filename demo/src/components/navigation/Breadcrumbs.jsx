@@ -12,8 +12,8 @@ const Breadcrumbs = ({ items = [], className, showHome = false }) => {
   if (!items || items.length === 0) return null;
 
   return (
-    <nav
-      aria-label="Breadcrumb"
+    <nav 
+      aria-label="Breadcrumb" 
       className={cn('flex items-center', className)}
     >
       <ol className="flex items-center gap-[var(--bb-space-1)] flex-wrap">
@@ -41,7 +41,7 @@ const Breadcrumbs = ({ items = [], className, showHome = false }) => {
 
           return (
             <React.Fragment key={item.href || item.label}>
-              <li
+              <li 
                 className={cn(
                   'flex items-center',
                   // Hide middle items on mobile, show only first and last
@@ -69,7 +69,7 @@ const Breadcrumbs = ({ items = [], className, showHome = false }) => {
 
               {/* Separator */}
               {!isLast && (
-                <li
+                <li 
                   className={cn(
                     'flex items-center text-[var(--bb-color-text-muted)]',
                     // Hide separator before hidden items on mobile
@@ -98,3 +98,4 @@ const Breadcrumbs = ({ items = [], className, showHome = false }) => {
 
 export { Breadcrumbs };
 export default Breadcrumbs;
+

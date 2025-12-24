@@ -1,11 +1,5 @@
-/**
- * TodayArrivalsList Component
- * Shows today's arriving pets with check-in functionality.
- */
-
 import { useState, useRef, useEffect } from 'react';
-import { AlertCircle, PawPrint, Sparkles, UserCheck, Phone, Mail, MessageSquare, Loader2, CheckCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { AlertCircle, PawPrint, Sparkles, UserCheck, Phone, Mail, MessageSquare, Loader2, CheckCircle, Syringe, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
@@ -13,6 +7,7 @@ import TodayCard from './TodayCard';
 import TodaySection from './TodaySection';
 import { TodayListSkeleton } from './TodaySkeleton';
 import { useBookingCheckInMutation } from '@/features/bookings/api';
+import PetQuickActionsDrawer from '@/features/owners/components/PetQuickActionsDrawer';
 import toast from 'react-hot-toast';
 
 const TodayArrivalsList = ({ arrivals, isLoading, hasError }) => {
@@ -20,7 +15,7 @@ const TodayArrivalsList = ({ arrivals, isLoading, hasError }) => {
   const [checkedInIds, setCheckedInIds] = useState(new Set());
 
   // Filter out checked-in bookings for display count
-  const pendingArrivals = arrivals.filter((b) => !checkedInIds.has(b.id || b.recordId));
+  const pendingArrivals = arrivals.filter(b => !checkedInIds.has(b.id || b.recordId));
 
   if (isLoading) {
     return (
@@ -42,7 +37,7 @@ const TodayArrivalsList = ({ arrivals, isLoading, hasError }) => {
           items={arrivals}
           hasError={hasError}
           checkedInIds={checkedInIds}
-          onCheckInSuccess={(id) => setCheckedInIds((prev) => new Set([...prev, id]))}
+          onCheckInSuccess={(id) => setCheckedInIds(prev => new Set([...prev, id]))}
         />
       </TodaySection>
     </TodayCard>
@@ -68,7 +63,7 @@ const ListBody = ({ items, hasError, checkedInIds, onCheckInSuccess }) => {
   }
 
   // Filter out already checked-in items
-  const pendingItems = items.filter((b) => !checkedInIds.has(b.id || b.recordId));
+  const pendingItems = items.filter(b => !checkedInIds.has(b.id || b.recordId));
 
   if (!pendingItems.length) {
     return (
@@ -102,9 +97,10 @@ const ListBody = ({ items, hasError, checkedInIds, onCheckInSuccess }) => {
 };
 
 const ArrivalRow = ({ booking, onCheckInSuccess }) => {
-  const navigate = useNavigate();
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [showOwnerPopover, setShowOwnerPopover] = useState(false);
+  const [showVaxDetails, setShowVaxDetails] = useState(false);
+  const [selectedPetId, setSelectedPetId] = useState(null);
   const ownerRef = useRef(null);
   const checkInMutation = useBookingCheckInMutation();
 
@@ -112,12 +108,9 @@ const ArrivalRow = ({ booking, onCheckInSuccess }) => {
   const bookingId = booking.id || booking.recordId;
   const petId = booking.petId || booking.pet?.id || booking.pet?.recordId;
   const petName = booking.petName || booking.pet?.name;
-  const ownerName =
-    booking.ownerName ||
-    booking.owner?.name ||
-    (booking.owner?.firstName
-      ? `${booking.owner?.firstName || ''} ${booking.owner?.lastName || ''}`.trim()
-      : 'Owner');
+  const ownerName = booking.ownerName || booking.owner?.name || booking.owner?.firstName
+    ? `${booking.owner?.firstName || ''} ${booking.owner?.lastName || ''}`.trim()
+    : 'Owner';
   const ownerPhone = booking.ownerPhone || booking.owner?.phone;
   const ownerEmail = booking.ownerEmail || booking.owner?.email;
 
@@ -157,95 +150,117 @@ const ArrivalRow = ({ booking, onCheckInSuccess }) => {
   const handlePetClick = (e) => {
     e.stopPropagation();
     if (petId) {
-      navigate(`/pets/${petId}`);
+      setSelectedPetId(petId);
     }
   };
 
   const handleOwnerClick = (e) => {
     e.stopPropagation();
-    setShowOwnerPopover((prev) => !prev);
+    setShowOwnerPopover(prev => !prev);
+  };
+
+  const handleVaxClick = (e) => {
+    e.stopPropagation();
+    setShowVaxDetails(true);
+    // Open pet drawer to vaccination section
+    if (petId) {
+      setSelectedPetId(petId);
+    }
   };
 
   return (
-    <div
-      className="group flex items-center gap-[var(--bb-space-3,0.75rem)] rounded-xl p-[var(--bb-space-3,0.75rem)] transition-all hover:shadow-sm"
-      style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
-    >
-      <PetAvatar pet={booking.pet || { name: petName }} size="md" showStatus={false} />
+    <>
+      <div
+        className="group flex items-center gap-[var(--bb-space-3,0.75rem)] rounded-xl p-[var(--bb-space-3,0.75rem)] transition-all hover:shadow-sm"
+        style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+      >
+        <PetAvatar
+          pet={booking.pet || { name: petName }}
+          size="md"
+          showStatus={false}
+        />
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
-          {/* Clickable pet name */}
-          <button
-            type="button"
-            onClick={handlePetClick}
-            className="truncate text-[var(--bb-font-size-sm,0.875rem)] font-semibold text-[color:var(--bb-color-text-primary)] hover:text-[color:var(--bb-color-accent)] hover:underline transition-colors text-left"
-          >
-            {petName}
-          </button>
-          <Badge variant="success" className="shrink-0 text-xs">
-            {formatTime(time)}
-          </Badge>
-        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
+            {/* Clickable pet name */}
+            <button
+              type="button"
+              onClick={handlePetClick}
+              className="truncate text-[var(--bb-font-size-sm,0.875rem)] font-semibold text-[color:var(--bb-color-text-primary)] hover:text-[color:var(--bb-color-accent)] hover:underline transition-colors text-left"
+            >
+              {petName}
+            </button>
+            <Badge variant="success" className="shrink-0 text-xs">
+              {formatTime(time)}
+            </Badge>
+          </div>
 
-        {/* Clickable owner name with popover */}
-        <div className="relative" ref={ownerRef}>
-          <button
-            type="button"
-            onClick={handleOwnerClick}
-            className="truncate text-[var(--bb-font-size-xs,0.75rem)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-accent)] hover:underline transition-colors text-left"
-          >
-            {ownerName}
-          </button>
+          {/* Clickable owner name with popover */}
+          <div className="relative" ref={ownerRef}>
+            <button
+              type="button"
+              onClick={handleOwnerClick}
+              className="truncate text-[var(--bb-font-size-xs,0.75rem)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-accent)] hover:underline transition-colors text-left"
+            >
+              {ownerName}
+            </button>
 
-          {/* Owner contact popover */}
-          {showOwnerPopover && (
-            <OwnerContactPopover
-              ownerName={ownerName}
-              phone={ownerPhone}
-              email={ownerEmail}
-              onClose={() => setShowOwnerPopover(false)}
-            />
+            {/* Owner contact popover */}
+            {showOwnerPopover && (
+              <OwnerContactPopover
+                ownerName={ownerName}
+                phone={ownerPhone}
+                email={ownerEmail}
+                onClose={() => setShowOwnerPopover(false)}
+              />
+            )}
+          </div>
+
+          {(booking.service || booking.serviceName) && (
+            <p className="mt-0.5 truncate text-[var(--bb-font-size-xs,0.75rem)] text-[color:var(--bb-color-text-subtle)]">
+              {typeof booking.service === 'object' ? booking.service?.name : (booking.service || booking.serviceName)}
+            </p>
           )}
         </div>
 
-        {(booking.service || booking.serviceName) && (
-          <p className="mt-0.5 truncate text-[var(--bb-font-size-xs,0.75rem)] text-[color:var(--bb-color-text-subtle)]">
-            {typeof booking.service === 'object'
-              ? booking.service?.name
-              : booking.service || booking.serviceName}
-          </p>
+        {/* Vaccination alert - clickable */}
+        {booking.hasExpiringVaccinations && (
+          <button
+            type="button"
+            onClick={handleVaxClick}
+            className="p-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+            title="Click to view vaccination details"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
+          </button>
         )}
+
+        {/* Check-in button */}
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={handleCheckIn}
+          disabled={isCheckingIn}
+          className="shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+        >
+          {isCheckingIn ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <>
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Check In
+            </>
+          )}
+        </Button>
       </div>
 
-      {/* Vaccination alert */}
-      {booking.hasExpiringVaccinations && (
-        <div
-          className="p-1 rounded"
-          title="Expiring vaccinations"
-        >
-          <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
-        </div>
-      )}
-
-      {/* Check-in button */}
-      <Button
-        size="sm"
-        variant="primary"
-        onClick={handleCheckIn}
-        disabled={isCheckingIn}
-        className="shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-      >
-        {isCheckingIn ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <>
-            <CheckCircle className="h-4 w-4 mr-1" />
-            Check In
-          </>
-        )}
-      </Button>
-    </div>
+      {/* Pet Quick Actions Drawer */}
+      <PetQuickActionsDrawer
+        petId={selectedPetId}
+        isOpen={!!selectedPetId}
+        onClose={() => setSelectedPetId(null)}
+      />
+    </>
   );
 };
 
@@ -284,9 +299,7 @@ const OwnerContactPopover = ({ ownerName, phone, email, onClose }) => {
     >
       <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
         <p className="text-xs font-medium text-[color:var(--bb-color-text-muted)]">Contact</p>
-        <p className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] truncate">
-          {ownerName}
-        </p>
+        <p className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] truncate">{ownerName}</p>
       </div>
 
       <div className="py-1">

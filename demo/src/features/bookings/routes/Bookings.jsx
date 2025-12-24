@@ -98,15 +98,15 @@ const Bookings = () => {
       const month = currentDate.getMonth();
       const firstOfMonth = new Date(year, month, 1);
       const lastOfMonth = new Date(year, month + 1, 0);
-
+      
       // Start from the Sunday of the week containing the 1st
       const startDay = new Date(firstOfMonth);
       startDay.setDate(startDay.getDate() - startDay.getDay());
-
+      
       // End on the Saturday of the week containing the last day
       const endDay = new Date(lastOfMonth);
       endDay.setDate(endDay.getDate() + (6 - endDay.getDay()));
-
+      
       const current = new Date(startDay);
       while (current <= endDay) {
         dates.push(new Date(current));
@@ -124,13 +124,13 @@ const Bookings = () => {
       const month = currentDate.getMonth();
       const firstOfMonth = new Date(year, month, 1);
       const lastOfMonth = new Date(year, month + 1, 0);
-
+      
       // Expand to include surrounding weeks for the calendar grid
       const startDay = new Date(firstOfMonth);
       startDay.setDate(startDay.getDate() - startDay.getDay());
       const endDay = new Date(lastOfMonth);
       endDay.setDate(endDay.getDate() + (6 - endDay.getDay()));
-
+      
       return {
         startDate: startDay.toISOString().split('T')[0],
         endDate: endDay.toISOString().split('T')[0],
@@ -973,7 +973,7 @@ const MonthCalendarView = ({
                       >
                         {date.getDate()}
                       </span>
-
+                      
                       {/* Utilization Badge */}
                       {dayData.count > 0 && (
                         <span className={cn('text-xs font-medium px-1.5 py-0.5 rounded', colorClasses[dayData.colorLevel])}>

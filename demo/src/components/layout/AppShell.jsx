@@ -1,21 +1,21 @@
-/**
- * Demo App Shell
- * Main layout wrapper for the demo app.
- * Includes DemoModeBanner at the top and adjusted layout to account for it.
- */
-
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import GlobalKeyboardShortcuts from '@/components/GlobalKeyboardShortcuts';
-import { DemoModeBanner } from '@/components/demo/DemoModeBanner';
-import { DemoResetButton } from '@/components/demo/DemoResetButton';
+import Button from '@/components/ui/Button';
+import { useTenantStore } from '@/stores/tenant';
 import Sidebar from '@/components/navigation/Sidebar';
 import Topbar from '@/components/navigation/Topbar';
 
-const DEMO_BANNER_HEIGHT = '40px';
-
 const AppShell = () => {
+  const tenant = useTenantStore((state) => state.tenant);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  const latestExportPath = tenant?.settings?.exports?.lastPath;
+  const handleRestore = () => {
+    if (!latestExportPath) return;
+    const url = latestExportPath.startsWith('/') ? latestExportPath : `/${latestExportPath}`;
+    window.open(url, '_blank');
+  };
 
   return (
     <div
@@ -25,26 +25,10 @@ const AppShell = () => {
         color: 'var(--bb-color-text-primary)',
       }}
     >
-      {/* Demo Mode Banner - Fixed at very top */}
-      <DemoModeBanner />
+      <Sidebar />
 
-      {/* Sidebar - adjusted top position for demo banner */}
-      <aside
-        className="fixed left-0 hidden h-screen w-[var(--bb-sidebar-width,240px)] flex-col border-r lg:flex"
-        style={{
-          top: DEMO_BANNER_HEIGHT,
-          height: `calc(100vh - ${DEMO_BANNER_HEIGHT})`,
-          backgroundColor: 'var(--bb-color-sidebar-bg)',
-          borderColor: 'var(--bb-color-sidebar-border)',
-          color: 'var(--bb-color-sidebar-text-primary)',
-        }}
-      >
-        <Sidebar />
-      </aside>
-
-      {/* Mobile sidebar overlay */}
       {mobileSidebarOpen ? (
-        <div className="fixed inset-0 z-40 flex lg:hidden" style={{ top: DEMO_BANNER_HEIGHT }}>
+        <div className="fixed inset-0 z-40 flex lg:hidden">
           <div
             className="flex-1"
             style={{ backgroundColor: 'var(--bb-color-overlay-scrim)' }}
@@ -55,28 +39,58 @@ const AppShell = () => {
         </div>
       ) : null}
 
-      {/* Main content area */}
-      <div
-        className="flex min-h-screen flex-col lg:pl-[var(--bb-sidebar-width,240px)]"
-        style={{ paddingTop: DEMO_BANNER_HEIGHT }}
-      >
+      <div className="flex min-h-screen flex-col lg:pl-[var(--bb-sidebar-width,240px)]">
         <Topbar onToggleSidebar={() => setMobileSidebarOpen(true)} />
         <GlobalKeyboardShortcuts />
         <main
           className="flex-1"
           style={{ backgroundColor: 'var(--bb-color-bg-body)' }}
         >
-          {/* Global content rail */}
+          {/* Global content rail - wide layout for SaaS app with comfortable side padding */}
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-6">
             <Outlet />
           </div>
         </main>
-
-        {/* Demo Reset Button - Fixed bottom right */}
-        <div className="fixed bottom-4 right-4 z-50">
-          <DemoResetButton variant="default" />
-        </div>
       </div>
+
+      {tenant?.recoveryMode ? (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center px-4 text-center backdrop-blur"
+          style={{ backgroundColor: 'var(--bb-color-overlay-scrim)' }}
+        >
+          <div
+            className="max-w-lg space-y-6 rounded-lg border p-8 shadow-2xl"
+            style={{
+              backgroundColor: 'var(--bb-color-bg-surface)',
+              borderColor: 'var(--bb-color-accent-soft)',
+            }}
+          >
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--bb-color-accent)]">
+                Recovery mode
+              </p>
+              <h2 className="text-2xl font-semibold text-[color:var(--bb-color-text-primary)]">
+                We detected database issues
+              </h2>
+              <p className="text-sm text-[color:var(--bb-color-text-muted)]">
+                BarkBase opened in read-only recovery mode. Download your most recent export or backup before making
+                changes. Support cannot restore local data—use your latest export/backup to recover.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <Button onClick={handleRestore} disabled={!latestExportPath} variant="primary">
+                {latestExportPath ? 'Download latest export' : 'No export found yet'}
+              </Button>
+              <Button variant="secondary" onClick={() => window.location.reload()}>
+                Reload after restore
+              </Button>
+              <p className="text-xs text-[color:var(--bb-color-text-muted)]">
+                Tip: You can generate fresh exports from another device if this copy is unusable.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

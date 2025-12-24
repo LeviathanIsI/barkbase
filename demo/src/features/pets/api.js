@@ -1,292 +1,170 @@
 /**
- * Pets API - Demo Version
- * Uses mock data instead of real API calls.
+ * Pets API Hooks
+ * 
+ * Uses the shared API hook factory for standardized query/mutation patterns.
+ * All hooks are tenant-aware and follow consistent error handling.
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import petsData from '@/data/pets.json';
-import vaccinationsData from '@/data/vaccinations.json';
-import ownersData from '@/data/owners.json';
+import apiClient from '@/lib/apiClient';
+import { queryKeys } from '@/lib/queryKeys';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
+import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
+import { normalizeListResponse, extractErrorMessage } from '@/lib/createApiHooks';
+import { listQueryDefaults, detailQueryDefaults } from '@/lib/queryConfig';
 
 // ============================================================================
-// QUERY KEYS
+// TENANT HELPERS
 // ============================================================================
 
-export const petKeys = {
-  all: ['demo', 'pets'],
-  lists: () => [...petKeys.all, 'list'],
-  list: (filters) => [...petKeys.lists(), filters],
-  details: () => [...petKeys.all, 'detail'],
-  detail: (id) => [...petKeys.details(), id],
-  vaccinations: (petId) => [...petKeys.all, 'vaccinations', petId],
-};
+const useTenantId = () => useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
 
-export const vaccinationKeys = {
-  all: ['demo', 'vaccinations'],
-  lists: () => [...vaccinationKeys.all, 'list'],
-  list: (filters) => [...vaccinationKeys.lists(), filters],
-  detail: (id) => [...vaccinationKeys.all, 'detail', id],
-};
-
-// ============================================================================
-// MOCK DATA STORE (in-memory for mutations)
-// ============================================================================
-
-let mockPets = [...petsData];
-let mockVaccinations = [...vaccinationsData];
-let nextPetId = mockPets.length + 1;
-let nextVaccinationId = mockVaccinations.length + 1;
-
-// Helper to get owner for a pet
-const getOwnerForPet = (ownerId) => {
-  return ownersData.find((o) => o.id === ownerId);
-};
-
-// Helper to get vaccinations for a pet
-const getVaccinationsForPet = (petId) => {
-  return mockVaccinations.filter((v) => v.petId === petId);
-};
-
-// Calculate vaccination status summary
-const getVaccinationSummary = (petId) => {
-  const vaccinations = getVaccinationsForPet(petId);
-  const now = new Date();
-  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-  let current = 0;
-  let expiringSoon = 0;
-  let expired = 0;
-
-  vaccinations.forEach((v) => {
-    const expirationDate = new Date(v.expirationDate);
-    if (expirationDate < now) {
-      expired++;
-    } else if (expirationDate <= thirtyDaysFromNow) {
-      expiringSoon++;
-    } else {
-      current++;
-    }
-  });
-
-  return { current, expiringSoon, expired, total: vaccinations.length };
-};
-
-// Helper to enrich pet with owner and vaccination info
-const enrichPet = (pet) => {
-  if (!pet) return null;
-  const owner = getOwnerForPet(pet.ownerId);
-  const vaccinationSummary = getVaccinationSummary(pet.id);
-
-  return {
-    ...pet,
-    recordId: pet.id,
-    owner: owner
-      ? {
-          id: owner.id,
-          name: `${owner.firstName} ${owner.lastName}`,
-          email: owner.email,
-          phone: owner.phone,
-        }
-      : null,
-    ownerName: owner ? `${owner.firstName} ${owner.lastName}` : 'Unknown',
-    vaccinationSummary,
-    // Calculate age from dateOfBirth
-    age: pet.dateOfBirth ? calculateAge(pet.dateOfBirth) : null,
-  };
-};
-
-// Helper to calculate age
-const calculateAge = (dateOfBirth) => {
-  const birth = new Date(dateOfBirth);
-  const now = new Date();
-  const years = now.getFullYear() - birth.getFullYear();
-  const months = now.getMonth() - birth.getMonth();
-
-  if (years < 1) {
-    const totalMonths = years * 12 + months;
-    return totalMonths <= 1 ? '1 month' : `${totalMonths} months`;
-  }
-  return years === 1 ? '1 year' : `${years} years`;
+/**
+ * Check if tenant is ready for API calls
+ * Queries should be disabled until tenantId is available
+ */
+const useTenantReady = () => {
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  return isAuthenticated && Boolean(tenantId);
 };
 
 // ============================================================================
-// QUERIES
+// PETS-SPECIFIC NORMALIZERS (for backwards compatibility)
 // ============================================================================
 
 /**
- * Fetch all pets with optional filtering and pagination
+ * Normalize pets response to consistent shape
+ * Handles: array, { items: [] }, { pets: [] }, { data: [] }
  */
-export const usePetsQuery = (options = {}) => {
-  const {
-    search = '',
-    status = '',
-    species = '',
-    ownerId = '',
-    page = 1,
-    limit = 25,
-  } = options;
+const normalizePetsResponse = (data) => {
+  const normalized = normalizeListResponse(data, 'pets');
+  // Map to legacy shape for backwards compatibility
+  return {
+    pets: normalized.items,
+    total: normalized.total,
+    raw: normalized.raw,
+  };
+};
+
+/**
+ * Ensure pets cache has correct shape
+ */
+const shapePetsCache = (data) => {
+  if (!data) {
+    return { pets: [], total: 0, raw: null };
+  }
+  if (Array.isArray(data)) {
+    return { pets: data, total: data.length, raw: null };
+  }
+  if (Array.isArray(data.pets)) {
+    return {
+      pets: data.pets,
+      total: data.total ?? data.pets.length,
+      raw: data.raw ?? data,
+    };
+  }
+  // Handle new factory format
+  if (Array.isArray(data.items)) {
+    return {
+      pets: data.items,
+      total: data.total ?? data.items.length,
+      raw: data.raw ?? data,
+    };
+  }
+  return { pets: [], total: data.total ?? 0, raw: data.raw ?? data };
+};
+
+// ============================================================================
+// LIST QUERY - Using factory
+// ============================================================================
+
+/**
+ * Fetch all pets for the current tenant
+ * Returns: { pets: Pet[], total: number, raw: any }
+ * @param {Object} params - Query parameters (e.g., { ownerId: 'uuid' })
+ */
+export const usePetsQuery = (params = {}) => {
+  const tenantId = useTenantId();
+  const isTenantReady = useTenantReady();
 
   return useQuery({
-    queryKey: petKeys.list({ search, status, species, ownerId, page, limit }),
+    queryKey: [...queryKeys.pets(tenantId), params],
+    enabled: isTenantReady,
     queryFn: async () => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 300));
-
-      let filtered = [...mockPets];
-
-      // Apply search filter
-      if (search) {
-        const searchLower = search.toLowerCase();
-        filtered = filtered.filter(
-          (pet) =>
-            pet.name?.toLowerCase().includes(searchLower) ||
-            pet.breed?.toLowerCase().includes(searchLower) ||
-            pet.microchipId?.toLowerCase().includes(searchLower)
-        );
+      try {
+        const res = await apiClient.get(canonicalEndpoints.pets.list, { params });
+        return normalizePetsResponse(res?.data);
+      } catch (e) {
+        console.warn('[pets] Falling back to empty list due to API error:', e?.message || e);
+        return { pets: [], total: 0, raw: null };
       }
-
-      // Apply status filter
-      if (status && status !== 'all') {
-        filtered = filtered.filter((pet) => pet.status === status);
-      }
-
-      // Apply species filter
-      if (species && species !== 'all') {
-        filtered = filtered.filter(
-          (pet) => pet.species?.toLowerCase() === species.toLowerCase()
-        );
-      }
-
-      // Apply owner filter
-      if (ownerId) {
-        filtered = filtered.filter((pet) => pet.ownerId === ownerId);
-      }
-
-      // Enrich with owner and vaccination info
-      const enriched = filtered.map(enrichPet);
-
-      // Pagination
-      const total = enriched.length;
-      const totalPages = Math.ceil(total / limit);
-      const start = (page - 1) * limit;
-      const end = start + limit;
-      const paginatedData = enriched.slice(start, end);
-
-      return {
-        pets: paginatedData,
-        data: paginatedData,
-        meta: {
-          total,
-          page,
-          limit,
-          totalPages,
-          hasMore: page < totalPages,
-        },
-      };
     },
-    staleTime: 30000,
+    ...listQueryDefaults,
   });
 };
+
+// ============================================================================
+// DETAIL QUERY - Using factory pattern
+// ============================================================================
 
 /**
  * Fetch a single pet by ID
  */
-export const usePetQuery = (petId, options = {}) => {
-  return useQuery({
-    queryKey: petKeys.detail(petId),
-    queryFn: async () => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 200));
-
-      const pet = mockPets.find((p) => p.id === petId);
-
-      if (!pet) {
-        throw new Error('Pet not found');
-      }
-
-      return enrichPet(pet);
-    },
-    enabled: !!petId && options.enabled !== false,
-    staleTime: 30000,
-  });
-};
-
-/**
- * Fetch pet details (alias for usePetQuery with more data)
- */
 export const usePetDetailsQuery = (petId, options = {}) => {
+  const tenantId = useTenantId();
+  const { enabled = Boolean(petId), ...queryOptions } = options;
+  
   return useQuery({
-    queryKey: [...petKeys.detail(petId), 'details'],
+    queryKey: ['pets', { tenantId }, petId],
     queryFn: async () => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 250));
-
-      const pet = mockPets.find((p) => p.id === petId);
-
-      if (!pet) {
-        throw new Error('Pet not found');
+      try {
+        const res = await apiClient.get(canonicalEndpoints.pets.detail(petId));
+        return res?.data ?? null;
+      } catch (e) {
+        console.warn('[pet] Falling back to null due to API error:', e?.message || e);
+        return null;
       }
-
-      const enriched = enrichPet(pet);
-      const vaccinations = getVaccinationsForPet(petId);
-
-      return {
-        ...enriched,
-        vaccinations,
-      };
     },
-    enabled: !!petId && options.enabled !== false,
-    staleTime: 30000,
+    enabled,
+    ...detailQueryDefaults,
+    ...queryOptions,
   });
 };
 
-/**
- * Fetch vaccinations for a specific pet
- */
+// Alias for convenience
+export const usePetQuery = (petId, options = {}) => usePetDetailsQuery(petId, options);
+
+// ============================================================================
+// VACCINATIONS QUERY
+// ============================================================================
+
 export const usePetVaccinationsQuery = (petId, options = {}) => {
-  const { statusFilter = 'all' } = options;
-
+  const enabled = Boolean(petId) && (options.enabled ?? true);
+  const tenantId = useTenantId();
+  
   return useQuery({
-    queryKey: petKeys.vaccinations(petId),
+    queryKey: ['petVaccinations', { tenantId, petId }],
+    enabled,
     queryFn: async () => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 200));
-
-      let vaccinations = getVaccinationsForPet(petId);
-
-      // Apply status filter
-      if (statusFilter && statusFilter !== 'all') {
-        const now = new Date();
-        const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-        vaccinations = vaccinations.filter((v) => {
-          const expirationDate = new Date(v.expirationDate);
-          if (statusFilter === 'expired') {
-            return expirationDate < now;
-          } else if (statusFilter === 'expiring_soon') {
-            return expirationDate >= now && expirationDate <= thirtyDaysFromNow;
-          } else if (statusFilter === 'current') {
-            return expirationDate > thirtyDaysFromNow;
-          }
-          return true;
-        });
+      try {
+        const res = await apiClient.get(canonicalEndpoints.pets.vaccinations(petId));
+        const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+        return list;
+      } catch (error) {
+        console.error('Error fetching vaccinations:', error);
+        return [];
       }
-
-      return {
-        data: vaccinations,
-        meta: {
-          total: vaccinations.length,
-        },
-      };
     },
-    enabled: !!petId && options.enabled !== false,
-    staleTime: 30000,
+    ...detailQueryDefaults,
+    ...options,
   });
 };
 
 // ============================================================================
-// PET MUTATIONS
+// MUTATIONS - Using factory pattern for invalidation
 // ============================================================================
 
 /**
@@ -294,28 +172,31 @@ export const usePetVaccinationsQuery = (petId, options = {}) => {
  */
 export const useCreatePetMutation = () => {
   const queryClient = useQueryClient();
-
+  const tenantId = useTenantId();
+  const listKey = queryKeys.pets(tenantId);
+  
   return useMutation({
-    mutationFn: async (data) => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 500));
-
-      const newPet = {
-        id: `pet-${String(nextPetId++).padStart(3, '0')}`,
-        ...data,
-        status: data.status || 'active',
-        createdAt: new Date().toISOString(),
-      };
-
-      mockPets.push(newPet);
-      return enrichPet(newPet);
+    mutationFn: async (payload) => {
+      const res = await apiClient.post(canonicalEndpoints.pets.list, payload);
+      return res.data;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: petKeys.lists() });
-      toast.success(`Pet "${data.name}" created successfully!`);
+    onSuccess: (created) => {
+      if (created?.recordId) {
+        queryClient.setQueryData(listKey, (oldValue) => {
+          const current = shapePetsCache(oldValue);
+          return {
+            ...current,
+            pets: [created, ...(current.pets ?? [])],
+            total: (current.total ?? current.pets.length ?? 0) + 1,
+          };
+        });
+      }
     },
     onError: (error) => {
-      toast.error(error.message || 'Failed to create pet');
+      toast.error(extractErrorMessage(error));
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: listKey });
     },
   });
 };
@@ -323,35 +204,86 @@ export const useCreatePetMutation = () => {
 /**
  * Update an existing pet
  */
-export const useUpdatePetMutation = () => {
+export const useUpdatePetMutation = (petId) => {
   const queryClient = useQueryClient();
+  const tenantId = useTenantId();
+  const listKey = queryKeys.pets(tenantId);
+  
+  return useMutation({
+    mutationFn: async (payload) => {
+      const res = await apiClient.put(canonicalEndpoints.pets.detail(petId), payload);
+      return res.data;
+    },
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const previous = queryClient.getQueryData(listKey);
+      if (previous) {
+        queryClient.setQueryData(listKey, (oldValue) => {
+          const current = shapePetsCache(oldValue);
+          return {
+            ...current,
+            pets: current.pets.map((pet) =>
+              pet.recordId === petId ? { ...pet, ...payload } : pet
+            ),
+          };
+        });
+      }
+      return { previous };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(listKey, context.previous);
+      }
+      toast.error(extractErrorMessage(error));
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: listKey });
+      queryClient.invalidateQueries({ queryKey: ['pets', { tenantId }, petId] });
+    },
+  });
+};
+
+/**
+ * Update pet status (inline mutation without pre-specifying petId)
+ * Takes { petId, ...payload } as the mutation argument
+ */
+export const useUpdatePetStatusMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantId = useTenantId();
+  const listKey = queryKeys.pets(tenantId);
 
   return useMutation({
-    mutationFn: async ({ petId, data }) => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 400));
-
-      const index = mockPets.findIndex((p) => p.id === petId);
-
-      if (index === -1) {
-        throw new Error('Pet not found');
+    mutationFn: async ({ petId, ...payload }) => {
+      const res = await apiClient.put(canonicalEndpoints.pets.detail(petId), payload);
+      return res.data;
+    },
+    onMutate: async ({ petId, ...payload }) => {
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const previous = queryClient.getQueryData(listKey);
+      if (previous) {
+        queryClient.setQueryData(listKey, (oldValue) => {
+          const current = shapePetsCache(oldValue);
+          return {
+            ...current,
+            pets: current.pets.map((pet) =>
+              (pet.recordId === petId || pet.id === petId)
+                ? { ...pet, ...payload }
+                : pet
+            ),
+          };
+        });
       }
-
-      mockPets[index] = {
-        ...mockPets[index],
-        ...data,
-        updatedAt: new Date().toISOString(),
-      };
-
-      return enrichPet(mockPets[index]);
+      return { previous };
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: petKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: petKeys.detail(data.id) });
-      toast.success('Pet updated successfully!');
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(listKey, context.previous);
+      }
+      toast.error(extractErrorMessage(error));
     },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to update pet');
+    onSettled: (_, __, { petId }) => {
+      queryClient.invalidateQueries({ queryKey: listKey });
+      queryClient.invalidateQueries({ queryKey: ['pets', { tenantId }, petId] });
     },
   });
 };
@@ -361,64 +293,37 @@ export const useUpdatePetMutation = () => {
  */
 export const useDeletePetMutation = () => {
   const queryClient = useQueryClient();
-
+  const tenantId = useTenantId();
+  const listKey = queryKeys.pets(tenantId);
+  
   return useMutation({
-    mutationFn: async ({ petId }) => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 400));
-
-      const index = mockPets.findIndex((p) => p.id === petId);
-
-      if (index === -1) {
-        throw new Error('Pet not found');
+    mutationFn: async (petId) => {
+      await apiClient.delete(canonicalEndpoints.pets.detail(petId));
+      return petId;
+    },
+    onMutate: async (petId) => {
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const previous = queryClient.getQueryData(listKey);
+      if (previous) {
+        queryClient.setQueryData(listKey, (oldValue) => {
+          const current = shapePetsCache(oldValue);
+          return {
+            ...current,
+            pets: current.pets.filter((pet) => pet.recordId !== petId),
+            total: Math.max((current.total ?? current.pets.length) - 1, 0),
+          };
+        });
       }
-
-      const deleted = mockPets[index];
-      mockPets.splice(index, 1);
-      return deleted;
+      return { previous };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: petKeys.lists() });
-      toast.success('Pet deleted successfully!');
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to delete pet');
-    },
-  });
-};
-
-/**
- * Update pet status (quick status change)
- */
-export const useUpdatePetStatusMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ petId, status }) => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 300));
-
-      const index = mockPets.findIndex((p) => p.id === petId);
-
-      if (index === -1) {
-        throw new Error('Pet not found');
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(listKey, context.previous);
       }
-
-      mockPets[index] = {
-        ...mockPets[index],
-        status,
-        updatedAt: new Date().toISOString(),
-      };
-
-      return enrichPet(mockPets[index]);
+      toast.error(extractErrorMessage(error));
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: petKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: petKeys.detail(data.id) });
-      toast.success(`Pet status updated to "${data.status}"`);
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to update status');
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: listKey });
     },
   });
 };
@@ -427,162 +332,99 @@ export const useUpdatePetStatusMutation = () => {
 // VACCINATION MUTATIONS
 // ============================================================================
 
-/**
- * Create a new vaccination record
- */
-export const useCreateVaccinationMutation = () => {
+export const useCreateVaccinationMutation = (petId) => {
   const queryClient = useQueryClient();
-
+  const tenantId = useTenantId();
+  const vaccinationsKey = ['petVaccinations', { tenantId, petId }];
+  
   return useMutation({
-    mutationFn: async (data) => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 500));
-
-      const pet = mockPets.find((p) => p.id === data.petId);
-
-      const newVaccination = {
-        id: nextVaccinationId++,
-        ...data,
-        petName: pet?.name || 'Unknown',
-        status: calculateVaccinationStatus(data.expirationDate),
-        createdAt: new Date().toISOString(),
-      };
-
-      mockVaccinations.push(newVaccination);
-      return newVaccination;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: petKeys.vaccinations(data.petId) });
-      queryClient.invalidateQueries({ queryKey: petKeys.detail(data.petId) });
-      toast.success(`Vaccination "${data.vaccineName}" added successfully!`);
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to add vaccination');
-    },
-  });
-};
-
-/**
- * Update a vaccination record
- */
-export const useUpdateVaccinationMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ vaccinationId, data }) => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 400));
-
-      const index = mockVaccinations.findIndex((v) => v.id === vaccinationId);
-
-      if (index === -1) {
-        throw new Error('Vaccination not found');
-      }
-
-      mockVaccinations[index] = {
-        ...mockVaccinations[index],
-        ...data,
-        status: calculateVaccinationStatus(data.expirationDate || mockVaccinations[index].expirationDate),
-        updatedAt: new Date().toISOString(),
-      };
-
-      return mockVaccinations[index];
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: petKeys.vaccinations(data.petId) });
-      queryClient.invalidateQueries({ queryKey: petKeys.detail(data.petId) });
-      toast.success('Vaccination updated successfully!');
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to update vaccination');
-    },
-  });
-};
-
-/**
- * Delete a vaccination record
- */
-export const useDeleteVaccinationMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ vaccinationId, petId }) => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 400));
-
-      const index = mockVaccinations.findIndex((v) => v.id === vaccinationId);
-
-      if (index === -1) {
-        throw new Error('Vaccination not found');
-      }
-
-      const deleted = mockVaccinations[index];
-      mockVaccinations.splice(index, 1);
-      return { ...deleted, petId };
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: petKeys.vaccinations(data.petId) });
-      queryClient.invalidateQueries({ queryKey: petKeys.detail(data.petId) });
-      toast.success('Vaccination deleted successfully!');
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to delete vaccination');
-    },
-  });
-};
-
-// Helper to calculate vaccination status based on expiration date
-const calculateVaccinationStatus = (expirationDate) => {
-  const now = new Date();
-  const expiration = new Date(expirationDate);
-  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-  if (expiration < now) {
-    return 'expired';
-  } else if (expiration <= thirtyDaysFromNow) {
-    return 'expiring_soon';
-  }
-  return 'current';
-};
-
-// ============================================================================
-// INLINE UPDATE MUTATION (for DataTable inline editing)
-// ============================================================================
-
-export const useInlineUpdatePetMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ petId, field, value }) => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 300));
-
-      const index = mockPets.findIndex((p) => p.id === petId);
-
-      if (index === -1) {
-        throw new Error('Pet not found');
-      }
-
-      mockPets[index] = {
-        ...mockPets[index],
-        [field]: value,
-        updatedAt: new Date().toISOString(),
-      };
-
-      return enrichPet(mockPets[index]);
+    mutationFn: async (payload) => {
+      const res = await apiClient.post(canonicalEndpoints.pets.vaccinations(petId), payload);
+      return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: petKeys.lists() });
-      // Silent success for inline edits
+      queryClient.invalidateQueries({ queryKey: vaccinationsKey });
     },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to update');
+  });
+};
+
+export const useUpdateVaccinationMutation = (petId) => {
+  const queryClient = useQueryClient();
+  const tenantId = useTenantId();
+  const vaccinationsKey = ['petVaccinations', { tenantId, petId }];
+  
+  return useMutation({
+    mutationFn: async ({ vaccinationId, payload }) => {
+      const res = await apiClient.put(`${canonicalEndpoints.pets.vaccinations(petId)}/${vaccinationId}`, payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: vaccinationsKey });
+    },
+  });
+};
+
+export const useDeleteVaccinationMutation = (petId) => {
+  const queryClient = useQueryClient();
+  const tenantId = useTenantId();
+  const vaccinationsKey = ['petVaccinations', { tenantId, petId }];
+
+  return useMutation({
+    mutationFn: async (vaccinationId) => {
+      const res = await apiClient.delete(`${canonicalEndpoints.pets.vaccinations(petId)}/${vaccinationId}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: vaccinationsKey });
+      queryClient.invalidateQueries({ queryKey: ['vaccinations', 'expiring'] });
     },
   });
 };
 
 // ============================================================================
-// UTILITY EXPORTS
+// DIRECT API FUNCTIONS (non-hook, for use in effects/callbacks)
 // ============================================================================
 
-export { mockPets, mockVaccinations, getVaccinationsForPet, enrichPet };
+/**
+ * Fetch all pets - direct function for use outside of React components
+ */
+export const getPets = async (params = {}) => {
+  const res = await apiClient.get(canonicalEndpoints.pets.list, { params });
+  const data = res?.data;
+  // Handle various response shapes from entity-service
+  // Entity-service returns: { data: [...pets], pagination: {...} }
+  const pets = Array.isArray(data) ? data : (data?.data || data?.pets || data?.items || []);
+  return { data: pets };
+};
+
+/**
+ * Fetch a single pet by ID
+ */
+export const getPet = async (petId) => {
+  const res = await apiClient.get(canonicalEndpoints.pets.detail(petId));
+  return res?.data;
+};
+
+/**
+ * Create a new pet
+ */
+export const createPet = async (payload) => {
+  const res = await apiClient.post(canonicalEndpoints.pets.list, payload);
+  return res?.data;
+};
+
+/**
+ * Update a pet
+ */
+export const updatePet = async (petId, payload) => {
+  const res = await apiClient.put(canonicalEndpoints.pets.detail(petId), payload);
+  return res?.data;
+};
+
+/**
+ * Delete a pet
+ */
+export const deletePet = async (petId) => {
+  await apiClient.delete(canonicalEndpoints.pets.detail(petId));
+  return petId;
+};

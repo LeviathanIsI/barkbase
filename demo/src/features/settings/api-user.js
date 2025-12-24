@@ -1,47 +1,79 @@
-/**
- * Demo User Profile API
- * Provides mock user profile data for the demo.
- */
-
-import { useQuery } from '@tanstack/react-query';
-
-/**
- * Demo user profile for the logged-in user
- */
-const demoUserProfile = {
-  id: 'user-demo-001',
-  email: 'sarah@happypaws.com',
-  firstName: 'Sarah',
-  lastName: 'Henderson',
-  role: 'admin',
-  propertyName: 'Happy Paws Pet Resort',
-  businessName: 'Happy Paws Pet Resort',
-  phone: '(555) 234-5678',
-  avatar: null,
-  timezone: 'America/Los_Angeles',
-  notifications: {
-    email: true,
-    push: true,
-    sms: true,
-  },
-};
+import apiClient from '@/lib/apiClient';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
+import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
 
 /**
- * Fetch user profile (mock)
+ * Get current user profile
  */
-export const useUserProfileQuery = (options = {}) => {
+export const useUserProfileQuery = () => {
+  const tenantId = useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
+  const userId = useAuthStore((state) => state.user?.recordId ?? state.user?.id ?? state.user?.sub ?? 'unknown');
+
   return useQuery({
-    queryKey: ['demo', 'user', 'profile'],
+    queryKey: queryKeys.userProfile(userId, tenantId),
+    enabled: Boolean(userId),
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 100));
-      return demoUserProfile;
+      const response = await apiClient.get('/api/v1/users/profile');
+      return response.data;
     },
-    staleTime: Infinity, // Profile rarely changes
-    ...options,
   });
 };
 
 /**
- * Alias for compatibility
+ * Update user profile
  */
-export const useUserProfile = useUserProfileQuery;
+export const useUpdateUserProfileMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantId = useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
+  const userId = useAuthStore((state) => state.user?.recordId ?? state.user?.id ?? state.user?.sub ?? 'unknown');
+  const profileKey = queryKeys.userProfile(userId, tenantId);
+
+  return useMutation({
+    mutationFn: async (data) => {
+      const response = await apiClient.patch('/api/v1/users/profile', data);
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(profileKey, data);
+      queryClient.invalidateQueries({ queryKey: profileKey });
+    },
+  });
+};
+
+/**
+ * Update password
+ */
+export const useUpdatePasswordMutation = () => {
+  return useMutation({
+    mutationFn: async ({ currentPassword, newPassword }) => {
+      const response = await apiClient.post('/api/v1/users/password', {
+        currentPassword,
+        newPassword,
+      });
+      return response.data;
+    },
+  });
+};
+
+/**
+ * Update avatar
+ */
+export const useUpdateAvatarMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantId = useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
+  const userId = useAuthStore((state) => state.user?.recordId ?? state.user?.id ?? state.user?.sub ?? 'unknown');
+  const profileKey = queryKeys.userProfile(userId, tenantId);
+
+  return useMutation({
+    mutationFn: async (avatarUrl) => {
+      const response = await apiClient.patch('/api/v1/users/avatar', { avatarUrl });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(profileKey, data);
+      queryClient.invalidateQueries({ queryKey: profileKey });
+    },
+  });
+};

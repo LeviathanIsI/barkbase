@@ -8,17 +8,17 @@ export const formatCurrency = (amount, currency = 'USD') => {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
-
+  
   // Convert cents to dollars
   return formatter.format(amount / 100);
 };
 
 export const formatDate = (date, format = 'short') => {
   if (!date) return '';
-
+  
   const d = new Date(date);
   if (isNaN(d.getTime())) return '';
-
+  
   if (format === 'short') {
     return d.toLocaleDateString('en-US', {
       month: 'short',
@@ -26,7 +26,7 @@ export const formatDate = (date, format = 'short') => {
       year: 'numeric',
     });
   }
-
+  
   if (format === 'long') {
     return d.toLocaleDateString('en-US', {
       weekday: 'long',
@@ -35,16 +35,16 @@ export const formatDate = (date, format = 'short') => {
       year: 'numeric',
     });
   }
-
+  
   return d.toLocaleDateString();
 };
 
 export const formatTime = (date) => {
   if (!date) return '';
-
+  
   const d = new Date(date);
   if (isNaN(d.getTime())) return '';
-
+  
   return d.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',

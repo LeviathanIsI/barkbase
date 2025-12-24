@@ -6,14 +6,14 @@
 import React from 'react';
 import { cn } from '@/lib/cn';
 
-const PageActions = React.forwardRef(({
-  children,
+const PageActions = React.forwardRef(({ 
+  children, 
   actions,
-  className,
-  ...props
+  className, 
+  ...props 
 }, ref) => {
   const content = children || actions;
-
+  
   if (!content) return null;
 
   return (
@@ -34,3 +34,4 @@ PageActions.displayName = 'PageActions';
 
 export { PageActions };
 export default PageActions;
+

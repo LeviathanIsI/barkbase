@@ -1,16 +1,46 @@
 /**
- * Demo Tasks API
- * Provides mock data hooks for tasks management.
- * Replaces real API calls with static demo data.
+ * Tasks API Hooks
+ * 
+ * Uses the shared API hook factory for standardized query/mutation patterns.
+ * All hooks are tenant-aware and follow consistent error handling.
+ * 
+ * Task mutations also invalidate calendar and dashboard queries to keep
+ * all schedule-related views in sync.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import dashboardData from '@/data/dashboard.json';
+import apiClient from '@/lib/apiClient';
+import { queryKeys } from '@/lib/queryKeys';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
+import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
+import { normalizeListResponse } from '@/lib/createApiHooks';
+import { listQueryDefaults, detailQueryDefaults } from '@/lib/queryConfig';
 
 // ============================================================================
-// TASK STATUS ENUM
+// TENANT HELPERS
 // ============================================================================
 
+const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
+
+/**
+ * Check if tenant is ready for API calls
+ * Queries should be disabled until tenantId is available
+ */
+const useTenantReady = () => {
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  return isAuthenticated && Boolean(tenantId);
+};
+
+// ============================================================================
+// TASK STATUS ENUM (consistent with calendar events)
+// ============================================================================
+
+/**
+ * Canonical task status values
+ * Used by both tasks and calendar features
+ */
 export const TASK_STATUS = {
   PENDING: 'PENDING',
   IN_PROGRESS: 'IN_PROGRESS',
@@ -19,6 +49,9 @@ export const TASK_STATUS = {
   OVERDUE: 'OVERDUE',
 };
 
+/**
+ * Canonical task type values
+ */
 export const TASK_TYPE = {
   FEEDING: 'FEEDING',
   MEDICATION: 'MEDICATION',
@@ -32,211 +65,321 @@ export const TASK_TYPE = {
 };
 
 // ============================================================================
-// MOCK DATA HELPERS
+// TASK NORMALIZERS
 // ============================================================================
 
 /**
- * Get tasks from dashboard data and normalize them
+ * Normalize a single task record for consistent shape
+ * Ensures fields match what calendar events expect
+ *
+ * Backend response shape (from operations-service):
+ * {
+ *   id, tenantId, title, description, status, priority,
+ *   dueDate, completedAt, assignedTo, assigneeName,
+ *   bookingId, petId, petName, createdAt, updatedAt
+ * }
+ *
+ * @param {object} task - Raw task from API
+ * @returns {object} Normalized task
  */
-const getTasksFromDashboard = () => {
-  const tasks = dashboardData.today.tasks || [];
+const normalizeTask = (task) => {
+  if (!task) return null;
 
-  return tasks.map((task, index) => {
-    // Parse time from task
-    const [hours, minutes] = (task.time || '12:00').split(':').map(Number);
-    const scheduledDate = new Date();
-    scheduledDate.setHours(hours, minutes, 0, 0);
+  // Compute status based on completion and due date
+  let computedStatus = task.status?.toUpperCase() || TASK_STATUS.PENDING;
+  if (task.completedAt) {
+    computedStatus = TASK_STATUS.COMPLETED;
+  } else if (task.dueDate && new Date(task.dueDate) < new Date() && !task.completedAt) {
+    computedStatus = TASK_STATUS.OVERDUE;
+  }
 
-    const status = task.status?.toUpperCase() || TASK_STATUS.PENDING;
+  // Normalize type to uppercase
+  const taskType = task.type?.toUpperCase() || TASK_TYPE.OTHER;
 
-    return {
-      id: task.id || `task-${index}`,
-      title: task.title,
-      type: task.title.toLowerCase().includes('medication')
-        ? TASK_TYPE.MEDICATION
-        : task.title.toLowerCase().includes('groom')
-        ? TASK_TYPE.GROOMING
-        : task.title.toLowerCase().includes('check in')
-        ? TASK_TYPE.CHECK_IN
-        : task.title.toLowerCase().includes('checkout')
-        ? TASK_TYPE.CHECK_OUT
-        : task.title.toLowerCase().includes('photo')
-        ? TASK_TYPE.ADMIN
-        : TASK_TYPE.OTHER,
-      status,
-      scheduledFor: scheduledDate.toISOString(),
-      dueDate: scheduledDate.toISOString(),
-      petName: task.pet || null,
-      assigneeName: task.assignee || null,
-      completedAt: status === TASK_STATUS.COMPLETED ? new Date().toISOString() : null,
-      priority: 'MEDIUM',
-    };
-  });
+  // Get pet name from various sources
+  const petName = task.petName || task.pet?.name;
+
+  // Build title for calendar display using backend title or fallback
+  const title = task.title ||
+    (petName
+      ? `${taskType} - ${petName}`
+      : taskType);
+
+  return {
+    ...task,
+    // Canonical status
+    status: computedStatus,
+    // Normalized type
+    type: taskType,
+    // Normalized datetime fields (map dueDate to scheduledFor for frontend consistency)
+    scheduledFor: task.scheduledFor || task.dueDate || task.dueAt || task.scheduledAt || null,
+    dueDate: task.dueDate || task.scheduledFor || null,
+    completedAt: task.completedAt || null,
+    // Related entity links (for calendar/detail views)
+    petId: task.petId || task.pet?.recordId || null,
+    petName: petName || null,
+    ownerId: task.ownerId || task.owner?.recordId || null,
+    ownerName: task.ownerName || task.owner?.name ||
+      (task.owner ? `${task.owner.firstName || ''} ${task.owner.lastName || ''}`.trim() : null),
+    bookingId: task.bookingId || null,
+    // Assignee info from backend
+    assignedTo: task.assignedTo || null,
+    assigneeName: task.assigneeName || null,
+    // Computed title for calendar events
+    title,
+    // Priority normalization - backend uses integers (1=low, 2=medium, 3=high, 4=urgent)
+    priority: typeof task.priority === 'number'
+      ? ['LOW', 'LOW', 'MEDIUM', 'HIGH', 'URGENT'][task.priority] || 'MEDIUM'
+      : (typeof task.priority === 'string' ? task.priority.toUpperCase() : 'MEDIUM'),
+  };
+};
+
+/**
+ * Normalize tasks list response
+ * Handles various response shapes and normalizes each task
+ */
+const normalizeTasksResponse = (data) => {
+  const normalized = normalizeListResponse(data, 'tasks');
+  return normalized.items.map(normalizeTask);
 };
 
 // ============================================================================
-// QUERY HOOKS
+// INVALIDATION HELPERS
 // ============================================================================
 
 /**
- * Fetch all tasks
+ * Get all query keys that should be invalidated when tasks change
+ * @param {string} tenantKey - Current tenant key
+ * @returns {Array} Array of query key patterns to invalidate
+ */
+const getTaskInvalidationKeys = (tenantKey) => [
+  [tenantKey, 'tasks'], // All task queries
+  queryKeys.calendar(tenantKey, {}), // Calendar events
+  queryKeys.dashboard(tenantKey), // Dashboard stats/counts
+];
+
+// ============================================================================
+// LIST QUERIES
+// ============================================================================
+
+/**
+ * Fetch all tasks for the current tenant
+ * Supports filtering by date, status, type, petId, etc.
+ * 
+ * @param {object} filters - Query params
+ * @returns {UseQueryResult} React Query result with tasks array
  */
 export const useTasksQuery = (filters = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
   return useQuery({
-    queryKey: ['demo', 'tasks', filters],
+    queryKey: queryKeys.tasks(tenantKey, filters),
+    enabled: isTenantReady,
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 200));
-      return getTasksFromDashboard();
+      try {
+        const res = await apiClient.get(canonicalEndpoints.tasks.list, { params: filters });
+        return normalizeTasksResponse(res?.data);
+      } catch (e) {
+        console.warn('[tasks] Falling back to empty list due to API error:', e?.message || e);
+        return [];
+      }
     },
-    staleTime: 60 * 1000,
+    ...listQueryDefaults,
   });
 };
 
 /**
  * Fetch today's tasks
+ * Filters from full task list client-side for now
  */
 export const useTodaysTasksQuery = () => {
+  const tenantKey = useTenantKey();
+  
   return useQuery({
-    queryKey: ['demo', 'tasks', 'today'],
+    queryKey: queryKeys.tasks(tenantKey, { type: 'today' }),
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 200));
-      const tasks = getTasksFromDashboard();
-
-      // Filter for today's tasks
-      const today = new Date();
-      return tasks.filter((t) => {
-        if (!t.scheduledFor) return false;
-        const taskDate = new Date(t.scheduledFor);
-        return (
-          taskDate.getDate() === today.getDate() &&
-          taskDate.getMonth() === today.getMonth() &&
-          taskDate.getFullYear() === today.getFullYear()
-        );
-      });
+      try {
+        const res = await apiClient.get(canonicalEndpoints.tasks.list);
+        const tasks = normalizeTasksResponse(res?.data);
+        
+        // Filter for today
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = today.getMonth();
+        const dd = today.getDate();
+        
+        return tasks.filter((t) => {
+          if (!t.scheduledFor) return false;
+          const d = new Date(t.scheduledFor);
+          return d.getFullYear() === yyyy && d.getMonth() === mm && d.getDate() === dd;
+        });
+      } catch (e) {
+        console.warn('[todaysTasks] Falling back to empty list due to API error:', e?.message || e);
+        return [];
+      }
     },
-    staleTime: 60 * 1000,
+    ...listQueryDefaults,
+    staleTime: 60 * 1000, // 1 minute for today's tasks
   });
 };
 
 /**
  * Fetch overdue tasks
+ * Filters from full task list client-side for now
  */
 export const useOverdueTasksQuery = () => {
+  const tenantKey = useTenantKey();
+  
   return useQuery({
-    queryKey: ['demo', 'tasks', 'overdue'],
+    queryKey: queryKeys.tasks(tenantKey, { type: 'overdue' }),
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 200));
-      const tasks = getTasksFromDashboard();
-
-      const now = Date.now();
-      return tasks.filter(
-        (t) =>
-          t.scheduledFor &&
-          !t.completedAt &&
+      try {
+        const res = await apiClient.get(canonicalEndpoints.tasks.list);
+        const tasks = normalizeTasksResponse(res?.data);
+        
+        const now = Date.now();
+        return tasks.filter((t) => 
+          t.scheduledFor && 
+          !t.completedAt && 
           new Date(t.scheduledFor).getTime() < now
-      );
+        );
+      } catch (e) {
+        console.warn('[overdueTasks] Falling back to empty list due to API error:', e?.message || e);
+        return [];
+      }
     },
+    ...listQueryDefaults,
     staleTime: 60 * 1000,
   });
 };
 
+// ============================================================================
+// DETAIL QUERY
+// ============================================================================
+
 /**
  * Fetch a single task by ID
+ * 
+ * @param {string} taskId - Task record ID
+ * @param {object} options - React Query options
+ * @returns {UseQueryResult} React Query result with task object
  */
 export const useTaskQuery = (taskId, options = {}) => {
+  const tenantKey = useTenantKey();
+  
   return useQuery({
-    queryKey: ['demo', 'tasks', taskId],
+    queryKey: queryKeys.tasks(tenantKey, { id: taskId }),
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 100));
-      const tasks = getTasksFromDashboard();
-      return tasks.find((t) => t.id === taskId) || null;
+      try {
+        const res = await apiClient.get(canonicalEndpoints.tasks.detail(taskId));
+        return normalizeTask(res?.data);
+      } catch (e) {
+        console.warn('[task] Falling back to null due to API error:', e?.message || e);
+        return null;
+      }
     },
     enabled: !!taskId && (options.enabled !== false),
+    ...detailQueryDefaults,
     ...options,
   });
 };
 
 // ============================================================================
-// MUTATION HOOKS
+// MUTATIONS
 // ============================================================================
 
 /**
- * Complete a task (demo - just invalidates queries)
- */
-export const useCompleteTaskMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ taskId, notes }) => {
-      // Simulate API delay
-      await new Promise((r) => setTimeout(r, 500));
-
-      // In demo mode, we just return success
-      // The UI will handle optimistic updates
-      return { id: taskId, status: TASK_STATUS.COMPLETED, completedAt: new Date().toISOString() };
-    },
-    onSuccess: () => {
-      // Invalidate task queries to refetch
-      queryClient.invalidateQueries({ queryKey: ['demo', 'tasks'] });
-    },
-  });
-};
-
-/**
- * Create a new task (demo - just simulates success)
+ * Create a new task
+ * Invalidates tasks, calendar, and dashboard queries
  */
 export const useCreateTaskMutation = () => {
   const queryClient = useQueryClient();
-
+  const tenantKey = useTenantKey();
+  
   return useMutation({
     mutationFn: async (taskData) => {
-      await new Promise((r) => setTimeout(r, 500));
-      return {
-        id: `task-new-${Date.now()}`,
-        ...taskData,
-        status: TASK_STATUS.PENDING,
-        createdAt: new Date().toISOString(),
-      };
+      const res = await apiClient.post(canonicalEndpoints.tasks.list, taskData);
+      return normalizeTask(res.data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['demo', 'tasks'] });
+      getTaskInvalidationKeys(tenantKey).forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: key });
+      });
     },
   });
 };
 
 /**
- * Update a task (demo - just simulates success)
+ * Update an existing task
+ * 
+ * @param {string} taskId - Task to update
  */
 export const useUpdateTaskMutation = (taskId) => {
   const queryClient = useQueryClient();
-
+  const tenantKey = useTenantKey();
+  
   return useMutation({
     mutationFn: async (updates) => {
-      await new Promise((r) => setTimeout(r, 500));
-      return { id: taskId, ...updates };
+      const res = await apiClient.put(canonicalEndpoints.tasks.detail(taskId), updates);
+      return normalizeTask(res.data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['demo', 'tasks'] });
+      getTaskInvalidationKeys(tenantKey).forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: key });
+      });
     },
   });
 };
 
 /**
- * Delete a task (demo - just simulates success)
+ * Complete a task
+ * Sets completedAt and updates status
  */
-export const useDeleteTaskMutation = () => {
+export const useCompleteTaskMutation = () => {
   const queryClient = useQueryClient();
-
+  const tenantKey = useTenantKey();
+  
   return useMutation({
-    mutationFn: async (taskId) => {
-      await new Promise((r) => setTimeout(r, 300));
-      return taskId;
+    mutationFn: async ({ taskId, notes }) => {
+      const res = await apiClient.post(canonicalEndpoints.tasks.complete(taskId), { notes });
+      return normalizeTask(res.data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['demo', 'tasks'] });
+      getTaskInvalidationKeys(tenantKey).forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: key });
+      });
     },
   });
 };
 
-// Alias
+/**
+ * Delete a task
+ */
+export const useDeleteTaskMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  
+  return useMutation({
+    mutationFn: async (taskId) => {
+      await apiClient.delete(canonicalEndpoints.tasks.detail(taskId));
+      return taskId;
+    },
+    onSuccess: () => {
+      getTaskInvalidationKeys(tenantKey).forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: key });
+      });
+    },
+  });
+};
+
+// ============================================================================
+// CONVENIENCE ALIASES
+// ============================================================================
+
 export const useTaskDetailQuery = useTaskQuery;
+
+// TODO: Consider adding useTaskSearchQuery using createSearchQuery factory.
+// TODO: Add optimistic updates for common task actions (complete, snooze).
+// TODO: Review tasks/calendar event mapping once Today view is consolidated.
+// TODO: Add server-side filtering for today/overdue tasks when backend supports it.

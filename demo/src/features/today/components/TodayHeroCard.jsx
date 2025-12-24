@@ -1,11 +1,7 @@
-/**
- * TodayHeroCard Component
- * Main hero card for Today view with stats and actions.
- */
-
 import { AlertCircle, Clock, Home, Plus, RefreshCw, UserCheck, UserX } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import TodayCard from './TodayCard';
+import { UpdateChip } from '@/components/PageLoader';
 import { cn } from '@/lib/utils';
 
 const TodayHeroCard = ({
@@ -17,6 +13,7 @@ const TodayHeroCard = ({
   lastRefreshed,
   onNewBooking,
 }) => {
+
   const formatLastRefreshed = () => {
     if (!lastRefreshed) return null;
     const date = new Date(lastRefreshed);
@@ -37,10 +34,7 @@ const TodayHeroCard = ({
                 {formattedDate}
               </p>
               {isUpdating ? (
-                <div className="flex items-center gap-1.5 text-[0.75rem] text-[color:var(--bb-color-accent)]">
-                  <RefreshCw className="h-3 w-3 animate-spin" />
-                  <span>Updating...</span>
-                </div>
+                <UpdateChip />
               ) : lastRefreshed ? (
                 <div className="flex items-center gap-1.5 text-[0.75rem] text-[color:var(--bb-color-text-muted)]">
                   <Clock className="h-3 w-3" />

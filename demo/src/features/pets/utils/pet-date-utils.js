@@ -1,5 +1,5 @@
 /**
- * Pet Date Utilities - Demo Version
+ * Pet Date Utilities
  *
  * Shared helpers for converting between age and birthdate.
  * Used by Pets Directory (inline editing) and PetDetail.
@@ -87,27 +87,28 @@ export const getFormattedAgeFromPet = (pet) => {
  * Convert an age in years to a birthdate (ISO date string).
  * Uses today's date and subtracts the given years.
  * Sets month/day to January 1st for consistency.
- *
+ * 
  * @param {number} ageYears - Age in whole years
  * @returns {string} ISO date string (YYYY-MM-DD)
  * @throws {Error} If ageYears is not a valid non-negative number
  */
 export const getBirthdateFromAge = (ageYears) => {
   const numericAge = Number(ageYears);
-
+  
   if (Number.isNaN(numericAge) || numericAge < 0) {
     throw new Error('Invalid age value');
   }
-
+  
   const today = new Date();
   const birthYear = today.getFullYear() - Math.floor(numericAge);
-
+  
   // Use January 1st of the calculated birth year for consistency
   const birthdate = new Date(birthYear, 0, 1);
-
+  
   const yyyy = birthdate.getFullYear();
   const mm = String(birthdate.getMonth() + 1).padStart(2, '0');
   const dd = String(birthdate.getDate()).padStart(2, '0');
-
+  
   return `${yyyy}-${mm}-${dd}`;
 };
+

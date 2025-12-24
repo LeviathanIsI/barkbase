@@ -1,11 +1,5 @@
-/**
- * TodayDeparturesList Component
- * Shows today's departing pets with check-out functionality.
- */
-
 import { useState, useRef, useEffect } from 'react';
 import { AlertCircle, Heart, LogOut, UserX, Phone, Mail, MessageSquare, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
@@ -13,6 +7,7 @@ import TodayCard from './TodayCard';
 import TodaySection from './TodaySection';
 import { TodayListSkeleton } from './TodaySkeleton';
 import { useBookingCheckOutMutation } from '@/features/bookings/api';
+import PetQuickActionsDrawer from '@/features/owners/components/PetQuickActionsDrawer';
 import toast from 'react-hot-toast';
 
 const TodayDeparturesList = ({ departures, isLoading, hasError }) => {
@@ -20,7 +15,7 @@ const TodayDeparturesList = ({ departures, isLoading, hasError }) => {
   const [checkedOutIds, setCheckedOutIds] = useState(new Set());
 
   // Filter out checked-out bookings for display count
-  const pendingDepartures = departures.filter((b) => !checkedOutIds.has(b.id || b.recordId));
+  const pendingDepartures = departures.filter(b => !checkedOutIds.has(b.id || b.recordId));
 
   if (isLoading) {
     return (
@@ -42,7 +37,7 @@ const TodayDeparturesList = ({ departures, isLoading, hasError }) => {
           items={departures}
           hasError={hasError}
           checkedOutIds={checkedOutIds}
-          onCheckOutSuccess={(id) => setCheckedOutIds((prev) => new Set([...prev, id]))}
+          onCheckOutSuccess={(id) => setCheckedOutIds(prev => new Set([...prev, id]))}
         />
       </TodaySection>
     </TodayCard>
@@ -68,7 +63,7 @@ const ListBody = ({ items, hasError, checkedOutIds, onCheckOutSuccess }) => {
   }
 
   // Filter out already checked-out items
-  const pendingItems = items.filter((b) => !checkedOutIds.has(b.id || b.recordId));
+  const pendingItems = items.filter(b => !checkedOutIds.has(b.id || b.recordId));
 
   if (!pendingItems.length) {
     return (
@@ -82,7 +77,7 @@ const ListBody = ({ items, hasError, checkedOutIds, onCheckOutSuccess }) => {
           {items.length > 0 ? 'All checked out!' : 'No pets departing today'}
         </p>
         <p className="mt-1 text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)]">
-          {items.length > 0 ? 'Great job! All departures complete.' : "Everyone's staying cozy!"}
+          {items.length > 0 ? 'Great job! All departures complete.' : 'Everyone\'s staying cozy!'}
         </p>
       </div>
     );
@@ -102,10 +97,10 @@ const ListBody = ({ items, hasError, checkedOutIds, onCheckOutSuccess }) => {
 };
 
 const DepartureRow = ({ booking, onCheckOutSuccess }) => {
-  const navigate = useNavigate();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showOwnerPopover, setShowOwnerPopover] = useState(false);
   const [showCheckOutConfirm, setShowCheckOutConfirm] = useState(false);
+  const [selectedPetId, setSelectedPetId] = useState(null);
   const ownerRef = useRef(null);
   const checkOutMutation = useBookingCheckOutMutation();
 
@@ -114,18 +109,12 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
   const petId = booking.petId || booking.pet?.id || booking.pet?.recordId;
   const petName = booking.petName || booking.pet?.name;
   const petBreed = booking.pet?.breed || booking.petBreed || '';
-  const ownerName =
-    booking.ownerName ||
-    booking.owner?.name ||
-    (booking.owner?.firstName
-      ? `${booking.owner?.firstName || ''} ${booking.owner?.lastName || ''}`.trim()
-      : 'Owner');
+  const ownerName = booking.ownerName || booking.owner?.name || booking.owner?.firstName
+    ? `${booking.owner?.firstName || ''} ${booking.owner?.lastName || ''}`.trim()
+    : 'Owner';
   const ownerPhone = booking.ownerPhone || booking.owner?.phone;
   const ownerEmail = booking.ownerEmail || booking.owner?.email;
-  const serviceName =
-    typeof booking.service === 'object'
-      ? booking.service?.name
-      : booking.service || booking.serviceName;
+  const serviceName = typeof booking.service === 'object' ? booking.service?.name : (booking.service || booking.serviceName);
 
   // Close popover when clicking outside
   useEffect(() => {
@@ -169,13 +158,20 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
   const handlePetClick = (e) => {
     e.stopPropagation();
     if (petId) {
-      navigate(`/pets/${petId}`);
+      setSelectedPetId(petId);
     }
   };
 
   const handleOwnerClick = (e) => {
     e.stopPropagation();
-    setShowOwnerPopover((prev) => !prev);
+    setShowOwnerPopover(prev => !prev);
+  };
+
+  const handleVaxClick = (e) => {
+    e.stopPropagation();
+    if (petId) {
+      setSelectedPetId(petId);
+    }
   };
 
   return (
@@ -184,7 +180,11 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
         className="group flex items-center gap-[var(--bb-space-3,0.75rem)] rounded-xl p-[var(--bb-space-3,0.75rem)] transition-all hover:shadow-sm"
         style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
       >
-        <PetAvatar pet={booking.pet || { name: petName }} size="md" showStatus={false} />
+        <PetAvatar
+          pet={booking.pet || { name: petName }}
+          size="md"
+          showStatus={false}
+        />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
@@ -224,16 +224,21 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
 
           {(booking.service || booking.serviceName) && (
             <p className="mt-0.5 truncate text-[var(--bb-font-size-xs,0.75rem)] text-[color:var(--bb-color-text-subtle)]">
-              {serviceName}
+              {typeof booking.service === 'object' ? booking.service?.name : (booking.service || booking.serviceName)}
             </p>
           )}
         </div>
 
-        {/* Vaccination alert */}
+        {/* Vaccination alert - clickable */}
         {booking.hasExpiringVaccinations && (
-          <div className="p-1 rounded" title="Expiring vaccinations">
+          <button
+            type="button"
+            onClick={handleVaxClick}
+            className="p-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+            title="Click to view vaccination details"
+          >
             <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
-          </div>
+          </button>
         )}
 
         {/* Check-out button */}
@@ -268,6 +273,13 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
           onCancel={() => setShowCheckOutConfirm(false)}
         />
       )}
+
+      {/* Pet Quick Actions Drawer */}
+      <PetQuickActionsDrawer
+        petId={selectedPetId}
+        isOpen={!!selectedPetId}
+        onClose={() => setSelectedPetId(null)}
+      />
     </>
   );
 };
@@ -325,37 +337,39 @@ const CheckOutConfirmDialog = ({
             <div className="flex justify-between">
               <span className="text-[color:var(--bb-color-text-muted)]">Pet</span>
               <span className="font-medium text-[color:var(--bb-color-text-primary)]">
-                {petName}
-                {petBreed ? ` (${petBreed})` : ''}
+                {petName}{petBreed ? ` (${petBreed})` : ''}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-[color:var(--bb-color-text-muted)]">Owner</span>
-              <span className="font-medium text-[color:var(--bb-color-text-primary)]">
-                {ownerName}
-              </span>
+              <span className="font-medium text-[color:var(--bb-color-text-primary)]">{ownerName}</span>
             </div>
             {serviceName && (
               <div className="flex justify-between">
                 <span className="text-[color:var(--bb-color-text-muted)]">Service</span>
-                <span className="font-medium text-[color:var(--bb-color-text-primary)]">
-                  {serviceName}
-                </span>
+                <span className="font-medium text-[color:var(--bb-color-text-primary)]">{serviceName}</span>
               </div>
             )}
             <div className="flex justify-between">
               <span className="text-[color:var(--bb-color-text-muted)]">Departure</span>
-              <span className="font-medium text-[color:var(--bb-color-text-primary)]">
-                {departureTime}
-              </span>
+              <span className="font-medium text-[color:var(--bb-color-text-primary)]">{departureTime}</span>
             </div>
           </div>
 
           <div className="flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={onCancel} disabled={isLoading}>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={onCancel}
+              disabled={isLoading}
+            >
               Cancel
             </Button>
-            <Button className="flex-1" onClick={onConfirm} disabled={isLoading}>
+            <Button
+              className="flex-1"
+              onClick={onConfirm}
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -407,9 +421,7 @@ const OwnerContactPopover = ({ ownerName, phone, email, onClose }) => {
     >
       <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
         <p className="text-xs font-medium text-[color:var(--bb-color-text-muted)]">Contact</p>
-        <p className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] truncate">
-          {ownerName}
-        </p>
+        <p className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] truncate">{ownerName}</p>
       </div>
 
       <div className="py-1">

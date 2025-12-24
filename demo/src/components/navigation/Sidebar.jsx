@@ -1,9 +1,3 @@
-/**
- * Demo Sidebar Component
- * Simplified sidebar navigation for demo mode.
- * Always shows the demo tenant info.
- */
-
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
@@ -218,7 +212,7 @@ const SidebarSection = ({ onNavigate }) => {
       {/* Footer - version/help */}
       <div className="border-t border-[color:var(--bb-color-sidebar-border)] px-[var(--bb-space-4,1rem)] py-[var(--bb-space-3,0.75rem)]">
         <p className="text-[0.65rem] text-[color:var(--bb-color-sidebar-text-muted)] text-center">
-          BarkBase Demo v1.0
+          BarkBase v1.0
         </p>
       </div>
     </div>

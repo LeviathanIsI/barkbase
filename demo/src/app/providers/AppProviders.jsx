@@ -1,32 +1,63 @@
-/**
- * Demo App Providers
- * Simplified providers for demo mode.
- * No auth loaders, no realtime, no token refresh.
- */
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { TourProvider } from "@/contexts/TourContext";
+import { RealtimeClient } from "@/lib/realtime";
+import { useAuthStore } from "@/stores/auth";
+import { useTenantStore } from "@/stores/tenant";
+import { Suspense, useEffect, useState } from "react";
+import { Toaster } from "react-hot-toast";
+import AuthLoader from "./AuthLoader";
+import QueryProvider from "./QueryProvider";
+import TenantLoader from "./TenantLoader";
+import TokenRefresher from "./TokenRefresher";
+import { SlideoutProvider, SlideoutHost } from "@/components/slideout";
+import { realtimeUrl } from "@/config/env";
 
-import { ThemeProvider } from '@/contexts/ThemeContext';
-import { Suspense } from 'react';
-import { Toaster } from 'react-hot-toast';
-import QueryProvider from './QueryProvider';
-import PageLoader from '@/components/PageLoader';
+const RealtimeProvider = ({ children }) => {
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const userIdentifier = useAuthStore(
+    (s) =>
+      s.user?.recordId ??
+      s.user?.id ??
+      s.user?.sub ??
+      s.user?.userId ??
+      s.tenantId ??
+      null
+  );
+  const tenantRecordId = useTenantStore((s) => s.tenant?.recordId);
+  const tenantSlug = useTenantStore((s) => s.tenant?.slug);
+  const tenantIdentifier = tenantRecordId ?? tenantSlug ?? "default";
+  const [, setClient] = useState(null);
+  useEffect(() => {
+    if (!accessToken || !tenantIdentifier) return;
+    // Use centralized realtime URL config or disable if not configured
+    const url = realtimeUrl || "disabled";
+    const identity = userIdentifier ?? accessToken ?? "anonymous";
+    const c =
+      url === "disabled" ? null : new RealtimeClient(url, identity, tenantIdentifier);
+    if (c) {
+      c.connect();
+      setClient(c);
+      return () => c.disconnect();
+    }
+  }, [accessToken, tenantIdentifier, userIdentifier]);
+  return children;
+};
 
 const AppProviders = ({ children, fallback = null }) => (
   <ThemeProvider>
     <QueryProvider>
-      <Suspense fallback={fallback || <PageLoader />}>
-        {children}
-      </Suspense>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: 'var(--bb-color-bg-elevated)',
-            color: 'var(--bb-color-text-primary)',
-            border: '1px solid var(--bb-color-border-subtle)',
-          },
-        }}
-      />
+      <TourProvider>
+        <SlideoutProvider>
+          <RealtimeProvider>
+            <AuthLoader />
+            <TenantLoader />
+            <TokenRefresher />
+            <Suspense fallback={fallback}>{children}</Suspense>
+            <SlideoutHost />
+            <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+          </RealtimeProvider>
+        </SlideoutProvider>
+      </TourProvider>
     </QueryProvider>
   </ThemeProvider>
 );

@@ -6,12 +6,12 @@
 import React from 'react';
 import { cn } from '@/lib/cn';
 
-const PageTitle = React.forwardRef(({
-  children,
+const PageTitle = React.forwardRef(({ 
+  children, 
   title,
-  className,
+  className, 
   as: Component = 'h1',
-  ...props
+  ...props 
 }, ref) => (
   <Component
     ref={ref}
@@ -31,3 +31,4 @@ PageTitle.displayName = 'PageTitle';
 
 export { PageTitle };
 export default PageTitle;
+

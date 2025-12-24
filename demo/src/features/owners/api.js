@@ -1,132 +1,125 @@
 /**
- * Owners API - Demo Version
- * Uses mock data instead of real API calls.
+ * Owners API Hooks
+ * 
+ * Uses the shared API hook factory for standardized query/mutation patterns.
+ * All hooks are tenant-aware and follow consistent error handling.
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import ownersData from '@/data/owners.json';
-import petsData from '@/data/pets.json';
+import apiClient from '@/lib/apiClient';
+import { queryKeys } from '@/lib/queryKeys';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
+import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
+import { normalizeListResponse, extractErrorMessage } from '@/lib/createApiHooks';
+import { listQueryDefaults, detailQueryDefaults, searchQueryDefaults } from '@/lib/queryConfig';
 
 // ============================================================================
-// QUERY KEYS
+// TENANT HELPERS
 // ============================================================================
 
-export const ownerKeys = {
-  all: ['demo', 'owners'],
-  lists: () => [...ownerKeys.all, 'list'],
-  list: (filters) => [...ownerKeys.lists(), filters],
-  details: () => [...ownerKeys.all, 'detail'],
-  detail: (id) => [...ownerKeys.details(), id],
+const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
+
+/**
+ * Check if tenant is ready for API calls
+ * Queries should be disabled until tenantId is available
+ */
+const useTenantReady = () => {
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  return isAuthenticated && Boolean(tenantId);
 };
 
 // ============================================================================
-// MOCK DATA STORE (in-memory for mutations)
-// ============================================================================
-
-let mockOwners = [...ownersData];
-let nextOwnerId = mockOwners.length + 1;
-
-// Helper to get pets for an owner
-const getPetsForOwner = (ownerId) => {
-  return petsData.filter((pet) => pet.ownerId === ownerId);
-};
-
-// Helper to enrich owner with pets
-const enrichOwner = (owner) => {
-  if (!owner) return null;
-  const pets = getPetsForOwner(owner.id);
-  return {
-    ...owner,
-    recordId: owner.id,
-    name: `${owner.firstName} ${owner.lastName}`,
-    pets,
-    petCount: pets.length,
-  };
-};
-
-// ============================================================================
-// QUERIES
+// LIST QUERY
 // ============================================================================
 
 /**
- * Fetch all owners with optional filtering and pagination
+ * Fetch all owners for the current tenant
+ * Returns normalized array of owners
  */
-export const useOwnersQuery = (options = {}) => {
-  const { search = '', status = '', page = 1, limit = 25 } = options;
+export const useOwnersQuery = (params = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
 
   return useQuery({
-    queryKey: ownerKeys.list({ search, status, page, limit }),
+    queryKey: queryKeys.owners(tenantKey, params),
+    enabled: isTenantReady,
     queryFn: async () => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 300));
-
-      let filtered = [...mockOwners];
-
-      // Apply search filter
-      if (search) {
-        const searchLower = search.toLowerCase();
-        filtered = filtered.filter(
-          (owner) =>
-            owner.firstName?.toLowerCase().includes(searchLower) ||
-            owner.lastName?.toLowerCase().includes(searchLower) ||
-            owner.email?.toLowerCase().includes(searchLower) ||
-            owner.phone?.includes(search)
-        );
+      try {
+        const res = await apiClient.get(canonicalEndpoints.owners.list, { params });
+        // Normalize using factory helper, return just items for backwards compat
+        const normalized = normalizeListResponse(res?.data, 'owners');
+        return normalized.items;
+      } catch (e) {
+        console.warn('[owners] Falling back to empty list due to API error:', e?.message || e);
+        return [];
       }
-
-      // Apply status filter
-      if (status && status !== 'all') {
-        filtered = filtered.filter((owner) => owner.status === status);
-      }
-
-      // Enrich with pets
-      const enriched = filtered.map(enrichOwner);
-
-      // Pagination
-      const total = enriched.length;
-      const totalPages = Math.ceil(total / limit);
-      const start = (page - 1) * limit;
-      const end = start + limit;
-      const paginatedData = enriched.slice(start, end);
-
-      return {
-        data: paginatedData,
-        meta: {
-          total,
-          page,
-          limit,
-          totalPages,
-          hasMore: page < totalPages,
-        },
-      };
     },
-    staleTime: 30000,
+    ...listQueryDefaults,
   });
 };
+
+// ============================================================================
+// DETAIL QUERY
+// ============================================================================
 
 /**
  * Fetch a single owner by ID
  */
-export const useOwnerQuery = (ownerId, options = {}) => {
+export const useOwnerDetailsQuery = (ownerId, options = {}) => {
+  const tenantKey = useTenantKey();
+  const { enabled = Boolean(ownerId), ...queryOptions } = options;
+  
   return useQuery({
-    queryKey: ownerKeys.detail(ownerId),
+    queryKey: [...queryKeys.owners(tenantKey), ownerId],
     queryFn: async () => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 200));
-
-      const owner = mockOwners.find(
-        (o) => o.id === ownerId || o.id === parseInt(ownerId, 10)
-      );
-
-      if (!owner) {
-        throw new Error('Owner not found');
+      try {
+        const res = await apiClient.get(canonicalEndpoints.owners.detail(ownerId));
+        return res?.data ?? null;
+      } catch (e) {
+        console.warn('[owner] Falling back to null due to API error:', e?.message || e);
+        return null;
       }
-
-      return enrichOwner(owner);
     },
-    enabled: !!ownerId && options.enabled !== false,
-    staleTime: 30000,
+    enabled,
+    ...detailQueryDefaults,
+    ...queryOptions,
+  });
+};
+
+// Alias for convenience
+export const useOwnerQuery = (ownerId, options = {}) => useOwnerDetailsQuery(ownerId, options);
+
+// ============================================================================
+// SEARCH QUERY
+// ============================================================================
+
+/**
+ * Search owners for quick lookups (debounce-friendly)
+ */
+export const useOwnerSearchQuery = (searchTerm, options = {}) => {
+  const tenantKey = useTenantKey();
+  const { enabled = searchTerm?.length >= 2, ...queryOptions } = options;
+  
+  return useQuery({
+    queryKey: [...queryKeys.owners(tenantKey), 'search', searchTerm],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get(canonicalEndpoints.owners.list, { 
+          params: { search: searchTerm, limit: 10 } 
+        });
+        const normalized = normalizeListResponse(res?.data, 'owners');
+        return normalized.items;
+      } catch (e) {
+        console.warn('[owner-search] Error:', e?.message || e);
+        return [];
+      }
+    },
+    enabled,
+    ...searchQueryDefaults,
+    ...queryOptions,
   });
 };
 
@@ -139,30 +132,25 @@ export const useOwnerQuery = (ownerId, options = {}) => {
  */
 export const useCreateOwnerMutation = () => {
   const queryClient = useQueryClient();
-
+  const tenantKey = useTenantKey();
+  const listKey = queryKeys.owners(tenantKey, {});
+  
   return useMutation({
-    mutationFn: async (data) => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 500));
-
-      const newOwner = {
-        id: nextOwnerId++,
-        ...data,
-        status: 'active',
-        createdAt: new Date().toISOString(),
-        totalSpent: 0,
-        visitCount: 0,
-      };
-
-      mockOwners.push(newOwner);
-      return enrichOwner(newOwner);
+    mutationFn: async (payload) => {
+      const res = await apiClient.post(canonicalEndpoints.owners.list, payload);
+      return res.data;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ownerKeys.lists() });
-      toast.success(`Owner "${data.name}" created successfully!`);
+    onSuccess: (created) => {
+      if (created?.recordId) {
+        queryClient.setQueryData(listKey, (old = []) => [created, ...old]);
+      }
+      toast.success('Owner created successfully');
     },
     onError: (error) => {
-      toast.error(error.message || 'Failed to create owner');
+      toast.error(extractErrorMessage(error));
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: listKey });
     },
   });
 };
@@ -170,37 +158,80 @@ export const useCreateOwnerMutation = () => {
 /**
  * Update an existing owner
  */
-export const useUpdateOwnerMutation = () => {
+export const useUpdateOwnerMutation = (ownerId) => {
   const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  const listKey = queryKeys.owners(tenantKey, {});
 
   return useMutation({
-    mutationFn: async ({ ownerId, data }) => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 400));
-
-      const index = mockOwners.findIndex(
-        (o) => o.id === ownerId || o.id === parseInt(ownerId, 10)
-      );
-
-      if (index === -1) {
-        throw new Error('Owner not found');
+    mutationFn: async (payload) => {
+      const res = await apiClient.put(canonicalEndpoints.owners.detail(ownerId), payload);
+      return res.data;
+    },
+    onMutate: async (payload) => {
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const previous = queryClient.getQueryData(listKey);
+      if (previous) {
+        queryClient.setQueryData(listKey, (old = []) =>
+          old.map((owner) =>
+            owner.recordId === ownerId
+              ? { ...owner, ...payload }
+              : owner
+          )
+        );
       }
-
-      mockOwners[index] = {
-        ...mockOwners[index],
-        ...data,
-        updatedAt: new Date().toISOString(),
-      };
-
-      return enrichOwner(mockOwners[index]);
+      return { previous };
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ownerKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: ownerKeys.detail(data.id) });
-      toast.success('Owner updated successfully!');
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(listKey, context.previous);
+      }
+      toast.error(extractErrorMessage(error));
     },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to update owner');
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: listKey });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantKey), ownerId] });
+    },
+  });
+};
+
+/**
+ * Update owner status (inline mutation without pre-specifying ownerId)
+ * Takes { ownerId, ...payload } as the mutation argument
+ */
+export const useUpdateOwnerStatusMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  const listKey = queryKeys.owners(tenantKey, {});
+
+  return useMutation({
+    mutationFn: async ({ ownerId, ...payload }) => {
+      const res = await apiClient.put(canonicalEndpoints.owners.detail(ownerId), payload);
+      return res.data;
+    },
+    onMutate: async ({ ownerId, ...payload }) => {
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const previous = queryClient.getQueryData(listKey);
+      if (previous) {
+        queryClient.setQueryData(listKey, (old = []) =>
+          old.map((owner) =>
+            (owner.recordId === ownerId || owner.id === ownerId)
+              ? { ...owner, ...payload }
+              : owner
+          )
+        );
+      }
+      return { previous };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(listKey, context.previous);
+      }
+      toast.error(extractErrorMessage(error));
+    },
+    onSettled: (_, __, { ownerId }) => {
+      queryClient.invalidateQueries({ queryKey: listKey });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantKey), ownerId] });
     },
   });
 };
@@ -210,127 +241,97 @@ export const useUpdateOwnerMutation = () => {
  */
 export const useDeleteOwnerMutation = () => {
   const queryClient = useQueryClient();
-
+  const tenantKey = useTenantKey();
+  const listKey = queryKeys.owners(tenantKey, {});
+  
   return useMutation({
-    mutationFn: async ({ ownerId }) => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 400));
-
-      const index = mockOwners.findIndex(
-        (o) => o.id === ownerId || o.id === parseInt(ownerId, 10)
-      );
-
-      if (index === -1) {
-        throw new Error('Owner not found');
+    mutationFn: async (ownerId) => {
+      await apiClient.delete(canonicalEndpoints.owners.detail(ownerId));
+      return ownerId;
+    },
+    onMutate: async (ownerId) => {
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const previous = queryClient.getQueryData(listKey);
+      if (previous) {
+        queryClient.setQueryData(listKey, (old = []) => old.filter((owner) => owner.recordId !== ownerId));
       }
-
-      const deleted = mockOwners[index];
-      mockOwners.splice(index, 1);
-      return deleted;
+      return { previous };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ownerKeys.lists() });
-      toast.success('Owner deleted successfully!');
+      toast.success('Owner deleted successfully');
     },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to delete owner');
+    onError: (error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(listKey, context.previous);
+      }
+      toast.error(extractErrorMessage(error));
     },
-  });
-};
-
-/**
- * Add a pet to an owner (association)
- */
-export const useAddPetToOwnerMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ ownerId, petId }) => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 300));
-
-      // In demo mode, we just show success
-      // Real implementation would update the pet's ownerId
-      return { ownerId, petId };
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ownerKeys.detail(variables.ownerId) });
-      toast.success('Pet added to owner!');
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to add pet');
-    },
-  });
-};
-
-/**
- * Remove a pet from an owner (disassociation)
- */
-export const useRemovePetFromOwnerMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ ownerId, petId }) => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 300));
-
-      // In demo mode, we just show success
-      return { ownerId, petId };
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ownerKeys.detail(variables.ownerId) });
-      toast.success('Pet removed from owner!');
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to remove pet');
-    },
-  });
-};
-
-/**
- * Update owner status (activate, deactivate, flag, etc.)
- */
-export const useUpdateOwnerStatusMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ ownerIds, status, notes }) => {
-      // Simulate network delay
-      await new Promise((r) => setTimeout(r, 400));
-
-      // Update each owner's status in the mock store
-      ownerIds.forEach((ownerId) => {
-        const index = mockOwners.findIndex(
-          (o) => o.id === ownerId || o.id === parseInt(ownerId, 10)
-        );
-        if (index !== -1) {
-          mockOwners[index] = {
-            ...mockOwners[index],
-            status,
-            statusNotes: notes,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-      });
-
-      return { ownerIds, status };
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ownerKeys.lists() });
-      data.ownerIds.forEach((id) => {
-        queryClient.invalidateQueries({ queryKey: ownerKeys.detail(id) });
-      });
-      const statusLabel = data.status === 'ACTIVE' ? 'activated' : data.status === 'INACTIVE' ? 'deactivated' : 'updated';
-      toast.success(`Owner${data.ownerIds.length > 1 ? 's' : ''} ${statusLabel} successfully!`);
-    },
-    onError: (error) => {
-      toast.error(error.message || 'Failed to update owner status');
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: listKey });
     },
   });
 };
 
 // ============================================================================
-// UTILITY EXPORTS
+// PET RELATIONSHIP MUTATIONS
 // ============================================================================
 
-export { mockOwners, getPetsForOwner };
+/**
+ * Add pet to owner
+ */
+export const useAddPetToOwnerMutation = (ownerId) => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  
+  return useMutation({
+    mutationFn: async ({ petId, isPrimary = false }) => {
+      const res = await apiClient.post(canonicalEndpoints.owners.pets(ownerId), {
+        petId,
+        isPrimary
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success('Pet linked to owner');
+    },
+    onError: (error) => {
+      toast.error(extractErrorMessage(error));
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.owners(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantKey), ownerId] });
+    },
+  });
+};
+
+/**
+ * Remove pet from owner
+ */
+export const useRemovePetFromOwnerMutation = (ownerId) => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  
+  return useMutation({
+    mutationFn: async (petId) => {
+      await apiClient.delete(`${canonicalEndpoints.owners.pets(ownerId)}/${petId}`);
+      return petId;
+    },
+    onSuccess: () => {
+      toast.success('Pet removed from owner');
+    },
+    onError: (error) => {
+      toast.error(extractErrorMessage(error));
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.owners(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantKey), ownerId] });
+    },
+  });
+};
+
+// ============================================================================
+// CONVENIENCE ALIASES
+// ============================================================================
+
+export const useOwner = useOwnerQuery;
+export const useOwners = useOwnersQuery;

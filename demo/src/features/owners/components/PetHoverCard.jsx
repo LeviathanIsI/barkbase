@@ -1,174 +1,284 @@
-/**
- * PetHoverCard Component - Demo Version
- * Shows pets on hover with mock data.
- */
-
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { PawPrint, Eye, Loader2 } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import { PawPrint, Check, AlertTriangle, Loader2, ChevronRight } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import apiClient from '@/lib/apiClient';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
+import { queryKeys } from '@/lib/queryKeys';
 import Badge from '@/components/ui/Badge';
-import petsData from '@/data/pets.json';
+import { cn } from '@/lib/cn';
+import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
+import PetQuickActionsDrawer from './PetQuickActionsDrawer';
 
+// Timing constants
+const OPEN_DELAY = 150; // ms before showing popover
+const CLOSE_DELAY = 250; // ms before hiding popover (allows moving to popover)
+
+/**
+ * PetHoverCard - Shows pet details on hover for an owner
+ *
+ * @param {string} ownerId - Owner ID to fetch pets for
+ * @param {number} petCount - Number of pets (for display when not hovering)
+ * @param {React.ReactNode} children - Trigger element
+ */
 const PetHoverCard = ({ ownerId, petCount, children }) => {
-  const navigate = useNavigate();
-  const [isHovering, setIsHovering] = useState(false);
-  const [pets, setPets] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const hoverTimeoutRef = useRef(null);
-  const leaveTimeoutRef = useRef(null);
-  const cardRef = useRef(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [shouldFetch, setShouldFetch] = useState(false);
+  const [selectedPetId, setSelectedPetId] = useState(null);
+  const openTimeoutRef = useRef(null);
+  const closeTimeoutRef = useRef(null);
+  const containerRef = useRef(null);
+  const popoverRef = useRef(null);
 
-  // Fetch pets on hover
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
+
+  // Only fetch when hovering and owner has pets
+  const { data, isLoading } = useQuery({
+    queryKey: [...queryKeys.pets(tenantKey), { ownerId }],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.pets.list, {
+        params: { ownerId }
+      });
+      // Handle various response shapes
+      const items = res?.data?.data || res?.data?.pets || res?.data || [];
+      return Array.isArray(items) ? items : [];
+    },
+    enabled: shouldFetch && !!ownerId && !!tenantId && petCount > 0,
+    staleTime: 30 * 1000, // 30 seconds
+    gcTime: 60 * 1000, // 1 minute
+  });
+
+  const pets = data || [];
+
+  // Clear all timeouts
+  const clearTimeouts = () => {
+    if (openTimeoutRef.current) {
+      clearTimeout(openTimeoutRef.current);
+      openTimeoutRef.current = null;
+    }
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  };
+
+  // Open popover with delay
+  const startOpenTimer = () => {
+    clearTimeouts();
+    openTimeoutRef.current = setTimeout(() => {
+      setIsOpen(true);
+      setShouldFetch(true);
+    }, OPEN_DELAY);
+  };
+
+  // Close popover with delay
+  const startCloseTimer = () => {
+    clearTimeouts();
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsOpen(false);
+    }, CLOSE_DELAY);
+  };
+
+  // Cancel close (e.g., when moving from trigger to popover)
+  const cancelClose = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  };
+
+  // Handle mouse enter on trigger
+  const handleTriggerMouseEnter = () => {
+    if (petCount === 0) return;
+    cancelClose();
+    startOpenTimer();
+  };
+
+  // Handle mouse leave on trigger
+  const handleTriggerMouseLeave = () => {
+    startCloseTimer();
+  };
+
+  // Handle mouse enter on popover
+  const handlePopoverMouseEnter = () => {
+    cancelClose();
+  };
+
+  // Handle mouse leave on popover
+  const handlePopoverMouseLeave = () => {
+    startCloseTimer();
+  };
+
+  // Handle pet click
+  const handlePetClick = (petId) => {
+    setSelectedPetId(petId);
+    setIsOpen(false);
+  };
+
+  // Handle drawer close
+  const handleDrawerClose = () => {
+    setSelectedPetId(null);
+  };
+
+  // Cleanup on unmount
   useEffect(() => {
-    if (isHovering && petCount > 0 && !pets) {
-      setIsLoading(true);
-      // Simulate API delay then filter mock data
-      const timer = setTimeout(() => {
-        const ownerPets = petsData.filter(
-          (pet) => pet.ownerId === ownerId || pet.ownerId === parseInt(ownerId, 10)
-        );
-        setPets(ownerPets);
-        setIsLoading(false);
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-  }, [isHovering, petCount, pets, ownerId]);
+    return () => {
+      clearTimeouts();
+    };
+  }, []);
 
-  const handleMouseEnter = () => {
-    if (leaveTimeoutRef.current) {
-      clearTimeout(leaveTimeoutRef.current);
-    }
-    hoverTimeoutRef.current = setTimeout(() => {
-      setIsHovering(true);
-    }, 300);
-  };
-
-  const handleMouseLeave = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
-    }
-    leaveTimeoutRef.current = setTimeout(() => {
-      setIsHovering(false);
-    }, 200);
-  };
-
+  // Don't wrap if no pets
   if (petCount === 0) {
     return children;
   }
 
   return (
-    <div
-      className="relative inline-block"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      ref={cardRef}
-    >
-      {children}
-
-      {isHovering && (
-        <div
-          className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-64 rounded-lg border shadow-lg animate-in fade-in-0 zoom-in-95 duration-150"
-          style={{
-            backgroundColor: 'var(--bb-color-bg-surface)',
-            borderColor: 'var(--bb-color-border-subtle)',
-          }}
-          onMouseEnter={() => {
-            if (leaveTimeoutRef.current) {
-              clearTimeout(leaveTimeoutRef.current);
-            }
-          }}
-          onMouseLeave={handleMouseLeave}
-        >
-          <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-            <p className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] flex items-center gap-1.5">
-              <PawPrint className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-              Pets ({petCount})
-            </p>
-          </div>
-
-          <div className="max-h-60 overflow-y-auto">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-5 w-5 animate-spin text-[color:var(--bb-color-text-muted)]" />
-              </div>
-            ) : pets && pets.length > 0 ? (
-              <div className="py-1">
-                {pets.slice(0, 5).map((pet) => (
-                  <div
-                    key={pet.id}
-                    className="px-3 py-2 hover:bg-[var(--bb-color-bg-elevated)] transition-colors cursor-pointer"
-                    onClick={() => navigate(`/pets/${pet.id}`)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold"
-                        style={{
-                          backgroundColor: getSpeciesColor(pet.species),
-                          color: '#fff',
-                        }}
-                      >
-                        {pet.name?.[0]?.toUpperCase() || 'P'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[color:var(--bb-color-text-primary)] truncate">
-                          {pet.name}
-                        </p>
-                        <p className="text-xs text-[color:var(--bb-color-text-muted)]">
-                          {pet.breed || pet.species || 'Pet'}
-                        </p>
-                      </div>
-                      <Badge
-                        variant={pet.status === 'active' ? 'success' : 'neutral'}
-                        size="sm"
-                      >
-                        {pet.status || 'Active'}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-                {pets.length > 5 && (
-                  <p className="px-3 py-2 text-xs text-center text-[color:var(--bb-color-text-muted)]">
-                    +{pets.length - 5} more pets
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="py-4 text-center text-sm text-[color:var(--bb-color-text-muted)]">
-                No pets found
-              </div>
-            )}
-          </div>
-
-          <div className="px-3 py-2 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-            <Button
-              variant="link"
-              size="sm"
-              onClick={() => navigate(`/customers/${ownerId}?tab=pets`)}
-              className="w-full justify-center"
-            >
-              <Eye className="h-3.5 w-3.5 mr-1" />
-              View all pets
-            </Button>
-          </div>
+    <>
+      <div
+        ref={containerRef}
+        className="relative inline-block"
+        onMouseEnter={handleTriggerMouseEnter}
+        onMouseLeave={handleTriggerMouseLeave}
+      >
+        <div className="cursor-pointer">
+          {children}
         </div>
-      )}
-    </div>
+
+        {isOpen && (
+          <div
+            ref={popoverRef}
+            className={cn(
+              'absolute z-50 mt-2 left-0 min-w-[300px] max-w-[360px] rounded-lg shadow-xl',
+              'animate-in fade-in-0 zoom-in-95 duration-150'
+            )}
+            style={{
+              backgroundColor: 'var(--bb-color-bg-elevated)',
+              border: '1px solid var(--bb-color-border-subtle)',
+            }}
+            onMouseEnter={handlePopoverMouseEnter}
+            onMouseLeave={handlePopoverMouseLeave}
+          >
+            {/* Header */}
+            <div
+              className="px-3 py-2 border-b flex items-center gap-2"
+              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            >
+              <PawPrint className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+              <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">
+                {petCount} Pet{petCount !== 1 ? 's' : ''}
+              </span>
+              <span className="text-xs text-[color:var(--bb-color-text-muted)] ml-auto">
+                Click for details
+              </span>
+            </div>
+
+            {/* Content */}
+            <div className="max-h-[280px] overflow-y-auto">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-6 gap-2 text-[color:var(--bb-color-text-muted)]">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">Loading pets...</span>
+                </div>
+              ) : pets.length === 0 ? (
+                <div className="py-4 px-3 text-center text-sm text-[color:var(--bb-color-text-muted)]">
+                  No pets found
+                </div>
+              ) : (
+                <div className="py-1">
+                  {pets.map((pet) => (
+                    <PetRow
+                      key={pet.id || pet.recordId}
+                      pet={pet}
+                      onClick={() => handlePetClick(pet.id || pet.recordId)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Pet Quick Actions Drawer */}
+      <PetQuickActionsDrawer
+        petId={selectedPetId}
+        isOpen={!!selectedPetId}
+        onClose={handleDrawerClose}
+      />
+    </>
   );
 };
 
-// Helper to get species-based avatar color
-const getSpeciesColor = (species) => {
-  const colors = {
-    dog: '#10B981', // emerald
-    cat: '#8B5CF6', // violet
-    bird: '#F59E0B', // amber
-    rabbit: '#EC4899', // pink
-    hamster: '#6366F1', // indigo
-    fish: '#06B6D4', // cyan
-    reptile: '#84CC16', // lime
-  };
-  return colors[species?.toLowerCase()] || '#64748B'; // slate default
+/**
+ * Individual pet row in the hover card
+ */
+const PetRow = ({ pet, onClick }) => {
+  const speciesBreed = [
+    pet.species?.toUpperCase(),
+    pet.breed
+  ].filter(Boolean).join(' - ') || 'Unknown';
+
+  const isActive = pet.status === 'active' || pet.status === 'ACTIVE' || pet.is_active !== false;
+
+  // Vaccination status - check for expiring/missing vaccinations
+  const hasVaccinationIssue = pet.vaccinationStatus === 'expiring' ||
+    pet.vaccinationStatus === 'missing' ||
+    pet.hasExpiringVaccinations === true;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'w-full px-3 py-2.5 flex items-center gap-3 text-left',
+        'hover:bg-[var(--bb-color-bg-surface)] transition-colors',
+        'focus:outline-none focus:bg-[var(--bb-color-bg-surface)]'
+      )}
+    >
+      {/* Pet Avatar */}
+      <div
+        className="flex h-9 w-9 items-center justify-center rounded-full flex-shrink-0 text-sm font-semibold"
+        style={{
+          backgroundColor: 'var(--bb-color-bg-surface)',
+          color: 'var(--bb-color-text-muted)',
+        }}
+      >
+        {pet.name?.[0]?.toUpperCase() || <PawPrint className="h-4 w-4" />}
+      </div>
+
+      {/* Pet Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] truncate">
+            {pet.name || 'Unnamed'}
+          </span>
+          {/* Status Badge */}
+          <Badge
+            variant={isActive ? 'success' : 'neutral'}
+            className="text-[0.65rem] px-1.5 py-0"
+          >
+            {isActive ? 'Active' : 'Inactive'}
+          </Badge>
+        </div>
+        <div className="text-xs text-[color:var(--bb-color-text-muted)] truncate">
+          {speciesBreed}
+        </div>
+      </div>
+
+      {/* Vaccination Status Icon */}
+      <div className="flex-shrink-0" title={hasVaccinationIssue ? 'Vaccinations need attention' : 'Vaccinations up to date'}>
+        {hasVaccinationIssue ? (
+          <AlertTriangle className="h-4 w-4 text-amber-500" />
+        ) : (
+          <Check className="h-4 w-4 text-emerald-500" />
+        )}
+      </div>
+
+      {/* Chevron indicator */}
+      <ChevronRight className="h-4 w-4 text-[color:var(--bb-color-text-muted)] flex-shrink-0" />
+    </button>
+  );
 };
 
 export default PetHoverCard;

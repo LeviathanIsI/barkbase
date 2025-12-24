@@ -1,10 +1,10 @@
-/**
- * Theme Context
- * Manages dark/light mode theme switching.
- * Uses localStorage to persist user preference.
- */
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
+
+/**
+ * ThemeContext - Manages dark/light mode theme switching
+ * Uses localStorage to persist user preference
+ * Applies .dark class to document element for CSS-based theming
+ */
 
 const ThemeContext = createContext({
   theme: 'dark',
@@ -23,12 +23,8 @@ export const useTheme = () => {
 export const ThemeProvider = ({ children }) => {
   // Initialize theme from localStorage or default to 'dark'
   const [theme, setThemeState] = useState(() => {
-    try {
-      const savedTheme = localStorage.getItem('barkbase-demo-theme');
-      return savedTheme || 'dark';
-    } catch {
-      return 'dark';
-    }
+    const savedTheme = localStorage.getItem('barkbase-theme');
+    return savedTheme || 'dark';
   });
 
   // Apply theme class to document element
@@ -42,16 +38,14 @@ export const ThemeProvider = ({ children }) => {
     root.classList.add(theme);
 
     // Save to localStorage
-    try {
-      localStorage.setItem('barkbase-demo-theme', theme);
-    } catch {
-      // Ignore storage errors
-    }
+    localStorage.setItem('barkbase-theme', theme);
   }, [theme]);
 
   const setTheme = (newTheme) => {
     if (newTheme === 'light' || newTheme === 'dark') {
       setThemeState(newTheme);
+    } else {
+      console.warn(`Invalid theme: ${newTheme}. Use 'light' or 'dark'`);
     }
   };
 

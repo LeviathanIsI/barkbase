@@ -1,8 +1,3 @@
-/**
- * TodaySection Component
- * Section header with icon, title, badge, and content.
- */
-
 import { cn } from '@/lib/cn';
 
 const TodaySection = ({
@@ -23,7 +18,7 @@ const TodaySection = ({
         <div
           className={cn(
             'flex items-center justify-between gap-[var(--bb-space-3,0.75rem)]',
-            headerClassName
+            headerClassName,
           )}
         >
           <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
@@ -35,7 +30,7 @@ const TodaySection = ({
             <h2
               className={cn(
                 'text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)]',
-                titleClassName
+                titleClassName,
               )}
             >
               {title}
@@ -60,3 +55,4 @@ const TodaySection = ({
 };
 
 export default TodaySection;
+

@@ -1,22 +1,83 @@
 /**
- * OwnerFormModal Component - Demo Version
- * SlideoutPanel form for creating/editing owners with mock data.
+ * Owner Form Modal - Phase 9 Enterprise Form System
+ * Token-based styling for consistent theming.
  */
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
-import { User, Mail, Phone, MapPin, X } from 'lucide-react';
-import SlideoutPanel from '@/components/ui/SlideoutPanel';
+import Select from 'react-select';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
+import SlideoutPanel from '@/components/SlideoutPanel';
+import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
+import { usePetsQuery } from '@/features/pets/api';
 
-const OwnerFormModal = ({ open, onClose, onSubmit, owner = null, isLoading = false }) => {
-  const isEditMode = !!owner;
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: state.isFocused ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    minHeight: '40px',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
+    '&:hover': { borderColor: 'var(--bb-color-border-subtle)' },
+  }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    border: '1px solid var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    zIndex: 9999,
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menuList: (base) => ({ ...base, padding: '4px' }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected ? 'var(--bb-color-accent)' : state.isFocused ? 'var(--bb-color-bg-muted)' : 'transparent',
+    color: state.isSelected ? 'white' : 'var(--bb-color-text-primary)',
+    cursor: 'pointer',
+    borderRadius: '0.375rem',
+    padding: '8px 12px',
+  }),
+  singleValue: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  input: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  multiValue: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-accent)',
+    borderRadius: '0.375rem',
+  }),
+  multiValueLabel: (base) => ({
+    ...base,
+    color: 'white',
+    padding: '2px 6px',
+  }),
+  multiValueRemove: (base) => ({
+    ...base,
+    color: 'white',
+    ':hover': {
+      backgroundColor: 'var(--bb-color-accent-dark, #2563eb)',
+      color: 'white',
+    },
+  }),
+};
 
+const OwnerFormModal = ({
+  open,
+  onClose,
+  onSubmit,
+  owner = null,
+  isLoading = false,
+}) => {
+  const isEdit = !!owner;
   const {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isDirty },
   } = useForm({
     defaultValues: {
@@ -24,203 +85,358 @@ const OwnerFormModal = ({ open, onClose, onSubmit, owner = null, isLoading = fal
       lastName: '',
       email: '',
       phone: '',
-      address: '',
-      city: '',
-      state: '',
-      zip: '',
-      notes: '',
+      address: {
+        street: '',
+        city: '',
+        state: '',
+        zip: '',
+        country: 'US',
+      },
     },
   });
 
-  // Reset form when owner changes
+  // Pet selection state
+  const [selectedPets, setSelectedPets] = useState([]);
+
+  // Fetch pets for the dropdown
+  const { data: petsData } = usePetsQuery();
+  const petOptions = useMemo(() => {
+    const pets = petsData?.pets || petsData?.items || [];
+    return pets.map(pet => ({
+      value: pet.recordId || pet.record_id || pet.id,
+      label: `${pet.name || 'Unnamed'}${pet.species ? ` (${pet.species})` : ''}`,
+    }));
+  }, [petsData]);
+
+  // Reset form when owner changes or modal opens
   useEffect(() => {
-    if (open) {
-      if (owner) {
-        reset({
-          firstName: owner.firstName || '',
-          lastName: owner.lastName || '',
-          email: owner.email || '',
-          phone: owner.phone || '',
-          address: owner.address || '',
-          city: owner.city || '',
-          state: owner.state || '',
-          zip: owner.zip || '',
-          notes: owner.notes || '',
-        });
-      } else {
-        reset({
-          firstName: '',
-          lastName: '',
-          email: '',
-          phone: '',
-          address: '',
+    if (owner) {
+      reset({
+        firstName: owner.firstName || '',
+        lastName: owner.lastName || '',
+        email: owner.email || '',
+        phone: owner.phone || '',
+        address: owner.address || {
+          street: '',
           city: '',
           state: '',
           zip: '',
-          notes: '',
-        });
+          country: 'US',
+        },
+      });
+      // Set selected pets when editing an owner
+      if (owner.pets && Array.isArray(owner.pets)) {
+        const petSelections = owner.pets.map(pet => ({
+          value: pet.recordId || pet.record_id || pet.id,
+          label: `${pet.name || 'Unnamed'}${pet.species ? ` (${pet.species})` : ''}`,
+        }));
+        setSelectedPets(petSelections);
+      } else {
+        setSelectedPets([]);
       }
+    } else if (open) {
+      reset({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        address: {
+          street: '',
+          city: '',
+          state: '',
+          zip: '',
+          country: 'US',
+        },
+      });
+      setSelectedPets([]);
     }
-  }, [open, owner, reset]);
+  }, [owner, open, reset]);
 
   const handleFormSubmit = async (data) => {
-    await onSubmit(data);
+    // Include selected pet IDs in the submission
+    const petIds = selectedPets.map(p => p.value);
+    await onSubmit({ ...data, petIds });
   };
+
+  // Common input styles
+  const inputStyles = {
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: 'var(--bb-color-border-subtle)',
+    color: 'var(--bb-color-text-primary)',
+  };
+
+  const inputClass = cn(
+    'w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)]',
+    'text-[var(--bb-font-size-sm,0.875rem)]',
+    'focus:outline-none focus:ring-1',
+    'transition-colors'
+  );
 
   return (
     <SlideoutPanel
-      open={open}
+      isOpen={open}
       onClose={onClose}
-      title={isEditMode ? 'Edit Owner' : 'Add New Owner'}
-      subtitle={isEditMode ? `Update ${owner?.firstName}'s information` : 'Enter the owner details below'}
+      title={isEdit ? 'Edit Owner' : 'Create New Owner'}
+      widthClass="max-w-2xl"
     >
-      <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col h-full">
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Personal Information */}
-          <div>
-            <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] mb-4 flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Personal Information
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                label="First Name"
-                error={errors.firstName?.message}
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-[var(--bb-space-6,1.5rem)]">
+        {/* Name Fields */}
+        <FormSection title="Personal Information">
+          <FormGrid cols={2}>
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                First Name <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+              </label>
+              <input
+                type="text"
                 {...register('firstName', { required: 'First name is required' })}
+                className={inputClass}
+                style={{
+                  ...inputStyles,
+                  borderColor: errors.firstName ? 'var(--bb-color-status-negative)' : 'var(--bb-color-border-subtle)',
+                }}
                 placeholder="John"
               />
-              <FormField
-                label="Last Name"
-                error={errors.lastName?.message}
+              {errors.firstName && (
+                <p
+                  className="text-[var(--bb-font-size-xs,0.75rem)]"
+                  style={{ color: 'var(--bb-color-status-negative)' }}
+                >
+                  {errors.firstName.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Last Name <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+              </label>
+              <input
+                type="text"
                 {...register('lastName', { required: 'Last name is required' })}
+                className={inputClass}
+                style={{
+                  ...inputStyles,
+                  borderColor: errors.lastName ? 'var(--bb-color-status-negative)' : 'var(--bb-color-border-subtle)',
+                }}
                 placeholder="Doe"
               />
+              {errors.lastName && (
+                <p
+                  className="text-[var(--bb-font-size-xs,0.75rem)]"
+                  style={{ color: 'var(--bb-color-status-negative)' }}
+                >
+                  {errors.lastName.message}
+                </p>
+              )}
             </div>
-          </div>
+          </FormGrid>
+        </FormSection>
 
-          {/* Contact Information */}
-          <div>
-            <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] mb-4 flex items-center gap-2">
-              <Mail className="h-4 w-4" />
-              Contact Information
-            </h3>
-            <div className="space-y-4">
-              <FormField
-                label="Email"
+        {/* Contact Fields */}
+        <FormSection title="Contact Information">
+          <FormGrid cols={2}>
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Email
+              </label>
+              <input
                 type="email"
-                error={errors.email?.message}
                 {...register('email', {
                   pattern: {
                     value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
                     message: 'Invalid email address',
                   },
                 })}
-                placeholder="john@example.com"
+                className={inputClass}
+                style={{
+                  ...inputStyles,
+                  borderColor: errors.email ? 'var(--bb-color-status-negative)' : 'var(--bb-color-border-subtle)',
+                }}
+                placeholder="john.doe@example.com"
               />
-              <FormField
-                label="Phone"
+              {errors.email && (
+                <p
+                  className="text-[var(--bb-font-size-xs,0.75rem)]"
+                  style={{ color: 'var(--bb-color-status-negative)' }}
+                >
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Phone
+              </label>
+              <input
                 type="tel"
-                error={errors.phone?.message}
                 {...register('phone')}
+                className={inputClass}
+                style={inputStyles}
                 placeholder="(555) 123-4567"
               />
             </div>
+          </FormGrid>
+        </FormSection>
+
+        {/* Address Section */}
+        <FormSection title="Address">
+          <div className="space-y-[var(--bb-space-2,0.5rem)]">
+            <label
+              className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              Street Address
+            </label>
+            <input
+              type="text"
+              {...register('address.street')}
+              className={inputClass}
+              style={inputStyles}
+              placeholder="123 Main St"
+            />
           </div>
 
-          {/* Address */}
-          <div>
-            <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] mb-4 flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              Address
-            </h3>
-            <div className="space-y-4">
-              <FormField
-                label="Street Address"
-                error={errors.address?.message}
-                {...register('address')}
-                placeholder="123 Main St"
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[var(--bb-space-4,1rem)]">
+            <div className="lg:col-span-2 space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                City
+              </label>
+              <input
+                type="text"
+                {...register('address.city')}
+                className={inputClass}
+                style={inputStyles}
+                placeholder="New York"
               />
-              <div className="grid grid-cols-3 gap-4">
-                <FormField
-                  label="City"
-                  error={errors.city?.message}
-                  {...register('city')}
-                  placeholder="New York"
-                />
-                <FormField
-                  label="State"
-                  error={errors.state?.message}
-                  {...register('state')}
-                  placeholder="NY"
-                />
-                <FormField
-                  label="ZIP"
-                  error={errors.zip?.message}
-                  {...register('zip')}
-                  placeholder="10001"
-                />
-              </div>
+            </div>
+
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                State
+              </label>
+              <input
+                type="text"
+                {...register('address.state')}
+                className={inputClass}
+                style={inputStyles}
+                placeholder="NY"
+                maxLength={2}
+              />
             </div>
           </div>
 
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-[color:var(--bb-color-text-primary)] mb-1.5">
-              Notes
+          <FormGrid cols={2}>
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                ZIP Code
+              </label>
+              <input
+                type="text"
+                {...register('address.zip')}
+                className={inputClass}
+                style={inputStyles}
+                placeholder="10001"
+              />
+            </div>
+
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Country
+              </label>
+              <Select
+                options={[
+                  { value: 'US', label: 'United States' },
+                  { value: 'CA', label: 'Canada' },
+                  { value: 'MX', label: 'Mexico' },
+                  { value: 'GB', label: 'United Kingdom' },
+                ]}
+                value={[{ value: 'US', label: 'United States' }, { value: 'CA', label: 'Canada' }, { value: 'MX', label: 'Mexico' }, { value: 'GB', label: 'United Kingdom' }].find(o => o.value === watch('address.country')) || null}
+                onChange={(opt) => setValue('address.country', opt?.value || 'US', { shouldDirty: true })}
+                placeholder="Select country"
+                isClearable={false}
+                isSearchable
+                styles={selectStyles}
+                menuPortalTarget={document.body}
+              />
+            </div>
+          </FormGrid>
+        </FormSection>
+
+        {/* Pet Association */}
+        <FormSection title="Pet Association">
+          <div className="space-y-[var(--bb-space-2,0.5rem)]">
+            <label
+              className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              Associate Pets
             </label>
-            <textarea
-              {...register('notes')}
-              rows={3}
-              placeholder="Any additional notes about this owner..."
-              className="w-full px-3 py-2 rounded-lg border text-sm resize-none"
-              style={{
-                backgroundColor: 'var(--bb-color-bg-body)',
-                borderColor: 'var(--bb-color-border-subtle)',
-                color: 'var(--bb-color-text-primary)',
-              }}
+            <p
+              className="text-[var(--bb-font-size-xs,0.75rem)] mb-[var(--bb-space-2,0.5rem)]"
+              style={{ color: 'var(--bb-color-text-muted)' }}
+            >
+              Select pets to associate with this owner
+            </p>
+            <Select
+              isMulti
+              options={petOptions}
+              value={selectedPets}
+              onChange={(selected) => setSelectedPets(selected || [])}
+              placeholder="Search and select pets..."
+              isClearable
+              isSearchable
+              styles={selectStyles}
+              menuPortalTarget={document.body}
+              noOptionsMessage={() => 'No pets found'}
             />
           </div>
-        </div>
+        </FormSection>
 
-        {/* Footer */}
-        <div
-          className="flex-shrink-0 flex items-center justify-end gap-3 p-4 border-t"
-          style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-        >
-          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+        {/* Actions */}
+        <FormActions>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+            disabled={isLoading}
+          >
             Cancel
           </Button>
-          <Button type="submit" disabled={isLoading || (!isDirty && isEditMode)}>
-            {isLoading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Add Owner'}
+          <Button
+            type="submit"
+            disabled={isLoading || (!isDirty && isEdit)}
+          >
+            {isLoading ? (isEdit ? 'Updating...' : 'Creating...') : (isEdit ? 'Update Owner' : 'Create Owner')}
           </Button>
-        </div>
+        </FormActions>
       </form>
     </SlideoutPanel>
-  );
-};
-
-// Form Field Component
-const FormField = ({ label, error, type = 'text', ...props }) => {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-[color:var(--bb-color-text-primary)] mb-1.5">
-        {label}
-      </label>
-      <input
-        type={type}
-        className={cn(
-          'w-full px-3 py-2 rounded-lg border text-sm transition-colors',
-          error && 'border-red-500 focus:ring-red-500'
-        )}
-        style={{
-          backgroundColor: 'var(--bb-color-bg-body)',
-          borderColor: error ? undefined : 'var(--bb-color-border-subtle)',
-          color: 'var(--bb-color-text-primary)',
-        }}
-        {...props}
-      />
-      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-    </div>
   );
 };
 

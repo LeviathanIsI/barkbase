@@ -1,9 +1,5 @@
-/**
- * Jumbo Sidebar Component (for alternate layout)
- * Demo version - simplified without real auth dependencies.
- */
-
 import { cn } from "@/lib/cn";
+import { useAuthStore } from "@/stores/auth";
 import { useTenantStore } from "@/stores/tenant";
 import { useUIStore } from "@/stores/ui";
 import {
@@ -40,9 +36,10 @@ const iconMap = {
   "/staff": Users,
   "/settings": SettingsIcon,
 };
-
 const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
   const tenant = useTenantStore((state) => state.tenant);
+  const user = useAuthStore((state) => state.user);
+  const role = useAuthStore((state) => state.role);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const location = useLocation();
 
@@ -125,9 +122,18 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
         )}
       >
         {collapsed && !isMobile ? (
+          // Collapsed state - just show logo/icon
           <div className="flex flex-col items-center gap-2">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-600/20 text-primary-600 dark:text-primary-400">
-              <span className="text-lg font-semibold">BB</span>
+              {tenant?.assets?.logo ? (
+                <img
+                  src={tenant.assets.logo}
+                  alt={`${tenant.name} logo`}
+                  className="h-10 w-10 rounded-lg object-cover"
+                />
+              ) : (
+                <span className="text-lg font-semibold">BB</span>
+              )}
             </div>
             <button
               onClick={toggleSidebar}
@@ -139,17 +145,26 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
             </button>
           </div>
         ) : (
+          // Expanded state - show logo, name, and collapse button
           <>
             <div className="flex items-center gap-3 min-w-0">
               <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary-600/20 text-primary-600 dark:text-primary-400">
-                <span className="text-lg font-semibold">BB</span>
+                {tenant?.assets?.logo ? (
+                  <img
+                    src={tenant.assets.logo}
+                    alt={`${tenant.name} logo`}
+                    className="h-10 w-10 rounded-lg object-cover"
+                  />
+                ) : (
+                  <span className="text-lg font-semibold">BB</span>
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-white truncate">
-                  {tenant?.name ?? "BarkBase Demo"}
+                  {tenant?.name ?? "BarkBase"}
                 </p>
                 <span className="text-xs text-white/70">
-                  {tenant?.plan ?? "DEMO"}
+                  {tenant?.plan ?? "FREE"}
                 </span>
               </div>
             </div>
@@ -239,8 +254,14 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
       {/* Footer */}
       <div className="border-t border-white/10 px-6 py-4">
         <p className="text-xs text-white/60">
-          BarkBase Demo v1.0
+          Version{" "}
+          {typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "0.0.0"}
         </p>
+        {tenant?.customDomain && (
+          <p className="text-xs text-white/60 truncate">
+            Domain: {tenant.customDomain}
+          </p>
+        )}
       </div>
     </aside>
   );

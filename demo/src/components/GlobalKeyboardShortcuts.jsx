@@ -1,12 +1,18 @@
-/**
- * Demo GlobalKeyboardShortcuts Component
- * Simplified version for demo - handles basic navigation shortcuts.
- * Removed slideout dependency for demo simplicity.
- */
-
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { format, addDays, subDays } from 'date-fns';
+import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout/SlideoutProvider';
+
+/**
+ * GlobalKeyboardShortcuts Component
+ * Handles application-wide keyboard shortcuts including:
+ * - G+key navigation pattern (like Gmail/GitHub)
+ * - Ctrl+K for search
+ * - Ctrl+? for keyboard shortcuts help
+ * - N for new booking
+ * - Arrow keys for date navigation on calendar pages
+ * - Escape to close modals
+ */
 
 // Check if user is typing in an input field
 const isTypingInInput = () => {
@@ -22,21 +28,22 @@ const isTypingInInput = () => {
 
 // Navigation routes mapping for G+key shortcuts
 const NAVIGATION_ROUTES = {
-  h: '/today',       // Home/Today
-  b: '/bookings',    // Bookings
-  o: '/owners',      // Owners (customers)
-  p: '/pets',        // Pets
-  s: '/settings',    // Settings
-  t: '/tasks',       // Tasks
-  c: '/schedule',    // Calendar/Schedule
-  m: '/messages',    // Messages
-  r: '/reports',     // Reports
-  k: '/kennels',     // Kennels
+  h: '/',           // Home/Today (redirects to /today)
+  b: '/bookings',   // Bookings
+  o: '/owners',     // Owners (customers)
+  p: '/pets',       // Pets
+  s: '/settings',   // Settings
+  t: '/tasks',      // Tasks
+  c: '/schedule',   // Calendar/Schedule
+  m: '/messages',   // Messages
+  r: '/reports',    // Reports
+  k: '/kennels',    // Kennels
 };
 
 const GlobalKeyboardShortcuts = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { openSlideout, closeSlideout, isOpen: isSlideoutOpen } = useSlideout();
 
   // State for G-key sequence
   const [gKeyPressed, setGKeyPressed] = useState(false);
@@ -61,17 +68,37 @@ const GlobalKeyboardShortcuts = () => {
     window.dispatchEvent(new CustomEvent('bb-open-shortcuts-modal'));
   }, []);
 
-  // Close all modals
+  // Open new booking slideout
+  const openNewBooking = useCallback(() => {
+    openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, {});
+  }, [openSlideout]);
+
+  // Trigger form save
+  const triggerFormSave = useCallback(() => {
+    window.dispatchEvent(new CustomEvent('bb-save-form'));
+  }, []);
+
+  // Close all modals/slideouts
   const closeAll = useCallback(() => {
+    // Close slideout if open
+    if (isSlideoutOpen) {
+      closeSlideout();
+    }
+
+    // Dispatch close events for other modals
     window.dispatchEvent(new CustomEvent('close-all-modals'));
     window.dispatchEvent(new CustomEvent('bb-close-modal'));
+
+    // Also check for any elements with data-close-on-esc attribute
+    const closeButtons = document.querySelectorAll('[data-close-on-esc]');
+    closeButtons.forEach(btn => btn.click());
 
     // Close any dropdowns
     const dropdowns = document.querySelectorAll('[data-dropdown-open="true"]');
     dropdowns.forEach(dropdown => {
       dropdown.setAttribute('data-dropdown-open', 'false');
     });
-  }, []);
+  }, [isSlideoutOpen, closeSlideout]);
 
   // Handle date navigation (for calendar pages)
   const handleDateNavigation = useCallback((e) => {
@@ -81,6 +108,7 @@ const GlobalKeyboardShortcuts = () => {
       return false;
     }
 
+    // Get current date from URL params or use today
     const searchParams = new URLSearchParams(location.search);
     const currentDate = searchParams.get('date') || format(new Date(), 'yyyy-MM-dd');
     const dateObj = new Date(currentDate + 'T00:00:00');
@@ -135,6 +163,8 @@ const GlobalKeyboardShortcuts = () => {
       const modifierKey = ctrlKey || metaKey;
       const typing = isTypingInInput();
 
+      // === ALWAYS HANDLE (regardless of typing state) ===
+
       // Escape - close all modals
       if (key === 'Escape') {
         closeAll();
@@ -158,13 +188,21 @@ const GlobalKeyboardShortcuts = () => {
         return;
       }
 
-      // Don't handle if typing in input
+      // Ctrl+S - save form (prevent browser save)
+      if (modifierKey && key === 's') {
+        e.preventDefault();
+        triggerFormSave();
+        clearGKeyState();
+        return;
+      }
+
+      // === DON'T HANDLE IF TYPING IN INPUT ===
       if (typing) {
         clearGKeyState();
         return;
       }
 
-      // Shift+? - keyboard shortcuts modal
+      // Shift+? - keyboard shortcuts modal (alternative)
       if (key === '?' && shiftKey) {
         e.preventDefault();
         openKeyboardShortcutsModal();
@@ -172,13 +210,15 @@ const GlobalKeyboardShortcuts = () => {
         return;
       }
 
-      // Handle date navigation
+      // Handle date navigation on calendar pages
       if (handleDateNavigation(e)) {
         clearGKeyState();
         return;
       }
 
-      // G-KEY NAVIGATION SEQUENCE
+      // === G-KEY NAVIGATION SEQUENCE ===
+
+      // If G was pressed, check for second key
       if (gKeyPressed) {
         const route = NAVIGATION_ROUTES[key.toLowerCase()];
         if (route) {
@@ -187,6 +227,7 @@ const GlobalKeyboardShortcuts = () => {
           clearGKeyState();
           return;
         }
+        // Not a valid navigation key, clear state
         clearGKeyState();
         return;
       }
@@ -195,18 +236,29 @@ const GlobalKeyboardShortcuts = () => {
       if ((key === 'g' || key === 'G') && !modifierKey) {
         setGKeyPressed(true);
 
+        // Clear any existing timeout
         if (gKeyTimeoutRef.current) {
           clearTimeout(gKeyTimeoutRef.current);
         }
 
+        // Set timeout to clear state after 1 second
         gKeyTimeoutRef.current = setTimeout(() => {
           setGKeyPressed(false);
         }, 1000);
         return;
       }
 
+      // === SINGLE KEY SHORTCUTS ===
+
+      // N - new booking (only when not in G-sequence)
+      if ((key === 'n' || key === 'N') && !modifierKey) {
+        e.preventDefault();
+        openNewBooking();
+        return;
+      }
+
       // T - jump to today (on calendar pages)
-      if ((key === 't' || key === 'T') && !modifierKey && !gKeyPressed) {
+      if ((key === 't' || key === 'T') && !modifierKey) {
         if (location.pathname.includes('schedule') ||
             location.pathname.includes('calendar') ||
             location.pathname.includes('today')) {
@@ -234,6 +286,8 @@ const GlobalKeyboardShortcuts = () => {
     closeAll,
     openSearch,
     openKeyboardShortcutsModal,
+    openNewBooking,
+    triggerFormSave,
     handleDateNavigation,
     navigate,
     location,
@@ -246,7 +300,7 @@ const GlobalKeyboardShortcuts = () => {
 
   return (
     <div
-      className="fixed bottom-16 left-4 z-40 rounded-lg px-4 py-2 shadow-lg"
+      className="fixed bottom-4 right-4 z-50 rounded-lg px-4 py-2 shadow-lg animate-in fade-in duration-150"
       style={{
         backgroundColor: 'var(--bb-color-bg-elevated)',
         border: '1px solid var(--bb-color-border-subtle)',
@@ -264,7 +318,7 @@ const GlobalKeyboardShortcuts = () => {
           G
         </kbd>
         <span className="text-[color:var(--bb-color-text-muted)]">
-          + H(ome) B(ookings) O(wners) P(ets) S(ettings)
+          + H(ome) B(ookings) O(wners) P(ets) S(ettings) T(asks) C(alendar) M(essages) R(eports) K(ennels)
         </span>
       </div>
     </div>

@@ -6,11 +6,11 @@
 import React from 'react';
 import { cn } from '@/lib/cn';
 
-const PageMeta = React.forwardRef(({
-  children,
+const PageMeta = React.forwardRef(({ 
+  children, 
   description,
-  className,
-  ...props
+  className, 
+  ...props 
 }, ref) => (
   <p
     ref={ref}
@@ -30,3 +30,4 @@ PageMeta.displayName = 'PageMeta';
 
 export { PageMeta };
 export default PageMeta;
+

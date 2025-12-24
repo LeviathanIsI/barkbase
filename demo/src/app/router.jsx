@@ -1,104 +1,460 @@
-/**
- * Demo Router
- * Simplified router for demo mode.
- * Only includes: Dashboard, Owners, Pets, Bookings, Check-in, Vaccinations
- * No auth guards - user is always "logged in" as demo user.
- */
+/* eslint-disable react-refresh/only-export-components */
+import AppShell from "@/components/layout/AppShell";
+import { lazy } from "react";
+import { createBrowserRouter, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import NotFound from "./NotFound";
+import ProtectedRoute from "./ProtectedRoute";
+import RouteError from "./RouteError";
 
-import AppShell from '@/components/layout/AppShell';
-import { lazy, Suspense } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import NotFound from './NotFound';
-import RouteError from './RouteError';
-import PageLoader from '@/components/PageLoader';
+if (import.meta && import.meta.env && import.meta.env.DEV) {
+  // eslint-disable-next-line no-console
+  console.info("[Router] configured");
+}
 
-// Lazy load feature pages
-const TodayCommandCenter = lazy(() => import('@/features/today/TodayCommandCenter'));
-const Bookings = lazy(() => import('@/features/bookings/routes/Bookings'));
-const Pets = lazy(() => import('@/features/pets/routes/Pets'));
-const PetDetail = lazy(() => import('@/features/pets/routes/PetDetail'));
-const Owners = lazy(() => import('@/features/owners/routes/Owners'));
-const OwnerDetail = lazy(() => import('@/features/owners/routes/OwnerDetail'));
-const Vaccinations = lazy(() => import('@/features/vaccinations/routes/Vaccinations'));
-const CheckIn = lazy(() => import('@/features/check-in/routes/CheckIn'));
+function RoutePersistence() {
+  const location = useLocation();
+  const navigate = useNavigate();
 
-// Wrapper component for lazy-loaded routes
-const LazyRoute = ({ children }) => (
-  <Suspense fallback={<PageLoader />}>
-    {children}
-  </Suspense>
+  useEffect(() => {
+    try {
+      localStorage.setItem('lastPath', location.pathname + location.search);
+     
+    } catch { /* ignore storage errors */ }
+  }, [location]);
+
+  useEffect(() => {
+    try {
+      const last = localStorage.getItem('lastPath');
+      if (last && window.location.pathname === '/') {
+        navigate(last, { replace: true });
+      }
+     
+    } catch { /* ignore storage errors */ }
+  }, [navigate]);
+
+  return null;
+}
+
+const TodayCommandCenter = lazy(() =>
+  import("@/features/today/TodayCommandCenter")
 );
+const Bookings = lazy(() => import("@/features/bookings/routes/Bookings"));
+const Schedule = lazy(() => import("@/features/schedule/routes/Schedule"));
+const Pets = lazy(() => import("@/features/pets/routes/Pets"));
+const Owners = lazy(() => import("@/features/owners/routes/Owners"));
+const Kennels = lazy(() => import("@/features/kennels/routes/Kennels"));
+const OwnerDetail = lazy(() => import("@/features/owners/routes/OwnerDetail"));
+const PetDetail = lazy(() => import("@/features/pets/routes/PetDetail"));
+const Payments = lazy(() => import("@/features/payments/routes/Payments"));
+const Vaccinations = lazy(() => import("@/features/vaccinations/routes/Vaccinations"));
+const ReportsLayout = lazy(() => import("@/features/reports/components/ReportsLayout"));
+const ReportsOverview = lazy(() => import("@/features/reports/routes/ReportsOverview"));
+const ReportsLive = lazy(() => import("@/features/reports/routes/ReportsLive"));
+const ReportsScheduled = lazy(() => import("@/features/reports/routes/ReportsScheduled"));
+const CustomReportBuilder = lazy(() => import("@/features/reports/components/CustomReportBuilder"));
+const CustomReports = lazy(() => import("@/features/reports/routes/CustomReports"));
+const ReportsBenchmarks = lazy(() => import("@/features/reports/routes/ReportsBenchmarks"));
+const ReportsPredictive = lazy(() => import("@/features/reports/routes/ReportsPredictive"));
+const Admin = lazy(() => import("@/features/admin/routes/Admin"));
+// TenantSettings removed - consolidated into Settings
+const SettingsFeatureToggles = lazy(() =>
+  import("@/features/settings/routes/FeatureToggles")
+);
+const Staff = lazy(() => import("@/features/staff/routes/Staff"));
+const Incidents = lazy(() => import("@/features/incidents/routes/Incidents"));
+const Workflows = lazy(() => import("@/features/workflows/routes/Workflows"));
+const WorkflowBuilder = lazy(() => import("@/features/workflows/routes/WorkflowBuilder"));
+const WorkflowDetails = lazy(() => import("@/features/workflows/routes/WorkflowDetails"));
+const WorkflowLogs = lazy(() => import("@/features/workflows/routes/WorkflowLogs"));
+const Login = lazy(() => import("@/features/auth/routes/Login"));
+const AuthCallback = lazy(() => import("@/features/auth/routes/AuthCallback"));
+const SettingsLayout = lazy(() =>
+  import("@/features/settings/components/SettingsLayout")
+);
+const SettingsAccountDefaults = lazy(() =>
+  import("@/features/settings/routes/AccountDefaults")
+);
+const SettingsProfile = lazy(() =>
+  import("@/features/settings/routes/Profile")
+);
+// SettingsGeneral removed - consolidated into Business settings
+const SettingsNotifications = lazy(() =>
+  import("@/features/settings/routes/Notifications")
+);
+const SettingsBusiness = lazy(() =>
+  import("@/features/settings/routes/Business")
+);
+const SettingsBranding = lazy(() =>
+  import("@/features/settings/routes/Branding")
+);
+const SettingsTeam = lazy(() => import("@/features/settings/routes/Team"));
+const SettingsAccountSecurity = lazy(() =>
+  import("@/features/settings/routes/AccountSecurity")
+);
+const SettingsAutomation = lazy(() =>
+  import("@/features/settings/routes/Automation")
+);
+const SettingsAuditLog = lazy(() =>
+  import("@/features/settings/routes/AuditLog")
+);
+const SettingsBilling = lazy(() =>
+  import("@/features/settings/routes/Billing")
+);
+const SettingsMembers = lazy(() =>
+  import("@/features/settings/routes/Members")
+);
+const SettingsCustomFields = lazy(() =>
+  import("@/features/settings/routes/CustomFields")
+);
+const SettingsRecords = lazy(() =>
+  import("@/features/settings/routes/Records")
+);
+const SettingsRecordKeeping = lazy(() =>
+  import("@/features/settings/routes/RecordKeeping")
+);
+const SettingsDataQuality = lazy(() =>
+  import("@/features/settings/routes/DataQuality")
+);
+const SettingsForms = lazy(() => import("@/features/settings/routes/Forms"));
+const SettingsDocuments = lazy(() =>
+  import("@/features/settings/routes/Documents")
+);
+const SettingsFiles = lazy(() =>
+  import("@/features/settings/routes/Files")
+);
+const SettingsImportExport = lazy(() =>
+  import("@/features/settings/routes/ImportExport")
+);
+const SettingsImportSummary = lazy(() =>
+  import("@/features/settings/routes/ImportSummary")
+);
+const SettingsExports = lazy(() =>
+  import("@/features/settings/routes/Exports")
+);
+const SettingsEmail = lazy(() => import("@/features/settings/routes/Email"));
+const SettingsSMS = lazy(() => import("@/features/settings/routes/SMS"));
+const SettingsCommunicationNotifications = lazy(() =>
+  import("@/features/settings/routes/CommunicationNotifications")
+);
+const SettingsBookingConfig = lazy(() =>
+  import("@/features/settings/routes/BookingConfig")
+);
+const SettingsCalendarSettings = lazy(() =>
+  import("@/features/settings/routes/CalendarSettings")
+);
+const SettingsOnlineBooking = lazy(() =>
+  import("@/features/settings/routes/OnlineBooking")
+);
+const SettingsServices = lazy(() =>
+  import("@/features/settings/routes/Services")
+);
+const SettingsPaymentProcessing = lazy(() =>
+  import("@/features/settings/routes/PaymentProcessing")
+);
+const SettingsInvoicing = lazy(() =>
+  import("@/features/settings/routes/Invoicing")
+);
+const SettingsProductsServices = lazy(() =>
+  import("@/features/settings/routes/ProductsServices")
+);
+const SettingsDomain = lazy(() => import("@/features/settings/routes/Domain"));
+const SettingsIntegrations = lazy(() =>
+  import("@/features/settings/routes/Integrations")
+);
+const SettingsMobile = lazy(() => import("@/features/settings/routes/Mobile"));
+const SettingsPrivacy = lazy(() =>
+  import("@/features/settings/routes/Privacy")
+);
+const SettingsTermsPolicies = lazy(() =>
+  import("@/features/settings/routes/TermsPolicies")
+);
+const SettingsReporting = lazy(() =>
+  import("@/features/settings/routes/Reporting")
+);
+
+// Facility Management
+const FacilitySettings = lazy(() =>
+  import("@/features/settings/routes/facility/FacilitySettings")
+);
+const PublicHome = lazy(() => import("@/features/public/routes/Home"));
+const Signup = lazy(() => import("@/features/public/routes/Signup"));
+const VerifyEmail = lazy(() => import("@/features/public/routes/VerifyEmail"));
+
+// Placeholder routes for BarkBase features
+// Removed: FeedingMeds and DaycareCheckin - using Tasks feature instead
+const RunAssignment = lazy(() =>
+  import("@/features/daycare/routes/RunAssignment")
+);
+const Messages = lazy(() => import("@/features/messaging/routes/Messages"));
+const Tasks = lazy(() => import("@/features/tasks/routes/Tasks"));
+const MobileTasks = lazy(() => import("@/features/mobile/routes/MobileTasks"));
+// Real features imported below
+const Services = lazy(() => import("@/features/services/routes/Services"));
+const Facilities = lazy(() => import("@/features/facilities/routes/Facilities"));
+const Packages = lazy(() => import("@/features/packages/routes/Packages"));
+const Invoices = lazy(() => import("@/features/invoices/routes/Invoices"));
+// Removed placeholder routes: PricingRules, FollowUps, Webhooks, CustomCode, Tickets, KnowledgeBase, AuditLogs
+
+// Object settings page (unified for all object types)
+const ObjectSettings = lazy(() =>
+  import("@/features/settings/routes/objects/ObjectSettings")
+);
+const PropertiesSettings = lazy(() =>
+  import("@/features/settings/routes/PropertiesSettings")
+);
+const PropertyDetail = lazy(() =>
+  import("@/features/settings/routes/PropertyDetail")
+);
+const AssociationsSettings = lazy(() =>
+  import("@/features/settings/routes/AssociationsSettings")
+);
+const CustomerDetail = lazy(() =>
+  import("@/features/customers/routes/CustomerDetail")
+);
+const Segments = lazy(() =>
+  import("@/features/segments/routes/Segments")
+);
+const SegmentDetail = lazy(() =>
+  import("@/features/segments/routes/SegmentDetail")
+);
+const SegmentBuilder = lazy(() =>
+  import("@/features/segments/routes/SegmentBuilder")
+);
+const Roles = lazy(() => import("@/features/roles/routes/Roles"));
+const RoleEditor = lazy(() => import("@/features/roles/routes/RoleEditor"));
+
+// Mobile Views
+const MobileCheckIn = lazy(() => import("@/features/mobile/MobileCheckIn"));
+const CustomerPortal = lazy(() => import("@/features/customer-portal/routes/CustomerPortal"));
 
 export const router = createBrowserRouter([
   {
-    path: '/',
-    element: <AppShell />,
-    errorElement: <RouteError />,
+    path: "/",
     children: [
-      // Redirect root to today/dashboard
-      { index: true, element: <Navigate to="/today" replace /> },
+      { index: true, element: <PublicHome /> },
+      { path: "signup", element: <Signup /> },
+      { path: "verify-email", element: <VerifyEmail /> },
+      {
+        element: <ProtectedRoute />,
+        children: [
+          {
+            element: (
+              <>
+                <RoutePersistence />
+                <AppShell />
+              </>
+            ),
+            errorElement: <RouteError />,
+            children: [
+              { index: true, element: <Navigate to="/today" replace /> },
+              { path: "today", element: <TodayCommandCenter /> },
+              { path: "bookings", element: <Bookings /> },
+              { path: "run-schedules", element: <Schedule /> },
+              // Legacy redirects
+              { path: "schedule", element: <Navigate to="/run-schedules" replace /> },
+              { path: "calendar", element: <Navigate to="/run-schedules" replace /> },
+              { path: "kennels", element: <Kennels /> },
+              { path: "pets", element: <Pets /> },
+              { path: "pets/:petId", element: <PetDetail /> },
+              // New ID system: /pets/{account_code}/record/{type_code}/{record_id}
+              { path: "pets/:accountCode/record/:typeCode/:recordId", element: <PetDetail /> },
+              { path: "owners", element: <Owners /> },
+              { path: "owners/:ownerId", element: <OwnerDetail /> },
+              // New ID system: /owners/{account_code}/record/{type_code}/{record_id}
+              { path: "owners/:accountCode/record/:typeCode/:recordId", element: <OwnerDetail /> },
+              { path: "customers/:ownerId", element: <CustomerDetail /> },
+              // New ID system: /customers/{account_code}/record/{type_code}/{record_id}
+              { path: "customers/:accountCode/record/:typeCode/:recordId", element: <CustomerDetail /> },
+              { path: "segments", element: <Segments /> },
+              { path: "segments/new", element: <SegmentBuilder /> },
+              { path: "segments/:id", element: <SegmentDetail /> },
+              { path: "segments/:id/edit", element: <SegmentBuilder /> },
+              { path: "payments", element: <Payments /> },
+              // Reports with nested routes
+              {
+                path: "reports",
+                element: <ReportsLayout />,
+                children: [
+                  { index: true, element: <ReportsOverview /> },
+                  { path: "live", element: <ReportsLive /> },
+                  { path: "scheduled", element: <ReportsScheduled /> },
+                  { path: "builder", element: <CustomReportBuilder /> },
+                  { path: "custom", element: <CustomReports /> },
+                  { path: "benchmarks", element: <ReportsBenchmarks /> },
+                  { path: "predictive", element: <ReportsPredictive /> },
+                ],
+              },
+              // Operations
+              { path: "runs", element: <Navigate to="/run-schedules" replace /> },
+              { path: "vaccinations", element: <Vaccinations /> },
+              { path: "tasks", element: <Tasks /> },
+              { path: "daycare/checkin", element: <Tasks /> },
+              { path: "daycare/runs", element: <Navigate to="/run-schedules" replace /> },
+              { path: "mobile/tasks", element: <MobileTasks /> },
+              { path: "mobile/check-in", element: <MobileCheckIn /> },
+              // Customer Portal
+              { path: "customer-portal", element: <CustomerPortal /> },
+              // Records
+              { path: "facilities", element: <Facilities /> },
+              { path: "services", element: <Services /> },
+              { path: "packages", element: <Packages /> },
+              // Billing
+              { path: "invoices", element: <Invoices /> },
+              // Communication
+              { path: "messages", element: <Messages /> },
+              // Admin/Staff
+              { path: "staff", element: <Staff /> },
+              { path: "incidents", element: <Incidents /> },
+              { path: "workflows", element: <Workflows /> },
+              { path: "workflows/new", element: <WorkflowBuilder /> },
+              { path: "workflows/:id", element: <WorkflowBuilder /> },
+              { path: "workflows/:id/details", element: <WorkflowDetails /> },
+              { path: "workflows/:id/logs", element: <WorkflowLogs /> },
+              // Tenants consolidated into Settings - redirect for backwards compatibility
+              { path: "tenants", element: <Navigate to="/settings" replace /> },
 
-      // Dashboard / Command Center
-      {
-        path: 'today',
-        element: <LazyRoute><TodayCommandCenter /></LazyRoute>,
-      },
+              // Legacy redirects for old /properties and /objects/* URLs
+              { path: "properties", element: <Navigate to="/settings/properties" replace /> },
+              { path: "objects/pets", element: <Navigate to="/settings/objects/pets" replace /> },
+              { path: "objects/owners", element: <Navigate to="/settings/objects/owners" replace /> },
+              { path: "objects/bookings", element: <Navigate to="/settings/objects/bookings" replace /> },
+              { path: "objects/facilities", element: <Navigate to="/settings/objects/facilities" replace /> },
+              { path: "objects/services", element: <Navigate to="/settings/objects/services" replace /> },
+              { path: "objects/packages", element: <Navigate to="/settings/objects/packages" replace /> },
+              { path: "objects/invoices", element: <Navigate to="/settings/objects/invoices" replace /> },
+              { path: "objects/payments", element: <Navigate to="/settings/objects/payments" replace /> },
+              { path: "objects/tickets", element: <Navigate to="/settings/objects/tickets" replace /> },
 
-      // Bookings / Calendar
-      {
-        path: 'bookings',
-        element: <LazyRoute><Bookings /></LazyRoute>,
-      },
+              // =========================
+              // SETTINGS (single layout)
+              // =========================
+              {
+                path: "settings",
+                element: <SettingsLayout />,
+                children: [
+                  { index: true, element: <Navigate to="profile" replace /> },
 
-      // Owners
-      {
-        path: 'owners',
-        element: <LazyRoute><Owners /></LazyRoute>,
-      },
-      {
-        path: 'owners/:ownerId',
-        element: <LazyRoute><OwnerDetail /></LazyRoute>,
-      },
+                  // Your Preferences
+                  { path: "profile", element: <SettingsProfile /> },
+                  // Removed: general settings consolidated into Business
+                  { path: "notifications", element: <SettingsNotifications /> },
 
-      // Pets
-      {
-        path: 'pets',
-        element: <LazyRoute><Pets /></LazyRoute>,
-      },
-      {
-        path: 'pets/:petId',
-        element: <LazyRoute><PetDetail /></LazyRoute>,
-      },
+                  // Account Management
+                  { path: "account", element: <SettingsAccountDefaults /> },
+                  { path: "business", element: <SettingsBusiness /> },
+                  { path: "branding", element: <SettingsBranding /> },
+                  { path: "team", element: <SettingsTeam /> },
+                  { path: "team/roles", element: <Roles /> },
+                  { path: "team/roles/new", element: <RoleEditor /> },
+                  { path: "team/roles/:roleId", element: <RoleEditor /> },
+                  { path: "feature-toggles", element: <SettingsFeatureToggles /> },
+                  {
+                    path: "account-security",
+                    element: <SettingsAccountSecurity />,
+                  },
+                  { path: "automation", element: <SettingsAutomation /> },
+                  { path: "audit-log", element: <SettingsAuditLog /> },
+                  { path: "billing", element: <SettingsBilling /> },
+                  { path: "members", element: <SettingsMembers /> },
 
-      // Vaccinations
-      {
-        path: 'vaccinations',
-        element: <LazyRoute><Vaccinations /></LazyRoute>,
-      },
+                  // Facility Management
+                  { path: "facility", element: <FacilitySettings /> },
 
-      // Check-in
-      {
-        path: 'check-in',
-        element: <LazyRoute><CheckIn /></LazyRoute>,
-      },
-      {
-        path: 'tasks',
-        element: <LazyRoute><CheckIn /></LazyRoute>,
-      },
+                  // Data Management
+                  { path: "custom-fields", element: <SettingsCustomFields /> },
+                  { path: "records", element: <SettingsRecords /> },
+                  {
+                    path: "record-keeping",
+                    element: <SettingsRecordKeeping />,
+                  },
+                  { path: "data-quality", element: <SettingsDataQuality /> },
+                  { path: "forms", element: <SettingsForms /> },
+                  { path: "documents", element: <SettingsDocuments /> },
+                  { path: "files", element: <SettingsFiles /> },
+                  { path: "import-export", element: <SettingsImportExport /> },
+                  { path: "imports/:importId", element: <SettingsImportSummary /> },
+                  { path: "exports", element: <SettingsExports /> },
 
-      // Redirect legacy routes
-      { path: 'dashboard', element: <Navigate to="/today" replace /> },
-      { path: 'calendar', element: <Navigate to="/bookings" replace /> },
-      { path: 'customers', element: <Navigate to="/owners" replace /> },
-      {
-        path: 'customers/:ownerId',
-        element: <LazyRoute><OwnerDetail /></LazyRoute>,
-      },
+                  // Communication
+                  { path: "email", element: <SettingsEmail /> },
+                  { path: "sms", element: <SettingsSMS /> },
+                  {
+                    path: "communication-notifications",
+                    element: <SettingsCommunicationNotifications />,
+                  },
 
-      // Catch-all for routes not in demo
-      { path: '*', element: <NotFound /> },
+                  // Booking & Scheduling
+                  {
+                    path: "booking-config",
+                    element: <SettingsBookingConfig />,
+                  },
+                  {
+                    path: "calendar-settings",
+                    element: <SettingsCalendarSettings />,
+                  },
+                  {
+                    path: "online-booking",
+                    element: <SettingsOnlineBooking />,
+                  },
+                  { path: "services", element: <SettingsServices /> },
+
+                  // Billing
+                  {
+                    path: "payment-processing",
+                    element: <SettingsPaymentProcessing />,
+                  },
+                  { path: "invoicing", element: <SettingsInvoicing /> },
+                  {
+                    path: "products-services",
+                    element: <SettingsProductsServices />,
+                  },
+
+                  // Website & Integrations
+                  { path: "domain", element: <SettingsDomain /> },
+                  { path: "integrations", element: <SettingsIntegrations /> },
+                  { path: "mobile", element: <SettingsMobile /> },
+
+                  // Compliance
+                  { path: "privacy", element: <SettingsPrivacy /> },
+                  {
+                    path: "terms-policies",
+                    element: <SettingsTermsPolicies />,
+                  },
+
+                  // Insights
+                  { path: "reporting", element: <SettingsReporting /> },
+
+                  // Data Management - Properties & Objects
+                  { path: "properties", element: <PropertiesSettings /> },
+                  { path: "properties/:objectType/:propertyId", element: <PropertyDetail /> },
+                  { path: "objects", element: <Navigate to="objects/owners" replace /> },
+                  // Object settings - unified component handles all object types and tabs
+                  { path: "objects/:objectType", element: <ObjectSettings /> },
+                  { path: "objects/:objectType/associations", element: <ObjectSettings /> },
+                  { path: "objects/:objectType/pipelines", element: <ObjectSettings /> },
+                  { path: "objects/:objectType/lifecycle", element: <ObjectSettings /> },
+                  { path: "objects/:objectType/record", element: <ObjectSettings /> },
+                  { path: "objects/:objectType/preview", element: <ObjectSettings /> },
+                  { path: "objects/:objectType/index", element: <ObjectSettings /> },
+                ],
+              },
+
+              // Admin
+              { path: "admin", element: <Admin /> },
+            ],
+          },
+        ],
+      },
     ],
   },
-  // 404 for completely unknown paths
-  { path: '*', element: <NotFound /> },
+  {
+    path: "/login",
+    element: <Login />,
+  },
+  {
+    path: "/auth/callback",
+    element: <AuthCallback />,
+  },
+  { path: "*", element: <NotFound /> },
 ]);

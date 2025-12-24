@@ -1,18 +1,15 @@
-/**
- * TodayBatchCheckOutModal Component
- * Allows selecting multiple pets to check out at once.
- */
-
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import Button from '@/components/ui/Button';
 import PetAvatar from '@/components/ui/PetAvatar';
 import Modal from '@/components/ui/Modal';
+import apiClient from '@/lib/apiClient';
 import { cn } from '@/lib/cn';
 import TodaySection from './TodaySection';
 
-const TodayBatchCheckOutModal = ({ open, onClose, departures = [], snapshotQueryKey }) => {
+// TODO (Today Cleanup B:3): This component will be visually redesigned in the next phase.
+const TodayBatchCheckOutModal = ({ open, onClose, departures, snapshotQueryKey }) => {
   const [selectedDepartures, setSelectedDepartures] = useState([]);
   const [processing, setProcessing] = useState(false);
   const queryClient = useQueryClient();
@@ -20,9 +17,11 @@ const TodayBatchCheckOutModal = ({ open, onClose, departures = [], snapshotQuery
   const handleBatchCheckOut = async () => {
     setProcessing(true);
     try {
-      // Simulate API delay
-      await new Promise((r) => setTimeout(r, 800));
-
+      for (const bookingId of selectedDepartures) {
+        await apiClient.post(`/api/v1/bookings/${bookingId}/check-out`, {
+          timestamp: new Date().toISOString(),
+        });
+      }
       toast.success(`Successfully checked out ${selectedDepartures.length} pets!`);
       setSelectedDepartures([]);
       onClose?.();
@@ -38,7 +37,7 @@ const TodayBatchCheckOutModal = ({ open, onClose, departures = [], snapshotQuery
 
   const toggleSelection = (bookingId, isSelected) => {
     setSelectedDepartures((prev) =>
-      isSelected ? prev.filter((id) => id !== bookingId) : [...prev, bookingId]
+      isSelected ? prev.filter((id) => id !== bookingId) : [...prev, bookingId],
     );
   };
 
@@ -52,7 +51,10 @@ const TodayBatchCheckOutModal = ({ open, onClose, departures = [], snapshotQuery
       title="Batch Check-out"
       className="max-w-2xl"
     >
-      <TodaySection subtitle="Select pets to check out:" className="space-y-4">
+      <TodaySection
+        subtitle="Select pets to check out:"
+        className="space-y-4"
+      >
         <div className="space-y-2 max-h-96 overflow-y-auto">
           {departures.map((booking) => {
             const isSelected = selectedDepartures.includes(booking.id);
@@ -60,10 +62,10 @@ const TodayBatchCheckOutModal = ({ open, onClose, departures = [], snapshotQuery
               <div
                 key={booking.id}
                 className={cn(
-                  'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
+                  'flex items-center gap-3 p-3 rounded-lg border cursor-pointer',
                   isSelected
                     ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20'
-                    : 'border-[color:var(--bb-color-border)] bg-[color:var(--bb-color-bg-elevated)]'
+                    : 'border-gray-200 dark:border-surface-border bg-white dark:bg-surface-secondary',
                 )}
                 onClick={() => toggleSelection(booking.id, isSelected)}
               >
@@ -73,16 +75,10 @@ const TodayBatchCheckOutModal = ({ open, onClose, departures = [], snapshotQuery
                   onChange={() => {}}
                   className="w-5 h-5 text-blue-600 rounded"
                 />
-                <PetAvatar
-                  pet={booking.pet || { name: booking.petName }}
-                  size="sm"
-                  showStatus={false}
-                />
+                <PetAvatar pet={booking.pet || { name: booking.petName }} size="sm" showStatus={false} />
                 <div className="flex-1">
-                  <p className="font-medium text-[color:var(--bb-color-text-primary)]">
-                    {booking.petName || booking.pet?.name}
-                  </p>
-                  <p className="text-sm text-[color:var(--bb-color-text-muted)]">
+                  <p className="font-medium">{booking.petName || booking.pet?.name}</p>
+                  <p className="text-sm text-gray-600 dark:text-text-secondary">
                     {booking.ownerName || booking.owner?.name}
                   </p>
                 </div>
@@ -113,3 +109,4 @@ const TodayBatchCheckOutModal = ({ open, onClose, departures = [], snapshotQuery
 };
 
 export default TodayBatchCheckOutModal;
+

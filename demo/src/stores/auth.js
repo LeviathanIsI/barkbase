@@ -1,12 +1,7 @@
 /**
- * =============================================================================
- * BarkBase Demo - Auth Store
- * =============================================================================
+ * Auth Store - Demo Version
  *
- * Demo version - Always authenticated with a demo user.
- * No Cognito integration - purely for demonstration purposes.
- *
- * =============================================================================
+ * Always authenticated as Demo User for demo mode.
  */
 
 import { create } from 'zustand';
@@ -14,95 +9,78 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import getStorage from '@/lib/storage';
 
 // Demo user - always authenticated
-const demoUser = {
-  id: 'demo-user-001',
+const DEMO_USER = {
+  id: 'demo-user',
   email: 'demo@barkbase.io',
-  firstName: 'Sarah',
-  lastName: 'Henderson',
-  name: 'Sarah Henderson',
-  phone: '(512) 555-1001',
-  avatar: '/images/staff/sarah-henderson.jpg',
+  firstName: 'Demo',
+  lastName: 'User',
+  name: 'Demo User',
+  role: 'ADMIN',
 };
 
-// Demo state - pre-populated and always authenticated
-const demoState = {
-  user: demoUser,
-  session: { isDemo: true },
-  memberships: [
-    {
-      tenantId: 'demo-tenant',
-      tenantName: 'BarkBase Demo',
-      role: 'ADMIN',
-      accountCode: 'BK-DEMO01',
-    },
-  ],
+const DEMO_STATE = {
+  user: DEMO_USER,
+  session: { idToken: 'demo-token' },
+  memberships: [{ tenantId: 'demo-tenant', role: 'ADMIN' }],
   role: 'ADMIN',
   tenantId: 'demo-tenant',
-  accountCode: 'BK-DEMO01',
-  accessToken: 'demo-access-token-not-used',
+  accountCode: 'BK-DEMO',
+  accessToken: 'demo-access-token',
 };
 
 export const useAuthStore = create(
   persist(
     (set, get) => ({
-      ...demoState,
+      ...DEMO_STATE,
 
-      // Set auth - in demo, just merge with existing demo state
+      // Store user data - in demo mode, always use demo user
       setAuth: (payload = {}) => {
-        set({
-          ...demoState,
-          ...payload,
-        });
+        // In demo mode, ignore payload and use demo user
+        set(DEMO_STATE);
       },
 
-      // Update tokens - no-op in demo since we don't use real tokens
+      // Update tokens - in demo mode, no-op
       updateTokens: () => {
-        // No-op in demo mode
+        // No-op for demo
       },
 
-      // Set session - no-op in demo
+      // Set session - in demo mode, always use demo session
       setSession: () => {
-        // No-op in demo mode - always use demo session
+        set(DEMO_STATE);
       },
 
-      // Clear auth - resets to demo state (still authenticated)
+      // Clear auth - in demo mode, restore demo state
       clearAuth: () => {
-        set(demoState);
+        set(DEMO_STATE);
       },
 
-      // Logout - in demo, just resets to demo state (still authenticated)
+      // Logout - in demo mode, restore demo state
       logout: () => {
-        set(demoState);
-        console.log('[Demo] Logout called - demo user remains authenticated');
+        set(DEMO_STATE);
       },
 
-      // Role check
+      // Check role - in demo mode, always admin
       hasRole: (role) => {
-        const currentRole = get().role;
-        if (!currentRole) return false;
-
         if (Array.isArray(role)) {
-          return role.map((r) => String(r).toUpperCase()).includes(currentRole);
+          return role.map((r) => String(r).toUpperCase()).includes('ADMIN');
         }
-        return currentRole === String(role).toUpperCase();
+        return String(role).toUpperCase() === 'ADMIN' || String(role).toUpperCase() === 'OWNER';
       },
 
       // Always authenticated in demo mode
       isAuthenticated: () => true,
     }),
     {
-      name: 'barkbase-demo-auth',
+      name: 'barkbase-auth',
       storage: createJSONStorage(getStorage),
-      partialize: ({ user, role, tenantId, accountCode, memberships }) => ({
+      partialize: ({ user, role, tenantId, accountCode, memberships, accessToken }) => ({
         user,
         role,
         tenantId,
         accountCode,
         memberships,
+        accessToken,
       }),
     },
   ),
 );
-
-// Export demo user for use elsewhere
-export const getDemoUser = () => demoUser;

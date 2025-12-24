@@ -1,8 +1,3 @@
-/**
- * Jumbo Header Component (for alternate layout)
- * Demo version - simplified without real auth dependencies.
- */
-
 import Button from "@/components/ui/Button";
 import { ThemeToggleIconButton } from "@/components/ui/ThemeToggle";
 import { useAuthStore } from "@/stores/auth";
@@ -29,14 +24,23 @@ const JumboHeader = ({ onMenuToggle }) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const tenant = useTenantStore((state) => state.tenant);
+  const setTenant = useTenantStore((state) => state.setTenant);
   const user = useAuthStore((state) => state.user);
   const role = useAuthStore((state) => state.role);
+  const logout = useAuthStore((state) => state.logout);
 
   const closeAllMenus = () => {
     setAppsOpen(false);
     setNotificationsOpen(false);
     setMessagesOpen(false);
     setUserMenuOpen(false);
+  };
+
+  const handleLogout = () => {
+    closeAllMenus();
+    logout(); // Clear auth state
+    setTenant({}); // Reset tenant to defaults
+    navigate('/login');
   };
 
   return (
@@ -55,10 +59,18 @@ const JumboHeader = ({ onMenuToggle }) => {
 
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white dark:bg-surface-primary/20">
-              <span className="font-bold">BB</span>
+              {tenant?.assets?.logo ? (
+                <img
+                  src={tenant.assets.logo}
+                  alt={`${tenant.name} logo`}
+                  className="h-8 w-8 rounded-lg object-cover"
+                />
+              ) : (
+                <span className="font-bold">BB</span>
+              )}
             </div>
             <span className="hidden md:block text-lg font-semibold">
-              {tenant?.name ?? "BarkBase Demo"}
+              {tenant?.name ?? "BarkBase"}
             </span>
           </div>
         </div>
@@ -78,6 +90,7 @@ const JumboHeader = ({ onMenuToggle }) => {
               />
             </div>
 
+            {/* Search Dropdown (placeholder for now) */}
             {searchOpen && (
               <div className="absolute top-full mt-2 w-full bg-white dark:bg-surface-primary rounded-lg shadow-xl border border-gray-200 dark:border-surface-border p-4">
                 <p className="text-gray-500 dark:text-text-secondary text-sm">
@@ -126,10 +139,26 @@ const JumboHeader = ({ onMenuToggle }) => {
                       </p>
                     </div>
                   </Link>
+                  <Link
+                    to="/daycare/checkin"
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary text-gray-700 dark:text-text-primary"
+                    onClick={closeAllMenus}
+                  >
+                    <div className="w-8 h-8 bg-[#FF9800] rounded-lg flex items-center justify-center">
+                      <User className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Check In</p>
+                      <p className="text-xs text-gray-500 dark:text-text-secondary">Process arrival</p>
+                    </div>
+                  </Link>
                 </div>
               </div>
             )}
           </div>
+
+          {/* Dev Tenant Switcher */}
+          {/* Dev Tenant Switcher removed */}
 
           {/* Notifications */}
           <div className="relative">
@@ -152,8 +181,10 @@ const JumboHeader = ({ onMenuToggle }) => {
                     Notifications
                   </p>
                 </div>
-                <div className="p-4 text-center text-gray-500 dark:text-text-secondary text-sm">
-                  No new notifications
+                <div className="px-4 py-2 border-t border-gray-100">
+                  <Button variant="ghost" className="w-full text-sm">
+                    View All
+                  </Button>
                 </div>
               </div>
             )}
@@ -179,8 +210,38 @@ const JumboHeader = ({ onMenuToggle }) => {
                     Messages
                   </p>
                 </div>
-                <div className="p-4 text-center text-gray-500 dark:text-text-secondary text-sm">
-                  No new messages
+                <div className="max-h-64 overflow-y-auto">
+                  <div className="p-3 border-b border-gray-50 hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-[#4CAF50] rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                        SJ
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-900 dark:text-text-primary">Sarah Johnson</p>
+                        <p className="text-xs text-gray-500 dark:text-text-secondary">
+                          Thanks for the update on Max!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-3 border-b border-gray-50 hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-[#FF9800] rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                        MR
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-gray-900 dark:text-text-primary">Mike Roberts</p>
+                        <p className="text-xs text-gray-500 dark:text-text-secondary">
+                          Can we reschedule pickup?
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="px-4 py-2 border-t border-gray-100">
+                  <Button variant="ghost" className="w-full text-sm">
+                    View All Messages
+                  </Button>
                 </div>
               </div>
             )}
@@ -199,13 +260,13 @@ const JumboHeader = ({ onMenuToggle }) => {
               }}
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white dark:bg-surface-primary/20 text-white text-sm font-semibold">
-                {user?.name ? user.name[0].toUpperCase() : "D"}
+                {user?.name ? user.name[0].toUpperCase() : "U"}
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium">
-                  {user?.name ?? "Demo User"}
+                  {user?.name ?? "Guest User"}
                 </p>
-                <p className="text-xs opacity-80">{role ?? "ADMIN"}</p>
+                <p className="text-xs opacity-80">{role ?? "OWNER"}</p>
               </div>
               <ChevronDown className="h-4 w-4" />
             </button>
@@ -221,20 +282,20 @@ const JumboHeader = ({ onMenuToggle }) => {
                   Profile Settings
                 </Link>
                 <Link
-                  to="/settings"
+                  to="/settings/billing"
                   className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-text-primary hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
                   onClick={closeAllMenus}
                 >
                   <Settings className="h-4 w-4" />
-                  Settings
+                  Billing & Plans
                 </Link>
                 <div className="border-t border-gray-100 my-1"></div>
                 <button
-                  className="flex items-center gap-3 px-4 py-2 text-sm text-gray-400 dark:bg-surface-primary w-full text-left cursor-not-allowed"
-                  disabled
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:bg-surface-primary w-full text-left"
+                  onClick={handleLogout}
                 >
                   <LogOut className="h-4 w-4" />
-                  Sign Out (Demo Mode)
+                  Sign Out
                 </button>
               </div>
             )}

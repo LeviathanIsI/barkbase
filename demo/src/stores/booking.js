@@ -22,10 +22,10 @@ export const useBookingStore = create((set, get) => ({
   setBookings: (bookings) => set({ bookings }),
   upsertBooking: (booking) => {
     set((state) => {
-      const exists = state.bookings.some(({ id }) => id === booking.id);
+      const exists = state.bookings.some(({ recordId }) => id === booking.recordId);
       return {
         bookings: exists
-          ? state.bookings.map((item) => (item.id === booking.id ? { ...item, ...booking } : item))
+          ? state.bookings.map((item) => (item.recordId === booking.recordId ? { ...item, ...booking } : item))
           : [booking, ...state.bookings],
       };
     });
@@ -33,18 +33,18 @@ export const useBookingStore = create((set, get) => ({
   updateBooking: (bookingId, updater) => {
     set((state) => ({
       bookings: state.bookings.map((booking) => {
-        if (booking.id !== bookingId) return booking;
+        if (booking.recordId !== bookingId) return booking;
         const updates = typeof updater === 'function' ? updater(booking) : updater;
         return { ...booking, ...updates };
       }),
     }));
   },
   removeBooking: (bookingId) => {
-    set((state) => ({ bookings: state.bookings.filter((booking) => booking.id !== bookingId) }));
+    set((state) => ({ bookings: state.bookings.filter((booking) => booking.recordId !== bookingId) }));
   },
   setWaitlist: (entries) => set({ waitlist: entries }),
   promoteWaitlistEntry: (entryId, targetKennelId, entryDateRange) => {
-    const entry = get().waitlist.find((item) => item.id === entryId);
+    const entry = get().waitlist.find((item) => item.recordId === entryId);
     if (!entry) return;
     const booking = {
       ...entry,
@@ -56,7 +56,7 @@ export const useBookingStore = create((set, get) => ({
     };
     set((state) => ({
       bookings: [booking, ...state.bookings],
-      waitlist: state.waitlist.filter((item) => item.id !== entryId),
+      waitlist: state.waitlist.filter((item) => item.recordId !== entryId),
     }));
   },
   setCalendarView: (view) => set({ calendarView: view }),
@@ -72,11 +72,11 @@ export const useBookingStore = create((set, get) => ({
     }));
   },
   moveBooking: ({ bookingId, targetKennelId, targetDate, status }) => {
-    const source = get().bookings.find((booking) => booking.id === bookingId);
+    const source = get().bookings.find((booking) => booking.recordId === bookingId);
     if (!source) return;
     set((state) => ({
       bookings: state.bookings.map((booking) => {
-        if (booking.id !== bookingId) return booking;
+        if (booking.recordId !== bookingId) return booking;
         return {
           ...booking,
           kennelId: targetKennelId ?? booking.kennelId,

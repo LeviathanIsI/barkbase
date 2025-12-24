@@ -1,11 +1,7 @@
-/**
- * Query Keys for React Query
- *
- * Demo version - uses static 'demo' tenant key
- */
+import { useTenantStore } from '@/stores/tenant';
 
-// Demo always uses 'demo' as tenant key
-export const useTenantKey = () => 'demo';
+// Hook to get the tenant key for query key scoping
+export const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
 export const queryKeys = {
   tenantConfig: ['tenantConfig'],
