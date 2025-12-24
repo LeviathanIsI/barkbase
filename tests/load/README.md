@@ -81,9 +81,9 @@ Default settings in `api-load-test.js`:
 
 ## Endpoints Tested
 
-- `GET /owners` - List owners
-- `GET /pets` - List pets
-- `GET /bookings` - List bookings
+- `GET /entity/owners` - List owners
+- `GET /entity/pets` - List pets
+- `GET /entity/bookings` - List bookings
 
 ## Metrics Tracked
 

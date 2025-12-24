@@ -2,9 +2,9 @@
  * BarkBase API Load Test
  *
  * Tests the main API endpoints under load:
- * - GET /owners
- * - GET /pets
- * - GET /bookings
+ * - GET /entity/owners
+ * - GET /entity/pets
+ * - GET /entity/bookings
  *
  * Run with: k6 run api-load-test.js
  *
@@ -90,16 +90,16 @@ function apiGet(endpoint, latencyMetric) {
 
 // Main test scenario
 export default function () {
-  // Test GET /owners
-  apiGet('/owners', ownersLatency);
+  // Test GET /entity/owners
+  apiGet('/entity/owners', ownersLatency);
   sleep(0.5);
 
-  // Test GET /pets
-  apiGet('/pets', petsLatency);
+  // Test GET /entity/pets
+  apiGet('/entity/pets', petsLatency);
   sleep(0.5);
 
-  // Test GET /bookings
-  apiGet('/bookings', bookingsLatency);
+  // Test GET /entity/bookings
+  apiGet('/entity/bookings', bookingsLatency);
   sleep(0.5);
 }
 
@@ -115,7 +115,7 @@ export function setup() {
   console.log('='.repeat(60));
 
   // Verify API is reachable with a health check
-  const healthResponse = http.get(`${API_BASE_URL}/owners?limit=1`, { headers });
+  const healthResponse = http.get(`${API_BASE_URL}/entity/owners?limit=1`, { headers });
 
   if (healthResponse.status !== 200) {
     console.error(`Setup failed: API returned ${healthResponse.status}`);
