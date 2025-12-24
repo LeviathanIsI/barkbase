@@ -222,7 +222,7 @@ const Login = () => {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
       <div className="mb-6 text-center">
-        <p className="text-xs uppercase tracking-wide text-gray-400 dark:text-text-tertiary">
+        <p className="text-xs uppercase tracking-wide text-gray-300 dark:text-text-secondary">
           BARKBASE
         </p>
         <h1 className="text-2xl font-semibold text-white">Welcome back</h1>
@@ -328,7 +328,7 @@ const Login = () => {
           {/* Sign Up Link */}
           <p className="text-center text-xs text-gray-500 dark:text-text-secondary">
             Don't have a workspace?{' '}
-            <Link to="/signup" className="text-primary-600 hover:underline">
+            <Link to="/signup" className="text-[color:var(--bb-color-accent-text)] underline hover:opacity-80">
               Create one
             </Link>
           </p>
@@ -337,7 +337,7 @@ const Login = () => {
 
       {/* Environment Info (dev only) */}
       {config.isDevelopment && (
-        <div className="mt-4 text-center text-xs text-gray-500">
+        <div className="mt-4 text-center text-xs text-gray-400 dark:text-text-secondary">
           <p>Auth Mode: {config.authMode}</p>
           <p>API: {config.apiBaseUrl}</p>
         </div>

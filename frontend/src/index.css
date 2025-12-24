@@ -157,6 +157,12 @@ a:focus-visible {
   border-radius: var(--radius-sm);
 }
 
+/* Links inside buttons should inherit the button's text color */
+button a,
+button a:hover {
+  color: inherit;
+}
+
 /* ========================================
    PROFESSIONAL FORM ELEMENTS
    ======================================== */
