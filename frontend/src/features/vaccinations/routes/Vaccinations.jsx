@@ -864,19 +864,6 @@ const FilterTag = ({ label, onRemove }) => (
 
 // Vaccination Row Component
 const VaccinationRow = ({ record, viewMode, isSelected, isReviewed, onSelect, onDelete, onEdit, onRenew, onClearReviewed }) => {
-  const [showMenu, setShowMenu] = useState(false);
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setShowMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   const SpeciesIcon = record.petSpecies?.toLowerCase() === 'cat' ? Cat : Dog;
 
   const getStatusConfig = () => {
@@ -941,8 +928,8 @@ const VaccinationRow = ({ record, viewMode, isSelected, isReviewed, onSelect, on
           <Syringe className={cn(isCompact ? 'h-4 w-4' : 'h-5 w-5')} />
         </div>
 
-        {/* Left: Pet Info */}
-        <div className={cn('min-w-0', isCompact ? 'flex-1' : 'flex-[2]')}>
+        {/* Left: Pet Info + Expiry */}
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-[color:var(--bb-color-text-primary)]">
               {record.petName || 'Unknown Pet'}
@@ -959,107 +946,49 @@ const VaccinationRow = ({ record, viewMode, isSelected, isReviewed, onSelect, on
                 ⚠️ Species Mismatch
               </Badge>
             )}
-          </div>
-          {!isCompact && (
-            <div className="flex items-center gap-1.5 text-sm text-[color:var(--bb-color-text-muted)] mt-0.5">
-              <SpeciesIcon className="h-3.5 w-3.5" />
-              <span>{record.petSpecies || 'Unknown'}</span>
-              {record.petBreed && (
-                <>
-                  <span>•</span>
-                  <span>{record.petBreed}</span>
-                </>
+            <span className={cn('text-sm', statusConfig.color)}>
+              {record.status === 'overdue' ? 'Expired: ' : 'Expires: '}
+              {record.expiresAt ? new Date(record.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+              {record.daysRemaining !== null && (
+                <span className="ml-1 opacity-75">
+                  ({record.daysRemaining < 0 ? `${Math.abs(record.daysRemaining)}d overdue` : `${record.daysRemaining}d left`})
+                </span>
               )}
-            </div>
-          )}
+            </span>
+          </div>
         </div>
 
-        {/* Middle: Expiry + Owner */}
-        <div className={cn('min-w-0', isCompact ? 'flex-1' : 'flex-[2]')}>
-          <div className={cn('font-medium', statusConfig.color)}>
-            {record.status === 'overdue' ? 'Expired: ' : 'Expires: '}
-            {record.expiresAt ? new Date(record.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
-            {record.daysRemaining !== null && (
-              <span className="ml-1 text-sm font-normal opacity-75">
-                ({record.daysRemaining < 0 ? `${Math.abs(record.daysRemaining)}d overdue` : `${record.daysRemaining}d left`})
-              </span>
-            )}
-          </div>
-          {!isCompact && (
-            <div className="flex items-center gap-1.5 text-sm text-[color:var(--bb-color-text-muted)] mt-0.5 truncate">
-              <User className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{record.ownerName}</span>
-              {record.ownerEmail && (
-                <>
-                  <span>•</span>
-                  <span className="truncate">{record.ownerEmail}</span>
-                </>
-              )}
-              {record.ownerPhone && (
-                <>
-                  <span>•</span>
-                  <span className="truncate">{record.ownerPhone}</span>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Right: Actions (Menu only) */}
+        {/* Right: Action Pills */}
         <div className="flex items-center gap-2 shrink-0" data-menu>
-          <div className="relative" ref={menuRef}>
+          {record.recordStatus !== 'archived' && (
             <Button
               variant="ghost"
-              size="icon-sm"
-              onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-              className="opacity-0 group-hover:opacity-100 focus:opacity-100"
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); onRenew?.(); }}
+              className="gap-1 text-[color:var(--bb-color-accent)]"
             >
-              <MoreHorizontal className="h-4 w-4" />
+              <RefreshCw className="h-3.5 w-3.5" />
+              Renew
             </Button>
-            {showMenu && (
-              <div className="absolute right-0 top-full mt-1 w-40 rounded-lg border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
-                <div className="py-1">
-                  {/* Renew - only for active records */}
-                  {record.recordStatus !== 'archived' && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => { e.stopPropagation(); onRenew?.(); setShowMenu(false); }}
-                      className="w-full justify-start gap-2 text-[color:var(--bb-color-accent)]"
-                    >
-                      <RefreshCw className="h-4 w-4" />Renew Vaccination
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => { e.stopPropagation(); onEdit?.(); setShowMenu(false); }}
-                    className="w-full justify-start gap-2"
-                  >
-                    <Syringe className="h-4 w-4" />Edit Vaccination
-                  </Button>
-                  {isReviewed && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => { e.stopPropagation(); onClearReviewed?.(); setShowMenu(false); }}
-                      className="w-full justify-start gap-2"
-                    >
-                      <X className="h-4 w-4" />Clear Reviewed
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => { e.stopPropagation(); onDelete(); setShowMenu(false); }}
-                    className="w-full justify-start gap-2 text-red-500 hover:text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4" />Delete
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
+            className="gap-1"
+          >
+            <Syringe className="h-3.5 w-3.5" />
+            Edit
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="gap-1 text-red-500 hover:text-red-600"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
+          </Button>
         </div>
       </div>
     </div>
