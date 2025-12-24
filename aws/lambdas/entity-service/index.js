@@ -2916,6 +2916,10 @@ async function renewPetVaccination(event) {
 
   try {
     await getPoolAsync();
+
+    // Get next record ID BEFORE transaction (uses different connection)
+    const newRecordId = await getNextRecordId(tenantId, 'Vaccination');
+
     const client = await getClient();
 
     try {
@@ -2947,7 +2951,6 @@ async function renewPetVaccination(event) {
       }
 
       // 3. Create the NEW vaccination record
-      const newRecordId = await getNextRecordId(tenantId, 'Vaccination');
 
       const newVaccineResult = await client.query(
         `INSERT INTO "Vaccination" (
