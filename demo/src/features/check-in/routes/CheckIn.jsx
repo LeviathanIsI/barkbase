@@ -17,7 +17,7 @@ import {
   Loader2,
   Phone,
 } from 'lucide-react';
-import PageHeader from '@/components/layout/PageHeader';
+import { PageHeader } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { cn } from '@/lib/cn';
