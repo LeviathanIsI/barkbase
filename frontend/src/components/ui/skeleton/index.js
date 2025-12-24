@@ -11,4 +11,5 @@ export { default as SkeletonTableRow } from './SkeletonTableRow';
 export { default as SkeletonChart } from './SkeletonChart';
 export { default as SkeletonForm } from './SkeletonForm';
 export { default as SkeletonInspector } from './SkeletonInspector';
+export { default as TableSkeleton } from './TableSkeleton';
 
