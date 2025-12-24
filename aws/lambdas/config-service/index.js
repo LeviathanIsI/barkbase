@@ -598,6 +598,24 @@ exports.handler = async (event, context) => {
     }
 
     // =========================================================================
+    // INTEGRATIONS API
+    // =========================================================================
+    // Third-party integrations: Google Calendar, Stripe, Mailchimp, Twilio, QuickBooks
+    // =========================================================================
+
+    // GET /api/v1/integrations - List all integrations with status
+    if ((path === '/api/v1/integrations' || path === '/integrations') && method === 'GET') {
+      return handleListIntegrations(user);
+    }
+
+    // GET /api/v1/integrations/:provider - Get specific integration
+    const integrationMatch = path.match(/^\/(?:api\/v1\/)?integrations\/(google-calendar|stripe|mailchimp|twilio|quickbooks)$/i);
+    if (integrationMatch && method === 'GET') {
+      const provider = integrationMatch[1].toLowerCase();
+      return handleGetIntegration(user, provider);
+    }
+
+    // =========================================================================
     // FORMS API (Custom forms and waivers)
     // =========================================================================
 
@@ -2191,10 +2209,11 @@ async function handleGetMemberships(user) {
       const primaryRole = roles.length > 0 ? roles[0] : 'STAFF';
 
       return {
-        id: row.id,
-        membershipId: row.id, // Use user ID as membership ID for compatibility
+        id: row.record_id,
+        record_id: row.record_id,
+        membershipId: row.record_id, // Use user record_id as membership ID for compatibility
         tenantId: row.tenant_id,
-        userId: row.id,
+        userRecordId: row.record_id,
         role: primaryRole,
         roles: roles,
         status: 'active', // All users in the table are active
@@ -2296,21 +2315,21 @@ async function handleCreateMembership(user, body) {
       });
     }
 
-    // Check if user with this email already exists
+    // Check if user with this email already exists in this tenant
     const existingUser = await query(
-      `SELECT id FROM "User" WHERE email = $1`,
-      [email.toLowerCase()]
+      `SELECT record_id FROM "User" WHERE email = $1 AND tenant_id = $2`,
+      [email.toLowerCase(), tenantId]
     );
 
-    let userId;
+    let userRecordId;
 
     if (existingUser.rows.length > 0) {
-      userId = existingUser.rows[0].id;
+      userRecordId = existingUser.rows[0].record_id;
 
       // Check if already a member of this tenant
       const existingMembership = await query(
-        `SELECT id FROM "Membership" WHERE user_id = $1 AND tenant_id = $2`,
-        [userId, tenantId]
+        `SELECT id FROM "Membership" WHERE user_record_id = $1 AND tenant_id = $2`,
+        [userRecordId, tenantId]
       );
 
       if (existingMembership.rows.length > 0) {
@@ -2320,22 +2339,31 @@ async function handleCreateMembership(user, body) {
         });
       }
     } else {
-      // Create new user record (pending Cognito signup)
-      const newUser = await query(
-        `INSERT INTO "User" (email, first_name, last_name, role, tenant_id, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-         RETURNING id`,
-        [email.toLowerCase(), firstName || null, lastName || null, role, tenantId]
+      // Get next record_id for new user
+      const nextIdResult = await query(
+        `SELECT COALESCE(MAX(record_id), 0) + 1 as next_id FROM "User" WHERE tenant_id = $1`,
+        [tenantId]
       );
-      userId = newUser.rows[0].id;
+      const nextRecordId = nextIdResult.rows[0].next_id;
+
+      // Create new user record (pending Cognito signup)
+      // Use 'pending-invite-{uuid}' as placeholder for cognito_sub until user accepts invite
+      const placeholderCognitoSub = `pending-invite-${require('crypto').randomUUID()}`;
+      const newUser = await query(
+        `INSERT INTO "User" (tenant_id, record_id, email, first_name, last_name, cognito_sub, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, false, NOW(), NOW())
+         RETURNING record_id`,
+        [tenantId, nextRecordId, email.toLowerCase(), firstName || '', lastName || '', placeholderCognitoSub]
+      );
+      userRecordId = newUser.rows[0].record_id;
     }
 
     // Create membership record
     const membership = await query(
-      `INSERT INTO "Membership" (tenant_id, user_id, role, status, invited_at, created_at, updated_at)
+      `INSERT INTO "Membership" (tenant_id, user_record_id, role, status, invited_at, created_at, updated_at)
        VALUES ($1, $2, $3, 'invited', NOW(), NOW(), NOW())
        RETURNING *`,
-      [tenantId, userId, role]
+      [tenantId, userRecordId, role]
     );
 
     const newMembership = membership.rows[0];
@@ -2349,7 +2377,7 @@ async function handleCreateMembership(user, body) {
         id: newMembership.id,
         membershipId: newMembership.id,
         tenantId: newMembership.tenant_id,
-        userId: newMembership.user_id,
+        userRecordId: newMembership.user_record_id,
         role: newMembership.role,
         status: newMembership.status,
         invitedAt: newMembership.invited_at,
@@ -5149,13 +5177,13 @@ async function handleGetNotificationSettings(user) {
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    // Try to get from NotificationSettings table first
+    // Get notification_prefs from TenantSettings JSONB column
     const result = await query(
-      `SELECT * FROM "NotificationSettings" WHERE tenant_id = $1`,
+      `SELECT notification_prefs FROM "TenantSettings" WHERE tenant_id = $1`,
       [ctx.tenantId]
     );
 
-    if (result.rows.length === 0) {
+    if (result.rows.length === 0 || !result.rows[0].notification_prefs) {
       // Return defaults if no settings exist yet
       return createResponse(200, {
         success: true,
@@ -5164,23 +5192,9 @@ async function handleGetNotificationSettings(user) {
       });
     }
 
-    const row = result.rows[0];
-    const settings = {
-      emailEnabled: row.email_enabled,
-      smsEnabled: row.sms_enabled,
-      pushEnabled: row.push_enabled,
-      bookingConfirmations: row.booking_confirmations,
-      bookingReminders: row.booking_reminders,
-      checkinReminders: row.checkin_reminders,
-      vaccinationReminders: row.vaccination_reminders,
-      paymentReceipts: row.payment_receipts,
-      marketingEnabled: row.marketing_enabled,
-      reminderDaysBefore: row.reminder_days_before,
-      quietHoursStart: row.quiet_hours_start,
-      quietHoursEnd: row.quiet_hours_end,
-      useCustomTemplates: row.use_custom_templates,
-      includePhotosInUpdates: row.include_photos_in_updates,
-    };
+    // Merge stored settings with defaults (in case new fields were added)
+    const storedSettings = result.rows[0].notification_prefs;
+    const settings = { ...DEFAULT_NOTIFICATION_SETTINGS, ...storedSettings };
 
     return createResponse(200, {
       success: true,
@@ -5189,14 +5203,6 @@ async function handleGetNotificationSettings(user) {
     });
   } catch (error) {
     console.error('[Notifications] Failed to get:', error.message);
-    // If table doesn't exist yet, return defaults
-    if (error.message?.includes('does not exist')) {
-      return createResponse(200, {
-        success: true,
-        settings: DEFAULT_NOTIFICATION_SETTINGS,
-        isDefault: true,
-      });
-    }
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load notification settings' });
   }
 }
@@ -5207,79 +5213,74 @@ async function handleUpdateNotificationSettings(user, body) {
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    const {
-      emailEnabled = true,
-      smsEnabled = false,
-      pushEnabled = false,
-      bookingConfirmations = true,
-      bookingReminders = true,
-      checkinReminders = true,
-      vaccinationReminders = true,
-      paymentReceipts = true,
-      marketingEnabled = false,
-      reminderDaysBefore = 2,
-      quietHoursStart = '21:00',
-      quietHoursEnd = '08:00',
-      useCustomTemplates = false,
-      includePhotosInUpdates = true,
-    } = body;
-
-    // Upsert - insert or update
-    const result = await query(
-      `INSERT INTO "NotificationSettings" (
-        tenant_id,
-        email_enabled, sms_enabled, push_enabled,
-        booking_confirmations, booking_reminders, checkin_reminders,
-        vaccination_reminders, payment_receipts, marketing_enabled,
-        reminder_days_before, quiet_hours_start, quiet_hours_end,
-        use_custom_templates, include_photos_in_updates
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-      ON CONFLICT (tenant_id) DO UPDATE SET
-        email_enabled = EXCLUDED.email_enabled,
-        sms_enabled = EXCLUDED.sms_enabled,
-        push_enabled = EXCLUDED.push_enabled,
-        booking_confirmations = EXCLUDED.booking_confirmations,
-        booking_reminders = EXCLUDED.booking_reminders,
-        checkin_reminders = EXCLUDED.checkin_reminders,
-        vaccination_reminders = EXCLUDED.vaccination_reminders,
-        payment_receipts = EXCLUDED.payment_receipts,
-        marketing_enabled = EXCLUDED.marketing_enabled,
-        reminder_days_before = EXCLUDED.reminder_days_before,
-        quiet_hours_start = EXCLUDED.quiet_hours_start,
-        quiet_hours_end = EXCLUDED.quiet_hours_end,
-        use_custom_templates = EXCLUDED.use_custom_templates,
-        include_photos_in_updates = EXCLUDED.include_photos_in_updates,
-        updated_at = NOW()
-      RETURNING *`,
-      [
-        ctx.tenantId,
-        emailEnabled, smsEnabled, pushEnabled,
-        bookingConfirmations, bookingReminders, checkinReminders,
-        vaccinationReminders, paymentReceipts, marketingEnabled,
-        reminderDaysBefore, quietHoursStart, quietHoursEnd,
-        useCustomTemplates, includePhotosInUpdates
-      ]
+    // Get current settings first
+    const currentResult = await query(
+      `SELECT notification_prefs FROM "TenantSettings" WHERE tenant_id = $1`,
+      [ctx.tenantId]
     );
 
-    const row = result.rows[0];
-    const settings = {
-      emailEnabled: row.email_enabled,
-      smsEnabled: row.sms_enabled,
-      pushEnabled: row.push_enabled,
-      bookingConfirmations: row.booking_confirmations,
-      bookingReminders: row.booking_reminders,
-      checkinReminders: row.checkin_reminders,
-      vaccinationReminders: row.vaccination_reminders,
-      paymentReceipts: row.payment_receipts,
-      marketingEnabled: row.marketing_enabled,
-      reminderDaysBefore: row.reminder_days_before,
-      quietHoursStart: row.quiet_hours_start,
-      quietHoursEnd: row.quiet_hours_end,
-      useCustomTemplates: row.use_custom_templates,
-      includePhotosInUpdates: row.include_photos_in_updates,
-    };
+    // Merge with defaults and then apply new values
+    const currentSettings = currentResult.rows[0]?.notification_prefs || {};
+    const mergedSettings = { ...DEFAULT_NOTIFICATION_SETTINGS, ...currentSettings };
 
-    return createResponse(200, { success: true, settings });
+    // Apply updates from body - support both flat and nested structures
+    const newSettings = { ...mergedSettings };
+
+    // Handle flat structure (direct fields)
+    if (body.emailEnabled !== undefined) newSettings.emailEnabled = body.emailEnabled;
+    if (body.smsEnabled !== undefined) newSettings.smsEnabled = body.smsEnabled;
+    if (body.pushEnabled !== undefined) newSettings.pushEnabled = body.pushEnabled;
+    if (body.bookingConfirmations !== undefined) newSettings.bookingConfirmations = body.bookingConfirmations;
+    if (body.bookingReminders !== undefined) newSettings.bookingReminders = body.bookingReminders;
+    if (body.checkinReminders !== undefined) newSettings.checkinReminders = body.checkinReminders;
+    if (body.vaccinationReminders !== undefined) newSettings.vaccinationReminders = body.vaccinationReminders;
+    if (body.paymentReceipts !== undefined) newSettings.paymentReceipts = body.paymentReceipts;
+    if (body.marketingEnabled !== undefined) newSettings.marketingEnabled = body.marketingEnabled;
+    if (body.reminderDaysBefore !== undefined) newSettings.reminderDaysBefore = body.reminderDaysBefore;
+    if (body.quietHoursStart !== undefined) newSettings.quietHoursStart = body.quietHoursStart;
+    if (body.quietHoursEnd !== undefined) newSettings.quietHoursEnd = body.quietHoursEnd;
+    if (body.useCustomTemplates !== undefined) newSettings.useCustomTemplates = body.useCustomTemplates;
+    if (body.includePhotosInUpdates !== undefined) newSettings.includePhotosInUpdates = body.includePhotosInUpdates;
+
+    // Handle nested structure (from E2E tests: { channels: { email: true } })
+    if (body.channels) {
+      if (body.channels.email !== undefined) newSettings.emailEnabled = body.channels.email;
+      if (body.channels.sms !== undefined) newSettings.smsEnabled = body.channels.sms;
+      if (body.channels.inApp !== undefined) newSettings.inAppEnabled = body.channels.inApp;
+      if (body.channels.push !== undefined) newSettings.pushEnabled = body.channels.push;
+    }
+    if (body.bookings) {
+      if (body.bookings.newBookings !== undefined) newSettings.bookingConfirmations = body.bookings.newBookings;
+      if (body.bookings.cancellations !== undefined) newSettings.cancellationNotifications = body.bookings.cancellations;
+      if (body.bookings.modifications !== undefined) newSettings.modificationNotifications = body.bookings.modifications;
+    }
+    if (body.payments) {
+      if (body.payments.received !== undefined) newSettings.paymentReceipts = body.payments.received;
+      if (body.payments.failed !== undefined) newSettings.failedPaymentAlerts = body.payments.failed;
+    }
+    if (body.petHealth) {
+      if (body.petHealth.vaccinationExpiring !== undefined) newSettings.vaccinationReminders = body.petHealth.vaccinationExpiring;
+      if (body.petHealth.vaccinationExpired !== undefined) newSettings.vaccinationExpiredAlerts = body.petHealth.vaccinationExpired;
+    }
+    if (body.customer) {
+      if (body.customer.newInquiries !== undefined) newSettings.newInquiryAlerts = body.customer.newInquiries;
+    }
+    if (body.schedule) {
+      if (body.schedule.frequency !== undefined) newSettings.notificationFrequency = body.schedule.frequency;
+      if (body.schedule.quietHoursEnabled !== undefined) newSettings.quietHoursEnabled = body.schedule.quietHoursEnabled;
+      if (body.schedule.quietHoursStart !== undefined) newSettings.quietHoursStart = body.schedule.quietHoursStart;
+      if (body.schedule.quietHoursEnd !== undefined) newSettings.quietHoursEnd = body.schedule.quietHoursEnd;
+    }
+
+    // Update TenantSettings with new notification_prefs
+    await query(
+      `UPDATE "TenantSettings"
+       SET notification_prefs = $1, updated_at = NOW()
+       WHERE tenant_id = $2`,
+      [JSON.stringify(newSettings), ctx.tenantId]
+    );
+
+    return createResponse(200, { success: true, settings: newSettings });
   } catch (error) {
     console.error('[Notifications] Failed to update:', error.message);
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update notification settings' });
@@ -10345,7 +10346,7 @@ async function handleListImports(user, queryParams = {}) {
 
     const result = await query(
       `SELECT
-        i.id,
+        i.record_id as id,
         i.name,
         i.filename,
         i.entity_types as "entityTypes",
@@ -10361,7 +10362,7 @@ async function handleListImports(user, queryParams = {}) {
         u.first_name || ' ' || u.last_name as "createdByName",
         u.email as "createdByEmail"
       FROM "Import" i
-      LEFT JOIN "User" u ON i.created_by = u.record_id
+      LEFT JOIN "User" u ON i.tenant_id = u.tenant_id AND i.created_by::text = u.cognito_sub
       ${whereClause}
       ORDER BY i.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -10400,7 +10401,7 @@ async function handleGetImportDetail(user, importId) {
         u.first_name || ' ' || u.last_name as "createdByName",
         u.email as "createdByEmail"
       FROM "Import" i
-      LEFT JOIN "User" u ON i.created_by = u.record_id
+      LEFT JOIN "User" u ON i.tenant_id = u.tenant_id AND i.created_by::text = u.cognito_sub
       WHERE i.id = $1 AND i.tenant_id = $2`,
       [importId, ctx.tenantId]
     );
@@ -11865,7 +11866,7 @@ async function handleListServices(user, queryParams = {}) {
     const { category, activeOnly } = queryParams;
 
     let sql = `
-      SELECT id, name, description, category, price_in_cents as "priceInCents",
+      SELECT record_id as id, name, description, category, price_in_cents as "priceInCents",
              duration_minutes as "durationMinutes", is_active as "isActive",
              sort_order as "sortOrder", created_at as "createdAt", updated_at as "updatedAt"
       FROM "Service"
@@ -14915,5 +14916,136 @@ async function handleListPropertyTemplates(user, queryParams) {
       error: 'Internal Server Error',
       message: 'Failed to retrieve property templates',
     });
+  }
+}
+
+// =============================================================================
+// INTEGRATIONS HANDLERS
+// =============================================================================
+// Third-party integrations: Google Calendar, Stripe, Mailchimp, Twilio, QuickBooks
+// =============================================================================
+
+const SUPPORTED_INTEGRATIONS = [
+  {
+    provider: 'google-calendar',
+    name: 'Google Calendar',
+    description: 'Sync bookings with Google Calendar',
+    icon: 'calendar',
+    category: 'calendar',
+  },
+  {
+    provider: 'stripe',
+    name: 'Stripe',
+    description: 'Accept online payments',
+    icon: 'credit-card',
+    category: 'payments',
+  },
+  {
+    provider: 'mailchimp',
+    name: 'Mailchimp',
+    description: 'Email marketing automation',
+    icon: 'mail',
+    category: 'marketing',
+  },
+  {
+    provider: 'twilio',
+    name: 'Twilio',
+    description: 'SMS notifications',
+    icon: 'message-square',
+    category: 'communications',
+  },
+  {
+    provider: 'quickbooks',
+    name: 'QuickBooks',
+    description: 'Accounting integration',
+    icon: 'calculator',
+    category: 'accounting',
+  },
+];
+
+/**
+ * List all integrations with connection status
+ */
+async function handleListIntegrations(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Get connected integrations from database
+    const result = await query(
+      `SELECT provider, status, connected_at, last_sync_at, error_message
+       FROM "Integration" WHERE tenant_id = $1`,
+      [ctx.tenantId]
+    );
+
+    const connectedMap = {};
+    for (const row of result.rows) {
+      connectedMap[row.provider] = {
+        status: row.status,
+        connectedAt: row.connected_at,
+        lastSyncAt: row.last_sync_at,
+        errorMessage: row.error_message,
+      };
+    }
+
+    // Build response with all integrations
+    const integrations = SUPPORTED_INTEGRATIONS.map(integration => ({
+      ...integration,
+      status: connectedMap[integration.provider]?.status || 'disconnected',
+      isConnected: connectedMap[integration.provider]?.status === 'connected',
+      connectedAt: connectedMap[integration.provider]?.connectedAt || null,
+      lastSyncAt: connectedMap[integration.provider]?.lastSyncAt || null,
+      errorMessage: connectedMap[integration.provider]?.errorMessage || null,
+    }));
+
+    return createResponse(200, {
+      success: true,
+      integrations,
+    });
+  } catch (error) {
+    console.error('[Integrations] Failed to list integrations:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to list integrations' });
+  }
+}
+
+/**
+ * Get specific integration details
+ */
+async function handleGetIntegration(user, provider) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Find the integration definition
+    const integrationDef = SUPPORTED_INTEGRATIONS.find(i => i.provider === provider);
+    if (!integrationDef) {
+      return createResponse(404, { error: 'Not Found', message: `Integration '${provider}' not found` });
+    }
+
+    // Get connection status from database
+    const result = await query(
+      `SELECT * FROM "Integration" WHERE tenant_id = $1 AND provider = $2`,
+      [ctx.tenantId, provider]
+    );
+
+    const connection = result.rows[0];
+
+    return createResponse(200, {
+      success: true,
+      integration: {
+        ...integrationDef,
+        status: connection?.status || 'disconnected',
+        isConnected: connection?.status === 'connected',
+        connectedAt: connection?.connected_at || null,
+        lastSyncAt: connection?.last_sync_at || null,
+        errorMessage: connection?.error_message || null,
+        config: connection?.config || {},
+      },
+    });
+  } catch (error) {
+    console.error('[Integrations] Failed to get integration:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get integration' });
   }
 }

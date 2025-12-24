@@ -287,6 +287,48 @@ export const useRemovePetFromOwnerMutation = () => {
   });
 };
 
+/**
+ * Update owner status (activate, deactivate, flag, etc.)
+ */
+export const useUpdateOwnerStatusMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ ownerIds, status, notes }) => {
+      // Simulate network delay
+      await new Promise((r) => setTimeout(r, 400));
+
+      // Update each owner's status in the mock store
+      ownerIds.forEach((ownerId) => {
+        const index = mockOwners.findIndex(
+          (o) => o.id === ownerId || o.id === parseInt(ownerId, 10)
+        );
+        if (index !== -1) {
+          mockOwners[index] = {
+            ...mockOwners[index],
+            status,
+            statusNotes: notes,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+      });
+
+      return { ownerIds, status };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ownerKeys.lists() });
+      data.ownerIds.forEach((id) => {
+        queryClient.invalidateQueries({ queryKey: ownerKeys.detail(id) });
+      });
+      const statusLabel = data.status === 'ACTIVE' ? 'activated' : data.status === 'INACTIVE' ? 'deactivated' : 'updated';
+      toast.success(`Owner${data.ownerIds.length > 1 ? 's' : ''} ${statusLabel} successfully!`);
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to update owner status');
+    },
+  });
+};
+
 // ============================================================================
 // UTILITY EXPORTS
 // ============================================================================

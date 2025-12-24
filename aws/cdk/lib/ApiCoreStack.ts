@@ -371,6 +371,10 @@ export class ApiCoreStack extends cdk.Stack {
     createRoute('AddonServicesProxyRoute', 'ANY /api/v1/addon-services/{proxy+}', configIntegration.ref, true);
     createRoute('ServicesBaseRoute', 'ANY /api/v1/services', configIntegration.ref, true);
     createRoute('ServicesProxyRoute', 'ANY /api/v1/services/{proxy+}', configIntegration.ref, true);
+    createRoute('IntegrationsBaseRoute', 'ANY /api/v1/integrations', configIntegration.ref, true);
+    createRoute('IntegrationsProxyRoute', 'ANY /api/v1/integrations/{proxy+}', configIntegration.ref, true);
+    createRoute('ImportsBaseRoute', 'ANY /api/v1/imports', configIntegration.ref, true);
+    createRoute('ImportsProxyRoute', 'ANY /api/v1/imports/{proxy+}', configIntegration.ref, true);
 
     // -------------------------------------------------------------------------
     // FINANCIAL SERVICE - Protected routes + public webhook

@@ -6,12 +6,13 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
-import { normalizeListResponse } from '@/lib/createApiHooks';
+import { normalizeListResponse, extractErrorMessage } from '@/lib/createApiHooks';
 import { listQueryDefaults, detailQueryDefaults } from '@/lib/queryConfig';
 
 // ============================================================================
@@ -191,6 +192,9 @@ export const useCreatePetMutation = () => {
         });
       }
     },
+    onError: (error) => {
+      toast.error(extractErrorMessage(error));
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: listKey });
     },
@@ -226,10 +230,11 @@ export const useUpdatePetMutation = (petId) => {
       }
       return { previous };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(listKey, context.previous);
       }
+      toast.error(extractErrorMessage(error));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: listKey });
@@ -270,10 +275,11 @@ export const useUpdatePetStatusMutation = () => {
       }
       return { previous };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(listKey, context.previous);
       }
+      toast.error(extractErrorMessage(error));
     },
     onSettled: (_, __, { petId }) => {
       queryClient.invalidateQueries({ queryKey: listKey });
@@ -310,10 +316,11 @@ export const useDeletePetMutation = () => {
       }
       return { previous };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(listKey, context.previous);
       }
+      toast.error(extractErrorMessage(error));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: listKey });

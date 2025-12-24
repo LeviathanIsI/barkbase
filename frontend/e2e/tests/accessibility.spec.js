@@ -6,6 +6,14 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
+// Public pages (no auth required)
+const publicPages = [
+  { name: 'Home', path: '/' },
+  { name: 'Login', path: '/login' },
+  { name: 'Signup', path: '/signup' },
+];
+
+// Authenticated pages
 const pages = [
   { name: 'Dashboard', path: '/dashboard' },
   { name: 'Owners', path: '/owners' },
@@ -14,6 +22,61 @@ const pages = [
   { name: 'Settings', path: '/settings' },
 ];
 
+// Test public pages (no auth required)
+test.describe('Public Page Accessibility', () => {
+  // Skip auth for public pages
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  for (const { name, path } of publicPages) {
+    test(`${name} page should have no critical or serious accessibility violations`, async ({ page }) => {
+      await page.goto(path);
+
+      // Wait for page to be ready
+      await page.waitForLoadState('networkidle');
+
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+        .analyze();
+
+      // Log ALL violations for debugging
+      if (results.violations.length > 0) {
+        console.log(`\n--- ${name} Page Accessibility Results ---`);
+
+        for (const violation of results.violations) {
+          const impact = violation.impact;
+          const icon = impact === 'critical' || impact === 'serious' ? '❌' : '⚠️';
+
+          console.log(`${icon} [${impact?.toUpperCase()}] ${violation.id}: ${violation.description}`);
+          console.log(`   Help: ${violation.helpUrl}`);
+          console.log(`   Affected elements: ${violation.nodes.length}`);
+
+          // Show affected elements with more detail
+          violation.nodes.forEach((node, i) => {
+            console.log(`   ${i + 1}. ${node.target.join(' > ')}`);
+            if (node.failureSummary) {
+              console.log(`      Fix: ${node.failureSummary.split('\n')[0]}`);
+            }
+          });
+        }
+      } else {
+        console.log(`\n--- ${name} Page: No accessibility violations found ---`);
+      }
+
+      // Filter for critical and serious violations
+      const criticalViolations = results.violations.filter(
+        v => v.impact === 'critical' || v.impact === 'serious'
+      );
+
+      // Fail on critical or serious violations
+      expect(
+        criticalViolations,
+        `Found ${criticalViolations.length} critical/serious accessibility violations on ${name} page`
+      ).toHaveLength(0);
+    });
+  }
+});
+
+// Test authenticated pages
 test.describe('Accessibility Tests', () => {
   for (const { name, path } of pages) {
     test(`${name} page should have no critical or serious accessibility violations`, async ({ page }) => {
