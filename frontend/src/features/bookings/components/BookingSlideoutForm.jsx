@@ -406,7 +406,7 @@ const BookingSlideoutForm = ({
             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
               {availableKennels.map(kennel => {
                 const kennelId = kennel.recordId || kennel.id;
-                const isSelected = (selectedKennel?.recordId || selectedKennel?.id) === kennelId;
+                const isSelected = selectedKennel !== null && (selectedKennel.recordId || selectedKennel.id) === kennelId;
                 const available = (kennel.capacity || 1) - (kennel.occupied || 0);
                 return (
                   <button
