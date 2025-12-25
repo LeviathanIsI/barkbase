@@ -2360,6 +2360,132 @@ const runSchedules = [
 ];
 
 // ============================================================================
+// RUN ASSIGNMENTS (pets assigned to runs for today - dynamic dates)
+// ============================================================================
+const runAssignments = [
+  // Luna - boarding in A1 (checked in 2 days ago)
+  {
+    id: 'assign-001-luna',
+    runId: 'run-001',
+    runName: 'A1',
+    petId: 'pet-001-x1y2z3a4',
+    petName: 'Luna',
+    ownerId: 'owner-001-a1b2c3d4',
+    ownerName: 'Sarah Mitchell',
+    bookingId: 'booking-001-m1n2o3p4',
+    date: formatDate(today),
+    startTime: '06:00',
+    endTime: '20:00',
+    activityType: 'individual',
+    status: 'CHECKED_IN',
+    serviceType: 'boarding',
+    notes: 'Hip dysplasia - gentle handling',
+    createdAt: formatDateTime(twoDaysAgo),
+    updatedAt: formatDateTime(today)
+  },
+  // Max - boarding in A2 (with Luna)
+  {
+    id: 'assign-002-max',
+    runId: 'run-002',
+    runName: 'A2',
+    petId: 'pet-002-y2z3a4b5',
+    petName: 'Max',
+    ownerId: 'owner-001-a1b2c3d4',
+    ownerName: 'Sarah Mitchell',
+    bookingId: 'booking-002-n2o3p4q5',
+    date: formatDate(today),
+    startTime: '06:00',
+    endTime: '20:00',
+    activityType: 'social',
+    status: 'CHECKED_IN',
+    serviceType: 'boarding',
+    notes: 'High energy - extra play time',
+    createdAt: formatDateTime(twoDaysAgo),
+    updatedAt: formatDateTime(today)
+  },
+  // Rocky - boarding in B1 (VIP)
+  {
+    id: 'assign-003-rocky',
+    runId: 'run-007',
+    runName: 'B1',
+    petId: 'pet-006-c6d7e8f9',
+    petName: 'Rocky',
+    ownerId: 'owner-004-d4e5f6g7',
+    ownerName: 'David Thompson',
+    bookingId: 'booking-004-p4q5r6s7',
+    date: formatDate(today),
+    startTime: '06:00',
+    endTime: '20:00',
+    activityType: 'training',
+    status: 'CHECKED_IN',
+    serviceType: 'boarding',
+    notes: 'VIP client - well trained',
+    createdAt: formatDateTime(threeDaysAgo),
+    updatedAt: formatDateTime(today)
+  },
+  // Bella - daycare today (checked in this morning)
+  {
+    id: 'assign-004-bella',
+    runId: 'run-017',
+    runName: 'Daycare-Small',
+    petId: 'pet-003-z3a4b5c6',
+    petName: 'Bella',
+    ownerId: 'owner-002-b2c3d4e5',
+    ownerName: 'Michael Chen',
+    bookingId: 'booking-003-o3p4q5r6',
+    date: formatDate(today),
+    startTime: '08:00',
+    endTime: '18:00',
+    activityType: 'social',
+    status: 'CHECKED_IN',
+    serviceType: 'daycare',
+    notes: 'Regular daycare - special diet',
+    createdAt: formatDateTime(today),
+    updatedAt: formatDateTime(today)
+  },
+  // Zeus - daycare today
+  {
+    id: 'assign-005-zeus',
+    runId: 'run-018',
+    runName: 'Daycare-Large',
+    petId: 'pet-009-f9g0h1i2',
+    petName: 'Zeus',
+    ownerId: 'owner-006-f6g7h8i9',
+    ownerName: 'Robert Kim',
+    bookingId: 'booking-006-r6s7t8u9',
+    date: formatDate(today),
+    startTime: '07:30',
+    endTime: '18:00',
+    activityType: 'social',
+    status: 'CHECKED_IN',
+    serviceType: 'daycare',
+    notes: 'Experienced handlers only',
+    createdAt: formatDateTime(today),
+    updatedAt: formatDateTime(today)
+  },
+  // Coco - grooming appointment today (arriving soon)
+  {
+    id: 'assign-006-coco',
+    runId: 'run-003',
+    runName: 'A3',
+    petId: 'pet-007-d7e8f9g0',
+    petName: 'Coco',
+    ownerId: 'owner-005-e5f6g7h8',
+    ownerName: 'Amanda Foster',
+    bookingId: 'booking-005-q5r6s7t8',
+    date: formatDate(today),
+    startTime: '10:00',
+    endTime: '13:00',
+    activityType: 'individual',
+    status: 'CONFIRMED',
+    serviceType: 'grooming',
+    notes: 'Full groom - poodle cut',
+    createdAt: formatDateTime(addDays(today, -7)),
+    updatedAt: formatDateTime(today)
+  }
+];
+
+// ============================================================================
 // FEEDING SCHEDULES (per-pet feeding instructions for current boarders)
 // ============================================================================
 const feedingSchedules = [
@@ -3636,7 +3762,7 @@ export function seedDemoData() {
 
   const data = {
     owners, pets, bookings, vaccinations, services, serviceAddons, staff,
-    runs, runSchedules, feedingSchedules, medications, invoices, payments,
+    runs, runSchedules, runAssignments, feedingSchedules, medications, invoices, payments,
     incidents, messages, activities, dashboardStats, tenantSettings, segments
   };
   sessionStorage.setItem(DEMO_DATA_KEY, JSON.stringify(data));

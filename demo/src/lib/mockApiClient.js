@@ -680,39 +680,16 @@ const routes = {
   // ---------------------------------------------------------------------------
   'GET /api/v1/runs/assignments': (params) => {
     const runs = getCollection('runs') || [];
-    const bookings = getCollection('bookings') || [];
-    const pets = getCollection('pets') || [];
+    const runAssignments = getCollection('runAssignments') || [];
     const today = new Date().toISOString().split('T')[0];
 
-    // Get bookings that are checked in for the date range
-    const activeBookings = bookings.filter(b => {
-      const inRange = (!params?.startDate || b.endDate >= params.startDate) &&
-                      (!params?.endDate || b.startDate <= params.endDate);
-      return inRange && ['CHECKED_IN', 'CONFIRMED'].includes(b.status);
+    // Filter assignments by date range if provided
+    const filteredAssignments = runAssignments.filter(a => {
+      if (!params?.startDate && !params?.endDate) return true;
+      const assignmentDate = a.date;
+      return (!params?.startDate || assignmentDate >= params.startDate) &&
+             (!params?.endDate || assignmentDate <= params.endDate);
     });
-
-    // Create assignments from active bookings with runs
-    const assignments = activeBookings
-      .filter(b => b.runId)
-      .map(booking => {
-        const pet = pets.find(p => p.id === booking.petId);
-        const run = runs.find(r => r.id === booking.runId);
-        return {
-          id: `assignment-${booking.id}`,
-          bookingId: booking.id,
-          runId: booking.runId,
-          runName: run?.name || booking.runName,
-          petId: booking.petId,
-          petName: pet?.name || booking.petName,
-          ownerId: booking.ownerId,
-          ownerName: booking.ownerName,
-          date: booking.startDate,
-          startTime: booking.checkInTime || '09:00',
-          endTime: booking.checkOutTime || '17:00',
-          status: booking.status,
-          activityType: booking.serviceType === 'daycare' ? 'social' : 'individual',
-        };
-      });
 
     // Transform runs for the response
     const runsWithInfo = runs.map(run => ({
@@ -726,12 +703,12 @@ const routes = {
     }));
 
     return {
-      data: assignments,
-      assignments,
+      data: filteredAssignments,
+      assignments: filteredAssignments,
       runs: runsWithInfo,
       startDate: params?.startDate || today,
       endDate: params?.endDate || today,
-      total: assignments.length,
+      total: filteredAssignments.length,
     };
   },
 
