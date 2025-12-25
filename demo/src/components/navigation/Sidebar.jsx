@@ -245,7 +245,7 @@ const Sidebar = ({ variant = 'desktop', onNavigate }) => {
 
   return (
     <aside
-      className="fixed left-0 top-0 hidden h-screen w-[var(--bb-sidebar-width,240px)] flex-col border-r lg:flex"
+      className="fixed left-0 top-9 hidden h-[calc(100vh-2.25rem)] w-[var(--bb-sidebar-width,240px)] flex-col border-r lg:flex"
       style={{
         backgroundColor: 'var(--bb-color-sidebar-bg)',
         borderColor: 'var(--bb-color-sidebar-border)',

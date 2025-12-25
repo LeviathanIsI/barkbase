@@ -5,6 +5,9 @@ import Button from '@/components/ui/Button';
 import { useTenantStore } from '@/stores/tenant';
 import Sidebar from '@/components/navigation/Sidebar';
 import Topbar from '@/components/navigation/Topbar';
+import { DemoModeProvider } from '@/contexts/DemoModeContext';
+import DemoBanner from '@/components/layout/DemoBanner';
+import ViewOnlyOverlay from '@/components/layout/ViewOnlyOverlay';
 
 const AppShell = () => {
   const tenant = useTenantStore((state) => state.tenant);
@@ -18,14 +21,20 @@ const AppShell = () => {
   };
 
   return (
-    <div
-      className="min-h-screen"
-      style={{
-        backgroundColor: 'var(--bb-color-bg-body)',
-        color: 'var(--bb-color-text-primary)',
-      }}
-    >
-      <Sidebar />
+    <DemoModeProvider>
+      <div
+        className="min-h-screen"
+        style={{
+          backgroundColor: 'var(--bb-color-bg-body)',
+          color: 'var(--bb-color-text-primary)',
+        }}
+      >
+        {/* Demo mode banner - always visible at top */}
+        <div className="fixed top-0 left-0 right-0 z-[100]">
+          <DemoBanner />
+        </div>
+
+        <Sidebar />
 
       {mobileSidebarOpen ? (
         <div className="fixed inset-0 z-40 flex lg:hidden">
@@ -39,7 +48,7 @@ const AppShell = () => {
         </div>
       ) : null}
 
-      <div className="flex min-h-screen flex-col lg:pl-[var(--bb-sidebar-width,240px)]">
+      <div className="flex min-h-screen flex-col lg:pl-[var(--bb-sidebar-width,240px)] pt-9">
         <Topbar onToggleSidebar={() => setMobileSidebarOpen(true)} />
         <GlobalKeyboardShortcuts />
         <main
@@ -48,7 +57,9 @@ const AppShell = () => {
         >
           {/* Global content rail - wide layout for SaaS app with comfortable side padding */}
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-6">
-            <Outlet />
+            <ViewOnlyOverlay>
+              <Outlet />
+            </ViewOnlyOverlay>
           </div>
         </main>
       </div>
@@ -91,7 +102,8 @@ const AppShell = () => {
           </div>
         </div>
       ) : null}
-    </div>
+      </div>
+    </DemoModeProvider>
   );
 };
 
