@@ -59,9 +59,7 @@ export function useRecordNavigation() {
   const navigateToPet = useCallback(
     (pet) => {
       const id = pet?.recordId ?? pet?.id;
-      if (!id) {
-        console.warn('[useRecordNavigation] No id found for pet:', pet);
-        return;
+      if (!id) {        return;
       }
       navigateToRecord('/pets', 'pet', id);
     },
@@ -77,9 +75,7 @@ export function useRecordNavigation() {
   const navigateToOwner = useCallback(
     (owner) => {
       const id = owner?.recordId ?? owner?.id;
-      if (!id) {
-        console.warn('[useRecordNavigation] No id found for owner:', owner);
-        return;
+      if (!id) {        return;
       }
       navigateToRecord('/customers', 'owner', id);
     },
@@ -95,9 +91,7 @@ export function useRecordNavigation() {
   const navigateToBooking = useCallback(
     (booking) => {
       const id = booking?.recordId ?? booking?.id;
-      if (!id) {
-        console.warn('[useRecordNavigation] No id found for booking:', booking);
-        return;
+      if (!id) {        return;
       }
       navigateToRecord('/bookings', 'booking', id);
     },

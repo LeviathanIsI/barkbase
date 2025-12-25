@@ -51,9 +51,7 @@ const QuickAccessBar = () => {
         owners: normalizeList(ownersResponse),
         bookings: normalizeList(bookingsResponse),
       });
-    } catch (error) {
-      console.error('Search error:', error);
-      toast.error('Search failed');
+    } catch (error) {      toast.error('Search failed');
     } finally {
       setIsSearching(false);
     }

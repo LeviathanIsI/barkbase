@@ -95,9 +95,7 @@ const ImportSummary = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Download errors failed:', err);
-    }
+    } catch (err) {    }
   }, [importId, importData?.name]);
 
   // Format date

@@ -130,9 +130,7 @@ const EmailConnectionModal = ({ isOpen, onClose, onConnect }) => {
         } else {
           throw new Error('No authorization URL received');
         }
-      } catch (error) {
-        console.error('[EmailConnection] OAuth start failed:', error);
-        setIsConnecting(false);
+      } catch (error) {        setIsConnecting(false);
         toast.error(error.response?.data?.message || 'Failed to start Gmail connection');
         return;
       }

@@ -104,7 +104,6 @@ export default function Roles() {
         // Success toast will be shown by the mutation
         // The page will automatically re-render with the new role
       } catch (error) {
-        console.error('Failed to create role from template:', error);
         toast.error('Failed to create role from template');
       }
     }

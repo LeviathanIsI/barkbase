@@ -65,7 +65,6 @@ export const useStaffQuery = () => {
         const staff = normalizeStaffResponse(res?.data);
         return staff;
       } catch (e) {
-        console.warn('[staff] Falling back to empty list due to API error:', e?.message || e);
         return [];
       }
     },
@@ -88,7 +87,6 @@ export const useStaffDetailQuery = (staffId, options = {}) => {
         const res = await apiClient.get(canonicalEndpoints.staff.detail(staffId));
         return res?.data || null;
       } catch (e) {
-        console.warn('[staff] Failed to fetch staff member:', e?.message || e);
         return null;
       }
     },

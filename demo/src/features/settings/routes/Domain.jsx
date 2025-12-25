@@ -52,9 +52,7 @@ const Domain = () => {
     try {
       await updateMutation.mutateAsync({ customDomain: customDomain || null });
       toast.success(customDomain ? 'Custom domain saved. Please configure your DNS.' : 'Domain settings saved.');
-    } catch (error) {
-      console.error('Error saving domain:', error);
-      toast.error(error?.response?.data?.message || 'Failed to save domain settings');
+    } catch (error) {      toast.error(error?.response?.data?.message || 'Failed to save domain settings');
     }
   };
 
@@ -68,9 +66,7 @@ const Domain = () => {
         toast.error(result.error || 'Domain verification failed. Please check your DNS settings.');
       }
       refetchStatus();
-    } catch (error) {
-      console.error('Error verifying domain:', error);
-      toast.error('Failed to verify domain');
+    } catch (error) {      toast.error('Failed to verify domain');
     } finally {
       setIsVerifying(false);
     }
@@ -81,9 +77,7 @@ const Domain = () => {
       await updateMutation.mutateAsync({ customDomain: null });
       setCustomDomain('');
       toast.success('Custom domain removed.');
-    } catch (error) {
-      console.error('Error removing domain:', error);
-      toast.error('Failed to remove domain');
+    } catch (error) {      toast.error('Failed to remove domain');
     }
   };
 

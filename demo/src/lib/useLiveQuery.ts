@@ -21,4 +21,3 @@ export function useLiveQuery<TQueryFnData, TError = unknown, TData = TQueryFnDat
   return query;
 }
 
-

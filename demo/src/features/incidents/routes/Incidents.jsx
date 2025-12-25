@@ -596,9 +596,7 @@ export default function IncidentsPage() {
       const backendData = incidentsResponse.data || {};
       setIncidents(backendData.data || backendData.incidents || []);
       setPets(petsResponse.data || []);
-    } catch (err) {
-      console.error('Failed to fetch data:', err);
-      setError(err.message || 'Failed to load data');
+    } catch (err) {      setError(err.message || 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -681,9 +679,7 @@ export default function IncidentsPage() {
 
       handleCloseForm();
       fetchData();
-    } catch (err) {
-      console.error('Failed to save incident:', err);
-      toast.error(err.message || 'Failed to save incident report');
+    } catch (err) {      toast.error(err.message || 'Failed to save incident report');
     } finally {
       setIsSubmitting(false);
     }
@@ -695,9 +691,7 @@ export default function IncidentsPage() {
       await createIncident(data);
       toast.success('Incident reported');
       fetchData();
-    } catch (err) {
-      console.error('Failed to create incident:', err);
-      toast.error(err.message || 'Failed to report incident');
+    } catch (err) {      toast.error(err.message || 'Failed to report incident');
     } finally {
       setIsSubmitting(false);
     }
@@ -710,9 +704,7 @@ export default function IncidentsPage() {
       await deleteIncident(id);
       toast.success('Incident deleted');
       fetchData();
-    } catch (err) {
-      console.error('Failed to delete incident:', err);
-      toast.error('Failed to delete incident');
+    } catch (err) {      toast.error('Failed to delete incident');
     }
   }, [fetchData]);
 
@@ -723,9 +715,7 @@ export default function IncidentsPage() {
       await resolveIncident(id, { resolutionNotes: notes });
       toast.success('Incident resolved');
       fetchData();
-    } catch (err) {
-      console.error('Failed to resolve incident:', err);
-      toast.error('Failed to resolve incident');
+    } catch (err) {      toast.error('Failed to resolve incident');
     }
   }, [fetchData]);
 
@@ -736,9 +726,7 @@ export default function IncidentsPage() {
       await notifyOwnerOfIncident(id);
       toast.success('Owner notified');
       fetchData();
-    } catch (err) {
-      console.error('Failed to notify owner:', err);
-      toast.error('Failed to notify owner');
+    } catch (err) {      toast.error('Failed to notify owner');
     }
   }, [fetchData]);
 
@@ -748,9 +736,7 @@ export default function IncidentsPage() {
       await updateIncident(id, { status: newStatus });
       toast.success('Status updated');
       fetchData();
-    } catch (err) {
-      console.error('Failed to update status:', err);
-      toast.error('Failed to update status');
+    } catch (err) {      toast.error('Failed to update status');
     } finally {
       setUpdatingId(null);
     }
@@ -762,9 +748,7 @@ export default function IncidentsPage() {
       await updateIncident(id, { severity: newSeverity });
       toast.success('Severity updated');
       fetchData();
-    } catch (err) {
-      console.error('Failed to update severity:', err);
-      toast.error('Failed to update severity');
+    } catch (err) {      toast.error('Failed to update severity');
     } finally {
       setUpdatingId(null);
     }

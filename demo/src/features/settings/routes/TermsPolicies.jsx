@@ -749,9 +749,7 @@ const TermsPolicies = () => {
       setError(null);
       const { data } = await apiClient.get('/api/v1/policies');
       setPolicies(data?.policies || []);
-    } catch (err) {
-      console.error('Failed to load policies:', err);
-      setError(err.message || 'Failed to load policies');
+    } catch (err) {      setError(err.message || 'Failed to load policies');
     } finally {
       setIsLoading(false);
     }
@@ -802,9 +800,7 @@ const TermsPolicies = () => {
       setPolicies(policies.filter(p => p.id !== selectedPolicy.id));
       setShowDeleteConfirm(false);
       setSelectedPolicy(null);
-    } catch (err) {
-      console.error('Failed to delete policy:', err);
-      alert(err.message || 'Failed to delete policy');
+    } catch (err) {      alert(err.message || 'Failed to delete policy');
     } finally {
       setIsSaving(false);
     }
@@ -824,9 +820,7 @@ const TermsPolicies = () => {
 
       const { data } = await apiClient.post('/api/v1/policies', newPolicy);
       setPolicies([...policies, data.policy || data]);
-    } catch (err) {
-      console.error('Failed to duplicate policy:', err);
-      alert(err.message || 'Failed to duplicate policy');
+    } catch (err) {      alert(err.message || 'Failed to duplicate policy');
     }
   };
 
@@ -861,9 +855,7 @@ const TermsPolicies = () => {
 
       setShowEditor(false);
       setSelectedPolicy(null);
-    } catch (err) {
-      console.error('Failed to save policy:', err);
-      alert(err.message || 'Failed to save policy');
+    } catch (err) {      alert(err.message || 'Failed to save policy');
     } finally {
       setIsSaving(false);
     }

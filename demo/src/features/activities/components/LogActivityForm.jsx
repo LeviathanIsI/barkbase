@@ -120,9 +120,7 @@ export default function LogActivityForm({
       const result = await createMutation.mutateAsync(payload);
       toast.success('Activity logged successfully');
       onSuccess?.(result);
-    } catch (error) {
-      console.error('Failed to log activity:', error);
-      toast.error(error?.message || 'Failed to log activity');
+    } catch (error) {      toast.error(error?.message || 'Failed to log activity');
     }
   };
 

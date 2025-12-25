@@ -52,9 +52,7 @@ const AlertBanner = () => {
             });
           }
         });
-      } catch (error) {
-        console.error('Failed to fetch vaccination alerts:', error);
-      }
+      } catch (error) {      }
 
       try {
         // Fetch medical alerts from database
@@ -74,9 +72,7 @@ const AlertBanner = () => {
             priority: alert.severity === 'critical' ? 1 : 3
           });
         });
-      } catch (error) {
-        console.error('Failed to fetch medical alerts:', error);
-      }
+      } catch (error) {      }
 
       try {
         // Fetch PENDING payments and filter for overdue ones client-side
@@ -111,9 +107,7 @@ const AlertBanner = () => {
           });
         }
       } catch (error) {
-        // Silently handle if payments endpoint doesn't exist or returns error
-        console.error('Failed to fetch payment alerts:', error);
-      }
+        // Silently handle if payments endpoint doesn't exist or returns error      }
 
       // Sort by priority (lower number = higher priority)
       return allAlerts.sort((a, b) => a.priority - b.priority);

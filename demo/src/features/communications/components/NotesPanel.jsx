@@ -116,9 +116,7 @@ const NoteForm = ({ entityType, entityId, note, onClose }) => {
         });
       }
       onClose();
-    } catch (error) {
-      console.error('Failed to save note:', error);
-    }
+    } catch (error) {    }
   };
 
   return (

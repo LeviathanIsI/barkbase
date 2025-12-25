@@ -72,7 +72,6 @@ const ActiveSessions = () => {
       await revokeSession.mutateAsync(sessionId);
       toast.success('Session signed out successfully');
     } catch (error) {
-      console.error('Session sign out error:', error);
       toast.error(error.message || 'Failed to sign out session');
     }
   };
@@ -84,7 +83,6 @@ const ActiveSessions = () => {
       await revokeAllOtherSessions.mutateAsync();
       toast.success('Signed out of all other sessions');
     } catch (error) {
-      console.error('Sign out all sessions error:', error);
       toast.error(error.message || 'Failed to sign out all sessions');
     }
   };

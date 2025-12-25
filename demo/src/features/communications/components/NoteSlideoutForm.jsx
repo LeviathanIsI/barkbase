@@ -57,9 +57,7 @@ const NoteSlideoutForm = ({
       
       const result = await createMutation.mutateAsync(payload);
       onSuccess?.(result || payload);
-    } catch (error) {
-      console.error('Failed to add note:', error);
-      toast.error(error?.message || 'Failed to add note');
+    } catch (error) {      toast.error(error?.message || 'Failed to add note');
     }
   };
 

@@ -38,11 +38,7 @@ export class DbAuthClient {
     const rawApiUrl = clientConfig.apiUrl ?? "/api";
 
     // Fail loud if nothing is set (helps diagnose issues instantly)
-    if (!rawApiUrl || rawApiUrl === "undefined") {
-      console.error("[DB-AUTH] FATAL: apiUrl is NOT configured!", {
-        configApiUrl: clientConfig.apiUrl,
-      });
-      throw new Error(
+    if (!rawApiUrl || rawApiUrl === "undefined") {      throw new Error(
         "API URL is not configured. Make sure VITE_API_URL is set in your frontend .env"
       );
     }

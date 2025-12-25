@@ -7,10 +7,6 @@ import NotFound from "./NotFound";
 import ProtectedRoute from "./ProtectedRoute";
 import RouteError from "./RouteError";
 
-if (import.meta && import.meta.env && import.meta.env.DEV) {
-  // eslint-disable-next-line no-console
-  console.info("[Router] configured");
-}
 
 function RoutePersistence() {
   const location = useLocation();

@@ -36,7 +36,6 @@ export default function FacilitySettings() {
       await updateSettings.mutateAsync({ tab: activeTab });
       toast.success('Facility settings saved');
     } catch (error) {
-      console.error('Failed to save facility settings:', error);
       toast.error('Failed to save settings');
     }
   };

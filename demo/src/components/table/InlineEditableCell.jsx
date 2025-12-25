@@ -190,9 +190,7 @@ const InlineEditableCell = ({
       setIsEditing(false);
     } catch (error) {
       // Revert on error
-      setEditValue(value);
-      console.error('Failed to save:', error);
-    } finally {
+      setEditValue(value);    } finally {
       setIsSaving(false);
     }
   }, [editValue, value, onCommit]);

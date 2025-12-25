@@ -43,9 +43,7 @@ const ExportModal = ({ report, data, isOpen, onClose }) => {
         onClose();
         setExportResult(null);
       }, 1500);
-    } catch (err) {
-      console.error('[ExportModal] Export failed:', err);
-      setError(err.message || 'Failed to export report. Please try again.');
+    } catch (err) {      setError(err.message || 'Failed to export report. Please try again.');
     } finally {
       setIsExporting(false);
     }

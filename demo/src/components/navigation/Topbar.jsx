@@ -792,9 +792,7 @@ const TimeClockButton = () => {
         setTodayMinutes(0);
       }
       setWeekTotal(data.weekTotal || 0);
-    } catch (error) {
-      console.error('[TimeClock] Failed to fetch status:', error);
-    }
+    } catch (error) {    }
   }, []);
 
   // Fetch status on mount
@@ -1143,9 +1141,7 @@ const ProfileDropdown = () => {
     try {
       await logout();
       navigate('/login');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
+    } catch (error) {    }
   }, [logout, navigate]);
 
   const handleNavigate = useCallback((path) => {

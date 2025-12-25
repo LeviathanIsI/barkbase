@@ -68,7 +68,6 @@ export const useDashboardStatsQuery = (options = {}) => {
           revenue: { today: 0, thisWeek: 0, thisMonth: 0 },
         };
       } catch (e) {
-        console.warn('[dashboard-stats] Error:', e?.message || e);
         return {
           totalPets: 0,
           totalOwners: 0,
@@ -101,7 +100,6 @@ export const useTodaysPetsQuery = (options = {}) => {
         const res = await apiClient.get(canonicalEndpoints.reports.dashboardSummary);
         return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
       } catch (e) {
-        console.warn('[today-pets] Error:', e?.message || e);
         return [];
       }
     },
@@ -123,7 +121,6 @@ export const useUpcomingArrivalsQuery = (days = 7, options = {}) => {
         const res = await apiClient.get(canonicalEndpoints.bookings.list, { params: { status: 'PENDING', days } });
         return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
       } catch (e) {
-        console.warn('[arrivals] Error:', e?.message || e);
         return [];
       }
     },
@@ -146,7 +143,6 @@ export const useUpcomingDeparturesQuery = (days = 7, options = {}) => {
         const res = await apiClient.get(canonicalEndpoints.bookings.list, { params: { status: 'CHECKED_IN', days } });
         return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
       } catch (e) {
-        console.warn('[departures] Error:', e?.message || e);
         return [];
       }
     },
@@ -190,7 +186,6 @@ export const useOccupancyQuery = (options = {}) => {
           byCategory: {}, // Not provided by backend yet
         };
       } catch (e) {
-        console.warn('[occupancy] Error:', e?.message || e);
         return { current: 0, total: 0, percentage: 0, availableSpots: 0, byCategory: {} };
       }
     },
@@ -236,7 +231,6 @@ export const useRevenueMetricsQuery = (period = 'month', options = {}) => {
           chartData: [], // Not in current backend
         };
       } catch (e) {
-        console.warn('[revenue] Error:', e?.message || e);
         return { total: 0, collected: 0, pending: 0, overdue: 0, chartData: [] };
       }
     },
@@ -259,7 +253,6 @@ export const useActivityFeedQuery = (limit = 20, options = {}) => {
         const res = await apiClient.get(canonicalEndpoints.reports.dashboard, { params: { limit } });
         return Array.isArray(res.data?.activity) ? res.data.activity : [];
       } catch (e) {
-        console.warn('[activity] Error:', e?.message || e);
         return [];
       }
     },
@@ -361,7 +354,6 @@ export const useDashboardVaccinations = (options = {}) => {
           })()
         }));
       } catch (e) {
-        console.warn('[dashboard-vaccinations] Error:', e?.message || e);
         return [];
       }
     },

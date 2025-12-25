@@ -46,12 +46,10 @@ export const initSocket = (token) => {
         const message = JSON.parse(event.data);
         handleMessage(message);
       } catch (error) {
-        console.error('[WebSocket] Failed to parse message:', error);
       }
     };
 
     socketInstance.onerror = (error) => {
-      console.error('[WebSocket] Error:', error);
       triggerEvent('error', error);
     };
 
@@ -66,14 +64,12 @@ export const initSocket = (token) => {
           initSocket(token);
         }, RECONNECT_DELAY);
       } else {
-        console.error('[WebSocket] Max reconnection attempts reached');
         triggerEvent('reconnect_failed');
       }
     };
 
     return socketInstance;
   } catch (error) {
-    console.error('[WebSocket] Failed to initialize:', error);
     return null;
   }
 };
@@ -97,7 +93,6 @@ export const sendMessage = (type, data) => {
     socketInstance.send(JSON.stringify({ type, data, timestamp: Date.now() }));
     return true;
   } catch (error) {
-    console.error('[WebSocket] Failed to send message:', error);
     return false;
   }
 };
@@ -174,7 +169,6 @@ const triggerEvent = (event, data) => {
       try {
         handler(data);
       } catch (error) {
-        console.error(`[WebSocket] Error in event handler for ${event}:`, error);
       }
     });
   }

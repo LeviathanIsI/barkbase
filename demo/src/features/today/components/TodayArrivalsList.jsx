@@ -139,9 +139,7 @@ const ArrivalRow = ({ booking, onCheckInSuccess }) => {
       await checkInMutation.mutateAsync({ bookingId });
       toast.success(`${petName} checked in!`);
       onCheckInSuccess?.(bookingId);
-    } catch (error) {
-      console.error('Check-in failed:', error);
-      toast.error(error?.message || 'Failed to check in');
+    } catch (error) {      toast.error(error?.message || 'Failed to check in');
     } finally {
       setIsCheckingIn(false);
     }

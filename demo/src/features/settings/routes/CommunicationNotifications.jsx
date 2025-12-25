@@ -54,7 +54,6 @@ const CommunicationNotifications = () => {
       toast.success('Communication settings saved successfully!');
       setHasChanges(false);
     } catch (err) {
-      console.error('Error saving communication settings:', err);
       toast.error(err.response?.data?.message || err.message || 'Failed to save settings');
     }
   };
@@ -75,7 +74,6 @@ const CommunicationNotifications = () => {
         const result = await sendTestMutation.mutateAsync({ type: 'email', email: testEmail });
         toast.success(result.message || `Test email sent to ${testEmail}`);
       } catch (err) {
-        console.error('Error sending test email:', err);
         toast.error(err.response?.data?.message || 'Failed to send test email');
       }
     }
@@ -95,7 +93,6 @@ const CommunicationNotifications = () => {
           toast.success(result.message || `Test SMS sent to ${testPhone}`);
         }
       } catch (err) {
-        console.error('Error sending test SMS:', err);
         const errorData = err.response?.data;
 
         if (errorData?.requiresIntegration) {

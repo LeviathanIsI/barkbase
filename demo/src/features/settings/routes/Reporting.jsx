@@ -25,7 +25,6 @@ const Reporting = () => {
       await apiClient.put('/api/v1/settings/reporting', settings);
       toast.success('Report settings saved successfully!');
     } catch (error) {
-      console.error('Error saving report settings:', error);
       toast.error(error.message || 'Failed to save settings');
     }
   };

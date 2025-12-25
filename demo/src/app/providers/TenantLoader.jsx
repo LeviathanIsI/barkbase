@@ -109,9 +109,7 @@ const TenantLoader = () => {
             setTenantSlugCookie(data.slug);
           }
 
-        } catch (error) {
-          console.error('[TenantLoader] Failed to load tenant config:', error.message);
-          // Don't throw - allow app to continue, useTenantConfig hook will retry
+        } catch (error) {          // Don't throw - allow app to continue, useTenantConfig hook will retry
         } finally {
           setLoading(false);
         }

@@ -391,8 +391,6 @@ export const usePermissionProfilesQuery = (options = {}) => {
   });
 };
 
-
-
 // Services API (prefer using features/services/api.js)
 export const useServicesQuery = (options = {}) => {
   const tenantKey = useTenantKey();
@@ -453,7 +451,6 @@ export const useDeleteServiceMutation = () => {
 };
 */
 
-
 // Staff API - re-export from features/staff/api.js for backwards compatibility
 // Prefer importing directly from '@/features/staff/api' in new code
 export { useStaffQuery } from '@/features/staff/api';
@@ -474,7 +471,6 @@ export const useUpdateStaffStatusMutation = () => {
   });
 };
 */
-
 
 // Calendar API - capacity data for calendar views
 export const useCalendarCapacity = (params = {}, options = {}) => {
@@ -701,7 +697,6 @@ export const useSubscriptionQuery = (options = {}) => {
           subscriptions: data?.data?.subscriptions || data?.subscriptions || [],
         };
       } catch (e) {
-        console.warn('[subscription] Error fetching:', e?.message);
         return { currentPlan: null, subscriptions: [] };
       }
     },
@@ -733,7 +728,6 @@ export const useBillingUsageQuery = (options = {}) => {
         const res = await apiClient.get(canonicalEndpoints.billing.usage);
         return res.data;
       } catch (e) {
-        console.warn('[billing-usage] Error fetching:', e?.message);
         return {
           usage: {
             period: 'Current Month',
@@ -807,7 +801,6 @@ export const usePaymentMethodsQuery = (options = {}) => {
           primaryMethod: methods.find(m => m.isPrimary) || methods[0] || null,
         };
       } catch (e) {
-        console.warn('[payment-methods] Error fetching:', e?.message);
         return { methods: [], primaryMethod: null };
       }
     },
@@ -837,7 +830,6 @@ export const useBillingContactQuery = (options = {}) => {
           contact: res.data?.contact || res.data || null,
         };
       } catch (e) {
-        console.warn('[billing-contact] Error fetching:', e?.message);
         return { contact: null };
       }
     },

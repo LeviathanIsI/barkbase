@@ -167,9 +167,7 @@ const BookingSlideoutForm = ({
       );
       
       onSuccess?.(bookings[0]);
-    } catch (error) {
-      console.error('Failed to save booking:', error);
-      toast.error(error?.message || 'Failed to save booking');
+    } catch (error) {      toast.error(error?.message || 'Failed to save booking');
     }
   };
   

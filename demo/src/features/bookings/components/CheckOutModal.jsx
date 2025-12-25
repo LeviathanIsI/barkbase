@@ -287,7 +287,6 @@ const CheckOutModal = ({ booking, open, onClose }) => {
         await generateInvoiceMutation.mutateAsync(booking.recordId);
         toast.success('Invoice generated successfully');
       } catch (invoiceError) {
-        console.error('Failed to generate invoice:', invoiceError);
         toast.error('Checkout successful, but invoice generation failed');
       }
 

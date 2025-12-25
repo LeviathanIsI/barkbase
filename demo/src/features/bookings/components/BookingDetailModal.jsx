@@ -1227,9 +1227,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
             toast.success(`${displayBooking.pet?.name || 'Pet'}'s run assignment ended`);
             setShowEndEarlyDialog(false);
             onClose?.();
-          } catch (error) {
-            console.error('[BookingDetail] End early failed:', error);
-            toast.error(error?.message || 'Failed to end assignment');
+          } catch (error) {            toast.error(error?.message || 'Failed to end assignment');
           }
         }}
         title="End Assignment Early"

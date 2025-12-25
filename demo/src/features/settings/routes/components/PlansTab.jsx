@@ -164,9 +164,7 @@ export default function PlansTab() {
       // In production, this would redirect to Stripe checkout
       // For now, show success message
       alert(`Successfully initiated upgrade to ${selectedPlan.name}! In production, you would be redirected to complete payment.`);
-    } catch (error) {
-      console.error('Upgrade failed:', error);
-      alert('Failed to process upgrade. Please try again or contact support.');
+    } catch (error) {      alert('Failed to process upgrade. Please try again or contact support.');
     }
   };
 

@@ -53,11 +53,9 @@ export class RealtimeClient {
         this.scheduleReconnect();
       };
       this.ws.onerror = (err) => {
-        console.error('WebSocket error:', err);
         this.scheduleReconnect();
       };
     } catch (error) {
-      console.warn('WebSocket not available, using polling fallback');
     }
   }
 
@@ -127,5 +125,4 @@ export function useRealtime(client: RealtimeClient | null, handler: Handler | nu
     return client.on((evt) => ref.current && ref.current(evt));
   }, [client, handler]);
 }
-
 

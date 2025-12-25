@@ -54,7 +54,6 @@ const SecurityOverview = () => {
       toast.success('Password updated successfully');
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error) {
-      console.error('Password change error:', error);
       toast.error(error.message || 'Failed to update password');
     }
   };

@@ -73,9 +73,7 @@ const AddMembersForm = ({ segment, onClose }) => {
         ownerIds: selectedOwners,
       });
       onClose();
-    } catch (error) {
-      console.error('Failed to add members:', error);
-    }
+    } catch (error) {    }
   };
 
   return (

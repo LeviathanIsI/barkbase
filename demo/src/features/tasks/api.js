@@ -181,7 +181,6 @@ export const useTasksQuery = (filters = {}) => {
         const res = await apiClient.get(canonicalEndpoints.tasks.list, { params: filters });
         return normalizeTasksResponse(res?.data);
       } catch (e) {
-        console.warn('[tasks] Falling back to empty list due to API error:', e?.message || e);
         return [];
       }
     },
@@ -215,7 +214,6 @@ export const useTodaysTasksQuery = () => {
           return d.getFullYear() === yyyy && d.getMonth() === mm && d.getDate() === dd;
         });
       } catch (e) {
-        console.warn('[todaysTasks] Falling back to empty list due to API error:', e?.message || e);
         return [];
       }
     },
@@ -245,7 +243,6 @@ export const useOverdueTasksQuery = () => {
           new Date(t.scheduledFor).getTime() < now
         );
       } catch (e) {
-        console.warn('[overdueTasks] Falling back to empty list due to API error:', e?.message || e);
         return [];
       }
     },
@@ -275,7 +272,6 @@ export const useTaskQuery = (taskId, options = {}) => {
         const res = await apiClient.get(canonicalEndpoints.tasks.detail(taskId));
         return normalizeTask(res?.data);
       } catch (e) {
-        console.warn('[task] Falling back to null due to API error:', e?.message || e);
         return null;
       }
     },

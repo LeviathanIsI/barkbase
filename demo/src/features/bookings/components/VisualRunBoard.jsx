@@ -234,7 +234,6 @@ const VisualRunBoard = () => {
         setSelectedBooking(null); // Clear selection after update
       }
     } catch (error) {
-      console.error('Error updating booking:', error);
       toast.error(error.message || 'Failed to update booking');
     }
   };
@@ -590,5 +589,4 @@ const BookingQuickActions = ({ booking, onClose }) => {
 };
 
 export default VisualRunBoard;
-
 

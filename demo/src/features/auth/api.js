@@ -34,9 +34,7 @@ export const useAuthSessionsQuery = () => {
         // Backend returns { sessions: [...] }, extract the array
         const data = res?.data;
         return Array.isArray(data) ? data : (data?.sessions || []);
-      } catch (e) {
-        console.warn('[auth/sessions] Falling back to empty list due to API error:', e?.message || e);
-        return [];
+      } catch (e) {        return [];
       }
     },
     staleTime: 30 * 1000, // 30 seconds

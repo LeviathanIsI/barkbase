@@ -428,9 +428,7 @@ const BookingPanel = ({ pet, ownerId, onBack, onSuccess }) => {
         status: 'PENDING',
       });
       onSuccess();
-    } catch (error) {
-      console.error('Failed to create booking:', error);
-      toast.error(error?.message || 'Failed to create booking');
+    } catch (error) {      toast.error(error?.message || 'Failed to create booking');
     }
   };
 
@@ -576,9 +574,7 @@ const VaccinationPanel = ({ pet, petId, species, onBack, onSuccess }) => {
         notes: data.notes || null,
       });
       onSuccess();
-    } catch (error) {
-      console.error('Failed to add vaccination:', error);
-      toast.error(error?.message || 'Failed to add vaccination');
+    } catch (error) {      toast.error(error?.message || 'Failed to add vaccination');
     }
   };
 
@@ -717,9 +713,7 @@ const ReminderPanel = ({ pet, petName, ownerId, onBack, onSuccess }) => {
         type: 'REMINDER',
       });
       onSuccess();
-    } catch (error) {
-      console.error('Failed to send reminder:', error);
-      toast.error(error?.message || 'Failed to send reminder');
+    } catch (error) {      toast.error(error?.message || 'Failed to send reminder');
     }
   };
 

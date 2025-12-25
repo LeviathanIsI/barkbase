@@ -96,9 +96,7 @@ const Privacy = () => {
         if (data.communication) setCommunication({ ...DEFAULT_COMMUNICATION, ...data.communication });
       }
       setHasChanges(false);
-    } catch (err) {
-      console.error('Failed to load privacy settings:', err);
-      setError(null);
+    } catch (err) {      setError(null);
     } finally {
       setIsLoading(false);
     }
@@ -118,9 +116,7 @@ const Privacy = () => {
       setSuccessMessage('Privacy settings saved successfully');
       setHasChanges(false);
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
-      console.error('Failed to save privacy settings:', err);
-      setError(err.message || 'Failed to save privacy settings');
+    } catch (err) {      setError(err.message || 'Failed to save privacy settings');
     } finally {
       setIsSaving(false);
     }
@@ -136,9 +132,7 @@ const Privacy = () => {
         params: { search: searchQuery.trim(), limit: 10 }
       });
       setSearchResults(data?.owners || data || []);
-    } catch (err) {
-      console.error('Failed to search customers:', err);
-      setError(err.message || 'Failed to search customers');
+    } catch (err) {      setError(err.message || 'Failed to search customers');
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -166,9 +160,7 @@ const Privacy = () => {
 
       setSuccessMessage(`Data exported for ${selectedCustomer.name || 'customer'}`);
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
-      console.error('Failed to export customer data:', err);
-      setError(err.message || 'Failed to export customer data');
+    } catch (err) {      setError(err.message || 'Failed to export customer data');
     } finally {
       setIsExporting(false);
     }
@@ -195,9 +187,7 @@ const Privacy = () => {
       setDeleteConfirmName('');
       setSearchResults(searchResults.filter(c => c.id !== selectedCustomer.id));
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (err) {
-      console.error('Failed to delete customer data:', err);
-      setError(err.message || 'Failed to delete customer data');
+    } catch (err) {      setError(err.message || 'Failed to delete customer data');
     } finally {
       setIsDeleting(false);
     }

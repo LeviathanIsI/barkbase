@@ -119,9 +119,7 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
           const autoMappings = autoMapColumns(headers, selectedTypes);
           setMappings(autoMappings);
         }
-      } catch (err) {
-        console.error('Parse error:', err);
-        setParseError(err.message || 'Failed to parse file');
+      } catch (err) {        setParseError(err.message || 'Failed to parse file');
       } finally {
         setIsParsing(false);
       }
@@ -226,9 +224,7 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Import API error response:', errorData);
-        const errorMsg = errorData.debugStack
+        const errorData = await response.json().catch(() => ({}));        const errorMsg = errorData.debugStack
           ? `${errorData.message}\n\nDebug: ${errorData.debugStack}`
           : errorData.message || `Import failed with status ${response.status}`;
         throw new Error(errorMsg);
@@ -242,9 +238,7 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
       if (onImportComplete) {
         onImportComplete(result);
       }
-    } catch (err) {
-      console.error('Import error:', err);
-      setImportError(err.message || 'Failed to import data');
+    } catch (err) {      setImportError(err.message || 'Failed to import data');
       setIsImporting(false);
     }
     // Note: We don't set isImporting=false on success because we redirect

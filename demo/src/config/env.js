@@ -10,7 +10,7 @@
  * USAGE:
  * ------
  * import { config } from '@/config/env';
- * console.log(config.apiBaseUrl);
+ *
  *
  * =============================================================================
  */
@@ -184,17 +184,7 @@ export const realtimeUrl = import.meta.env.VITE_REALTIME_URL || '';
     }
   }
 
-  // Log errors (production issues)
-  if (errors.length > 0) {
-    console.error('[BarkBase Config] CONFIGURATION ERRORS:');
-    errors.forEach(e => console.error(`  ❌ ${e}`));
-  }
-
-  // Log warnings (dev hints)
-  if (warnings.length > 0) {
-    console.warn('[BarkBase Config] Environment warnings:');
-    warnings.forEach(w => console.warn(`  ⚠️ ${w}`));
-  }
+  // Errors and warnings silently ignored in demo
 })();
 
 // =============================================================================

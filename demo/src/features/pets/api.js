@@ -98,7 +98,6 @@ export const usePetsQuery = (params = {}) => {
         const res = await apiClient.get(canonicalEndpoints.pets.list, { params });
         return normalizePetsResponse(res?.data);
       } catch (e) {
-        console.warn('[pets] Falling back to empty list due to API error:', e?.message || e);
         return { pets: [], total: 0, raw: null };
       }
     },
@@ -124,7 +123,6 @@ export const usePetDetailsQuery = (petId, options = {}) => {
         const res = await apiClient.get(canonicalEndpoints.pets.detail(petId));
         return res?.data ?? null;
       } catch (e) {
-        console.warn('[pet] Falling back to null due to API error:', e?.message || e);
         return null;
       }
     },
@@ -154,7 +152,6 @@ export const usePetVaccinationsQuery = (petId, options = {}) => {
         const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
         return list;
       } catch (error) {
-        console.error('Error fetching vaccinations:', error);
         return [];
       }
     },

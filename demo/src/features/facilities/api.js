@@ -15,7 +15,6 @@ export const useFacilitySettingsQuery = () => {
         const data = res?.data;
         return Array.isArray(data) ? data[0] : data;
       } catch (e) {
-        console.warn('[facilitySettings] Falling back to null due to API error:', e?.message || e);
         return null;
       }
     },
@@ -37,6 +36,4 @@ export const useUpdateFacilitySettingsMutation = () => {
     },
   });
 };
-
-
 

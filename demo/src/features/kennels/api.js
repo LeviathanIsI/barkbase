@@ -93,7 +93,6 @@ export const useKennels = (filters = {}) => {
         const kennels = normalizeKennelsResponse(res?.data);
         return kennels;
       } catch (e) {
-        console.warn('[kennels] Error fetching, returning empty array:', e?.message);
         return [];
       }
     },
@@ -117,7 +116,6 @@ export const useKennelsWithOccupancy = () => {
         const res = await apiClient.get('/api/v1/analytics/occupancy/current');
         return res.data?.data || res.data || {};
       } catch (e) {
-        console.warn('[kennels-occupancy] Error:', e?.message);
         return { currentOccupancy: 0, totalCapacity: 0, occupancyRate: 0 };
       }
     },
@@ -163,7 +161,6 @@ export const useCreateKennel = () => {
       toast.success('Kennel created successfully');
     },
     onError: (error) => {
-      console.error('[kennels] Create failed:', error?.message);
       toast.error(error?.response?.data?.message || 'Failed to create kennel');
     },
   });
@@ -190,7 +187,6 @@ export const useUpdateKennel = (kennelId) => {
       toast.success('Kennel updated successfully');
     },
     onError: (error) => {
-      console.error('[kennels] Update failed:', error?.message);
       toast.error(error?.response?.data?.message || 'Failed to update kennel');
     },
   });
@@ -213,7 +209,6 @@ export const useDeleteKennel = () => {
       toast.success('Kennel deleted');
     },
     onError: (error) => {
-      console.error('[kennels] Delete failed:', error?.message);
       toast.error('Failed to delete kennel');
     },
   });

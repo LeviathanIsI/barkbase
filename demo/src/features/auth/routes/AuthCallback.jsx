@@ -58,7 +58,7 @@ const AuthCallback = () => {
           throw new Error('Token exchange failed - no access token received');
         }
 
-        if (import.meta.env.DEV) console.log('[AuthCallback] Token exchange successful');
+        if (import.meta.env.DEV)
 
         // Decode the ID token to extract basic user info
         let userInfo = {};
@@ -73,9 +73,7 @@ const AuthCallback = () => {
               name: decoded.name || decoded.email?.split('@')[0],
               emailVerified: decoded.email_verified,
             };
-          } catch (decodeErr) {
-            console.warn('[AuthCallback] Could not decode ID token:', decodeErr);
-          }
+          } catch (decodeErr) {          }
         }
 
         // Store tokens in auth store
@@ -92,9 +90,7 @@ const AuthCallback = () => {
         if (result.refreshToken) {
           try {
             sessionStorage.setItem('barkbase_refresh_token', result.refreshToken);
-          } catch (e) {
-            console.warn('[AuthCallback] Could not store refresh token');
-          }
+          } catch (e) {          }
         }
 
         // Redirect to the app
@@ -102,9 +98,7 @@ const AuthCallback = () => {
         sessionStorage.removeItem('barkbase_return_path');
         
         navigate(returnPath, { replace: true });
-      } catch (err) {
-        console.error('[AuthCallback] Error:', err);
-        setError(err.message || 'Authentication failed');
+      } catch (err) {        setError(err.message || 'Authentication failed');
         setProcessing(false);
       }
     };

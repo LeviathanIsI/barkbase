@@ -414,9 +414,7 @@ const ScheduleTab = ({ staff }) => {
         const shiftsApi = await import('@/features/schedule/api/shifts');
         const response = await shiftsApi.getWeeklySchedule(weekStartStr);
         setWeeklyData(response);
-      } catch (error) {
-        console.error('Failed to fetch weekly schedule:', error);
-        // Fall back to showing staff without shifts
+      } catch (error) {        // Fall back to showing staff without shifts
         setWeeklyData(null);
       } finally {
         setLoading(false);
@@ -480,9 +478,7 @@ const ScheduleTab = ({ staff }) => {
       // Refetch
       const response = await shiftsApi.getWeeklySchedule(weekStartStr);
       setWeeklyData(response);
-    } catch (error) {
-      console.error('Failed to create shift:', error);
-      alert('Failed to create shift');
+    } catch (error) {      alert('Failed to create shift');
     }
   };
 

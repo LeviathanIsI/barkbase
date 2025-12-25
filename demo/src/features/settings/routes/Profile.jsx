@@ -81,7 +81,6 @@ const Profile = () => {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
 
-
   // 2FA
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [show2FAModal, setShow2FAModal] = useState(false);
@@ -97,7 +96,6 @@ const Profile = () => {
   const [isLoadingEmail, setIsLoadingEmail] = useState(true);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-
 
   // Active sessions
   const { data: activeSessionsData, isLoading: isLoadingSessions } = useAuthSessionsQuery();
@@ -132,7 +130,6 @@ const Profile = () => {
           setConnectedEmail(null);
         }
       } catch (error) {
-        console.error('[Profile] Failed to fetch connected email:', error);
         setConnectedEmail(null);
       } finally {
         setIsLoadingEmail(false);
@@ -160,7 +157,7 @@ const Profile = () => {
             });
           }
         })
-        .catch(console.error);
+        .catch(() => {});
       // Clear URL params
       setSearchParams({}, { replace: true });
     } else if (oauthError) {
@@ -262,7 +259,7 @@ const Profile = () => {
           });
         }
       })
-      .catch(console.error);
+      .catch(() => {});
   };
 
   const handleEmailDisconnect = async () => {
@@ -272,7 +269,6 @@ const Profile = () => {
       setConnectedEmail(null);
       toast.success('Email disconnected');
     } catch (error) {
-      console.error('[Profile] Failed to disconnect email:', error);
       toast.error(error.response?.data?.message || 'Failed to disconnect email');
     } finally {
       setIsDisconnecting(false);

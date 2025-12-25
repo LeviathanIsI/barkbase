@@ -15,9 +15,7 @@ export const useCommunicationsQuery = (ownerId) => {
       try {
         const res = await apiClient.get('/api/v1/communications', { params: { ownerId } });
         return res.data;
-      } catch (e) {
-        console.warn('[communications] Falling back to empty list:', e?.message || e);
-        return [];
+      } catch (e) {        return [];
       }
     },
     enabled: !!ownerId,
@@ -53,9 +51,7 @@ export const useCustomerTimeline = (ownerId) => {
           params: { offset: pageParam, limit: 50 },
         });
         return res.data || { items: [], total: 0, offset: pageParam, limit: 50 };
-      } catch (e) {
-        console.warn('[timeline] Error:', e?.message || e);
-        return { items: [], total: 0, offset: pageParam, limit: 50 };
+      } catch (e) {        return { items: [], total: 0, offset: pageParam, limit: 50 };
       }
     },
     getNextPageParam: (lastPage) => {
@@ -76,9 +72,7 @@ export const useCommunicationStats = (ownerId) => {
       try {
         const res = await apiClient.get(`/api/v1/communications/owner/${ownerId}/stats`);
         return res.data || { total: 0, emails: 0, sms: 0, phone: 0, notes: 0 };
-      } catch (e) {
-        console.warn('[communication-stats] Error:', e?.message || e);
-        return { total: 0, emails: 0, sms: 0, phone: 0, notes: 0 };
+      } catch (e) {        return { total: 0, emails: 0, sms: 0, phone: 0, notes: 0 };
       }
     },
     enabled: !!ownerId,
@@ -113,9 +107,7 @@ export const useEntityNotes = (entityType, entityId, options = {}) => {
       try {
         const res = await apiClient.get(`/api/v1/notes/${entityType}/${entityId}`, { params: options });
         return res.data || [];
-      } catch (e) {
-        console.warn('[notes] Error:', e?.message || e);
-        return [];
+      } catch (e) {        return [];
       }
     },
     enabled: !!entityType && !!entityId,
@@ -130,9 +122,7 @@ export const useNoteCategories = () => {
       try {
         const res = await apiClient.get('/api/v1/notes/categories');
         return res.data || [];
-      } catch (e) {
-        console.warn('[note-categories] Error:', e?.message || e);
-        return [];
+      } catch (e) {        return [];
       }
     },
     staleTime: 10 * 60 * 1000, // Categories rarely change
@@ -231,9 +221,7 @@ export const useSegmentMembers = (segmentId, options = {}) => {
         const data = res.data?.data || res.data || [];
         const hasMore = res.data?.hasMore ?? false;
         return { data, hasMore, offset: pageParam, limit: 50 };
-      } catch (e) {
-        console.warn('[segment-members] Error:', e?.message || e);
-        return { data: [], hasMore: false, offset: pageParam, limit: 50 };
+      } catch (e) {        return { data: [], hasMore: false, offset: pageParam, limit: 50 };
       }
     },
     getNextPageParam: (lastPage) => {

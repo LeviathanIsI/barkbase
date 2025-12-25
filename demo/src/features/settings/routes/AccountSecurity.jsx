@@ -96,7 +96,6 @@ const AccountSecurity = () => {
         </div>
       </Card>
 
-
       <Card title="Password Policies" description="Set requirements for staff passwords.">
         <div className="space-y-3 text-sm">
           <label className="flex items-center gap-3">

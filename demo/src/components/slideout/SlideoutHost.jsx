@@ -374,9 +374,7 @@ function PetForm({ pet, ownerId, onSuccess, onCancel }) {
         result = await createMutation.mutateAsync(payload);
       }
       onSuccess?.(result || payload);
-    } catch (error) {
-      console.error('Failed to save pet:', error);
-      toast.error(error?.message || 'Failed to save pet');
+    } catch (error) {      toast.error(error?.message || 'Failed to save pet');
     }
   };
 
@@ -500,9 +498,7 @@ function OwnerForm({ owner, onSuccess, onCancel }) {
         result = await createMutation.mutateAsync(data);
       }
       onSuccess?.(result || data);
-    } catch (error) {
-      console.error('Failed to save customer:', error);
-      toast.error(error?.message || 'Failed to save customer');
+    } catch (error) {      toast.error(error?.message || 'Failed to save customer');
     }
   };
 
@@ -700,9 +696,7 @@ function VaccinationEditForm({ vaccinations = [], initialIndex = 0, petId, petNa
       } else {
         onSuccess?.(result || data);
       }
-    } catch (error) {
-      console.error('Failed to update vaccination:', error);
-      toast.error(error?.message || 'Failed to update vaccination');
+    } catch (error) {      toast.error(error?.message || 'Failed to update vaccination');
     }
   };
 

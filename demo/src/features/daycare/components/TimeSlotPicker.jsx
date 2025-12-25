@@ -53,9 +53,7 @@ const TimeSlotPicker = ({
     try {
       await onConfirm({ startTime, endTime });
       onClose();
-    } catch (error) {
-      console.error('Failed to confirm time slot:', error);
-    } finally {
+    } catch (error) {    } finally {
       setIsLoading(false);
     }
   };

@@ -3449,7 +3449,6 @@ const tenantSettings = {
 // ============================================================================
 export function seedDemoData() {
   if (sessionStorage.getItem(DEMO_DATA_KEY)) {
-    console.log('[Demo] Data already seeded');
     return;
   }
 
@@ -3459,7 +3458,6 @@ export function seedDemoData() {
     incidents, messages, activities, dashboardStats, tenantSettings
   };
   sessionStorage.setItem(DEMO_DATA_KEY, JSON.stringify(data));
-  console.log('[Demo] Initial data seeded');
 }
 
 export function getDemoData() {
@@ -3475,5 +3473,4 @@ export function updateDemoData(key, value) {
 
 export function clearDemoData() {
   sessionStorage.removeItem(DEMO_DATA_KEY);
-  console.log('[Demo] Data cleared');
 }

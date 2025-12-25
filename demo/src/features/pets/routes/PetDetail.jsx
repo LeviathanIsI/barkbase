@@ -333,9 +333,7 @@ const PetDetail = () => {
       toast.success('Vaccination deleted successfully');
       setDeleteDialogOpen(false);
       setVaccinationToDelete(null);
-    } catch (error) {
-      console.error('Failed to delete vaccination:', error);
-      toast.error(error?.message || 'Failed to delete vaccination');
+    } catch (error) {      toast.error(error?.message || 'Failed to delete vaccination');
     } finally {
       setIsDeleting(false);
     }
@@ -356,9 +354,7 @@ const PetDetail = () => {
       setVaccinationModalOpen(false);
       setEditingVaccination(null);
       setSelectedVaccineType('');
-    } catch (error) {
-      console.error('Failed to save vaccination:', error);
-      toast.error(error?.message || 'Failed to save vaccination');
+    } catch (error) {      toast.error(error?.message || 'Failed to save vaccination');
     }
   };
 
@@ -399,9 +395,7 @@ const PetDetail = () => {
 
       // Refresh the vaccinations data - use correct query key format
       queryClient.invalidateQueries({ queryKey: ['petVaccinations'] });
-    } catch (error) {
-      console.error('Failed to renew vaccination:', error);
-      toast.error(error.response?.data?.message || 'Failed to renew vaccination');
+    } catch (error) {      toast.error(error.response?.data?.message || 'Failed to renew vaccination');
     } finally {
       setIsRenewing(false);
     }
@@ -1722,9 +1716,7 @@ function DocumentsTab({ pet, onUpdatePet }) {
         });
         toast.success(`${newDocs.length} document${newDocs.length > 1 ? 's' : ''} uploaded successfully`);
       }
-    } catch (error) {
-      console.error('Document upload error:', error);
-      toast.error('Failed to upload document. Please try again.');
+    } catch (error) {      toast.error('Failed to upload document. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -1751,9 +1743,7 @@ function DocumentsTab({ pet, onUpdatePet }) {
           toast.error('Could not generate view link');
         }
       }
-    } catch (err) {
-      console.error('Error getting view URL:', err);
-      toast.error('View link not available');
+    } catch (err) {      toast.error('View link not available');
     }
   };
 
@@ -1776,9 +1766,7 @@ function DocumentsTab({ pet, onUpdatePet }) {
       } else if (doc.url && doc.url.startsWith('http')) {
         window.open(doc.url, '_blank');
       }
-    } catch (err) {
-      console.error('Error downloading file:', err);
-      toast.error('Download failed');
+    } catch (err) {      toast.error('Download failed');
     }
   };
 
@@ -1787,9 +1775,7 @@ function DocumentsTab({ pet, onUpdatePet }) {
       const updatedDocs = documents.filter(d => d.key !== docToDelete.key);
       await onUpdatePet({ documents: updatedDocs });
       toast.success('Document removed');
-    } catch (error) {
-      console.error('Failed to remove document:', error);
-      toast.error('Failed to remove document');
+    } catch (error) {      toast.error('Failed to remove document');
     }
   };
 

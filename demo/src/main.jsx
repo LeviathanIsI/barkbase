@@ -25,11 +25,3 @@ root.render(
   </StrictMode>
 );
 
-// Log demo mode for debugging
-if (import.meta.env.DEV) {
-  console.log(
-    '%c BarkBase Demo Mode ',
-    'background: #3B82F6; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;'
-  );
-  console.log('Running in development mode. Mock data will be used.');
-}

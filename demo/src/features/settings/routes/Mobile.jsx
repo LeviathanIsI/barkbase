@@ -33,7 +33,6 @@ const Mobile = () => {
       await apiClient.put('/api/v1/settings/mobile', settings);
       toast.success('Mobile settings saved successfully!');
     } catch (error) {
-      console.error('Error saving mobile settings:', error);
       toast.error(error.message || 'Failed to save settings');
     }
   };

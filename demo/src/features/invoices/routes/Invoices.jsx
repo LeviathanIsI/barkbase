@@ -1534,9 +1534,7 @@ const Invoices = () => {
         setShowDrawer(true);
         break;
 
-      default:
-        console.warn('Unknown action:', action);
-    }
+      default:    }
   };
 
   const handleExport = () => {

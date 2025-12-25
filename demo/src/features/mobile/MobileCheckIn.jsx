@@ -111,7 +111,6 @@ const MobileCheckIn = () => {
 
           photoUrl = fileUrl;
         } catch (uploadError) {
-          console.error('Photo upload error:', uploadError);
           toast.error('Photo upload failed, continuing with check-in...');
         }
       }

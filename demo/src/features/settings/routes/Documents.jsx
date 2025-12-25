@@ -56,7 +56,6 @@ const Documents = () => {
       const { data } = await apiClient.get('/api/v1/documents', { params });
       setDocuments(data?.documents || []);
     } catch (err) {
-      console.error('Failed to fetch documents:', err);
       setDocuments([]);
     } finally {
       setIsLoading(false);
@@ -73,7 +72,6 @@ const Documents = () => {
         documentCount: data?.documentCount || 0,
       });
     } catch (err) {
-      console.error('Failed to fetch stats:', err);
     }
   }, []);
 
@@ -151,7 +149,6 @@ const Documents = () => {
       setDocuments(prev => prev.filter(d => d.id !== doc.id));
       fetchStats();
     } catch (err) {
-      console.error('Failed to delete document:', err);
       alert('Failed to delete document');
     }
   };

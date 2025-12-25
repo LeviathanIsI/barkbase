@@ -513,10 +513,7 @@ const Schedule = () => {
               setSelectedRunForAssignment(null);
               // Refetch assignments
               refetchAssignments();
-            } catch (error) {
-              console.error('[Schedule] Failed to assign pet:', error);
-              console.error('[Schedule] Error details:', error?.response?.data || error?.message);
-              toast.error(error?.response?.data?.message || error?.message || 'Failed to assign pet to run');
+            } catch (error) {              toast.error(error?.response?.data?.message || error?.message || 'Failed to assign pet to run');
             }
           }}
           onClose={() => {

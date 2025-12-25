@@ -55,9 +55,7 @@ const Login = () => {
         name: decoded.name || decoded.email?.split('@')[0],
         emailVerified: decoded.email_verified,
       };
-    } catch (err) {
-      console.warn('[Login] Could not decode ID token:', err);
-      return {};
+    } catch (err) {      return {};
     }
   };
 
@@ -78,7 +76,7 @@ const Login = () => {
         throw new Error('Authentication failed - no access token received');
       }
 
-      if (import.meta.env.DEV) console.log('[Login] Authentication successful');
+      if (import.meta.env.DEV)
 
       // Call backend to create session record (uses raw fetch intentionally - auth endpoint before apiClient is configured)
       try {
@@ -93,15 +91,11 @@ const Login = () => {
           }),
         });
 
-        if (!loginResponse.ok) {
-          console.warn('[Login] Backend login call failed:', loginResponse.status);
-        } else {
+        if (!loginResponse.ok) {        } else {
           const loginData = await loginResponse.json();
-          if (import.meta.env.DEV) console.log('[Login] Backend session created:', loginData.session);
+          if (import.meta.env.DEV)
         }
-      } catch (backendError) {
-        console.warn('[Login] Failed to create backend session:', backendError.message);
-        // Don't fail login if backend session creation fails
+      } catch (backendError) {        // Don't fail login if backend session creation fails
       }
 
       // Decode ID token to get user info
@@ -117,14 +111,12 @@ const Login = () => {
       if (result.refreshToken) {
         try {
           sessionStorage.setItem('barkbase_refresh_token', result.refreshToken);
-        } catch {
-          console.warn('[Login] Could not store refresh token');
-        }
+        } catch {        }
       }
 
       // Bootstrap: Fetch tenant config using the new access token
       // This hydrates both profile and tenant info from /api/v1/config/tenant
-      if (import.meta.env.DEV) console.log('[Login] Bootstrapping tenant config...');
+      if (import.meta.env.DEV)
       setTenantLoading(true);
       try {
         const tenantResponse = await apiClient.get(canonicalEndpoints.settings.tenant);
@@ -149,16 +141,10 @@ const Login = () => {
             featureFlags: tenantConfig.featureFlags,
           });
 
-          if (import.meta.env.DEV) console.log('[Login] Tenant config loaded:', {
-            tenantId: tenantConfig.tenantId,
-            slug: tenantConfig.slug,
-            hasOnboardingCompleted: tenantConfig.hasOnboardingCompleted,
-          });
+          if (import.meta.env.DEV)
         }
       } catch (tenantError) {
-        // Log but don't block login - TenantLoader will retry
-        console.warn('[Login] Failed to bootstrap tenant config:', tenantError.message);
-      } finally {
+        // Log but don't block login - TenantLoader will retry      } finally {
         setTenantLoading(false);
       }
 
@@ -166,10 +152,7 @@ const Login = () => {
       const returnPath = sessionStorage.getItem('barkbase_return_path') || '/today';
       sessionStorage.removeItem('barkbase_return_path');
       navigate(returnPath, { replace: true });
-    } catch (err) {
-      console.error('[Login] Error:', err);
-
-      // Map common Cognito errors to user-friendly messages
+    } catch (err) {      // Map common Cognito errors to user-friendly messages
       let message = err.message || 'Unable to sign in. Please try again.';
       if (err.name === 'NotAuthorizedException') {
         message = 'Invalid email or password.';
@@ -201,9 +184,7 @@ const Login = () => {
 
       // Redirect to Cognito Hosted UI
       await auth.signIn();
-    } catch (err) {
-      console.error('[Login] Hosted UI Error:', err);
-      setError('root.serverError', {
+    } catch (err) {      setError('root.serverError', {
         type: 'manual',
         message: err.message || 'Unable to start login. Please try again.',
       });

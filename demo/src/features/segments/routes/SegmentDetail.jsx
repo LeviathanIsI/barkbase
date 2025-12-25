@@ -86,9 +86,7 @@ const useTeamMembers = () => {
       try {
         const res = await apiClient.get('/api/v1/memberships');
         return res.data?.data || res.data?.members || [];
-      } catch (e) {
-        console.warn('[memberships] Error:', e?.message);
-        return [];
+      } catch (e) {        return [];
       }
     },
     staleTime: 5 * 60 * 1000,

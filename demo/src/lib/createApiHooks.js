@@ -80,7 +80,6 @@ export const extractErrorMessage = (error) => {
 export const createMutationErrorHandler = (context) => (error) => {
   const message = extractErrorMessage(error);
   toast.error(message);
-  console.error(`[${context}] Mutation failed:`, message);
 };
 
 // ============================================================================
@@ -208,7 +207,6 @@ export const createListQuery = ({
           const res = await apiClient.get(url, { params: mergedParams });
           return normalizeListResponse(res?.data, itemsKey);
         } catch (e) {
-          console.warn(`[${key}] API error, returning empty list:`, e?.message || e);
           return { items: [], total: 0, raw: null };
         }
       },
@@ -258,7 +256,6 @@ export const createDetailQuery = ({
           const res = await apiClient.get(resolvedUrl);
           return normalizeDetailResponse(res?.data);
         } catch (e) {
-          console.warn(`[${key}/${id}] API error, returning null:`, e?.message || e);
           return null;
         }
       },
@@ -308,7 +305,6 @@ export const createSearchQuery = ({
           const normalized = normalizeListResponse(res?.data);
           return normalized.items;
         } catch (e) {
-          console.warn(`[${key}/search] API error:`, e?.message || e);
           return [];
         }
       },

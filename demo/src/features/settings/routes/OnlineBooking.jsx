@@ -91,9 +91,7 @@ const OnlineBooking = () => {
     try {
       await updateMutation.mutateAsync({ ...settings, urlSlug: slugInput });
       toast.success('Online booking settings saved successfully!');
-    } catch (error) {
-      console.error('Error saving online booking settings:', error);
-      toast.error(error?.response?.data?.message || 'Failed to save settings');
+    } catch (error) {      toast.error(error?.response?.data?.message || 'Failed to save settings');
     }
   };
 
@@ -111,9 +109,7 @@ const OnlineBooking = () => {
       try {
         const result = await checkSlugMutation.mutateAsync(slug);
         setSlugAvailable(result.available);
-      } catch (error) {
-        console.error('Error checking slug:', error);
-      } finally {
+      } catch (error) {      } finally {
         setSlugChecking(false);
       }
     } else if (slug === data?.settings?.urlSlug) {

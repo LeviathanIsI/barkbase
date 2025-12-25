@@ -62,7 +62,6 @@ const NotificationsOverview = () => {
       });
       toast.success('Notification preferences saved');
     } catch (error) {
-      console.error('Error saving preferences:', error);
       toast.error(error.message || 'Failed to save preferences');
     }
   };

@@ -264,7 +264,6 @@ const FacilityMapView = ({ kennels = [] }) => {
         setFacilityPositions(defaultPositions);
       }
     } catch (error) {
-      console.error('Failed to load facility positions:', error);
     }
   }, [aggregatedFacilities.length]);
   
@@ -273,7 +272,6 @@ const FacilityMapView = ({ kennels = [] }) => {
     try {
       localStorage.setItem('facility-positions', JSON.stringify(positions));
     } catch (error) {
-      console.error('Failed to save facility positions:', error);
     }
   };
   

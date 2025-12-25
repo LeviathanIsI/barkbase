@@ -37,7 +37,6 @@ export class CognitoPasswordClient {
 
     if (!registerResponse.ok) {
       const errorData = await registerResponse.json().catch(() => ({}));
-      console.error('[CognitoPasswordClient] Registration failed:', errorData);
       throw new Error(errorData.message || 'Failed to create account');
     }
 
@@ -146,5 +145,4 @@ export class CognitoPasswordClient {
     return null;
   }
 }
-
 

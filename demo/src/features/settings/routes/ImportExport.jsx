@@ -179,9 +179,7 @@ const ImportExport = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Export failed:', err);
-      setExportError(err.message || 'Failed to export data');
+    } catch (err) {      setExportError(err.message || 'Failed to export data');
     } finally {
       setIsExporting(false);
     }
@@ -194,9 +192,7 @@ const ImportExport = () => {
     try {
       await apiClient.delete(`/api/v1/imports/${importId}`);
       refetchImports();
-    } catch (err) {
-      console.error('Delete import failed:', err);
-    }
+    } catch (err) {    }
     setActiveMenuId(null);
   };
 
@@ -222,9 +218,7 @@ const ImportExport = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Download errors failed:', err);
-    }
+    } catch (err) {    }
     setActiveMenuId(null);
   };
 

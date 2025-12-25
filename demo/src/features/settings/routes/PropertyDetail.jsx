@@ -55,7 +55,6 @@ const PropertyDetail = () => {
         });
       }
     } catch (error) {
-      console.error('Failed to fetch property:', error);
     } finally {
       setLoading(false);
     }
@@ -73,7 +72,6 @@ const PropertyDetail = () => {
 
       navigate(`/settings/properties?tab=${objectType}`);
     } catch (error) {
-      console.error('Failed to save property:', error);
     } finally {
       setSaving(false);
     }

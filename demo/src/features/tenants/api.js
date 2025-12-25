@@ -22,9 +22,7 @@ export const useOnboardingStatus = () => {
       try {
         const res = await apiClient.get('/api/v1/config/tenant/onboarding');
         return res?.data ?? { hasOnboardingCompleted: false };
-      } catch (e) {
-        console.warn('[onboarding] Error fetching status:', e?.message);
-        return { hasOnboardingCompleted: false };
+      } catch (e) {        return { hasOnboardingCompleted: false };
       }
     },
     staleTime: 60 * 1000,
@@ -43,9 +41,7 @@ export const useOnboardingDismissMutation = () => {
     onSuccess: (payload) => {
       queryClient.setQueryData(queryKeys.onboarding(tenantId), payload);
     },
-    onError: (error) => {
-      console.warn('[onboarding] Error dismissing:', error?.message);
-    },
+    onError: (error) => {    },
   });
 };
 
@@ -89,9 +85,7 @@ export const useUpdateTenantMutation = (tenantId) => {
       }
       toast.success('Tenant settings updated');
     },
-    onError: (error) => {
-      console.error('[tenant] Update failed:', error?.message);
-      toast.error(error?.response?.data?.message || 'Failed to update tenant settings');
+    onError: (error) => {      toast.error(error?.response?.data?.message || 'Failed to update tenant settings');
     },
   });
 };
@@ -114,9 +108,7 @@ export const useCreateTenantMutation = () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] });
       toast.success('Tenant created successfully');
     },
-    onError: (error) => {
-      console.error('[tenant] Create failed:', error?.message);
-      toast.error(error?.response?.data?.message || 'Failed to create tenant');
+    onError: (error) => {      toast.error(error?.response?.data?.message || 'Failed to create tenant');
     },
   });
 };

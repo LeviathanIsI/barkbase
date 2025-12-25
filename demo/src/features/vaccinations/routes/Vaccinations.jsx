@@ -321,9 +321,7 @@ const Vaccinations = () => {
       refetch();
       setDeleteDialogOpen(false);
       setVaccinationToDelete(null);
-    } catch (error) {
-      console.error('Failed to delete vaccination:', error);
-      toast.error(error?.message || 'Failed to delete vaccination');
+    } catch (error) {      toast.error(error?.message || 'Failed to delete vaccination');
     } finally {
       setIsDeleting(false);
     }
@@ -417,9 +415,7 @@ const Vaccinations = () => {
       // Refresh the data
       queryClient.invalidateQueries({ queryKey: ['vaccinations', 'expiring'] });
       refetch();
-    } catch (error) {
-      console.error('Failed to renew vaccination:', error);
-      toast.error(error.response?.data?.message || 'Failed to renew vaccination');
+    } catch (error) {      toast.error(error.response?.data?.message || 'Failed to renew vaccination');
     } finally {
       setIsRenewing(false);
     }
@@ -1238,9 +1234,7 @@ const EmailOwnersModal = ({ open, onClose, records }) => {
       });
       toast.success(`Vaccination reminders sent to ${uniqueOwners.length} owner${uniqueOwners.length !== 1 ? 's' : ''}`);
       onClose();
-    } catch (err) {
-      console.error('Failed to send emails:', err);
-      const errorMessage = err.response?.data?.message || 'Failed to send emails';
+    } catch (err) {      const errorMessage = err.response?.data?.message || 'Failed to send emails';
       if (err.response?.status === 404 || errorMessage.includes('not found') || errorMessage.includes('not implemented')) {
         toast.error('Email reminders feature coming soon');
       } else {

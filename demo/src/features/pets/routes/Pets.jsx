@@ -666,9 +666,7 @@ const Pets = () => {
       setSelectedRows(new Set());
       setDeleteModalOpen(false);
       setDeleteConfirmValue('');
-    } catch (err) {
-      console.error('Failed to delete pets:', err);
-      toast.error('Failed to delete some pets. Please try again.');
+    } catch (err) {      toast.error('Failed to delete some pets. Please try again.');
     } finally {
       setIsDeleting(false);
     }
@@ -1038,9 +1036,7 @@ const Pets = () => {
             await createPetMutation.mutateAsync(data);
             setPetFormModalOpen(false);
             toast.success('Pet created successfully');
-          } catch (err) {
-            console.error('Failed to create pet:', err);
-            // Extract error message from API response
+          } catch (err) {            // Extract error message from API response
             const errorMessage = err?.response?.data?.message || err?.message || 'Failed to create pet';
             toast.error(errorMessage);
           }

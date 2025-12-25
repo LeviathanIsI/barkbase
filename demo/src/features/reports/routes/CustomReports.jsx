@@ -245,9 +245,7 @@ const CustomReports = () => {
       setError(null);
       const response = await apiClient.get('/analytics/reports/saved');
       setReports(response.data?.data || []);
-    } catch (err) {
-      console.error('Failed to fetch reports:', err);
-      setError(err.message || 'Failed to load reports');
+    } catch (err) {      setError(err.message || 'Failed to load reports');
     } finally {
       setLoading(false);
     }
@@ -304,9 +302,7 @@ const CustomReports = () => {
     try {
       await apiClient.delete(`/analytics/reports/saved/${report.id || report.recordId}`);
       setReports(prev => prev.filter(r => r.id !== report.id && r.recordId !== report.recordId));
-    } catch (err) {
-      console.error('Failed to delete report:', err);
-      alert('Failed to delete report: ' + (err.message || 'Unknown error'));
+    } catch (err) {      alert('Failed to delete report: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -316,9 +312,7 @@ const CustomReports = () => {
       if (response.data?.data) {
         setReports(prev => [response.data.data, ...prev]);
       }
-    } catch (err) {
-      console.error('Failed to duplicate report:', err);
-      alert('Failed to duplicate report: ' + (err.message || 'Unknown error'));
+    } catch (err) {      alert('Failed to duplicate report: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -335,9 +329,7 @@ const CustomReports = () => {
             : r
         )
       );
-    } catch (err) {
-      console.error('Failed to toggle favorite:', err);
-    }
+    } catch (err) {    }
   };
 
   const dataSources = ['all', 'owners', 'pets', 'bookings', 'payments', 'services', 'staff'];

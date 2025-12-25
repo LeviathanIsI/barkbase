@@ -200,7 +200,6 @@ const BrandThemeTab = () => {
       setUrl(url);
       toast.success('Image uploaded successfully');
     } catch (error) {
-      console.error('Branding upload error:', error);
       toast.error('Failed to upload image. Please try again.');
     } finally {
       setUploading(false);

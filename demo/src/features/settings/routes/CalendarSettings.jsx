@@ -99,9 +99,7 @@ const CalendarSettings = () => {
     try {
       await updateMutation.mutateAsync(settings);
       toast.success('Calendar settings saved successfully!');
-    } catch (error) {
-      console.error('Error saving calendar settings:', error);
-      toast.error(error?.response?.data?.message || 'Failed to save settings');
+    } catch (error) {      toast.error(error?.response?.data?.message || 'Failed to save settings');
     }
   };
 

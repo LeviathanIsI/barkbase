@@ -159,9 +159,7 @@ const AuditLog = () => {
       if (transformedEvents.length > 0 && !selectedEvent) {
         setSelectedEvent(transformedEvents[0]);
       }
-    } catch (err) {
-      console.error('Failed to fetch audit logs:', err);
-      // Don't show error - just show empty state
+    } catch (err) {      // Don't show error - just show empty state
       setEvents([]);
       setSelectedEvent(null);
     } finally {
@@ -286,9 +284,7 @@ const AuditLog = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Export failed:', err);
-      setError('Failed to export audit logs');
+    } catch (err) {      setError('Failed to export audit logs');
     } finally {
       setIsExporting(false);
     }

@@ -43,18 +43,14 @@ const AuthLoader = () => {
                   updateTokens({ tenantId: tenantResponse.data.recordId });
                   setTenant(tenantResponse.data);
                 }
-              } catch (tenantError) {
-                console.error('[AuthLoader] Failed to fetch tenant after OAuth:', tenantError);
-              } finally {
+              } catch (tenantError) {              } finally {
                 setLoading(false);
               }
             }
           }
           // handleCallback already cleans the URL
         }
-      } catch (err) {
-        console.error('[AuthLoader] OAuth callback handling failed:', err);
-      }
+      } catch (err) {      }
 
       // If we have a valid access token but no tenantId, fetch from backend
       if (accessToken && expiresAt && Date.now() < expiresAt) {
@@ -69,9 +65,7 @@ const AuthLoader = () => {
                 updateTokens({ tenantId: tenantResponse.data.recordId });
                 setTenant(tenantResponse.data);
               }
-            } catch (tenantError) {
-              console.error('[AuthLoader] Failed to fetch tenant on init:', tenantError);
-            } finally {
+            } catch (tenantError) {            } finally {
               setLoading(false);
             }
           }
@@ -104,16 +98,12 @@ const AuthLoader = () => {
                 updateTokens({ tenantId: tenantResponse.data.recordId });
                 setTenant(tenantResponse.data);
               }
-            } catch (tenantError) {
-              console.error('[AuthLoader] Failed to fetch tenant after refresh:', tenantError);
-            } finally {
+            } catch (tenantError) {            } finally {
               setLoading(false);
             }
           }
 
-        } catch (error) {
-          console.error('[AuthLoader] Failed to refresh token:', error);
-          // If refresh fails, clear auth state
+        } catch (error) {          // If refresh fails, clear auth state
           clearAuth();
         }
       }

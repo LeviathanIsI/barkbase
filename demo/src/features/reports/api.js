@@ -421,7 +421,6 @@ export const downloadReportExport = async (reportType, params = {}) => {
     
     return { success: true, filename };
   } catch (error) {
-    console.error('[Export] Download failed:', error);
     throw error;
   }
 };

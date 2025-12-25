@@ -26,7 +26,6 @@ export default function InfoRow({
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (error) {
-      console.error('Failed to copy value', error);
     }
   };
 

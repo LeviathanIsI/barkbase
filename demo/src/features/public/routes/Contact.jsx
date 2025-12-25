@@ -69,9 +69,7 @@ const Contact = () => {
         setSubmitStatus('error');
         setSubmitMessage(data.message || 'Failed to send message. Please try again.');
       }
-    } catch (error) {
-      console.error('Contact form error:', error);
-      setSubmitStatus('error');
+    } catch (error) {      setSubmitStatus('error');
       setSubmitMessage('Failed to send message. Please try again or email us directly at hello@barkbase.com');
     } finally {
       setIsSubmitting(false);

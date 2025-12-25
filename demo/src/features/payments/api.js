@@ -51,7 +51,6 @@ export const usePaymentsQuery = (params = {}, options = {}) => {
           total: data?.total || payments.length,
         };
       } catch (e) {
-        console.warn('[payments] Error fetching:', e?.message);
         return { payments: [], total: 0 };
       }
     },
@@ -99,7 +98,6 @@ export const usePaymentSummaryQuery = (options = {}) => {
           lastPaymentAmount: data.lastPaymentAmount || 0,
         };
       } catch (e) {
-        console.warn('[payment-summary] Error:', e?.message);
         return { currentBalance: 0, lastPaymentDate: null, lastPaymentAmount: 0 };
       }
     },

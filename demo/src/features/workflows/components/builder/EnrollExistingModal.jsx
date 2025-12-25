@@ -43,9 +43,7 @@ export default function EnrollExistingModal({ workflow, pendingFilterConfig, onC
         }
 
         setCount(data.count);
-      } catch (err) {
-        console.error('Error fetching matching records:', err);
-        setError(err.message);
+      } catch (err) {        setError(err.message);
       } finally {
         setLoading(false);
       }
@@ -59,9 +57,7 @@ export default function EnrollExistingModal({ workflow, pendingFilterConfig, onC
     try {
       await onActivate({ enrollExisting });
       onClose();
-    } catch (err) {
-      console.error('Activation failed:', err);
-      setError(err.message);
+    } catch (err) {      setError(err.message);
     } finally {
       setActivating(false);
     }

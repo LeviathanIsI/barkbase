@@ -29,9 +29,7 @@ export default function CommunicationForm({ ownerId, onSuccess, onCancel }) {
       });
       reset();
       onSuccess?.();
-    } catch (error) {
-      console.error('Failed to create communication:', error);
-    }
+    } catch (error) {    }
   };
 
   const TypeIcon = communicationTypes.find(t => t.value === selectedType)?.icon || FileText;

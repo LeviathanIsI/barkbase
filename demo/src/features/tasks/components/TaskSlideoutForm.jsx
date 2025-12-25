@@ -115,9 +115,7 @@ const TaskSlideoutForm = ({
       }
       
       onSuccess?.(result || payload);
-    } catch (error) {
-      console.error('Failed to save task:', error);
-      toast.error(error?.message || 'Failed to save task');
+    } catch (error) {      toast.error(error?.message || 'Failed to save task');
     }
   };
 

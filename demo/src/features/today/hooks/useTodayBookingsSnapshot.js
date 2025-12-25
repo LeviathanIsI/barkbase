@@ -122,7 +122,6 @@ const useTodayBookingsSnapshot = (date) => {
           inFacility: checkedInBookings,
         };
       } catch (e) {
-        console.warn('[today-snapshot] Error:', e?.message || e);
         return { arrivalsToday: [], departuresToday: [], inFacility: [] };
       }
     },

@@ -146,9 +146,7 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
       await checkOutMutation.mutateAsync({ bookingId });
       toast.success(`${petName} checked out!`);
       onCheckOutSuccess?.(bookingId);
-    } catch (error) {
-      console.error('Check-out failed:', error);
-      toast.error(error?.message || 'Failed to check out');
+    } catch (error) {      toast.error(error?.message || 'Failed to check out');
     } finally {
       setIsCheckingOut(false);
       setShowCheckOutConfirm(false);

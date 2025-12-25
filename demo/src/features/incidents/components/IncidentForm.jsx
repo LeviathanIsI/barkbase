@@ -191,9 +191,7 @@ export default function IncidentForm({
         setLoadingPets(true);
         const response = await getPets();
         setPets(response.data || []);
-      } catch (err) {
-        console.error('Failed to load pets:', err);
-      } finally {
+      } catch (err) {      } finally {
         setLoadingPets(false);
       }
     };

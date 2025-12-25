@@ -129,9 +129,7 @@ export default function SubscriptionTab() {
       await upgradeMutation.mutateAsync({ plan: 'PRO', billingCycle: 'annual' });
       // In production, this would redirect to Stripe checkout
       alert('Trial started! In production, you would be redirected to complete payment.');
-    } catch (error) {
-      console.error('Upgrade failed:', error);
-    }
+    } catch (error) {    }
   };
 
   if (isLoading) {

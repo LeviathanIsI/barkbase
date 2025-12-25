@@ -140,9 +140,7 @@ export default function PublishModal({ workflow, steps, onClose, onPublish }) {
     try {
       await onPublish({ enrollExisting });
       onClose();
-    } catch (error) {
-      console.error('Publish failed:', error);
-    } finally {
+    } catch (error) {    } finally {
       setIsPublishing(false);
     }
   };

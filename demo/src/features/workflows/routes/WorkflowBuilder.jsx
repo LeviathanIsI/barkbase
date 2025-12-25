@@ -142,9 +142,7 @@ export default function WorkflowBuilder() {
 
         setSaveStatus('error');
         return null;
-      } catch (error) {
-        console.error('Failed to create workflow:', error);
-        setSaveStatus('error');
+      } catch (error) {        setSaveStatus('error');
         toast.error('Failed to create workflow');
         return null;
       } finally {
@@ -183,9 +181,7 @@ export default function WorkflowBuilder() {
       });
 
       markClean();
-    } catch (error) {
-      console.error('Auto-save failed:', error);
-      setSaveStatus('error');
+    } catch (error) {      setSaveStatus('error');
     }
   }, [updateWorkflowMutation, updateStepsMutation, setSaveStatus, markClean]);
 
@@ -275,9 +271,7 @@ export default function WorkflowBuilder() {
         }
 
         navigate('/workflows');
-      } catch (error) {
-        console.error('Failed to publish workflow:', error);
-        toast.error('Failed to publish workflow');
+      } catch (error) {        toast.error('Failed to publish workflow');
       } finally {
         setIsPublishing(false);
       }
@@ -294,9 +288,7 @@ export default function WorkflowBuilder() {
     try {
       await pauseWorkflowMutation.mutateAsync(workflow.id);
       toast.success('Workflow paused');
-    } catch (error) {
-      console.error('Failed to pause workflow:', error);
-      toast.error('Failed to pause workflow');
+    } catch (error) {      toast.error('Failed to pause workflow');
     }
   }, [workflow.id, pauseWorkflowMutation]);
 
@@ -309,9 +301,7 @@ export default function WorkflowBuilder() {
     try {
       await activateWorkflowMutation.mutateAsync(workflow.id);
       toast.success('Workflow resumed');
-    } catch (error) {
-      console.error('Failed to resume workflow:', error);
-      toast.error('Failed to resume workflow');
+    } catch (error) {      toast.error('Failed to resume workflow');
     }
   }, [workflow.id, activateWorkflowMutation]);
 
@@ -331,9 +321,7 @@ export default function WorkflowBuilder() {
         toast.success('Workflow duplicated');
         navigate(`/workflows/${newId}`);
       }
-    } catch (error) {
-      console.error('Failed to duplicate workflow:', error);
-      toast.error('Failed to duplicate workflow');
+    } catch (error) {      toast.error('Failed to duplicate workflow');
     }
   }, [workflow.id, cloneWorkflowMutation, navigate]);
 
@@ -354,9 +342,7 @@ export default function WorkflowBuilder() {
       await deleteWorkflowMutation.mutateAsync(workflow.id);
       toast.success('Workflow deleted');
       navigate('/workflows');
-    } catch (error) {
-      console.error('Failed to delete workflow:', error);
-      toast.error('Failed to delete workflow');
+    } catch (error) {      toast.error('Failed to delete workflow');
     }
   }, [workflow.id, deleteWorkflowMutation, navigate]);
 
@@ -404,9 +390,7 @@ export default function WorkflowBuilder() {
           } else {
             toast.success('Trigger updated!');
           }
-        } catch (error) {
-          console.error('Failed to enroll new records:', error);
-          toast.success('Trigger updated (enrollment skipped due to error)');
+        } catch (error) {          toast.success('Trigger updated (enrollment skipped due to error)');
         }
       } else {
         toast.success('Trigger updated!');

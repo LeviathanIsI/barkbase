@@ -311,9 +311,7 @@ const CustomFieldsEditor = ({
       });
       setHasChanges(false);
       onSave?.(valuesToSave);
-    } catch (err) {
-      console.error('Failed to save custom fields:', err);
-    }
+    } catch (err) {    }
   };
 
   // Loading state

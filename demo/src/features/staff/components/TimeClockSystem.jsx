@@ -71,7 +71,6 @@ const TimeClockSystem = () => {
       setStatus(statusRes);
       setEntries(entriesRes.data || entriesRes.entries || []);
     } catch (err) {
-      console.error('Failed to fetch time clock data:', err);
       setError(err.message || 'Failed to load time clock data');
     } finally {
       setLoading(false);
@@ -107,7 +106,6 @@ const TimeClockSystem = () => {
       await clockIn();
       await fetchData();
     } catch (err) {
-      console.error('Clock in failed:', err);
       alert(err.message || 'Failed to clock in');
     } finally {
       setActionLoading(false);
@@ -122,7 +120,6 @@ const TimeClockSystem = () => {
       await clockOut();
       await fetchData();
     } catch (err) {
-      console.error('Clock out failed:', err);
       alert(err.message || 'Failed to clock out');
     } finally {
       setActionLoading(false);
@@ -135,7 +132,6 @@ const TimeClockSystem = () => {
       await startBreak();
       await fetchData();
     } catch (err) {
-      console.error('Start break failed:', err);
       alert(err.message || 'Failed to start break');
     } finally {
       setActionLoading(false);
@@ -148,7 +144,6 @@ const TimeClockSystem = () => {
       await endBreak();
       await fetchData();
     } catch (err) {
-      console.error('End break failed:', err);
       alert(err.message || 'Failed to end break');
     } finally {
       setActionLoading(false);
@@ -160,7 +155,6 @@ const TimeClockSystem = () => {
       await approveTimeEntry(entryId);
       await fetchData();
     } catch (err) {
-      console.error('Approve failed:', err);
       alert(err.message || 'Failed to approve entry');
     }
   };

@@ -17,9 +17,7 @@ export const useCapacityQuery = (startDate, endDate) => {
         // apiClient.get returns { data: ... }, so we need to extract data
         const data = response.data || [];
         return data;
-      } catch (error) {
-        console.error('[useCapacityQuery] Failed to fetch capacity data:', error);
-        return []; // Return empty array on error
+      } catch (error) {        return []; // Return empty array on error
       }
     },
     enabled: !!startDate && !!endDate,

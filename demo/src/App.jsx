@@ -57,9 +57,8 @@ function ErrorFallback({ error, resetErrorBoundary }) {
   );
 }
 
-function logError(error, info) {
-  console.error('[Demo Error]', error);
-  console.error('Component stack:', info.componentStack);
+function logError() {
+  // Error logging disabled in demo
 }
 
 const App = () => (

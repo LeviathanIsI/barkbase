@@ -1086,7 +1086,6 @@ const handleRequest = async (method, path, body = null) => {
   const match = matchRoute(method, cleanPath);
 
   if (!match) {
-    console.warn(`[DEMO API] No handler for ${method} ${cleanPath}`);
     // Return empty data for unhandled routes instead of throwing
     return { data: [] };
   }
@@ -1096,7 +1095,6 @@ const handleRequest = async (method, path, body = null) => {
     const data = camelcaseKeys(result, { deep: true });
     return { data };
   } catch (error) {
-    console.error(`[DEMO API] Error handling ${method} ${cleanPath}:`, error);
     toast.error(error.message || 'An error occurred');
     throw error;
   }

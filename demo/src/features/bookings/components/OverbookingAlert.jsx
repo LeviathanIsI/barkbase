@@ -44,7 +44,6 @@ const OverbookingAlert = ({
         );
         return res?.data;
       } catch (e) {
-        console.warn('[OverbookingAlert] Failed to check availability:', e?.message);
         return null;
       }
     },

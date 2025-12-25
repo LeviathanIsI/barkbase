@@ -143,14 +143,10 @@ export function buildRecordUrl(resourcePath, entityType, recordId, accountCode =
   const code = accountCode || getAccountCode();
   const typeCode = getTypeCode(entityType);
 
-  if (!code) {
-    console.warn('[urlBuilder] No account code available, using fallback URL');
-    return `${resourcePath}/${recordId}`;
+  if (!code) {    return `${resourcePath}/${recordId}`;
   }
 
-  if (!typeCode) {
-    console.warn(`[urlBuilder] Unknown entity type: ${entityType}`);
-    return `${resourcePath}/${code}/${recordId}`;
+  if (!typeCode) {    return `${resourcePath}/${code}/${recordId}`;
   }
 
   return `${resourcePath}/${code}/record/${typeCode}/${recordId}`;

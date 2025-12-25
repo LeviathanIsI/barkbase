@@ -77,14 +77,9 @@ const getAuthClient = async (clientConfig, mode) => {
 
     case 'db': {
       if (isProduction) {
-        console.error(
-          '[BarkBase Auth] ERROR: AUTH_MODE="db" is not supported in production. ' +
-          'Falling back to Cognito embedded auth.'
-        );
         const { CognitoPasswordClient } = await import('./cognito-password-client');
         auth = new CognitoPasswordClient(clientConfig);
       } else {
-        console.warn('[BarkBase Auth] WARNING: Using legacy DB auth mode (DEV-ONLY).');
         const { DbAuthClient } = await import('./db-auth-client');
         auth = new DbAuthClient(clientConfig);
       }
@@ -93,7 +88,6 @@ const getAuthClient = async (clientConfig, mode) => {
 
     default: {
       if (mode !== 'embedded') {
-        console.warn(`[BarkBase Auth] Unknown AUTH_MODE="${mode}". Falling back to "embedded".`);
       }
       const { CognitoPasswordClient } = await import('./cognito-password-client');
       auth = new CognitoPasswordClient(clientConfig);

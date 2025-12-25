@@ -56,9 +56,7 @@ const getTourData = () => {
 const saveTourData = (data) => {
   try {
     localStorage.setItem(TOUR_STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.warn('Failed to save tour data:', e);
-  }
+  } catch (e) {  }
 };
 
 /**

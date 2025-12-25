@@ -316,7 +316,6 @@ function PoliciesTab({ onDirtyChange, isSaving, onSave }) {
         const data = await apiClient('/api/v1/policies');
         setPolicies(data.policies || []);
       } catch (err) {
-        console.error('Failed to load policies:', err);
       } finally {
         setIsLoading(false);
       }
@@ -628,7 +627,6 @@ function BrandingTab({ onDirtyChange, isSaving, onSave }) {
         const data = await apiClient('/api/v1/config/branding');
         if (data) setBranding({ ...branding, ...data });
       } catch (err) {
-        console.error('Failed to load branding:', err);
       } finally {
         setIsLoading(false);
       }
@@ -723,7 +721,6 @@ function PaymentsTab() {
         const data = await apiClient('/api/v1/config/payment-settings');
         setSettings(data);
       } catch (err) {
-        console.error('Failed to load payment settings:', err);
       } finally {
         setIsLoading(false);
       }
@@ -821,7 +818,6 @@ function NotificationsTab({ onDirtyChange, isSaving, onSave }) {
         const data = await apiClient('/api/v1/config/notifications');
         if (data) setSettings({ ...settings, ...data });
       } catch (err) {
-        console.error('Failed to load notification settings:', err);
       } finally {
         setIsLoading(false);
       }

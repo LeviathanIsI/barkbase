@@ -480,7 +480,6 @@ export default function RoleTemplateSelector({ onSelect, onSkip }) {
   );
 }
 
-
 function PreviewContent({ template, onUse, onClose }) {
   const permissionKeys = Object.keys(template.permissions).filter((k) => template.permissions[k]);
   const grouped = Object.values(PERMISSION_CATEGORIES)

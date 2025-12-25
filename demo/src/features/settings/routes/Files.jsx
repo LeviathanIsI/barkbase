@@ -56,9 +56,7 @@ const Files = () => {
     try {
       const { data } = await apiClient.get('/api/v1/files/templates');
       setTemplates(data?.templates || []);
-    } catch (err) {
-      console.error('Failed to fetch templates:', err);
-      setTemplates([]);
+    } catch (err) {      setTemplates([]);
     }
   }, []);
 
@@ -67,9 +65,7 @@ const Files = () => {
     try {
       const { data } = await apiClient.get('/api/v1/files/custom');
       setCustomFiles(data?.files || []);
-    } catch (err) {
-      console.error('Failed to fetch custom files:', err);
-      setCustomFiles([]);
+    } catch (err) {      setCustomFiles([]);
     }
   }, []);
 
@@ -103,9 +99,7 @@ const Files = () => {
         autoAttach: [],
       });
       fetchTemplates();
-    } catch (err) {
-      console.error('Failed to duplicate template:', err);
-      alert('Failed to duplicate template');
+    } catch (err) {      alert('Failed to duplicate template');
     }
   };
 
@@ -115,9 +109,7 @@ const Files = () => {
     try {
       await apiClient.delete(`/api/v1/files/templates/${template.id}`);
       setTemplates(prev => prev.filter(t => t.id !== template.id));
-    } catch (err) {
-      console.error('Failed to delete template:', err);
-      alert('Failed to delete template');
+    } catch (err) {      alert('Failed to delete template');
     }
   };
 
@@ -128,9 +120,7 @@ const Files = () => {
       setTemplates(prev => prev.map(t => 
         t.id === template.id ? { ...t, status: newStatus } : t
       ));
-    } catch (err) {
-      console.error('Failed to update template status:', err);
-      alert('Failed to update template status');
+    } catch (err) {      alert('Failed to update template status');
     }
   };
 
@@ -140,9 +130,7 @@ const Files = () => {
     try {
       await apiClient.delete(`/api/v1/files/custom/${file.id}`);
       setCustomFiles(prev => prev.filter(f => f.id !== file.id));
-    } catch (err) {
-      console.error('Failed to delete file:', err);
-      alert('Failed to delete file');
+    } catch (err) {      alert('Failed to delete file');
     }
   };
 
@@ -489,9 +477,7 @@ const EmailAttachmentConfig = ({ emailType, templates, customFiles, onUpdate }) 
         try {
           await apiClient.patch(`/api/v1/files/templates/${docId}`, { autoAttach: newAutoAttach });
           onUpdate?.();
-        } catch (err) {
-          console.error('Failed to update auto-attach:', err);
-        }
+        } catch (err) {        }
       }
     }
   };

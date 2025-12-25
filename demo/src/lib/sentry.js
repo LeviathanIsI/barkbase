@@ -75,9 +75,7 @@ export function captureError(error, context = {}) {
     Sentry.captureException(error, {
       extra: context,
     });
-  } else {
-    console.error('Error:', error, context);
-  }
+  } else {  }
 }
 
 // Track custom event

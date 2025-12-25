@@ -158,7 +158,6 @@ export const useBookingsQuery = (params = {}) => {
         const res = await apiClient.get(canonicalEndpoints.bookings.list, { params });
         return normalizeBookingsResponse(res?.data);
       } catch (e) {
-        console.warn('[bookings] Falling back to empty list due to API error:', e?.message || e);
         return [];
       }
     },
@@ -188,7 +187,6 @@ export const useBookingDetailQuery = (bookingId, options = {}) => {
         const res = await apiClient.get(canonicalEndpoints.bookings.detail(bookingId));
         return normalizeBooking(res?.data);
       } catch (e) {
-        console.warn('[booking] Falling back to null due to API error:', e?.message || e);
         return null;
       }
     },
@@ -411,7 +409,6 @@ export const useBookingConflictsQuery = (params = {}) => {
           count: conflicts.length,
         };
       } catch (e) {
-        console.warn('[Bookings] Conflicts check failed:', e?.message || e);
         return { conflicts: [], hasConflicts: false, count: 0 };
       }
     },

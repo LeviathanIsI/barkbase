@@ -74,9 +74,7 @@ const CommunicationSlideoutForm = ({
       
       const result = await createMutation.mutateAsync(payload);
       onSuccess?.(result || payload);
-    } catch (error) {
-      console.error('Failed to send communication:', error);
-      toast.error(error?.message || 'Failed to send message');
+    } catch (error) {      toast.error(error?.message || 'Failed to send message');
     }
   };
 

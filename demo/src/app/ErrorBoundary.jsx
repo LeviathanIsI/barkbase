@@ -21,8 +21,6 @@ class ErrorBoundary extends Component {
 
   componentDidCatch(error, errorInfo) {
     // Log error details for debugging
-    console.error('React Error Boundary caught an error:', error, errorInfo);
-
     // Send to error monitoring service when configured
     if (window.Sentry) {
       window.Sentry.captureException(error, { 

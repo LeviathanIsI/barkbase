@@ -36,9 +36,7 @@ const OfflineIndicator = () => {
       try {
         const count = await getQueueCount();
         setQueueCount(count);
-      } catch (error) {
-        console.error('Failed to get queue count:', error);
-      }
+      } catch (error) {      }
     };
 
     checkQueue();

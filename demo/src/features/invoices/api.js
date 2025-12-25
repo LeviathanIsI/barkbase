@@ -78,7 +78,6 @@ export const useBusinessInvoicesQuery = (filters = {}) => {
 
         return { invoices, total };
       } catch (e) {
-        console.error('[useBusinessInvoicesQuery] Error fetching:', e?.message, e);
         return { invoices: [], total: 0 };
       }
     },

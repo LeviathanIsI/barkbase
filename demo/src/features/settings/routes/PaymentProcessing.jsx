@@ -176,9 +176,7 @@ const PaymentProcessing = () => {
       setHasChanges(false);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
-    } catch (err) {
-      console.error('Failed to save payment settings:', err);
-    }
+    } catch (err) {    }
   };
 
   // Test connection handlers
@@ -292,9 +290,7 @@ const PaymentProcessing = () => {
       setTestError(null);
       setTestSuccess(false);
       refetch();
-    } catch (err) {
-      console.error('Failed to disconnect:', err);
-    }
+    } catch (err) {    }
   };
 
   const handleProcessorSelect = (processor) => {

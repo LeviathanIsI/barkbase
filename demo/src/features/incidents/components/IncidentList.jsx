@@ -65,9 +65,7 @@ export default function IncidentList({ onCreateNew, onViewIncident, onRefresh })
       // Backend returns { data: [...], incidents: [...], total: ... }
       const backendData = response.data || {};
       setIncidents(backendData.data || backendData.incidents || []);
-    } catch (err) {
-      console.error('Failed to fetch incidents:', err);
-      setError(err.message || 'Failed to load incidents');
+    } catch (err) {      setError(err.message || 'Failed to load incidents');
     } finally {
       setLoading(false);
     }
@@ -84,9 +82,7 @@ export default function IncidentList({ onCreateNew, onViewIncident, onRefresh })
     try {
       await deleteIncident(id);
       fetchIncidents();
-    } catch (err) {
-      console.error('Failed to delete incident:', err);
-      alert('Failed to delete incident');
+    } catch (err) {      alert('Failed to delete incident');
     }
   };
 
@@ -97,9 +93,7 @@ export default function IncidentList({ onCreateNew, onViewIncident, onRefresh })
     try {
       await resolveIncident(id, { resolutionNotes: notes });
       fetchIncidents();
-    } catch (err) {
-      console.error('Failed to resolve incident:', err);
-      alert('Failed to resolve incident');
+    } catch (err) {      alert('Failed to resolve incident');
     }
   };
 
@@ -111,9 +105,7 @@ export default function IncidentList({ onCreateNew, onViewIncident, onRefresh })
       await notifyOwnerOfIncident(id);
       alert('Owner notified successfully');
       fetchIncidents();
-    } catch (err) {
-      console.error('Failed to notify owner:', err);
-      alert('Failed to notify owner');
+    } catch (err) {      alert('Failed to notify owner');
     }
   };
 

@@ -11,8 +11,6 @@ export class CognitoClient {
         this.clientId = config.clientId;
         this.userPoolId = config.userPoolId;
         this.session = null; // In-memory storage for the session
-        
-        console.warn('Using basic Cognito client. For production, migrate to AWS Amplify.');
     }
 
     /**
@@ -20,10 +18,7 @@ export class CognitoClient {
      * For now, this returns mock data. Replace with actual Cognito API calls or Amplify.
      */
     async signUp({ email, password }) {
-        // TODO: Implement actual Cognito sign-up
-        // For now, return mock response to unblock development
-        console.warn('CognitoClient.signUp() is not yet implemented. Returning mock response.');
-
+        // Mock implementation for demo
         return {
             userId: 'mock-user-id',
             email: email,
@@ -41,10 +36,7 @@ export class CognitoClient {
      * For now, this returns mock data. Replace with actual Cognito API calls or Amplify.
      */
     async signIn({ email, password }) {
-        // TODO: Implement actual Cognito sign-in
-        // For now, return mock session to unblock development
-        console.warn('CognitoClient.signIn() is not yet implemented. Returning mock session.');
-        
+        // Mock implementation for demo
         this.session = {
             idToken: 'mock-id-token',
             accessToken: 'mock-access-token',
@@ -60,10 +52,7 @@ export class CognitoClient {
      * For now, this returns mock data. Replace with actual Cognito API calls or Amplify.
      */
     async confirmSignUp({ username, code }) {
-        // TODO: Implement actual Cognito confirm sign-up
-        // For now, return mock response to unblock development
-        console.warn('CognitoClient.confirmSignUp() is not yet implemented. Returning mock response.');
-
+        // Mock implementation for demo
         return {
             confirmed: true,
             userId: username,
@@ -74,8 +63,6 @@ export class CognitoClient {
      * Signs out the current user.
      */
     async signOut() {
-        // TODO: Implement actual Cognito sign-out
-        console.warn('CognitoClient.signOut() is not yet implemented.');
         this.session = null;
     }
 
@@ -111,8 +98,6 @@ export class CognitoClient {
      * Refreshes the session using a refresh token.
      */
     async refreshSession({ refreshToken }) {
-        // TODO: Implement token refresh
-        console.warn('CognitoClient.refreshSession() is not yet implemented.');
         return this.session;
     }
 
@@ -120,8 +105,6 @@ export class CognitoClient {
      * Gets the current user details.
      */
     async getCurrentUser({ accessToken }) {
-        // TODO: Implement getCurrentUser
-        console.warn('CognitoClient.getCurrentUser() is not yet implemented.');
         return {
             username: 'mock-user',
             email: 'user@example.com',

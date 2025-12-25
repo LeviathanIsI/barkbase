@@ -47,7 +47,6 @@ const Forms = () => {
       const { data } = await apiClient.get('/api/v1/forms');
       setForms(data?.forms || []);
     } catch (err) {
-      console.error('Failed to fetch forms:', err);
       setForms([]);
     } finally {
       setIsLoading(false);
@@ -66,7 +65,6 @@ const Forms = () => {
         reminderDays: data?.reminderDays ?? 3,
       });
     } catch (err) {
-      console.error('Failed to fetch form settings:', err);
     }
   }, []);
 
@@ -76,7 +74,6 @@ const Forms = () => {
       const { data } = await apiClient.get('/api/v1/forms/templates');
       setTemplates(data?.templates || []);
     } catch (err) {
-      console.error('Failed to fetch templates:', err);
     }
   }, []);
 
@@ -103,7 +100,6 @@ const Forms = () => {
       await apiClient.delete(`/api/v1/forms/${form.id}`);
       setForms(prev => prev.filter(f => f.id !== form.id));
     } catch (err) {
-      console.error('Failed to delete form:', err);
       alert('Failed to delete form');
     }
   };
@@ -118,7 +114,6 @@ const Forms = () => {
       fetchForms(); // Refresh list
       alert(`Form "${data.name}" created`);
     } catch (err) {
-      console.error('Failed to duplicate form:', err);
       alert('Failed to duplicate form');
     }
   };
@@ -130,7 +125,6 @@ const Forms = () => {
       fetchForms(); // Refresh list
       alert(`Form "${data.name}" created from template`);
     } catch (err) {
-      console.error('Failed to use template:', err);
       alert('Failed to create form from template');
     } finally {
       setIsUsingTemplate(null);
@@ -148,7 +142,6 @@ const Forms = () => {
       await apiClient.put('/api/v1/forms/settings', formSettings);
       alert('Settings saved successfully');
     } catch (err) {
-      console.error('Failed to save settings:', err);
       alert('Failed to save settings');
     } finally {
       setIsSavingSettings(false);
@@ -168,7 +161,6 @@ const Forms = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Failed to export forms:', err);
       alert('Failed to export forms');
     }
   };

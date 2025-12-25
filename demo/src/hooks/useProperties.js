@@ -33,7 +33,6 @@ export function useProperties() {
 
       return normalized;
     } catch (err) {
-      console.error(`Error fetching properties for ${objectType}:`, err);
       setError(err.message);
       setLoading((prev) => ({ ...prev, [objectType]: false }));
       return null;

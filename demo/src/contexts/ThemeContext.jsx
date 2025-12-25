@@ -44,9 +44,7 @@ export const ThemeProvider = ({ children }) => {
   const setTheme = (newTheme) => {
     if (newTheme === 'light' || newTheme === 'dark') {
       setThemeState(newTheme);
-    } else {
-      console.warn(`Invalid theme: ${newTheme}. Use 'light' or 'dark'`);
-    }
+    } else {    }
   };
 
   const toggleTheme = () => {

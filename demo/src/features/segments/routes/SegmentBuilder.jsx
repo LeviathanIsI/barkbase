@@ -210,9 +210,7 @@ export default function SegmentBuilder() {
       }
 
       navigate('/segments');
-    } catch (error) {
-      console.error('Failed to save segment:', error);
-      toast.error(error?.message || 'Failed to save segment');
+    } catch (error) {      toast.error(error?.message || 'Failed to save segment');
     } finally {
       setIsSaving(false);
     }

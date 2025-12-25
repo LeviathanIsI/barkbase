@@ -39,9 +39,7 @@ const BookingConfig = () => {
     try {
       await updateMutation.mutateAsync(settings);
       toast.success('Booking settings saved successfully!');
-    } catch (error) {
-      console.error('Error saving booking settings:', error);
-      toast.error(error?.response?.data?.message || 'Failed to save settings');
+    } catch (error) {      toast.error(error?.response?.data?.message || 'Failed to save settings');
     }
   };
 

@@ -118,9 +118,6 @@ function validateSteps(steps) {
   steps.forEach((step) => {
     const config = step.config || step.actionConfig || step.action_config || {};
 
-    // Debug logging to identify validation issues
-    console.log('[validateSteps] Step:', step.name, 'Type:', step.actionType, 'Config:', JSON.stringify(config));
-
     if (step.actionType === 'send_sms' || step.action_type === 'send_sms') {
       if (!config.message) {
         issues.push({ type: 'error', message: `SMS action "${step.name}" has no message` });
@@ -219,9 +216,7 @@ export default function ReviewWorkflowSidebar({
         setLoadingDeps(true);
         const { data } = await apiClient.get(`/api/v1/workflows/${workflow.id}/dependencies`);
         setDependencies(data);
-      } catch (err) {
-        console.error('Error fetching dependencies:', err);
-        setDepsError(err.message);
+      } catch (err) {        setDepsError(err.message);
       } finally {
         setLoadingDeps(false);
       }

@@ -53,7 +53,6 @@ export const useOwnersQuery = (params = {}) => {
         const normalized = normalizeListResponse(res?.data, 'owners');
         return normalized.items;
       } catch (e) {
-        console.warn('[owners] Falling back to empty list due to API error:', e?.message || e);
         return [];
       }
     },
@@ -79,7 +78,6 @@ export const useOwnerDetailsQuery = (ownerId, options = {}) => {
         const res = await apiClient.get(canonicalEndpoints.owners.detail(ownerId));
         return res?.data ?? null;
       } catch (e) {
-        console.warn('[owner] Falling back to null due to API error:', e?.message || e);
         return null;
       }
     },
@@ -113,7 +111,6 @@ export const useOwnerSearchQuery = (searchTerm, options = {}) => {
         const normalized = normalizeListResponse(res?.data, 'owners');
         return normalized.items;
       } catch (e) {
-        console.warn('[owner-search] Error:', e?.message || e);
         return [];
       }
     },

@@ -727,9 +727,7 @@ const DropZone = ({
     try {
       const data = JSON.parse(e.dataTransfer.getData('application/json'));
       onDrop?.(data.field, data.isDimension);
-    } catch (err) {
-      console.error('Drop error:', err);
-    }
+    } catch (err) {    }
   };
 
   return (
@@ -1076,9 +1074,7 @@ const FilterDropZone = ({ onDrop, isDragging, draggedItem }) => {
       if (data.field) {
         onDrop(data.field);
       }
-    } catch (err) {
-      console.error('Filter drop error:', err);
-    }
+    } catch (err) {    }
   };
 
   return (
@@ -1200,18 +1196,7 @@ const CustomReportBuilder = () => {
   useEffect(() => {
     const fetchFields = async () => {
       setFieldsLoading(true);
-      try {
-        console.log('[REPORT-BUILDER] Fetching fields for dataSource:', dataSource);
-        const response = await apiClient.get(`/api/v1/analytics/reports/fields?dataSource=${dataSource}`);
-        console.log('[REPORT-BUILDER] Raw API response:', response);
-        console.log('[REPORT-BUILDER] response.data:', response.data);
-        console.log('[REPORT-BUILDER] response.data?.data:', response.data?.data);
-        console.log('[REPORT-BUILDER] response.data?.data?.[dataSource]:', response.data?.data?.[dataSource]);
-
-        const data = response.data?.data?.[dataSource] || { dimensions: [], measures: [] };
-        console.log('[REPORT-BUILDER] Extracted data:', data);
-
-        // Map API response to expected format
+      try {        const response = await apiClient.get(`/api/v1/analytics/reports/fields?dataSource=${dataSource}`);        const data = response.data?.data?.[dataSource] || { dimensions: [], measures: [] };        // Map API response to expected format
         const mappedFields = {
           dimensions: (data.dimensions || []).map(d => ({
             key: d.key,
@@ -1229,12 +1214,8 @@ const CustomReportBuilder = () => {
             group: m.group,
             options: m.options, // For enum fields
           })),
-        };
-        console.log('[REPORT-BUILDER] Mapped fields:', mappedFields);
-        setFieldsConfig(mappedFields);
-      } catch (err) {
-        console.error('[REPORT-BUILDER] Failed to fetch report fields:', err);
-        // Keep existing fields on error
+        };        setFieldsConfig(mappedFields);
+      } catch (err) {        // Keep existing fields on error
       } finally {
         setFieldsLoading(false);
       }
@@ -1544,9 +1525,7 @@ const CustomReportBuilder = () => {
       });
 
       alert('Report saved successfully!');
-    } catch (err) {
-      console.error('Failed to save report:', err);
-      alert('Failed to save report: ' + (err.message || 'Unknown error'));
+    } catch (err) {      alert('Failed to save report: ' + (err.message || 'Unknown error'));
     }
   };
 

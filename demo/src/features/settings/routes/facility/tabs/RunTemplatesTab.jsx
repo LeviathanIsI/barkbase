@@ -44,7 +44,6 @@ const RunTemplatesTab = () => {
       setTemplateToDelete(null);
       refetch();
     } catch (error) {
-      console.error('Failed to delete template:', error);
       toast.error(error?.message || 'Failed to delete template');
     }
   };
@@ -154,7 +153,6 @@ const RunTemplatesTab = () => {
             setEditingTemplate(null);
             refetch();
           } catch (error) {
-            console.error('Failed to save template:', error);
             toast.error(error?.message || 'Failed to save template');
           }
         }}

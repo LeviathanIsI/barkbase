@@ -108,7 +108,6 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
         onComplete(bookingData);
       }
     } catch (error) {
-      console.error('Error creating booking:', error);
       toast.error(error.message || 'Failed to create booking');
     }
   };
@@ -902,5 +901,4 @@ const CapacityPanel = ({ dateRange, selectedRunTemplate }) => {
 };
 
 export default SinglePageBookingWizard;
-
 

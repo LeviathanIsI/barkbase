@@ -34,7 +34,6 @@ const Records = () => {
       await apiClient.put('/api/v1/settings/records', settings);
       toast.success('Records settings saved successfully!');
     } catch (error) {
-      console.error('Error saving records settings:', error);
       toast.error(error.message || 'Failed to save settings');
     }
   };

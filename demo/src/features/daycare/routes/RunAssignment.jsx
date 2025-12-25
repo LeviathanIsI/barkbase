@@ -1032,9 +1032,7 @@ const RunAssignment = () => {
       setInitialState(JSON.parse(JSON.stringify(newState)));
       toast.success(`${pet.name} assigned to run`);
       refetchRuns();
-    } catch (error) {
-      console.error('[RunAssignment] Save failed:', error);
-      toast.error(error.message || 'Failed to save assignment');
+    } catch (error) {      toast.error(error.message || 'Failed to save assignment');
     }
 
     setTimePickerOpen(false);
@@ -1073,9 +1071,7 @@ const RunAssignment = () => {
 
       // Refetch to get server-generated IDs
       refetchRuns();
-    } catch (error) {
-      console.error('[RunAssignment] Save failed:', error);
-      toast.error(error.message || 'Failed to save assignments');
+    } catch (error) {      toast.error(error.message || 'Failed to save assignments');
     }
   };
 

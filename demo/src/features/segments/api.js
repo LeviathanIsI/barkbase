@@ -121,9 +121,7 @@ export const useSegmentActivity = (segmentId) => {
           params: { offset: pageParam, limit: 50 },
         });
         return res.data || { items: [], total: 0, offset: pageParam };
-      } catch (e) {
-        console.warn('[segment-activity] Error:', e?.message || e);
-        return { items: [], total: 0, offset: pageParam };
+      } catch (e) {        return { items: [], total: 0, offset: pageParam };
       }
     },
     getNextPageParam: (lastPage) => {

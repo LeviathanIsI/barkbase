@@ -658,9 +658,7 @@ const Owners = () => {
           try {
             await createOwnerMutation.mutateAsync(data);
             setFormModalOpen(false);
-          } catch (err) {
-            console.error('Failed to create owner:', err);
-          }
+          } catch (err) {          }
         }}
         isLoading={createOwnerMutation.isPending}
       />
@@ -1146,9 +1144,7 @@ const BookingsHoverCard = ({ ownerId, bookingsCount, navigate, children }) => {
           // API returns { data: bookings[], bookings: bookings[] }
           const bookingsData = response?.data?.data || response?.data?.bookings || response?.data || [];
           setBookings(Array.isArray(bookingsData) ? bookingsData : []);
-        } catch (error) {
-          console.error('Failed to fetch bookings:', error);
-          setBookings([]);
+        } catch (error) {          setBookings([]);
         } finally {
           setIsLoading(false);
         }
@@ -1304,9 +1300,7 @@ const ComposeEmailModal = ({ open, onClose, recipients }) => {
       });
       toast.success(`Email sent to ${validRecipients.length} recipient${validRecipients.length !== 1 ? 's' : ''}`);
       onClose();
-    } catch (err) {
-      console.error('Failed to send email:', err);
-      const errorMessage = err.response?.data?.message || 'Failed to send email';
+    } catch (err) {      const errorMessage = err.response?.data?.message || 'Failed to send email';
       if (err.response?.status === 404 || errorMessage.includes('not found') || errorMessage.includes('not implemented')) {
         toast.error('Bulk email feature coming soon');
       } else {
@@ -1445,9 +1439,7 @@ const ComposeSmsModal = ({ open, onClose, recipients }) => {
       });
       toast.success(`SMS sent to ${validRecipients.length} recipient${validRecipients.length !== 1 ? 's' : ''}`);
       onClose();
-    } catch (err) {
-      console.error('Failed to send SMS:', err);
-      const errorMessage = err.response?.data?.message || 'Failed to send SMS';
+    } catch (err) {      const errorMessage = err.response?.data?.message || 'Failed to send SMS';
       if (err.response?.status === 404 || errorMessage.includes('not found') || errorMessage.includes('not implemented') || errorMessage.includes('Twilio')) {
         toast.error('SMS requires Twilio integration. Configure in Settings > SMS');
       } else {

@@ -55,7 +55,6 @@ export default function SegmentForm({ segment, onClose }) {
       
       onClose();
     } catch (error) {
-      console.error('Failed to save segment:', error);
     }
   };
 
