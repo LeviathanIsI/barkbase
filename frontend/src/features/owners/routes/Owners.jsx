@@ -2,10 +2,10 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Users, Phone, DollarSign, Plus, Mail, ChevronDown,
-  ChevronLeft, ChevronRight, Download, Columns, MoreHorizontal,
-  MessageSquare, Eye, Check, X, Star, SlidersHorizontal,
+  ChevronLeft, ChevronRight, Download, Columns, Trash2,
+  MessageSquare, Check, X, Star, SlidersHorizontal,
   BookmarkPlus, PawPrint, ArrowUpDown, ArrowUp, ArrowDown, GripVertical,
-  Calendar, Loader2, ShieldCheck, ShieldOff, Crown, Ban, Clock, Send,
+  Calendar, Loader2, ShieldCheck, ShieldOff, Clock, Send,
 } from 'lucide-react';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -18,7 +18,7 @@ import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContain
 // Replaced with LoadingState (mascot) for page-level loading
 import LoadingState from '@/components/ui/LoadingState';
 import { UpdateChip } from '@/components/PageLoader';
-import { useOwnersQuery, useCreateOwnerMutation, useUpdateOwnerStatusMutation } from '../api';
+import { useOwnersQuery, useCreateOwnerMutation, useUpdateOwnerStatusMutation, useDeleteOwnerMutation } from '../api';
 import OwnerFormModal from '../components/OwnerFormModal';
 import PetHoverCard from '../components/PetHoverCard';
 import { formatCurrency } from '@/lib/utils';
@@ -45,7 +45,6 @@ const ALL_COLUMNS = [
   { id: 'lastVisit', label: 'Last Visit', minWidth: 120, maxWidth: 140, align: 'center', sortable: true, sortKey: 'lastBooking' },
   { id: 'lifetimeValue', label: 'Lifetime Value', minWidth: 130, maxWidth: 150, align: 'right', sortable: true, sortKey: 'lifetimeValue' },
   { id: 'pendingBalance', label: 'Pending', minWidth: 110, maxWidth: 130, align: 'right', sortable: true, sortKey: 'pendingBalance' },
-  { id: 'actions', label: '', minWidth: 100, maxWidth: 100, align: 'right', sortable: false, hideable: false },
 ];
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
@@ -57,6 +56,8 @@ const Owners = () => {
   // Modal states for bulk actions
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [smsModalOpen, setSmsModalOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Search, filter, and view state
   const [searchTerm, setSearchTerm] = useState('');
@@ -130,12 +131,34 @@ const Owners = () => {
   const { data: ownersData, isLoading, isFetching, error } = useOwnersQuery();
   const createOwnerMutation = useCreateOwnerMutation();
   const updateStatusMutation = useUpdateOwnerStatusMutation();
+  const deleteOwnerMutation = useDeleteOwnerMutation();
   const owners = useMemo(() => Array.isArray(ownersData) ? ownersData : (ownersData?.data ?? []), [ownersData]);
 
   // Status change handler
   const handleStatusChange = useCallback(async (ownerId, isActive) => {
     await updateStatusMutation.mutateAsync({ ownerId, is_active: isActive });
   }, [updateStatusMutation]);
+
+  // Delete handler for bulk delete
+  const handleDeleteSelected = useCallback(async () => {
+    if (selectedRows.size === 0) return;
+
+    setIsDeleting(true);
+    try {
+      const deletePromises = Array.from(selectedRows).map(id =>
+        deleteOwnerMutation.mutateAsync(id)
+      );
+      await Promise.all(deletePromises);
+      toast.success(`Deleted ${selectedRows.size} owner${selectedRows.size !== 1 ? 's' : ''}`);
+      setSelectedRows(new Set());
+      setDeleteConfirmOpen(false);
+    } catch (error) {
+      console.error('Failed to delete owners:', error);
+      toast.error('Failed to delete some owners');
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedRows, deleteOwnerMutation]);
   
   // Show skeleton only on initial load when there's no cached data
   const showSkeleton = isLoading && !ownersData;
@@ -536,6 +559,7 @@ const Owners = () => {
                 <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => setEmailModalOpen(true)}><Mail className="h-3.5 w-3.5" />Email</Button>
                 <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => setSmsModalOpen(true)}><MessageSquare className="h-3.5 w-3.5" />SMS</Button>
                 <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={handleExportSelected}><Download className="h-3.5 w-3.5" />Export</Button>
+                <Button variant="outline" size="sm" className="gap-1.5 h-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950" onClick={() => setDeleteConfirmOpen(true)}><Trash2 className="h-3.5 w-3.5" />Delete</Button>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setSelectedRows(new Set())} className="ml-auto">
                 Clear selection
@@ -678,6 +702,54 @@ const Owners = () => {
         onClose={() => setSmsModalOpen(false)}
         recipients={selectedOwnerData}
       />
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        title="Delete Owners"
+        description={`Are you sure you want to delete ${selectedRows.size} owner${selectedRows.size !== 1 ? 's' : ''}? This action cannot be undone.`}
+        size="default"
+        footer={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteSelected}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</>
+              ) : (
+                <><Trash2 className="h-4 w-4 mr-2" />Delete {selectedRows.size} Owner{selectedRows.size !== 1 ? 's' : ''}</>
+              )}
+            </Button>
+          </div>
+        }
+      >
+        <div className="py-2">
+          <p className="text-sm text-[color:var(--bb-color-text-muted)] mb-3">
+            The following owners will be permanently deleted:
+          </p>
+          <div className="max-h-40 overflow-y-auto space-y-1">
+            {selectedOwnerData.slice(0, 10).map((owner) => (
+              <div key={owner.id || owner.recordId} className="flex items-center gap-2 text-sm">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold bg-slate-600 dark:bg-slate-500 text-white">
+                  {owner.fullName?.[0]?.toUpperCase() || 'O'}
+                </div>
+                <span className="text-[color:var(--bb-color-text-primary)]">{owner.fullName}</span>
+              </div>
+            ))}
+            {selectedOwnerData.length > 10 && (
+              <p className="text-xs text-[color:var(--bb-color-text-muted)] mt-2">
+                ...and {selectedOwnerData.length - 10} more
+              </p>
+            )}
+          </div>
+        </div>
+      </Modal>
     </>
   );
 };
@@ -709,7 +781,6 @@ const SortIcon = ({ active, direction }) => {
 
 // Owner Row Component
 const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStatusChange }) => {
-  const [showActions, setShowActions] = useState(false);
   const cellPadding = 'px-4 lg:px-6 py-3';
   const navigate = useNavigate();
 
@@ -856,22 +927,6 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStat
             </span>
           </td>
         );
-      case 'actions':
-        return (
-          <td key={column.id} className={cn(cellPadding, 'text-right')}>
-            <div className={cn('flex items-center justify-end gap-1 transition-opacity', showActions ? 'opacity-100' : 'opacity-0')}>
-              <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); onView(); }} title="View profile">
-                <Eye className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon-sm" onClick={(e) => e.stopPropagation()} title="Send message">
-                <MessageSquare className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon-sm" onClick={(e) => e.stopPropagation()} title="More actions">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </div>
-          </td>
-        );
       default:
         return <td key={column.id} className={cellPadding}>—</td>;
     }
@@ -881,8 +936,6 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStat
     <tr
       className={cn('transition-colors', isSelected && 'bg-[color:var(--bb-color-accent-soft)]')}
       style={{ borderBottom: '1px solid var(--bb-color-border-subtle)', backgroundColor: !isSelected && isEven ? 'var(--bb-color-bg-surface)' : !isSelected ? 'var(--bb-color-bg-body)' : undefined }}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
     >
       {columns.map(renderCell)}
     </tr>
