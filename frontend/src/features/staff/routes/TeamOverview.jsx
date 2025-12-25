@@ -639,7 +639,125 @@ const ScheduleTab = ({ staff }) => {
           <span>Off</span>
         </div>
       </div>
+
+      {/* Add Shift Modal */}
+      <Modal
+        open={showAddShiftModal}
+        onClose={() => setShowAddShiftModal(false)}
+        title="Add Shift"
+        size="sm"
+      >
+        <AddShiftForm
+          staff={staff}
+          selectedStaffId={selectedCell?.staffId}
+          selectedDate={selectedCell?.date}
+          onSubmit={handleCreateShift}
+          onCancel={() => setShowAddShiftModal(false)}
+        />
+      </Modal>
     </div>
+  );
+};
+
+// Add Shift Form Component
+const AddShiftForm = ({ staff, selectedStaffId, selectedDate, onSubmit, onCancel }) => {
+  const [formData, setFormData] = useState({
+    staffId: selectedStaffId || '',
+    date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+    startTime: '09:00',
+    endTime: '17:00',
+    role: '',
+    notes: '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.staffId || !formData.startTime || !formData.endTime) {
+      alert('Please fill in all required fields');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await onSubmit(formData);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-text mb-1">Staff Member *</label>
+        <StyledSelect
+          options={staff.map(s => ({
+            value: s.id || s.recordId,
+            label: s.name || s.email || 'Staff'
+          }))}
+          value={formData.staffId}
+          onChange={(opt) => setFormData({ ...formData, staffId: opt?.value || '' })}
+          placeholder="Select staff..."
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-text mb-1">Date *</label>
+        <input
+          type="date"
+          value={formData.date}
+          onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+          className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-text mb-1">Start Time *</label>
+          <input
+            type="time"
+            value={formData.startTime}
+            onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-text mb-1">End Time *</label>
+          <input
+            type="time"
+            value={formData.endTime}
+            onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-text mb-1">Role</label>
+        <input
+          type="text"
+          value={formData.role}
+          onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+          placeholder="e.g., Kennel Attendant"
+          className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-text mb-1">Notes</label>
+        <textarea
+          value={formData.notes}
+          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          placeholder="Optional notes..."
+          rows={2}
+          className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+        />
+      </div>
+      <div className="flex gap-2 pt-2">
+        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" className="flex-1" disabled={isSubmitting}>
+          {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+          Add Shift
+        </Button>
+      </div>
+    </form>
   );
 };
 
