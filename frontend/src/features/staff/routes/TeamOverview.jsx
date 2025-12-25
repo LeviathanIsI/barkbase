@@ -426,6 +426,8 @@ const ScheduleTab = ({ staff }) => {
   const [dragOverCell, setDragOverCell] = useState(null);
   const [editingShift, setEditingShift] = useState(null);
   const [roleFilter, setRoleFilter] = useState('all');
+  const [showWeekScheduleModal, setShowWeekScheduleModal] = useState(false);
+  const [selectedStaffForWeek, setSelectedStaffForWeek] = useState(null);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(selectedWeek, i));
   const weekStartStr = format(weekDays[0], 'yyyy-MM-dd');
@@ -538,6 +540,59 @@ const ScheduleTab = ({ staff }) => {
     setSelectedCell({ staffId, date: shift.date });
     setEditingShift(shift);
     setShowAddShiftModal(true);
+  };
+
+  const handleOpenWeekSchedule = (staffRow) => {
+    setSelectedStaffForWeek({
+      staffId: staffRow.staffId,
+      staffName: staffRow.staffName,
+      role: staffRow.role,
+      shifts: staffRow.shifts,
+    });
+    setShowWeekScheduleModal(true);
+  };
+
+  const handleSaveWeekSchedule = async (weekData) => {
+    try {
+      const shiftsApi = await import('@/features/schedule/api/shifts');
+
+      // Process each day
+      for (const dayData of weekData) {
+        const dateStr = format(dayData.date, 'yyyy-MM-dd');
+
+        if (dayData.isOff) {
+          // Delete existing shift if marked as off
+          if (dayData.existingShiftId) {
+            await shiftsApi.deleteShift(dayData.existingShiftId);
+          }
+        } else if (dayData.startTime && dayData.endTime) {
+          if (dayData.existingShiftId) {
+            // Update existing shift
+            await shiftsApi.updateShift(dayData.existingShiftId, {
+              startTime: `${dateStr}T${dayData.startTime}:00`,
+              endTime: `${dateStr}T${dayData.endTime}:00`,
+              role: dayData.role,
+            });
+          } else {
+            // Create new shift
+            await shiftsApi.createShift({
+              staffId: selectedStaffForWeek.staffId,
+              startTime: `${dateStr}T${dayData.startTime}:00`,
+              endTime: `${dateStr}T${dayData.endTime}:00`,
+              role: dayData.role,
+            });
+          }
+        }
+      }
+
+      // Refetch schedule
+      const response = await shiftsApi.getWeeklySchedule(weekStartStr);
+      setWeeklyData(response);
+      setShowWeekScheduleModal(false);
+    } catch (error) {
+      console.error('Failed to save week schedule:', error);
+      alert('Failed to save week schedule');
+    }
   };
 
   const handleCreateShift = async (data, addAnother = false) => {
@@ -811,12 +866,22 @@ const ScheduleTab = ({ staff }) => {
                 className="grid grid-cols-8 border-b border-border last:border-b-0 hover:bg-surface-alt/20 transition-colors"
               >
                 {/* Staff Name Column */}
-                <div className="p-3 border-r border-border flex items-center gap-2">
+                <div className="p-3 border-r border-border flex items-center gap-2 group/staff">
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-text truncate">
                       {staffRow.staffName}
                     </div>
-                    <div className="text-xs text-muted">{staffRow.role}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted">{staffRow.role}</span>
+                      <button
+                        onClick={() => handleOpenWeekSchedule(staffRow)}
+                        className="text-xs text-primary hover:text-primary/80 opacity-0 group-hover/staff:opacity-100 transition-opacity flex items-center gap-1"
+                        title="Schedule entire week"
+                      >
+                        <Calendar className="h-3 w-3" />
+                        <span>Week</span>
+                      </button>
+                    </div>
                   </div>
                   {hasOvertime && (
                     <div className="text-amber-500" title={`${weeklyHours.toFixed(1)}h - Overtime warning`}>
@@ -902,6 +967,25 @@ const ScheduleTab = ({ staff }) => {
               : 0
           }
         />
+      </Modal>
+
+      {/* Week Schedule Modal */}
+      <Modal
+        open={showWeekScheduleModal}
+        onClose={() => setShowWeekScheduleModal(false)}
+        title={`Schedule Week for ${selectedStaffForWeek?.staffName || 'Staff'}`}
+        size="xl"
+      >
+        {selectedStaffForWeek && (
+          <WeekScheduleForm
+            staffName={selectedStaffForWeek.staffName}
+            defaultRole={selectedStaffForWeek.role}
+            weekDays={weekDays}
+            existingShifts={selectedStaffForWeek.shifts}
+            onSubmit={handleSaveWeekSchedule}
+            onCancel={() => setShowWeekScheduleModal(false)}
+          />
+        )}
       </Modal>
     </div>
   );
@@ -1120,6 +1204,230 @@ const AddShiftForm = ({ staff, selectedStaffId, selectedDate, editingShift, onSu
         </Button>
       </div>
     </form>
+  );
+};
+
+// Week schedule templates
+const WEEK_TEMPLATES = [
+  { id: 'standard', label: 'Standard (M-F 9-5)', days: [false, true, true, true, true, true, false], start: '09:00', end: '17:00' },
+  { id: 'full', label: 'Full Week', days: [true, true, true, true, true, true, true], start: '09:00', end: '17:00' },
+  { id: 'weekends', label: 'Weekends Only', days: [true, false, false, false, false, false, true], start: '08:00', end: '18:00' },
+  { id: 'early', label: 'Early Shift (M-F)', days: [false, true, true, true, true, true, false], start: '06:00', end: '14:00' },
+  { id: 'late', label: 'Late Shift (M-F)', days: [false, true, true, true, true, true, false], start: '14:00', end: '22:00' },
+];
+
+// Week Schedule Form Component
+const WeekScheduleForm = ({ staffName, defaultRole, weekDays, existingShifts, onSubmit, onCancel }) => {
+  // Initialize schedule from existing shifts
+  const [schedule, setSchedule] = useState(() =>
+    weekDays.map((day, i) => {
+      const existing = existingShifts?.[i];
+      const hasShift = existing?.start && existing?.end;
+      return {
+        date: day,
+        isOff: !hasShift,
+        startTime: existing?.start || '09:00',
+        endTime: existing?.end || '17:00',
+        role: existing?.role || defaultRole || 'Kennel Tech',
+        existingShiftId: existing?.shiftId || null,
+      };
+    })
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Calculate total hours
+  const totalHours = useMemo(() => {
+    return schedule.reduce((total, day) => {
+      if (day.isOff) return total;
+      const [startH, startM] = day.startTime.split(':').map(Number);
+      const [endH, endM] = day.endTime.split(':').map(Number);
+      let hours = (endH + endM / 60) - (startH + startM / 60);
+      if (hours < 0) hours += 24;
+      return total + hours;
+    }, 0);
+  }, [schedule]);
+
+  const hasOvertime = totalHours > 40;
+
+  // Update a single day
+  const updateDay = (index, updates) => {
+    setSchedule(prev => prev.map((day, i) =>
+      i === index ? { ...day, ...updates } : day
+    ));
+  };
+
+  // Apply template
+  const applyTemplate = (template) => {
+    setSchedule(prev => prev.map((day, i) => ({
+      ...day,
+      isOff: !template.days[i],
+      startTime: template.start,
+      endTime: template.end,
+    })));
+  };
+
+  // Apply to all (non-off days)
+  const applyToAll = () => {
+    const firstActive = schedule.find(d => !d.isOff);
+    if (!firstActive) return;
+    setSchedule(prev => prev.map(day => ({
+      ...day,
+      startTime: day.isOff ? day.startTime : firstActive.startTime,
+      endTime: day.isOff ? day.endTime : firstActive.endTime,
+      role: day.isOff ? day.role : firstActive.role,
+    })));
+  };
+
+  // Clear all
+  const clearAll = () => {
+    setSchedule(prev => prev.map(day => ({
+      ...day,
+      isOff: true,
+      startTime: '09:00',
+      endTime: '17:00',
+    })));
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      await onSubmit(schedule);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const roleOptions = [
+    { value: 'Kennel Tech', label: 'Kennel Tech' },
+    { value: 'Groomer', label: 'Groomer' },
+    { value: 'Manager', label: 'Manager' },
+    { value: 'Trainer', label: 'Trainer' },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Week Range */}
+      <div className="text-sm text-muted text-center">
+        {format(weekDays[0], 'MMM d')} - {format(weekDays[6], 'MMM d, yyyy')}
+      </div>
+
+      {/* Quick Fill Options */}
+      <div className="flex flex-wrap items-center gap-2 p-3 bg-surface-alt/50 rounded-lg border border-border/50">
+        <span className="text-xs font-medium text-muted">Templates:</span>
+        <select
+          onChange={(e) => {
+            const template = WEEK_TEMPLATES.find(t => t.id === e.target.value);
+            if (template) applyTemplate(template);
+          }}
+          className="h-7 px-2 text-xs bg-surface border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary/50"
+          defaultValue=""
+        >
+          <option value="" disabled>Select template...</option>
+          {WEEK_TEMPLATES.map(t => (
+            <option key={t.id} value={t.id}>{t.label}</option>
+          ))}
+        </select>
+        <div className="flex-1" />
+        <Button variant="outline" size="sm" onClick={applyToAll} className="h-7 text-xs">
+          Apply to All
+        </Button>
+        <Button variant="outline" size="sm" onClick={clearAll} className="h-7 text-xs">
+          Clear All
+        </Button>
+      </div>
+
+      {/* 7-Day Grid */}
+      <div className="grid grid-cols-7 gap-2">
+        {schedule.map((day, i) => (
+          <div
+            key={i}
+            className={`p-2 rounded-lg border transition-all ${
+              day.isOff
+                ? 'bg-surface-alt/30 border-border/50'
+                : 'bg-surface border-border'
+            }`}
+          >
+            {/* Day Header */}
+            <div className="text-center mb-2">
+              <div className="text-xs font-medium text-muted">{format(day.date, 'EEE')}</div>
+              <div className="text-sm font-semibold text-text">{format(day.date, 'd')}</div>
+            </div>
+
+            {/* Off Checkbox */}
+            <label className="flex items-center gap-1.5 mb-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={day.isOff}
+                onChange={(e) => updateDay(i, { isOff: e.target.checked })}
+                className="w-3.5 h-3.5 rounded border-border text-primary focus:ring-primary/50"
+              />
+              <span className="text-xs text-muted">Off</span>
+            </label>
+
+            {/* Time & Role Inputs */}
+            <div className={`space-y-1.5 ${day.isOff ? 'opacity-40 pointer-events-none' : ''}`}>
+              <div>
+                <label className="block text-[10px] text-muted mb-0.5">Start</label>
+                <input
+                  type="time"
+                  value={day.startTime}
+                  onChange={(e) => updateDay(i, { startTime: e.target.value })}
+                  className="w-full px-1.5 py-1 text-xs bg-surface border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  disabled={day.isOff}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-muted mb-0.5">End</label>
+                <input
+                  type="time"
+                  value={day.endTime}
+                  onChange={(e) => updateDay(i, { endTime: e.target.value })}
+                  className="w-full px-1.5 py-1 text-xs bg-surface border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  disabled={day.isOff}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] text-muted mb-0.5">Role</label>
+                <select
+                  value={day.role}
+                  onChange={(e) => updateDay(i, { role: e.target.value })}
+                  className="w-full px-1.5 py-1 text-xs bg-surface border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  disabled={day.isOff}
+                >
+                  {roleOptions.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-2 border-t border-border">
+        <div className="flex items-center gap-3">
+          <span className={`text-sm font-medium ${hasOvertime ? 'text-amber-500' : 'text-text'}`}>
+            Total: {totalHours.toFixed(1)} hrs
+          </span>
+          {hasOvertime && (
+            <span className="flex items-center gap-1 text-xs text-amber-500">
+              <AlertCircle className="h-3.5 w-3.5" />
+              Overtime ({(totalHours - 40).toFixed(1)}h over 40)
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+            Save Week
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };
 
