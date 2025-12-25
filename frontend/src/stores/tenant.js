@@ -117,7 +117,7 @@ export const useTenantStore = create(
       },
       setTerminology: (terminology = {}) => {
         const { tenant } = get();
-        set({ tenant: { ...tenant, terminology: { ...tenant.terminology, ...terminology } } });
+        set({ tenant: { ...tenant, terminology } });
       },
       refreshPlan: async () => {
         // This custom endpoint needs a dedicated Lambda. Commenting out for now.
