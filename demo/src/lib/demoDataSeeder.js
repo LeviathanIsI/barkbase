@@ -3271,6 +3271,16 @@ const messages = [
     updatedAt: '2024-12-23T10:30:00Z'
   },
   {
+    id: 'msg-001-reply',
+    type: 'outbound',
+    channel: 'email',
+    ownerId: 'owner-001-a1b2c3d4',
+    body: 'Hi Sarah! Of course - I just sent 6 photos to your email. Bella and Charlie are having a wonderful time! They played with the other dogs this morning and are now napping. Let me know if you need anything else!',
+    read: true,
+    createdAt: '2024-12-23T10:30:00Z',
+    updatedAt: '2024-12-23T10:30:00Z'
+  },
+  {
     id: 'msg-001b-dec2024',
     type: 'inbound',
     channel: 'email',
@@ -3333,6 +3343,16 @@ const messages = [
     repliedAt: '2024-12-23T12:00:00Z',
     replyBody: "Got it! We've updated Rosie's feeding notes. We'll warm her food and have chicken ready as a backup. Thanks for letting us know!",
     createdAt: '2024-12-23T11:45:00Z',
+    updatedAt: '2024-12-23T12:00:00Z'
+  },
+  {
+    id: 'msg-004-reply',
+    type: 'outbound',
+    channel: 'email',
+    ownerId: 'owner-008-h8i9j0k1',
+    body: "Got it! We've updated Rosie's feeding notes. We'll warm her food and have chicken ready as a backup. Thanks for letting us know!",
+    read: true,
+    createdAt: '2024-12-23T12:00:00Z',
     updatedAt: '2024-12-23T12:00:00Z'
   },
   {
