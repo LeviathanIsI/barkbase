@@ -45,6 +45,18 @@ import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import { getSocket } from '@/lib/socket';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
+import { PageTour } from '@/components/demo/PageTour';
+
+// Tour steps for /messages page (global step 26)
+const messagesTourSteps = [
+  {
+    target: '[data-tour="messages-page"]',
+    title: 'Unified Messaging',
+    content: 'Email, SMS, and in-app messages in one inbox. See full customer history alongside conversations. Never lose context again.',
+    placement: 'center',
+    disableBeacon: true,
+  },
+];
 
 // Filter options
 const FILTER_OPTIONS = [
@@ -759,7 +771,9 @@ const Messages = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-120px)] flex flex-col">
+    <div className="h-[calc(100vh-120px)] flex flex-col" data-tour="messages-page">
+      <PageTour pageRoute="/messages" steps={messagesTourSteps} />
+
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>

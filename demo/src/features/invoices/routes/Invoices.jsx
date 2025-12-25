@@ -75,6 +75,32 @@ import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 import PetQuickActionsDrawer from '@/features/owners/components/PetQuickActionsDrawer';
+import { PageTour } from '@/components/demo/PageTour';
+
+// Tour steps for /invoices page (global steps 22-24)
+const invoicesTourSteps = [
+  {
+    target: '[data-tour="invoices-page"]',
+    title: 'Invoices & Payments',
+    content: 'Integrated billing. Generate invoices from bookings automatically. No double-entry.',
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+  {
+    target: '[data-tour="invoices-stats"]',
+    title: 'Revenue at a Glance',
+    content: 'Track outstanding balances, paid invoices, and overdue accounts. Know your financial health without spreadsheets.',
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+  {
+    target: '[data-tour="invoices-table"]',
+    title: 'Complete Invoice History',
+    content: 'Every invoice with status, payment history, and quick actions. Send reminders, record payments, or void invoices with one click.',
+    placement: 'top',
+    disableBeacon: true,
+  },
+];
 
 // Status configurations
 const STATUS_CONFIG = {
@@ -1549,7 +1575,9 @@ const Invoices = () => {
   };
 
   return (
-    <div className="space-y-5" data-tour="invoices-page">
+    <>
+      <PageTour pageRoute="/invoices" steps={invoicesTourSteps} />
+      <div className="space-y-5" data-tour="invoices-page">
       {/* Header */}
       <div className="flex items-start justify-between" data-tour="invoices-header">
         <div>
@@ -1576,7 +1604,7 @@ const Invoices = () => {
       </div>
 
       {/* KPI Tiles */}
-      <div className="flex gap-3 overflow-x-auto pb-1" data-tour="invoices-kpis">
+      <div className="flex gap-3 overflow-x-auto pb-1" data-tour="invoices-stats">
         <KPITile
           icon={FileText}
           label="Draft"
@@ -1906,6 +1934,7 @@ const Invoices = () => {
         onSuccess={() => refetch()}
       />
     </div>
+    </>
   );
 };
 

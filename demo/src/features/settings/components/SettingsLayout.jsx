@@ -31,6 +31,18 @@ import {
   History,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { PageTour } from '@/components/demo/PageTour';
+
+// Tour steps for /settings page (global step 27)
+const settingsTourSteps = [
+  {
+    target: '[data-tour="settings-page"]',
+    title: 'Powerful Settings',
+    content: 'Customize everything: custom fields, pipelines, automation rules, integrations, and branding. BarkBase adapts to how you work.',
+    placement: 'center',
+    disableBeacon: true,
+  },
+];
 
 const NAV_SECTIONS = [
   {
@@ -452,7 +464,9 @@ export default function SettingsLayout() {
   );
 
   return (
-    <div className="flex w-full h-[calc(100vh-4rem)] bg-background rounded-lg border border-border overflow-hidden">
+    <div className="flex w-full h-[calc(100vh-4rem)] bg-background rounded-lg border border-border overflow-hidden" data-tour="settings-page">
+      <PageTour pageRoute="/settings" steps={settingsTourSteps} />
+
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-shrink-0 flex-col border-r border-border bg-card h-full overflow-hidden">
         {sidebarContent}

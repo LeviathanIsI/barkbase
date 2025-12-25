@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, AlertTriangle, Clock, ListTodo, Home, ExternalLink, AlertCircle, Dog, User, ChevronRight } from 'lucide-react';
+import { PageTour } from '@/components/demo/PageTour';
 import { useUserProfileQuery } from '@/features/settings/api-user';
 // Dashboard hooks available if needed:
 // import { useDashboardStatsQuery } from '@/features/dashboard/api';
@@ -150,14 +151,63 @@ const TodayCommandCenter = () => {
   }
 
 
+  // Tour steps for the Today page (global steps 0-4, and step 28 for wrap-up)
+  const todayTourSteps = [
+    {
+      target: '[data-tour="sidebar-nav"]',
+      title: 'One Platform, Everything',
+      content: 'Everything in one place. Clients, Operations, Communications, Finance - no tool sprawl, no switching between apps.',
+      placement: 'right',
+      disableBeacon: true,
+    },
+    {
+      target: '[data-tour="command-center"]',
+      title: 'Command Center',
+      content: "Your daily HQ. Today's arrivals, departures, occupancy, and alerts - all at a glance. Zero clicks to see what matters.",
+      placement: 'bottom',
+      disableBeacon: true,
+    },
+    {
+      target: '[data-tour="quick-actions"]',
+      title: 'FEWER CLICKS',
+      content: "DO EVERYTHING FROM ANYWHERE. Other software: 5+ clicks per task. BarkBase: open a slideout, handle it right here - check-ins, bookings, messages - without leaving your screen.",
+      placement: 'bottom',
+      disableBeacon: true,
+    },
+    {
+      target: '[data-tour="today-arrivals"]',
+      title: 'Arrivals List',
+      content: "Today's check-ins at your fingertips. Click any arrival to check them in instantly. Use batch check-in to process multiple pets with one click.",
+      placement: 'right',
+      disableBeacon: true,
+    },
+    {
+      target: '[data-tour="today-departures"]',
+      title: 'Departures List',
+      content: "Who's going home today. One-click checkout with automatic invoice generation. No forgotten charges, no manual calculations.",
+      placement: 'left',
+      disableBeacon: true,
+    },
+    // Final wrap-up step (global step 28)
+    {
+      target: '[data-tour="command-center"]',
+      title: "You're All Set!",
+      content: "That's the full BarkBase experience. One platform for everything: clients, pets, bookings, invoices, messaging, and automation. Ready to transform your kennel operations?",
+      placement: 'center',
+      disableBeacon: true,
+    },
+  ];
+
   return (
-    <div
-      className={cn(
-        "space-y-[var(--bb-space-6,1.5rem)] transition-opacity duration-200",
-        hasLoaded ? "opacity-100" : "opacity-0"
-      )}
-      data-tour="command-center"
-    >
+    <>
+      <PageTour pageRoute="/today" steps={todayTourSteps} />
+      <div
+        className={cn(
+          "space-y-[var(--bb-space-6,1.5rem)] transition-opacity duration-200",
+          hasLoaded ? "opacity-100" : "opacity-0"
+        )}
+        data-tour="command-center"
+      >
       {/* Breadcrumbs */}
       <nav className="mb-2">
         <ol className="flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)]">
@@ -182,7 +232,7 @@ const TodayCommandCenter = () => {
         </div>
 
         {/* Arrivals & Departures side-by-side on large screens */}
-        <div className="lg:col-span-6">
+        <div className="lg:col-span-6" data-tour="today-arrivals">
           <TodayArrivalsList
             arrivals={arrivals}
             isLoading={false}
@@ -190,7 +240,7 @@ const TodayCommandCenter = () => {
             onBatchCheckIn={() => setShowBatchCheckIn(true)}
           />
         </div>
-        <div className="lg:col-span-6">
+        <div className="lg:col-span-6" data-tour="today-departures">
           <TodayDeparturesList
             departures={departures}
             isLoading={false}
@@ -295,6 +345,7 @@ const TodayCommandCenter = () => {
         />
       </SlideOutDrawer>
     </div>
+    </>
   );
 };
 

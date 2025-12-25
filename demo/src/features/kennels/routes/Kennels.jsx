@@ -41,13 +41,20 @@ import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 import { PageTour } from '@/components/demo/PageTour';
 
-// Tour steps for /kennels page
+// Tour steps for /kennels page (global steps 20-21)
 const kennelsTourSteps = [
   {
     target: '[data-tour="kennels-page"]',
     title: 'Kennels',
     content: "Real-time run availability. Know exactly what's open without checking a whiteboard.",
     placement: 'bottom',
+    disableBeacon: true,
+  },
+  {
+    target: '[data-tour="kennels-grid"]',
+    title: 'Visual Facility Map',
+    content: 'See your entire facility at a glance. Color-coded status shows availability, who\'s checked in, and which runs need attention.',
+    placement: 'top',
     disableBeacon: true,
   },
 ];

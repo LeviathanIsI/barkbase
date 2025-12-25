@@ -41,6 +41,18 @@ import {
 import Button from '@/components/ui/Button';
 import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
+import { PageTour } from '@/components/demo/PageTour';
+
+// Tour steps for /reports page (global step 25)
+const reportsTourSteps = [
+  {
+    target: '[data-tour="reports-page"]',
+    title: 'Reports & Analytics',
+    content: 'Track revenue, occupancy, and customer trends all in one place. Export to Excel, schedule automated reports, and benchmark against industry standards.',
+    placement: 'center',
+    disableBeacon: true,
+  },
+];
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SHARED COMPONENTS - Compact versions
@@ -759,7 +771,9 @@ const Reports = () => {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-tour="reports-page">
+      <PageTour pageRoute="/reports" steps={reportsTourSteps} />
+
       {/* Header - Compact */}
       <div className="flex items-center justify-between">
         <div>

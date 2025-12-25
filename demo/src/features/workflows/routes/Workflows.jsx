@@ -28,6 +28,25 @@ import {
 import WorkflowsHeader from '../components/WorkflowsHeader';
 import WorkflowsFilterTabs from '../components/WorkflowsFilterTabs';
 import WorkflowsTable from '../components/WorkflowsTable';
+import { PageTour } from '@/components/demo/PageTour';
+
+// Tour steps for /workflows page (global steps 18-19)
+const workflowsTourSteps = [
+  {
+    target: '[data-tour="workflows-page"]',
+    title: 'AUTOMATION INCLUDED',
+    content: 'Auto-send vaccination reminders 2 weeks before expiry, welcome emails to new clients, post-stay feedback requests. Set it and forget it.',
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+  {
+    target: '[data-tour="workflows-list"]',
+    title: 'Visual Workflow Builder',
+    content: 'Build complex automations with a drag-and-drop interface. No coding required. Trigger workflows on bookings, form submissions, dates, and more.',
+    placement: 'top',
+    disableBeacon: true,
+  },
+];
 
 const PAGE_SIZE = 25;
 
@@ -153,7 +172,9 @@ export default function Workflows() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[var(--bb-color-bg-body)]" data-tour="workflows-page">
+    <>
+      <PageTour pageRoute="/workflows" steps={workflowsTourSteps} />
+      <div className="h-full flex flex-col bg-[var(--bb-color-bg-body)]" data-tour="workflows-page">
       {/* Header */}
       <WorkflowsHeader
         searchQuery={searchQuery}
@@ -215,6 +236,7 @@ export default function Workflows() {
           </div>
         ) : (
           // Workflows table
+          <div data-tour="workflows-list">
           <WorkflowsTable
             workflows={workflows}
             currentPage={currentPage}
@@ -226,6 +248,7 @@ export default function Workflows() {
             onClone={handleClone}
             onDelete={(workflowId) => setDeleteConfirm(workflowId)}
           />
+          </div>
         )}
       </div>
 
@@ -276,5 +299,6 @@ export default function Workflows() {
         </div>
       </Modal>
     </div>
+    </>
   );
 }

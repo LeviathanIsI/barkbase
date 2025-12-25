@@ -26,6 +26,18 @@ import { useTodayStats } from '../hooks/useTodayStats';
 import { useAuthStore } from '@/stores/auth';
 import { cn } from '@/lib/cn';
 import toast from 'react-hot-toast';
+import { PageTour } from '@/components/demo/PageTour';
+
+// Tour steps for Schedule page (global step 17)
+const scheduleTourSteps = [
+  {
+    target: '[data-tour="schedule-page"]',
+    title: 'Schedule & Capacity',
+    content: 'Monitor real-time run schedules and capacity at a glance. See which runs are occupied, available, or need attention throughout the day.',
+    placement: 'center',
+    disableBeacon: true,
+  },
+];
 
 const Schedule = () => {
   const [currentDate, _setCurrentDate] = useState(new Date());
@@ -334,7 +346,9 @@ const Schedule = () => {
   }, []);
 
   return (
-    <div className="flex flex-col flex-grow w-full min-h-[calc(100vh-180px)]">
+    <div className="flex flex-col flex-grow w-full min-h-[calc(100vh-180px)]" data-tour="schedule-page">
+      <PageTour pageRoute="/schedule" steps={scheduleTourSteps} />
+
       {/* Header with Sticky Action Bar */}
       <div className="pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
