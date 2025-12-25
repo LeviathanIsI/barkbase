@@ -226,7 +226,7 @@ const ReportsOverview = () => {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-tour="reports-page">
       {/* KPI Grid - 6 columns on desktop */}
       <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
         {kpis.map((kpi, i) => (
