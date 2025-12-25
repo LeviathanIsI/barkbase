@@ -974,7 +974,7 @@ const ScheduleTab = ({ staff }) => {
         open={showWeekScheduleModal}
         onClose={() => setShowWeekScheduleModal(false)}
         title={`Schedule Week for ${selectedStaffForWeek?.staffName || 'Staff'}`}
-        size="xl"
+        size="full"
       >
         {selectedStaffForWeek && (
           <WeekScheduleForm
@@ -1305,21 +1305,21 @@ const WeekScheduleForm = ({ staffName, defaultRole, weekDays, existingShifts, on
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Week Range */}
-      <div className="text-sm text-muted text-center">
-        {format(weekDays[0], 'MMM d')} - {format(weekDays[6], 'MMM d, yyyy')}
+      <div className="text-lg font-medium text-muted text-center">
+        {format(weekDays[0], 'MMMM d')} - {format(weekDays[6], 'MMMM d, yyyy')}
       </div>
 
       {/* Quick Fill Options */}
-      <div className="flex flex-wrap items-center gap-2 p-3 bg-surface-alt/50 rounded-lg border border-border/50">
-        <span className="text-xs font-medium text-muted">Templates:</span>
+      <div className="flex flex-wrap items-center gap-4 p-4 bg-surface-alt/50 rounded-xl border border-border/50">
+        <span className="text-sm font-medium text-muted">Templates:</span>
         <select
           onChange={(e) => {
             const template = WEEK_TEMPLATES.find(t => t.id === e.target.value);
             if (template) applyTemplate(template);
           }}
-          className="h-7 px-2 text-xs bg-surface border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary/50"
+          className="h-9 px-3 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
           defaultValue=""
         >
           <option value="" disabled>Select template...</option>
@@ -1328,70 +1328,70 @@ const WeekScheduleForm = ({ staffName, defaultRole, weekDays, existingShifts, on
           ))}
         </select>
         <div className="flex-1" />
-        <Button variant="outline" size="sm" onClick={applyToAll} className="h-7 text-xs">
+        <Button variant="outline" size="sm" onClick={applyToAll}>
           Apply to All
         </Button>
-        <Button variant="outline" size="sm" onClick={clearAll} className="h-7 text-xs">
+        <Button variant="outline" size="sm" onClick={clearAll}>
           Clear All
         </Button>
       </div>
 
       {/* 7-Day Grid */}
-      <div className="grid grid-cols-7 gap-2">
+      <div className="grid grid-cols-7 gap-4">
         {schedule.map((day, i) => (
           <div
             key={i}
-            className={`p-2 rounded-lg border transition-all ${
+            className={`p-4 rounded-xl border-2 transition-all ${
               day.isOff
                 ? 'bg-surface-alt/30 border-border/50'
-                : 'bg-surface border-border'
+                : 'bg-surface border-primary/30'
             }`}
           >
             {/* Day Header */}
-            <div className="text-center mb-2">
-              <div className="text-xs font-medium text-muted">{format(day.date, 'EEE')}</div>
-              <div className="text-sm font-semibold text-text">{format(day.date, 'd')}</div>
+            <div className="text-center mb-4">
+              <div className="text-sm font-medium text-muted">{format(day.date, 'EEEE')}</div>
+              <div className="text-2xl font-bold text-text">{format(day.date, 'd')}</div>
             </div>
 
             {/* Off Checkbox */}
-            <label className="flex items-center gap-1.5 mb-2 cursor-pointer">
+            <label className="flex items-center gap-2 mb-4 cursor-pointer p-2 rounded-lg hover:bg-surface-alt/50 transition-colors">
               <input
                 type="checkbox"
                 checked={day.isOff}
                 onChange={(e) => updateDay(i, { isOff: e.target.checked })}
-                className="w-3.5 h-3.5 rounded border-border text-primary focus:ring-primary/50"
+                className="w-4 h-4 rounded border-border text-primary focus:ring-primary/50"
               />
-              <span className="text-xs text-muted">Off</span>
+              <span className="text-sm text-muted font-medium">Day Off</span>
             </label>
 
             {/* Time & Role Inputs */}
-            <div className={`space-y-1.5 ${day.isOff ? 'opacity-40 pointer-events-none' : ''}`}>
+            <div className={`space-y-3 ${day.isOff ? 'opacity-40 pointer-events-none' : ''}`}>
               <div>
-                <label className="block text-[10px] text-muted mb-0.5">Start</label>
+                <label className="block text-xs font-medium text-muted mb-1">Start Time</label>
                 <input
                   type="time"
                   value={day.startTime}
                   onChange={(e) => updateDay(i, { startTime: e.target.value })}
-                  className="w-full px-1.5 py-1 text-xs bg-surface border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                   disabled={day.isOff}
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-muted mb-0.5">End</label>
+                <label className="block text-xs font-medium text-muted mb-1">End Time</label>
                 <input
                   type="time"
                   value={day.endTime}
                   onChange={(e) => updateDay(i, { endTime: e.target.value })}
-                  className="w-full px-1.5 py-1 text-xs bg-surface border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                   disabled={day.isOff}
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-muted mb-0.5">Role</label>
+                <label className="block text-xs font-medium text-muted mb-1">Role</label>
                 <select
                   value={day.role}
                   onChange={(e) => updateDay(i, { role: e.target.value })}
-                  className="w-full px-1.5 py-1 text-xs bg-surface border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  className="w-full px-3 py-2 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                   disabled={day.isOff}
                 >
                   {roleOptions.map(opt => (
@@ -1405,24 +1405,24 @@ const WeekScheduleForm = ({ staffName, defaultRole, weekDays, existingShifts, on
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-2 border-t border-border">
-        <div className="flex items-center gap-3">
-          <span className={`text-sm font-medium ${hasOvertime ? 'text-amber-500' : 'text-text'}`}>
-            Total: {totalHours.toFixed(1)} hrs
+      <div className="flex items-center justify-between pt-4 mt-2 border-t border-border">
+        <div className="flex items-center gap-4">
+          <span className={`text-lg font-semibold ${hasOvertime ? 'text-amber-500' : 'text-text'}`}>
+            Total: {totalHours.toFixed(1)} hours
           </span>
           {hasOvertime && (
-            <span className="flex items-center gap-1 text-xs text-amber-500">
-              <AlertCircle className="h-3.5 w-3.5" />
-              Overtime ({(totalHours - 40).toFixed(1)}h over 40)
+            <span className="flex items-center gap-2 text-sm text-amber-500 bg-amber-500/10 px-3 py-1.5 rounded-lg">
+              <AlertCircle className="h-4 w-4" />
+              Overtime: {(totalHours - 40).toFixed(1)}h over 40
             </span>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onCancel}>
+        <div className="flex gap-3">
+          <Button variant="outline" size="lg" onClick={onCancel}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+          <Button size="lg" onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Check className="h-5 w-5 mr-2" />}
             Save Week
           </Button>
         </div>
