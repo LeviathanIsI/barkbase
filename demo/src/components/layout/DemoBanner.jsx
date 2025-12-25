@@ -2,7 +2,7 @@
  * DemoBanner - Persistent banner showing demo mode status
  *
  * Shows different messages based on whether the current page is
- * interactive (full CRUD) or view-only (explore only)
+ * interactive (full CRUD) or showing mock data
  */
 import { Eye, Sparkles } from 'lucide-react';
 import { useDemoMode } from '@/contexts/DemoModeContext';
@@ -15,7 +15,7 @@ export default function DemoBanner() {
       className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium"
       style={{
         backgroundColor: isViewOnly
-          ? 'rgba(251, 146, 60, 0.15)' // Orange tint for view-only
+          ? 'rgba(251, 146, 60, 0.15)' // Orange tint for mock data pages
           : 'rgba(59, 130, 246, 0.15)', // Blue tint for interactive
         color: isViewOnly
           ? '#FB923C' // Orange text
@@ -26,12 +26,12 @@ export default function DemoBanner() {
       {isViewOnly ? (
         <>
           <Eye size={16} />
-          <span>You are viewing a demo portal - This page is view-only</span>
+          <span>Demo Portal - This page shows mock data, feel free to explore!</span>
         </>
       ) : (
         <>
           <Sparkles size={16} />
-          <span>You are viewing a demo portal - Feel free to interact with this page!</span>
+          <span>Demo Portal - This page is fully interactive!</span>
         </>
       )}
     </div>

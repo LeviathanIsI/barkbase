@@ -1,10 +1,10 @@
 /**
  * DemoModeContext - Manages demo mode state and route permissions
  *
- * Interactive routes (full CRUD): Command Center, Owners, Pets, Owner Details,
- * Pet Details, Bookings, Run Schedules
+ * Interactive routes (full CRUD): Command Center, Owners, Pets, Vaccinations,
+ * Owner Details, Pet Details
  *
- * All other routes are view-only (can explore but no interactions)
+ * All other routes show mock data - users can explore but changes won't persist
  */
 import { createContext, useContext, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -14,8 +14,7 @@ const INTERACTIVE_ROUTES = [
   '/today',           // Command Center
   '/owners',          // Owners list
   '/pets',            // Pets list
-  '/bookings',        // Bookings
-  '/run-schedules',   // Run Schedules
+  '/vaccinations',    // Vaccinations
 ];
 
 // Route patterns that allow interactivity (with params)

@@ -7,7 +7,6 @@ import Sidebar from '@/components/navigation/Sidebar';
 import Topbar from '@/components/navigation/Topbar';
 import { DemoModeProvider } from '@/contexts/DemoModeContext';
 import DemoBanner from '@/components/layout/DemoBanner';
-import ViewOnlyOverlay from '@/components/layout/ViewOnlyOverlay';
 
 const AppShell = () => {
   const tenant = useTenantStore((state) => state.tenant);
@@ -57,9 +56,7 @@ const AppShell = () => {
         >
           {/* Global content rail - wide layout for SaaS app with comfortable side padding */}
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-6">
-            <ViewOnlyOverlay>
-              <Outlet />
-            </ViewOnlyOverlay>
+            <Outlet />
           </div>
         </main>
       </div>
