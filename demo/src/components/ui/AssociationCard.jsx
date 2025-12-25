@@ -55,7 +55,8 @@ export function AssociationCard({
   icon: CustomIcon,
   showAdd = true,
   emptyMessage = "None yet",
-  className
+  className,
+  ...props
 }) {
   const Icon = CustomIcon || ICON_MAP[type?.toLowerCase()] || Tag;
   const hasItems = React.Children.count(children) > 0;
@@ -70,6 +71,7 @@ export function AssociationCard({
         backgroundColor: 'var(--bb-color-bg-surface)',
         borderColor: 'var(--bb-color-border-subtle)'
       }}
+      {...props}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>

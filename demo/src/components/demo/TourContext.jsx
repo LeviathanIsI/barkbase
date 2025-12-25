@@ -5,7 +5,7 @@ const TourContext = createContext();
 // Tour configuration - maps global step index to route/page
 // Expanded tour covering ~30 steps across all key pages
 export const TOUR_CONFIG = [
-  { route: '/today', pageSteps: [0, 1, 2, 3, 4] },                    // Steps 0-4: Sidebar, Command Center, Quick Actions, Arrivals, Departures
+  { route: '/today', pageSteps: [0, 1, 2, 3, 4, 28] },                 // Steps 0-4 + Step 28: Final wrap-up
   { route: '/owners', pageSteps: [5, 6] },                             // Steps 5-6: Owners page, table
   { route: '/owners/owner-001-a1b2c3d4', pageSteps: [7, 8] },         // Steps 7-8: Inline edit, Pets section
   { route: '/pets', pageSteps: [9, 10] },                              // Steps 9-10: Pets page, table
@@ -18,7 +18,6 @@ export const TOUR_CONFIG = [
   { route: '/reports', pageSteps: [25] },                              // Step 25: Reports
   { route: '/messages', pageSteps: [26] },                             // Step 26: Messages
   { route: '/settings', pageSteps: [27] },                             // Step 27: Settings
-  { route: '/today', pageSteps: [28] },                                // Step 28: Final wrap-up
 ];
 
 export const TOTAL_STEPS = 29;

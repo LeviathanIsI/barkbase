@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import GlobalKeyboardShortcuts from '@/components/GlobalKeyboardShortcuts';
 import Button from '@/components/ui/Button';
 import { useTenantStore } from '@/stores/tenant';
@@ -8,13 +8,16 @@ import Topbar from '@/components/navigation/Topbar';
 import { DemoModeProvider } from '@/contexts/DemoModeContext';
 import DemoBanner from '@/components/layout/DemoBanner';
 import DemoGateModal from '@/components/demo/DemoGateModal';
-import GuidedTour from '@/components/demo/GuidedTour';
+import { TourProvider, useTour } from '@/components/demo/TourContext';
+import TourCompletionModal from '@/components/demo/TourCompletionModal';
 
-const AppShell = () => {
+// Inner component that can use useTour
+const AppShellContent = () => {
+  const navigate = useNavigate();
   const tenant = useTenantStore((state) => state.tenant);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [startTour, setStartTour] = useState(false);
-  const [tourComplete, setTourComplete] = useState(false);
+  const { startTour, skipTour, completed } = useTour();
+  const [showCompletion, setShowCompletion] = useState(false);
 
   const latestExportPath = tenant?.settings?.exports?.lastPath;
   const handleRestore = () => {
@@ -23,21 +26,32 @@ const AppShell = () => {
     window.open(url, '_blank');
   };
 
-  return (
-    <DemoModeProvider>
-      <div
-        className="min-h-screen"
-        style={{
-          backgroundColor: 'var(--bb-color-bg-body)',
-          color: 'var(--bb-color-text-primary)',
-        }}
-      >
-        {/* Demo mode banner - always visible at top */}
-        <div className="fixed top-0 left-0 right-0 z-[100]">
-          <DemoBanner />
-        </div>
+  const handleGateComplete = () => {
+    startTour();
+    // Navigate to /today to start tour
+    if (window.location.pathname !== '/today') {
+      window.location.href = '/today';
+    }
+  };
 
-        <Sidebar />
+  const handleGateSkip = () => {
+    skipTour();
+  };
+
+  return (
+    <div
+      className="min-h-screen"
+      style={{
+        backgroundColor: 'var(--bb-color-bg-body)',
+        color: 'var(--bb-color-text-primary)',
+      }}
+    >
+      {/* Demo mode banner - always visible at top */}
+      <div className="fixed top-0 left-0 right-0 z-[100]">
+        <DemoBanner />
+      </div>
+
+      <Sidebar />
 
       {mobileSidebarOpen ? (
         <div className="fixed inset-0 z-40 flex lg:hidden">
@@ -106,16 +120,24 @@ const AppShell = () => {
 
       {/* Demo Gate Modal - shows for first-time visitors */}
       <DemoGateModal
-        onComplete={() => setStartTour(true)}
-        onSkip={() => setTourComplete(true)}
+        onComplete={handleGateComplete}
+        onSkip={handleGateSkip}
       />
 
-      {/* Guided Tour - runs after gate modal is completed */}
-      <GuidedTour
-        startTour={startTour}
-        onTourComplete={() => setTourComplete(true)}
-      />
-      </div>
+      {/* Tour completion modal */}
+      {showCompletion && (
+        <TourCompletionModal onClose={() => setShowCompletion(false)} />
+      )}
+    </div>
+  );
+};
+
+const AppShell = () => {
+  return (
+    <DemoModeProvider>
+      <TourProvider>
+        <AppShellContent />
+      </TourProvider>
     </DemoModeProvider>
   );
 };

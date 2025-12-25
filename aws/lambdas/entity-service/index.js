@@ -231,6 +231,9 @@ const handlers = {
   'DELETE /api/v1/entity/pets/{petId}/vaccinations/{id}': deletePetVaccination,
   'POST /api/v1/entity/pets/{petId}/vaccinations/{id}/renew': renewPetVaccination,
 
+  // Pet Owners (relationship via PetOwner junction table)
+  'GET /api/v1/entity/pets/{petId}/owners': getPetOwners,
+
   // Owners
   'GET /api/v1/entity/owners': getOwners,
   'GET /api/v1/entity/owners/{id}': getOwner,
@@ -949,6 +952,77 @@ async function getPet(event) {
   } catch (error) {
     console.error('[ENTITY-SERVICE] getPet error:', error);
     return createResponse(500, { error: 'InternalServerError', message: 'Failed to get pet' });
+  }
+}
+
+/**
+ * Get all owners for a specific pet via PetOwner junction table
+ * Returns owner records with relationship metadata (isPrimary, relationship type)
+ */
+async function getPetOwners(event) {
+  const tenantId = resolveTenantId(event);
+  const petId = event.pathParameters?.petId || event.pathParameters?.id;
+
+  console.log('[ENTITY-SERVICE] Getting owners for pet:', petId, 'tenant:', tenantId);
+
+  if (!tenantId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Missing tenant context',
+    });
+  }
+
+  if (!petId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Pet ID is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Verify pet belongs to tenant
+    const petResult = await query(
+      `SELECT record_id FROM "Pet" WHERE record_id = $1 AND tenant_id = $2`,
+      [petId, tenantId]
+    );
+
+    if (petResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Pet not found',
+      });
+    }
+
+    // Get all owners for this pet via PetOwner junction table
+    const result = await query(
+      `SELECT o.record_id, o.tenant_id, o.first_name, o.last_name, o.email, o.phone,
+              o.address_street, o.address_city, o.address_state,
+              o.address_zip, o.address_country,
+              o.emergency_contact_name, o.emergency_contact_phone, o.notes,
+              o.tags, o.stripe_customer_id,
+              o.is_active, o.created_at, o.updated_at,
+              po.is_primary, po.relationship
+       FROM "Owner" o
+       JOIN "PetOwner" po ON po.tenant_id = o.tenant_id AND po.owner_record_id = o.record_id
+       WHERE po.pet_record_id = $1 AND o.tenant_id = $2
+       ORDER BY po.is_primary DESC, o.last_name, o.first_name`,
+      [petId, tenantId]
+    );
+
+    return createResponse(200, {
+      data: result.rows,
+      owners: result.rows,
+      total: result.rows.length,
+      petId,
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] getPetOwners error:', error);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to get owners for pet',
+    });
   }
 }
 

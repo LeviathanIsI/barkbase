@@ -25,6 +25,7 @@ import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/cn';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/apiClient';
+import { PageTour } from '@/components/demo/PageTour';
 
 // Saved views - persisted in localStorage
 const DEFAULT_VIEWS = [
@@ -49,6 +50,24 @@ const ALL_COLUMNS = [
 ];
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
+
+// Tour steps for /owners page (global steps 5-6)
+const ownersTourSteps = [
+  {
+    target: '[data-tour="owners-page"]',
+    title: 'Client Management',
+    content: 'Your complete client database. Search, filter, sort by any field. See lifetime value, booking history, and balances at a glance.',
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+  {
+    target: '[data-tour="owners-table"]',
+    title: 'Smart Table',
+    content: 'Click any row for full details. Hover over pet names for quick info. Select multiple clients for bulk email or SMS campaigns.',
+    placement: 'top',
+    disableBeacon: true,
+  },
+];
 
 const Owners = () => {
   const navigate = useNavigate();
@@ -403,6 +422,8 @@ const Owners = () => {
 
   return (
     <>
+      <PageTour pageRoute="/owners" steps={ownersTourSteps} />
+
       {/* Main content container - fixed height, no page scroll */}
       <div
         className={cn(
@@ -554,7 +575,7 @@ const Owners = () => {
               <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddOwner={() => setFormModalOpen(true)} />
             </div>
           ) : (
-            <ScrollableTableContainer className="border rounded-t-lg" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <ScrollableTableContainer className="border rounded-t-lg" style={{ borderColor: 'var(--bb-color-border-subtle)' }} data-tour="owners-table">
               <table className="w-full text-sm min-w-[1024px]">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', boxShadow: '0 1px 0 var(--bb-color-border-subtle)' }}>

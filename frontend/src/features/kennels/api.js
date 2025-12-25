@@ -36,11 +36,14 @@ const normalizeKennel = (kennel) => {
     'XLARGE': 'SUITE',
   };
 
+  // Get the ID - backend may return as record_id, recordId, or id
+  const kennelId = kennel.record_id || kennel.recordId || kennel.id;
+
   return {
     ...kennel,
-    // Core ID fields
-    id: kennel.id,
-    recordId: kennel.id,
+    // Core ID fields - ensure both id and recordId are set
+    id: kennelId,
+    recordId: kennelId,
     // Capacity mapping
     capacity: kennel.max_occupancy || kennel.capacity || 1,
     maxOccupancy: kennel.max_occupancy || kennel.capacity || 1,

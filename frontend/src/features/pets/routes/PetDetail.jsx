@@ -53,6 +53,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { StatusPill } from '@/components/primitives';
 import {
   usePetQuery,
+  usePetOwnersQuery,
   useDeletePetMutation,
   useUpdatePetMutation,
   usePetVaccinationsQuery,
@@ -162,6 +163,7 @@ const PetDetail = () => {
   // API Queries
   const petQuery = usePetQuery(petId);
   const { data: vaccinations = [], isLoading: vaccLoading } = usePetVaccinationsQuery(petId);
+  const { data: petOwners = [] } = usePetOwnersQuery(petId);
   const { data: allBookingsData } = useBookingsQuery({});
   const pet = petQuery.data;
 
@@ -468,7 +470,9 @@ const PetDetail = () => {
     );
   }
 
-  const primaryOwner = pet.owners?.[0];
+  // Use owners from dedicated query (falls back to pet.owners for backwards compat)
+  const owners = petOwners.length > 0 ? petOwners : (pet.owners || []);
+  const primaryOwner = owners.find(o => o.is_primary) || owners[0];
   const currentBooking = pet.currentBooking || petBookings?.find(b => b.status === 'CHECKED_IN');
   const petDescription = [pet.breed, pet.species].filter(Boolean).join(' • ');
   const petAge = getFormattedAgeFromPet(pet) || pet.age;
@@ -857,17 +861,17 @@ const PetDetail = () => {
             <AssociationCard
               title="Owners"
               type="owner"
-              count={pet.owners?.length || 0}
+              count={owners.length}
               showAdd={false}
               emptyMessage="No owners linked"
             >
-              {(pet.owners || []).map((owner, index) => (
+              {owners.map((owner, index) => (
                 <AssociationItem
-                  key={owner.recordId || index}
+                  key={owner.recordId || owner.id || index}
                   type="owner"
                   name={owner.name || `${owner.firstName || ''} ${owner.lastName || ''}`.trim()}
                   subtitle={index === 0 ? 'Primary Owner' : (owner.email || owner.phone)}
-                  href={`/customers/${owner.recordId}`}
+                  href={`/customers/${owner.recordId || owner.id}`}
                 />
               ))}
             </AssociationCard>

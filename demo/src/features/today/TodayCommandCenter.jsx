@@ -177,7 +177,7 @@ const TodayCommandCenter = () => {
     {
       target: '[data-tour="today-arrivals"]',
       title: 'Arrivals List',
-      content: "Today's check-ins at your fingertips. Click any arrival to check them in instantly. Use batch check-in to process multiple pets with one click.",
+      content: "Today's check-ins at your fingertips. Click any pet to check them in instantly with one click.",
       placement: 'right',
       disableBeacon: true,
     },

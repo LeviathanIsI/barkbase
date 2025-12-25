@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
  * ScrollableTableContainer - Wrapper for tables with inner scroll and styled scrollbar
  * Use this for data tables that need to scroll within a fixed viewport
  */
-export function ScrollableTableContainer({ children, className, style }) {
+export function ScrollableTableContainer({ children, className, style, ...props }) {
   return (
     <div
       className={cn(
@@ -20,6 +20,7 @@ export function ScrollableTableContainer({ children, className, style }) {
         className
       )}
       style={style}
+      {...props}
     >
       {children}
     </div>

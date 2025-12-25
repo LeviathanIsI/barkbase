@@ -276,6 +276,38 @@ export const useDeleteOwnerMutation = () => {
 };
 
 // ============================================================================
+// PET RELATIONSHIP QUERIES
+// ============================================================================
+
+/**
+ * Fetch pets for a specific owner via the junction table
+ * Uses /api/v1/entity/owners/{id}/pets endpoint
+ */
+export const useOwnerPetsQuery = (ownerId, options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+  const { enabled = Boolean(ownerId), ...queryOptions } = options;
+
+  return useQuery({
+    queryKey: [...queryKeys.owners(tenantKey), ownerId, 'pets'],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get(canonicalEndpoints.owners.pets(ownerId));
+        // Handle various response shapes
+        const pets = res?.data?.data || res?.data?.pets || res?.data?.items || res?.data || [];
+        return Array.isArray(pets) ? pets : [];
+      } catch (e) {
+        console.warn('[owner-pets] Error fetching pets for owner:', e?.message || e);
+        return [];
+      }
+    },
+    enabled: isTenantReady && enabled,
+    ...detailQueryDefaults,
+    ...queryOptions,
+  });
+};
+
+// ============================================================================
 // PET RELATIONSHIP MUTATIONS
 // ============================================================================
 

@@ -167,6 +167,38 @@ export const usePetVaccinationsQuery = (petId, options = {}) => {
 };
 
 // ============================================================================
+// PET OWNERS QUERY
+// ============================================================================
+
+/**
+ * Fetch all owners for a specific pet via PetOwner junction table
+ * Returns owner records with relationship metadata (isPrimary, relationship type)
+ */
+export const usePetOwnersQuery = (petId, options = {}) => {
+  const tenantId = useTenantId();
+  const isTenantReady = useTenantReady();
+  const { enabled = Boolean(petId), ...queryOptions } = options;
+
+  return useQuery({
+    queryKey: ['pets', { tenantId }, petId, 'owners'],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get(canonicalEndpoints.pets.owners(petId));
+        // Handle various response shapes
+        const owners = res?.data?.data || res?.data?.owners || res?.data?.items || res?.data || [];
+        return Array.isArray(owners) ? owners : [];
+      } catch (e) {
+        console.warn('[pet-owners] Error fetching owners for pet:', e?.message || e);
+        return [];
+      }
+    },
+    enabled: isTenantReady && enabled,
+    ...detailQueryDefaults,
+    ...queryOptions,
+  });
+};
+
+// ============================================================================
 // MUTATIONS - Using factory pattern for invalidation
 // ============================================================================
 

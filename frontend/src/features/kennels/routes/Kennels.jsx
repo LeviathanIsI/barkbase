@@ -139,31 +139,22 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
     if (unitRef.current) {
       const rect = unitRef.current.getBoundingClientRect();
       const tooltipWidth = 256; // w-64 = 16rem = 256px
-      const tooltipHeight = 280; // approximate height
-      const margin = 12;
+      const tooltipHeight = 200; // Approximate tooltip height
+      const margin = 8;
 
-      // Calculate available space
-      const spaceAbove = rect.top;
+      // Position tooltip below the element by default
+      // Flip to above if too close to bottom of screen
       const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceLeft = rect.left;
-      const spaceRight = window.innerWidth - rect.right;
+      const flipToAbove = spaceBelow < tooltipHeight + margin;
 
-      // Determine vertical position (prefer above)
-      let top;
-      if (spaceAbove >= tooltipHeight + margin) {
-        top = rect.top - tooltipHeight - margin;
-      } else if (spaceBelow >= tooltipHeight + margin) {
-        top = rect.bottom + margin;
-      } else {
-        top = Math.max(margin, rect.top);
-      }
+      const top = flipToAbove
+        ? rect.top - tooltipHeight - margin  // Position above
+        : rect.bottom + margin;              // Position below
 
-      // Determine horizontal position (prefer centered)
+      // Horizontally center the tooltip relative to the element
+      // Clamp to keep within viewport
       let left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
-
-      // Final bounds check
       left = Math.max(margin, Math.min(left, window.innerWidth - tooltipWidth - margin));
-      top = Math.max(margin, Math.min(top, window.innerHeight - tooltipHeight - margin));
 
       setTooltipPosition({ top, left });
       setShowTooltip(true);

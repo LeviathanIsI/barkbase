@@ -4,9 +4,9 @@
  * A guided tour using react-joyride that walks first-time visitors through
  * BarkBase's key features and competitive advantages.
  */
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import Joyride, { STATUS, ACTIONS, EVENTS } from 'react-joyride';
+import { useCallback, useEffect, useState } from 'react';
+import Joyride, { ACTIONS, EVENTS, STATUS } from 'react-joyride';
+import { useLocation, useNavigate } from 'react-router-dom';
 import TourCompletionModal from './TourCompletionModal';
 
 // Session storage keys
@@ -189,7 +189,7 @@ const getTourSteps = () => [
   // ============ KENNELS ============
   {
     target: '[data-tour="kennels-page"]',
-    content: "Real-time run availability. Know exactly what's open - no whiteboards, no guessing. Visual layout matches your actual facility.",
+    content: "Real-time kennel availability. Know exactly what's open - no whiteboards, no guessing. Visual layout matches your actual facility.",
     title: 'Facility Map',
     placement: 'bottom',
     disableBeacon: true,

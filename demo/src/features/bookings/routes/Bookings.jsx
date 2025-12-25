@@ -18,6 +18,32 @@ import BookingDetailModal from '../components/BookingDetailModal';
 import { useBookingsQuery, useDeleteBookingMutation } from '../api';
 import { cn } from '@/lib/cn';
 import toast from 'react-hot-toast';
+import { PageTour } from '@/components/demo/PageTour';
+
+// Tour steps for /bookings page (global steps 14-16)
+const bookingsTourSteps = [
+  {
+    target: '[data-tour="bookings-page"]',
+    title: 'Booking Management',
+    content: 'Your scheduling command center. Calendar, list, or timeline view - work however suits you. Switch views without losing your place.',
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+  {
+    target: '[data-tour="bookings-calendar"]',
+    title: 'Calendar View',
+    content: 'Visual scheduling. See your entire week at a glance. Color-coded by status - confirmed, checked-in, overdue. Know what needs attention.',
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+  {
+    target: '[data-tour="bookings-new"]',
+    title: 'Quick Booking',
+    content: 'Create bookings in seconds. Smart forms auto-fill client info, check for conflicts, and calculate pricing automatically.',
+    placement: 'left',
+    disableBeacon: true,
+  },
+];
 
 // View modes - Calendar and List (NO Run Board - that belongs on Schedule page)
 const VIEW_MODES = {
@@ -497,6 +523,8 @@ const Bookings = () => {
 
   return (
     <>
+      <PageTour pageRoute="/bookings" steps={bookingsTourSteps} />
+
       {/* New Booking Slideout */}
       <NewBookingModal
         isOpen={showNewBooking}
@@ -505,7 +533,7 @@ const Bookings = () => {
       />
 
       {/* Main Page */}
-    <div className="flex flex-col flex-grow w-full min-h-[calc(100vh-180px)]" data-tour="bookings-calendar">
+    <div className="flex flex-col flex-grow w-full min-h-[calc(100vh-180px)]" data-tour="bookings-page">
       {/* Header Section */}
       <div className="pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
         <PageHeader
@@ -549,7 +577,7 @@ const Bookings = () => {
             </Button>
           </div>
 
-          <Button size="sm" onClick={() => setShowNewBooking(true)} className="gap-1.5 h-9">
+          <Button size="sm" onClick={() => setShowNewBooking(true)} className="gap-1.5 h-9" data-tour="bookings-new">
             <Plus className="h-4 w-4" />
             New Booking
           </Button>
@@ -705,7 +733,7 @@ const Bookings = () => {
       {/* Main Content - Two-column layout for calendar views */}
       <div className="flex-1 mt-4">
         {viewMode === VIEW_MODES.CALENDAR ? (
-          <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+          <div className="grid gap-6 lg:grid-cols-[1fr_320px]" data-tour="bookings-calendar">
             {/* Left: Calendar */}
             <div className="flex flex-col">
               {periodMode === PERIOD_MODES.MONTH ? (

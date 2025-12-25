@@ -50,6 +50,7 @@ import { EditablePropertyList, EditablePropertyProvider } from '@/components/ui/
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useOwner, useDeleteOwnerMutation, useUpdateOwnerMutation } from '@/features/owners/api';
+import { usePetsQuery } from '@/features/pets/api';
 import { useBookingsQuery } from '@/features/bookings/api';
 import { useCommunicationStats, useCustomerTimeline } from '@/features/communications/api';
 import CommunicationForm from '@/features/communications/components/CommunicationForm';
@@ -120,6 +121,8 @@ export default function CustomerDetail() {
 
   // Data fetching
   const { data: owner, isLoading: ownerLoading, refetch: refetchOwner } = useOwner(ownerId);
+  const { data: petsData } = usePetsQuery({ ownerId });
+  const ownerPets = petsData?.pets || [];
   const { data: stats } = useCommunicationStats(ownerId);
   const { data: allBookings } = useBookingsQuery({ ownerId });
 
@@ -268,7 +271,10 @@ export default function CustomerDetail() {
   }
 
   const fullName = `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'Customer';
-  const pets = owner.pets?.filter(p => p && p.recordId) || [];
+  // Priority: dedicated owner-pets query > owner.pets embedded data
+  const petsFromQuery = Array.isArray(ownerPets) ? ownerPets.filter(p => p && (p.recordId || p.id)) : [];
+  const petsFromOwner = owner.pets?.filter(p => p && (p.recordId || p.id)) || [];
+  const pets = petsFromQuery.length > 0 ? petsFromQuery : petsFromOwner;
   const totalBookings = ownerBookings.length;
   const lastActivity = owner.updatedAt || owner.createdAt;
   const invoices = owner.invoices || [];

@@ -74,6 +74,32 @@ import { getBirthdateFromPet, getFormattedAgeFromPet, formatAgeFromBirthdate } f
 import { PropertyCard, PropertyList } from '@/components/ui/PropertyCard';
 import { AssociationCard, AssociationItem, AssociationSingleItem } from '@/components/ui/AssociationCard';
 import { EditablePropertyList, EditablePropertyProvider } from '@/components/ui/EditableProperty';
+import { PageTour } from '@/components/demo/PageTour';
+
+// Tour steps for pet detail page (global steps 11-13)
+const petDetailTourSteps = [
+  {
+    target: '[data-tour="inline-edit-pet"]',
+    title: 'INLINE EDITING',
+    content: "Same inline editing here. Click name, breed, weight - update instantly. Staff spends less time on computers, more time with animals.",
+    placement: 'right',
+    disableBeacon: true,
+  },
+  {
+    target: '[data-tour="pet-health-tab"]',
+    title: 'Health Records',
+    content: "Vaccination tracking with one-click renewals. Current, expiring, or overdue - see it instantly. Click Renew and the old record archives automatically.",
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+  {
+    target: '[data-tour="pet-activity-tab"]',
+    title: 'Activity Timeline',
+    content: "Complete activity timeline - every booking, note, incident, communication. Know exactly what happened during every stay. Full audit trail.",
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+];
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -504,6 +530,8 @@ const PetDetail = () => {
 
   return (
     <>
+      <PageTour pageRoute="/pets/pet-001-x1y2z3a4" steps={petDetailTourSteps} />
+
       <div className="h-full flex flex-col">
         {/* ================================================================
             HEADER
@@ -731,11 +759,11 @@ const PetDetail = () => {
                     <Activity className="w-4 h-4" />
                     Overview
                   </TabsTrigger>
-                  <TabsTrigger value="activity" className="flex items-center gap-2">
+                  <TabsTrigger value="activity" className="flex items-center gap-2" data-tour="pet-activity-tab">
                     <MessageSquare className="w-4 h-4" />
                     Activity
                   </TabsTrigger>
-                  <TabsTrigger value="health" className="flex items-center gap-2">
+                  <TabsTrigger value="health" className="flex items-center gap-2" data-tour="pet-health-tab">
                     <Heart className="w-4 h-4" />
                     Health
                   </TabsTrigger>
@@ -762,7 +790,7 @@ const PetDetail = () => {
                   />
                 </TabsContent>
 
-                <TabsContent value="health" className="mt-0" data-tour="pet-health-tab">
+                <TabsContent value="health" className="mt-0">
                   <HealthTab
                     pet={pet}
                     vaccinations={vaccinations}

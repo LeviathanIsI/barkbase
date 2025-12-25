@@ -49,7 +49,7 @@ import { AssociationCard, AssociationItem } from '@/components/ui/AssociationCar
 import { EditablePropertyList, EditablePropertyProvider } from '@/components/ui/EditableProperty';
 import { StatusPill } from '@/components/primitives';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
-import { useOwnerQuery, useDeleteOwnerMutation, useUpdateOwnerMutation, useAddPetToOwnerMutation, useRemovePetFromOwnerMutation } from '../api';
+import { useOwnerQuery, useOwnerPetsQuery, useDeleteOwnerMutation, useUpdateOwnerMutation, useAddPetToOwnerMutation, useRemovePetFromOwnerMutation } from '../api';
 import { usePetsQuery, useCreatePetMutation } from '@/features/pets/api';
 import { useBookingCheckInMutation, useBookingCheckOutMutation, useUpdateBookingMutation } from '@/features/bookings/api';
 import { useCreateInvoiceMutation, useSendInvoiceEmailMutation } from '@/features/invoices/api';
@@ -101,6 +101,7 @@ const OwnerDetail = () => {
 
   const ownerQuery = useOwnerQuery(ownerId);
   const petsQuery = usePetsQuery();
+  const ownerPetsQuery = useOwnerPetsQuery(ownerId);
   const deleteOwnerMutation = useDeleteOwnerMutation();
   const updateOwnerMutation = useUpdateOwnerMutation(ownerId);
   const addPetMutation = useAddPetToOwnerMutation(ownerId);
@@ -266,16 +267,18 @@ const OwnerDetail = () => {
 
   const fullName = `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'Owner';
 
-  // Get pets from owner object, or fallback to filtering allPets by ownerId
-  const ownerPets = owner.pets?.filter(pet => pet && pet.recordId) || [];
-  const petsFromList = ownerPets.length === 0
-    ? allPets.filter(pet =>
-        pet.ownerIds?.includes(ownerId) ||
-        pet.owners?.some(o => o.recordId === ownerId || o.id === ownerId) ||
-        pet.ownerId === ownerId
-      )
-    : [];
-  const pets = ownerPets.length > 0 ? ownerPets : petsFromList;
+  // Get pets from dedicated owner-pets query, or fallback to owner.pets, or filter allPets
+  const ownerPetsFromQuery = ownerPetsQuery.data || [];
+  const ownerPetsFromOwner = owner.pets?.filter(pet => pet && pet.recordId) || [];
+  const petsFromList = allPets.filter(pet =>
+    pet.ownerIds?.includes(ownerId) ||
+    pet.owners?.some(o => o.recordId === ownerId || o.id === ownerId) ||
+    pet.ownerId === ownerId
+  );
+  // Priority: dedicated query > owner.pets > filtered allPets
+  const pets = ownerPetsFromQuery.length > 0 ? ownerPetsFromQuery
+    : ownerPetsFromOwner.length > 0 ? ownerPetsFromOwner
+    : petsFromList;
 
   const bookings = owner.bookings || [];
   const payments = owner.payments || [];

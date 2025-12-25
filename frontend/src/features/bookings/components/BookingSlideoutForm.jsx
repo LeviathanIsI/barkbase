@@ -46,7 +46,7 @@ const selectStyles = {
   indicatorSeparator: () => ({ display: 'none' }),
   dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
 };
-import { usePetsQuery, usePetQuery } from '@/features/pets/api';
+import { usePetsQuery, usePetQuery, usePetOwnersQuery } from '@/features/pets/api';
 import { useServicesQuery } from '@/features/services/api';
 import { useKennels } from '@/features/kennels/api';
 import { useCreateBookingMutation, useUpdateBookingMutation } from '../api';
@@ -77,6 +77,7 @@ const BookingSlideoutForm = ({
   const { data: kennelsData } = useKennels();
   const { data: initialPet } = usePetQuery(initialPetId, { enabled: !!initialPetId });
   const { data: initialOwner } = useOwnerQuery(initialOwnerId, { enabled: !!initialOwnerId });
+  const { data: petOwners = [] } = usePetOwnersQuery(initialPetId, { enabled: !!initialPetId });
   
   // Mutations
   const createMutation = useCreateBookingMutation();
@@ -136,58 +137,44 @@ const BookingSlideoutForm = ({
   }, [initialOwner, initialPetId]);
 
   // Initialize from initialPet when provided (includes setting owner from pet)
+  // Uses petOwners from dedicated query for accurate owner data
   useEffect(() => {
     if (initialPet && !selectedOwner && !prefilledFromPet) {
-      console.log('[BookingSlideout] initialPet data:', initialPet); // DEBUG
+      console.log('[BookingSlideout] initialPet data:', initialPet);
+      console.log('[BookingSlideout] petOwners from query:', petOwners);
 
-      // Try multiple possible owner locations
-      let owner = null;
-      let petOwners = [];
+      // Use owners from the dedicated petOwners query (most reliable)
+      // Fall back to initialPet.owners or other sources if query hasn't loaded yet
+      const ownersToUse = petOwners.length > 0
+        ? petOwners
+        : (initialPet.owners?.length > 0 ? initialPet.owners : []);
 
-      if (initialPet.owners && initialPet.owners.length > 0) {
-        // Has owners array
-        petOwners = initialPet.owners;
-        owner = initialPet.owners[0];
-      } else if (initialPet.owner && (initialPet.owner.id || initialPet.owner.recordId)) {
-        // Has singular owner object
-        owner = initialPet.owner;
-        petOwners = [owner];
-      } else if (initialPet.ownerId || initialPet.owner_id) {
-        // Owner ID exists but no owner object - construct from available fields
-        const ownerId = initialPet.ownerId || initialPet.owner_id;
-        owner = {
-          id: ownerId,
-          recordId: ownerId,
-          firstName: initialPet.ownerFirstName || initialPet.owner_first_name || '',
-          lastName: initialPet.ownerLastName || initialPet.owner_last_name || '',
-          email: initialPet.ownerEmail || initialPet.owner_email || '',
-          name: initialPet.ownerName || initialPet.owner_name || '',
-        };
-        petOwners = [owner];
-      }
-
-      console.log('[BookingSlideout] Extracted owner:', owner); // DEBUG
-      console.log('[BookingSlideout] Pet owners array:', petOwners); // DEBUG
-
-      if (owner && (owner.id || owner.recordId)) {
-        if (petOwners.length === 1) {
-          // Single owner: auto-select both owner and pet
-          setSelectedOwner(owner);
-          setSelectedPets([initialPet]);
-          setPrefilledFromPet(true);
-        } else if (petOwners.length > 1) {
-          // Multiple owners: show picker, pre-select pet
-          setSelectedPets([initialPet]);
-          setPrefilledFromPet(true);
-        }
-      } else {
-        // No owner found - still pre-select the pet
-        console.warn('[BookingSlideout] No owner found for pet:', initialPet.name);
+      if (ownersToUse.length === 1) {
+        // Single owner: auto-select both owner and pet
+        const owner = ownersToUse[0];
+        // Normalize field names for consistency
+        setSelectedOwner({
+          ...owner,
+          firstName: owner.firstName || owner.first_name || '',
+          lastName: owner.lastName || owner.last_name || '',
+          email: owner.email || '',
+          phone: owner.phone || '',
+          id: owner.recordId || owner.record_id || owner.id,
+          recordId: owner.recordId || owner.record_id || owner.id,
+        });
+        setSelectedPets([initialPet]);
+        setPrefilledFromPet(true);
+      } else if (ownersToUse.length > 1) {
+        // Multiple owners: show picker, pre-select pet
+        setSelectedPets([initialPet]);
+        setPrefilledFromPet(true);
+      } else if (petOwners.length === 0 && initialPet) {
+        // petOwners query might still be loading - pre-select pet, wait for owners
         setSelectedPets([initialPet]);
         setPrefilledFromPet(true);
       }
     }
-  }, [initialPet, prefilledFromPet]);
+  }, [initialPet, petOwners, prefilledFromPet]);
   
   const onSubmit = async (data) => {
     if (!selectedOwner) {
@@ -271,7 +258,7 @@ const BookingSlideoutForm = ({
               </div>
             </div>
             {/* Only show Change button if not locked from pet pre-fill with single owner */}
-            {(!prefilledFromPet || (initialPet?.owners?.length > 1)) && (
+            {(!prefilledFromPet || petOwners.length > 1) && (
               <Button type="button" variant="ghost" size="sm" onClick={() => {
                 setSelectedOwner(null);
                 if (!prefilledFromPet) {
@@ -282,32 +269,39 @@ const BookingSlideoutForm = ({
               </Button>
             )}
           </div>
-        ) : prefilledFromPet && initialPet?.owners?.length > 1 ? (
-          /* Show dropdown of pet's owners when pre-filled from pet with multiple owners */
-          <div className="space-y-3">
-            <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
-              Select which owner is booking for {initialPet.name}:
-            </p>
-            <div className="border rounded-lg divide-y" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-              {initialPet.owners.map(owner => (
-                <button
-                  key={owner.id || owner.recordId}
-                  type="button"
-                  onClick={() => setSelectedOwner(owner)}
-                  className="w-full p-3 text-left hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors flex items-center gap-3"
-                >
-                  <Users className="w-4 h-4" style={{ color: 'var(--bb-color-text-muted)' }} />
-                  <div>
-                    <p className="font-medium text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
-                      {owner.firstName} {owner.lastName}
-                    </p>
-                    <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
-                      {owner.email || owner.phone}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
+        ) : prefilledFromPet && petOwners.length > 1 ? (
+          /* Show react-select dropdown of pet's owners when pre-filled from pet with multiple owners */
+          <div className="space-y-2">
+            <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+              Select which owner is booking for {initialPet?.name}
+            </label>
+            <Select
+              options={petOwners.map(owner => ({
+                value: owner.recordId || owner.record_id || owner.id,
+                label: `${owner.firstName || owner.first_name || ''} ${owner.lastName || owner.last_name || ''}`.trim() +
+                       (owner.is_primary ? ' (Primary)' : ''),
+                owner: {
+                  ...owner,
+                  firstName: owner.firstName || owner.first_name || '',
+                  lastName: owner.lastName || owner.last_name || '',
+                  email: owner.email || '',
+                  phone: owner.phone || '',
+                  id: owner.recordId || owner.record_id || owner.id,
+                  recordId: owner.recordId || owner.record_id || owner.id,
+                },
+              }))}
+              value={null}
+              onChange={(opt) => opt && setSelectedOwner(opt.owner)}
+              placeholder="Select an owner..."
+              isSearchable={false}
+              styles={selectStyles}
+              menuPortalTarget={document.body}
+            />
+          </div>
+        ) : prefilledFromPet && petOwners.length === 1 && !selectedOwner ? (
+          /* Single owner from pet - show loading/auto-selecting state */
+          <div className="p-3 text-center" style={{ color: 'var(--bb-color-text-muted)' }}>
+            Loading owner...
           </div>
         ) : (
           <div className="space-y-3">
@@ -545,7 +539,8 @@ const BookingSlideoutForm = ({
             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
               {availableKennels.map(kennel => {
                 const kennelId = kennel.recordId || kennel.id;
-                const isSelected = selectedKennel !== null && kennelId && (selectedKennel.recordId || selectedKennel.id) === kennelId;
+                const selectedId = selectedKennel?.recordId || selectedKennel?.id;
+                const isSelected = selectedKennel !== null && kennelId && String(selectedId) === String(kennelId);
                 const available = (kennel.capacity || 1) - (kennel.occupied || 0);
                 return (
                   <button

@@ -49,8 +49,10 @@ export function PageTour({ pageRoute, steps }) {
   const [run, setRun] = useState(false);
   const [localStepIndex, setLocalStepIndex] = useState(0);
 
-  // Find this page's config
-  const pageConfig = TOUR_CONFIG.find(c => c.route === pageRoute);
+  // Find this page's config - must match both route AND contain the current step
+  // (handles pages like /today that appear twice in TOUR_CONFIG for different step ranges)
+  const pageConfig = TOUR_CONFIG.find(c => c.route === pageRoute && c.pageSteps.includes(globalStepIndex))
+    || TOUR_CONFIG.find(c => c.route === pageRoute);
 
   // Should this page show tour?
   const shouldRun = active && pageConfig?.pageSteps.includes(globalStepIndex);

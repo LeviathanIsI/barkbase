@@ -34,6 +34,25 @@ import { cn } from '@/lib/cn';
 import { getBirthdateFromAge, getAgeFromBirthdate, formatAgeFromBirthdate, getBirthdateFromPet, getFormattedAgeFromPet } from '../utils/pet-date-utils';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
+import { PageTour } from '@/components/demo/PageTour';
+
+// Tour steps for /pets page (global steps 9-10)
+const petsTourSteps = [
+  {
+    target: '[data-tour="pets-page"]',
+    title: 'Pet Directory',
+    content: 'Every pet in your facility. Filter by species, vaccination status, or behavior flags. Expiring vaccines flagged automatically - never miss a renewal.',
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+  {
+    target: '[data-tour="pets-table"]',
+    title: 'Pet Table',
+    content: 'Full profiles with owner info, vaccination badges, and booking history. Color-coded status shows health compliance instantly.',
+    placement: 'top',
+    disableBeacon: true,
+  },
+];
 
 // Saved views - persisted in localStorage
 const DEFAULT_VIEWS = [
@@ -691,6 +710,8 @@ const Pets = () => {
 
   return (
     <>
+      <PageTour pageRoute="/pets" steps={petsTourSteps} />
+
       {/* Main content container - fixed height, no page scroll */}
       <div
         className={cn(
@@ -909,7 +930,7 @@ const Pets = () => {
           ) : (
             <>
               {/* Desktop Table View */}
-              <ScrollableTableContainer className="hidden md:block border rounded-t-lg" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+              <ScrollableTableContainer className="hidden md:block border rounded-t-lg" style={{ borderColor: 'var(--bb-color-border-subtle)' }} data-tour="pets-table">
                 <table className="w-full text-sm min-w-[1024px]">
                   <thead className="sticky top-0 z-10">
                     <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', boxShadow: '0 1px 0 var(--bb-color-border-subtle)' }}>

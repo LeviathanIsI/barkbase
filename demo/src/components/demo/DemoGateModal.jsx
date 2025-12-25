@@ -121,8 +121,8 @@ export default function DemoGateModal({ onComplete, onSkip }) {
             />
             <FeatureItem
               emoji="*"
-              title="Do Everything From Anywhere"
-              description="Complete any task without leaving your screen"
+              title="Do Most Things From Any Screen"
+              description="Complete most tasks without leaving your current page"
             />
             <FeatureItem
               emoji="*"
