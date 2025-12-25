@@ -92,19 +92,43 @@ const PetHoverPreview = ({ children, pet, className }) => {
         const rect = triggerRef.current.getBoundingClientRect();
         const previewWidth = 320;
         const previewHeight = 200;
+        const margin = 10;
 
-        // Position preview to the right of trigger by default
-        let left = rect.right + 10;
-        let top = rect.top;
+        // Calculate available space on all four sides
+        const spaceRight = window.innerWidth - rect.right;
+        const spaceLeft = rect.left;
+        const spaceBottom = window.innerHeight - rect.top;
+        const spaceTop = rect.top;
 
-        // Adjust if preview would go off screen
-        if (left + previewWidth > window.innerWidth) {
-          left = rect.left - previewWidth - 10;
+        // Determine horizontal position
+        let left;
+        if (spaceRight >= previewWidth + margin) {
+          // Position to the right of trigger
+          left = rect.right + margin;
+        } else if (spaceLeft >= previewWidth + margin) {
+          // Position to the left of trigger
+          left = rect.left - previewWidth - margin;
+        } else {
+          // Not enough space on either side, prefer right but constrain
+          left = rect.right + margin;
         }
 
-        if (top + previewHeight > window.innerHeight) {
-          top = window.innerHeight - previewHeight - 10;
+        // Determine vertical position
+        let top;
+        if (spaceBottom >= previewHeight + margin) {
+          // Align top with trigger
+          top = rect.top;
+        } else if (spaceTop >= previewHeight + margin) {
+          // Position above trigger area
+          top = rect.bottom - previewHeight;
+        } else {
+          // Adjust to fit within viewport
+          top = rect.top;
         }
+
+        // Final bounds check - ensure preview stays within viewport
+        left = Math.max(margin, Math.min(left, window.innerWidth - previewWidth - margin));
+        top = Math.max(margin, Math.min(top, window.innerHeight - previewHeight - margin));
 
         setPosition({ top, left });
         setIsVisible(true);
