@@ -1708,7 +1708,7 @@ async function handleUpdateTenantConfig(user, body) {
 
     // Fetch updated data
     const result = await query(
-      `SELECT t.id, t.record_id, t.name, t.slug, t.plan, t.updated_at,
+      `SELECT t.id, t.name, t.slug, t.plan, t.updated_at,
               ts.timezone, ts.currency, ts.business_name, ts.branding, ts.terminology
        FROM "Tenant" t
        LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
@@ -1721,7 +1721,7 @@ async function handleUpdateTenantConfig(user, body) {
     return createResponse(200, {
       success: true,
       id: updated.id,
-      recordId: updated.record_id,
+      recordId: updated.id,
       tenantId: updated.id,
       name: updated.name,
       slug: updated.slug,
