@@ -3114,7 +3114,7 @@ const messages = [
     ownerName: 'Emily Johnson',
     ownerPhone: '(555) 345-6789',
     subject: 'Vaccination reminder',
-    body: 'Hi Emily! This is a friendly reminder that Luna\\'s Bordetella vaccination expires on Jan 15, 2025. Please schedule an update before her next visit. Thanks! - Pawsome Pet Resort',
+    body: "Hi Emily! This is a friendly reminder that Luna's Bordetella vaccination expires on Jan 15, 2025. Please schedule an update before her next visit. Thanks! - Pawsome Pet Resort",
     status: 'sent',
     priority: 'low',
     assignedTo: null,
@@ -3138,7 +3138,7 @@ const messages = [
     assignedToName: 'Marcus Williams',
     receivedAt: '2024-12-23T11:45:00Z',
     repliedAt: '2024-12-23T12:00:00Z',
-    replyBody: 'Got it! We\\'ve updated Rosie\\'s feeding notes. We\\'ll warm her food and have chicken ready as a backup. Thanks for letting us know!',
+    replyBody: "Got it! We've updated Rosie's feeding notes. We'll warm her food and have chicken ready as a backup. Thanks for letting us know!",
     createdAt: '2024-12-23T11:45:00Z',
     updatedAt: '2024-12-23T12:00:00Z'
   },
