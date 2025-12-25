@@ -2,51 +2,48 @@
  * Kennels Page
  * Visual facility map view with spatial kennel layout
  */
-import { useState, useMemo, useCallback, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import {
-  Plus,
-  Search,
-  Building,
-  Settings,
-  Home,
-  AlertTriangle,
-  ChevronRight,
-  Calendar,
-  Eye,
-  Edit,
-  Trash2,
-  X,
-  Activity,
-  PawPrint,
-  DoorOpen,
-  Stethoscope,
-  Sun,
-  BarChart3,
-  Layers,
-  TrendingUp,
-  Map,
-  User,
-  Clock,
-} from 'lucide-react';
+import { PageTour } from '@/components/demo/PageTour';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
 import StyledSelect from '@/components/ui/StyledSelect';
-import KennelForm from '../components/KennelForm';
-import KennelAssignDrawer from '../components/KennelAssignDrawer';
-import { useKennels, useDeleteKennel } from '../api';
-import { useTerminology } from '@/lib/terminology';
-import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
-import { PageTour } from '@/components/demo/PageTour';
+import { useTerminology } from '@/lib/terminology';
+import {
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  Building,
+  Calendar,
+  ChevronRight,
+  Clock,
+  DoorOpen,
+  Home,
+  Layers,
+  Map,
+  PawPrint,
+  Plus,
+  Search,
+  Settings,
+  Stethoscope,
+  Sun,
+  TrendingUp,
+  User,
+  X
+} from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
+import { Link, useNavigate } from 'react-router-dom';
+import { useDeleteKennel, useKennelsWithReservations } from '../api';
+import KennelAssignDrawer from '../components/KennelAssignDrawer';
+import KennelForm from '../components/KennelForm';
 
 // Tour steps for /kennels page (global steps 20-21)
 const kennelsTourSteps = [
   {
     target: '[data-tour="kennels-page"]',
     title: 'Kennels',
-    content: "Real-time run availability. Know exactly what's open without checking a whiteboard.",
+    content: "Real-time kennel availability. Know exactly what's open without checking a whiteboard.",
     placement: 'bottom',
     disableBeacon: true,
   },
@@ -132,6 +129,8 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
     if (!kennel.isActive) return { bg: 'bg-gray-400', ring: 'ring-gray-400', glow: 'shadow-gray-400/30', text: 'Inactive' };
     if (isFull) return { bg: 'bg-red-500', ring: 'ring-red-500', glow: 'shadow-red-500/30', text: 'Full' };
     if (isPartial) return { bg: 'bg-amber-500', ring: 'ring-amber-500', glow: 'shadow-amber-500/30', text: `${available} open` };
+    // Show Reserved status for kennels with future bookings
+    if (kennel.hasReservation) return { bg: 'bg-blue-500', ring: 'ring-blue-500', glow: 'shadow-blue-500/30', text: 'Reserved' };
     return { bg: 'bg-emerald-500', ring: 'ring-emerald-500', glow: 'shadow-emerald-500/30', text: 'Open' };
   };
 
@@ -189,6 +188,7 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
           isFull ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
           isPartial ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
           !kennel.isActive ? 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400' :
+          kennel.hasReservation ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
           'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
         )}>
           {status.text}
@@ -561,6 +561,13 @@ const MapLegend = () => (
         </div>
       </div>
       <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+        <span className="w-4 h-4 rounded-full bg-blue-500 flex-shrink-0" />
+        <div>
+          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Reserved</span>
+          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Future booking assigned</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
         <span className="w-4 h-4 rounded-full bg-red-500 flex-shrink-0" />
         <div>
           <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Full</span>
@@ -592,7 +599,7 @@ const Kennels = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
 
-  const { data: kennels = [], isLoading, error } = useKennels();
+  const { data: kennels = [], isLoading, error } = useKennelsWithReservations();
   const deleteMutation = useDeleteKennel();
 
   // Filter kennels

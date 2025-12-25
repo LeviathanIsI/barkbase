@@ -48,8 +48,9 @@ const selectStyles = {
 };
 import { usePetsQuery, usePetQuery } from '@/features/pets/api';
 import { useServicesQuery } from '@/features/services/api';
+import { useAvailableKennels } from '@/features/kennels/api';
 import { useCreateBookingMutation, useUpdateBookingMutation } from '../api';
-import { Calendar, Users, PawPrint, DollarSign, Search, Check } from 'lucide-react';
+import { Calendar, Users, PawPrint, DollarSign, Search, Check, Home, Building } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const BookingSlideoutForm = ({
@@ -66,6 +67,7 @@ const BookingSlideoutForm = ({
   const [selectedOwner, setSelectedOwner] = useState(null);
   const [selectedPets, setSelectedPets] = useState([]);
   const [ownerSearch, setOwnerSearch] = useState('');
+  const [selectedKennel, setSelectedKennel] = useState(null);
   
   // Queries
   const { data: ownersData } = useOwnerSearchQuery(ownerSearch, { enabled: ownerSearch.length >= 2 });
@@ -80,6 +82,16 @@ const BookingSlideoutForm = ({
   const owners = ownersData?.owners || ownersData || [];
   const pets = petsData?.pets || [];
   const services = servicesData?.services || servicesData || [];
+
+  // Watch dates for kennel availability query
+  const watchCheckIn = watch('checkIn');
+  const watchCheckOut = watch('checkOut');
+
+  // Fetch available kennels for selected date range
+  const { data: availableKennels = [], isLoading: kennelsLoading } = useAvailableKennels(
+    watchCheckIn,
+    watchCheckOut
+  );
   
   // Filter pets by selected owner
   // Handle both camelCase and snake_case owner IDs from API
@@ -157,6 +169,8 @@ const BookingSlideoutForm = ({
             notes: data.notes,
             specialRequirements: data.specialRequirements,
             status: 'PENDING',
+            // Optional kennel reservation
+            kennelId: selectedKennel?.id || selectedKennel?.recordId || null,
           };
           
           if (isEdit) {
@@ -370,8 +384,90 @@ const BookingSlideoutForm = ({
         </div>
       </FormSection>
 
-      {/* Step 4: Notes */}
-      <FormSection title="4. Notes (Optional)">
+      {/* Step 4: Reserve Kennel (Optional) */}
+      <FormSection title="4. Reserve Kennel (Optional)">
+        {watchCheckIn && watchCheckOut ? (
+          <div className="space-y-3">
+            {kennelsLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[color:var(--bb-color-accent)]" />
+                <span className="ml-2 text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+                  Loading available kennels...
+                </span>
+              </div>
+            ) : availableKennels.length > 0 ? (
+              <>
+                <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+                  {availableKennels.length} kennel{availableKennels.length !== 1 ? 's' : ''} available for selected dates
+                </p>
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                  {availableKennels.map(kennel => {
+                    const kennelId = kennel.id || kennel.recordId;
+                    const isSelected = (selectedKennel?.id || selectedKennel?.recordId) === kennelId;
+                    return (
+                      <button
+                        key={kennelId}
+                        type="button"
+                        onClick={() => setSelectedKennel(isSelected ? null : kennel)}
+                        className={cn(
+                          "p-3 rounded-lg border text-left transition-colors flex items-center gap-3",
+                          isSelected && "ring-2 ring-[color:var(--bb-color-accent)]"
+                        )}
+                        style={{
+                          borderColor: isSelected ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+                          backgroundColor: isSelected ? 'var(--bb-color-accent-soft)' : 'transparent',
+                        }}
+                      >
+                        <Home className="w-5 h-5" style={{ color: isSelected ? 'var(--bb-color-accent)' : 'var(--bb-color-text-muted)' }} />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate" style={{ color: 'var(--bb-color-text-primary)' }}>
+                            {kennel.name}
+                          </p>
+                          <p className="text-xs truncate" style={{ color: 'var(--bb-color-text-muted)' }}>
+                            {kennel.type || 'Kennel'} • Cap: {kennel.capacity || 1}
+                            {kennel.building && ` • ${kennel.building}`}
+                          </p>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--bb-color-accent)' }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedKennel && (
+                  <div
+                    className="flex items-center gap-2 p-2 rounded-lg"
+                    style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
+                  >
+                    <Building className="w-4 h-4" style={{ color: 'var(--bb-color-accent)' }} />
+                    <span className="text-sm font-medium" style={{ color: 'var(--bb-color-accent)' }}>
+                      Reserved: {selectedKennel.name}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedKennel(null)}
+                      className="ml-auto text-xs underline"
+                      style={{ color: 'var(--bb-color-accent)' }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-center py-4" style={{ color: 'var(--bb-color-text-muted)' }}>
+                No kennels available for selected dates
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-center py-4" style={{ color: 'var(--bb-color-text-muted)' }}>
+            Select dates first to see available kennels
+          </p>
+        )}
+      </FormSection>
+
+      {/* Step 5: Notes */}
+      <FormSection title="5. Notes (Optional)">
         <div className="space-y-2">
           <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
             Special Requirements

@@ -214,5 +214,115 @@ export const useDeleteKennel = () => {
   });
 };
 
-// TODO: Refactor to a dedicated Lambda for availability logic
-// export const useCheckKennelAvailability = (kennelId) => { ... };
+/**
+ * Fetch available kennels for a date range
+ * Filters out kennels that have bookings during the specified period
+ */
+export const useAvailableKennels = (startDate, endDate) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['kennels', tenantKey, 'available', startDate, endDate],
+    queryFn: async () => {
+      try {
+        // Fetch all kennels
+        const kennelsRes = await apiClient.get(KENNELS_BASE, { params: { type: 'kennel' } });
+        const kennels = normalizeKennelsResponse(kennelsRes?.data);
+
+        // Fetch bookings that overlap with the date range
+        const bookingsRes = await apiClient.get('/api/v1/entity/bookings', {
+          params: {
+            startDate,
+            endDate,
+            status: 'PENDING,CONFIRMED,CHECKED_IN',
+          },
+        });
+
+        const bookings = bookingsRes?.data?.data || bookingsRes?.data || [];
+
+        // Get kennel IDs that are reserved during this period
+        const reservedKennelIds = new Set(
+          bookings
+            .filter(b => b.kennelId || b.kennel_id)
+            .map(b => b.kennelId || b.kennel_id)
+        );
+
+        // Filter to only active, unreserved kennels
+        return kennels.filter(k =>
+          k.isActive &&
+          !reservedKennelIds.has(k.id) &&
+          !reservedKennelIds.has(k.recordId)
+        );
+      } catch (e) {
+        return [];
+      }
+    },
+    staleTime: 1 * 60 * 1000,
+    enabled: isTenantReady && !!startDate && !!endDate,
+  });
+};
+
+/**
+ * Fetch kennels with their reservation status for facility map
+ * Returns kennels with a `reservationStatus` field
+ */
+export const useKennelsWithReservations = () => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['kennels', tenantKey, 'withReservations'],
+    queryFn: async () => {
+      try {
+        // Fetch all kennels
+        const kennelsRes = await apiClient.get(KENNELS_BASE, { params: { type: 'kennel' } });
+        const kennels = normalizeKennelsResponse(kennelsRes?.data);
+
+        // Fetch future bookings with kennel assignments
+        const today = new Date().toISOString().split('T')[0];
+        const bookingsRes = await apiClient.get('/api/v1/entity/bookings', {
+          params: {
+            startDateFrom: today,
+            status: 'PENDING,CONFIRMED',
+          },
+        });
+
+        const bookings = bookingsRes?.data?.data || bookingsRes?.data || [];
+
+        // Map kennel IDs to their future reservations
+        const reservationMap = new Map();
+        bookings.forEach(b => {
+          const kennelId = b.kennelId || b.kennel_id;
+          if (kennelId) {
+            if (!reservationMap.has(kennelId)) {
+              reservationMap.set(kennelId, []);
+            }
+            reservationMap.get(kennelId).push({
+              bookingId: b.id || b.recordId,
+              petName: b.petName || b.pet_name,
+              ownerName: b.ownerName || b.owner_name,
+              startDate: b.startDate || b.start_date,
+              endDate: b.endDate || b.end_date,
+            });
+          }
+        });
+
+        // Add reservation status to each kennel
+        return kennels.map(k => {
+          const kennelId = k.id || k.recordId;
+          const reservations = reservationMap.get(kennelId) || [];
+          return {
+            ...k,
+            futureReservations: reservations,
+            hasReservation: reservations.length > 0,
+          };
+        });
+      } catch (e) {
+        return [];
+      }
+    },
+    staleTime: 2 * 60 * 1000,
+    enabled: isTenantReady,
+  });
+};
