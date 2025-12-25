@@ -1254,6 +1254,219 @@ const routes = {
 
   // Health check
   'GET /api/v1/health': () => ({ status: 'ok', demo: true }),
+
+  // ---------------------------------------------------------------------------
+  // TASKS - /api/v1/operations/tasks
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/operations/tasks': (params) => {
+    const tasks = getCollection('tasks') || [];
+    return { data: tasks, tasks, total: tasks.length };
+  },
+
+  'GET /api/v1/operations/tasks/:id': (params, id) => {
+    const task = findById('tasks', id);
+    if (!task) return { error: 'Task not found', status: 404 };
+    return { data: task, task };
+  },
+
+  'POST /api/v1/operations/tasks': (body) => {
+    const created = addItem('tasks', { ...body, status: 'pending' });
+    toast.success('Task created');
+    return { data: created, task: created };
+  },
+
+  'PUT /api/v1/operations/tasks/:id': (body, id) => {
+    updateById('tasks', id, body);
+    const updated = findById('tasks', id);
+    toast.success('Task updated');
+    return { data: updated, task: updated };
+  },
+
+  'POST /api/v1/operations/tasks/:id/complete': (body, id) => {
+    updateById('tasks', id, { status: 'completed', completedAt: new Date().toISOString() });
+    const updated = findById('tasks', id);
+    toast.success('Task completed');
+    return { data: updated, task: updated };
+  },
+
+  'DELETE /api/v1/operations/tasks/:id': (body, id) => {
+    deleteById('tasks', id);
+    toast.success('Task deleted');
+    return { success: true };
+  },
+
+  // ---------------------------------------------------------------------------
+  // INCIDENTS - /api/v1/incidents
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/incidents': (params) => {
+    const incidents = getCollection('incidents') || [];
+    return { data: incidents, incidents, total: incidents.length };
+  },
+
+  'GET /api/v1/incidents/:id': (params, id) => {
+    const incident = findById('incidents', id);
+    if (!incident) return { error: 'Incident not found', status: 404 };
+    return { data: incident, incident };
+  },
+
+  'POST /api/v1/incidents': (body) => {
+    const created = addItem('incidents', { ...body, status: 'open' });
+    toast.success('Incident reported');
+    return { data: created, incident: created };
+  },
+
+  'PUT /api/v1/incidents/:id': (body, id) => {
+    updateById('incidents', id, body);
+    const updated = findById('incidents', id);
+    toast.success('Incident updated');
+    return { data: updated, incident: updated };
+  },
+
+  // ---------------------------------------------------------------------------
+  // WORKFLOWS - /api/v1/workflows
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/workflows': (params) => {
+    const workflows = getCollection('workflows') || [];
+    return { data: workflows, workflows, total: workflows.length };
+  },
+
+  'GET /api/v1/workflows/:id': (params, id) => {
+    const workflow = findById('workflows', id);
+    if (!workflow) return { error: 'Workflow not found', status: 404 };
+    return { data: workflow, workflow };
+  },
+
+  'POST /api/v1/workflows': (body) => {
+    const created = addItem('workflows', { ...body, status: 'draft' });
+    toast.success('Workflow created');
+    return { data: created, workflow: created };
+  },
+
+  'PUT /api/v1/workflows/:id': (body, id) => {
+    updateById('workflows', id, body);
+    const updated = findById('workflows', id);
+    toast.success('Workflow updated');
+    return { data: updated, workflow: updated };
+  },
+
+  'GET /api/v1/workflows/:id/dependencies': (params, id) => {
+    return { data: [], dependencies: [] };
+  },
+
+  'GET /api/v1/workflows/:id/matching-records-count': (params, id) => {
+    return { count: 0 };
+  },
+
+  'POST /api/v1/workflows/:id/activate-with-enrollment': (body, id) => {
+    updateById('workflows', id, { status: 'active' });
+    toast.success('Workflow activated');
+    return { success: true };
+  },
+
+  // ---------------------------------------------------------------------------
+  // MESSAGES - /api/v1/messages
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/messages/conversations': (params) => {
+    const messages = getCollection('messages') || [];
+    // Group messages into conversations
+    const conversations = messages.reduce((acc, msg) => {
+      const existing = acc.find(c => c.id === msg.conversationId);
+      if (existing) {
+        existing.messages.push(msg);
+        existing.lastMessage = msg;
+      } else {
+        acc.push({
+          id: msg.conversationId || msg.id,
+          participant: msg.ownerName || 'Unknown',
+          participantId: msg.ownerId,
+          messages: [msg],
+          lastMessage: msg,
+          unreadCount: msg.read ? 0 : 1,
+        });
+      }
+      return acc;
+    }, []);
+    return { data: conversations, conversations, total: conversations.length };
+  },
+
+  'GET /api/v1/messages/:id': (params, id) => {
+    const messages = getCollection('messages') || [];
+    const conversation = messages.filter(m => m.conversationId === id || m.id === id);
+    return { data: conversation, messages: conversation };
+  },
+
+  'POST /api/v1/messages': (body) => {
+    const created = addItem('messages', { ...body, read: false, createdAt: new Date().toISOString() });
+    toast.success('Message sent');
+    return { data: created, message: created };
+  },
+
+  'PUT /api/v1/messages/:id/read': (body, id) => {
+    const messages = getCollection('messages') || [];
+    messages.forEach(m => {
+      if (m.conversationId === id || m.id === id) {
+        m.read = true;
+      }
+    });
+    setCollection('messages', messages);
+    return { success: true };
+  },
+
+  'GET /api/v1/messages/unread/count': () => {
+    const messages = getCollection('messages') || [];
+    const unreadCount = messages.filter(m => !m.read).length;
+    return { count: unreadCount };
+  },
+
+  // ---------------------------------------------------------------------------
+  // PACKAGES - /api/v1/financial/packages
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/financial/packages': (params) => {
+    const packages = getCollection('packages') || [];
+    if (params?.ownerId) {
+      const filtered = packages.filter(p => p.ownerId === params.ownerId);
+      return { data: filtered, packages: filtered, total: filtered.length };
+    }
+    return { data: packages, packages, total: packages.length };
+  },
+
+  'GET /api/v1/financial/packages/:id': (params, id) => {
+    const pkg = findById('packages', id);
+    if (!pkg) return { error: 'Package not found', status: 404 };
+    return { data: pkg, package: pkg };
+  },
+
+  'POST /api/v1/financial/packages': (body) => {
+    const created = addItem('packages', body);
+    toast.success('Package created');
+    return { data: created, package: created };
+  },
+
+  'PUT /api/v1/financial/packages/:id': (body, id) => {
+    updateById('packages', id, body);
+    const updated = findById('packages', id);
+    toast.success('Package updated');
+    return { data: updated, package: updated };
+  },
+
+  'DELETE /api/v1/financial/packages/:id': (body, id) => {
+    deleteById('packages', id);
+    toast.success('Package deleted');
+    return { success: true };
+  },
+
+  'POST /api/v1/financial/packages/:id/use': (body, id) => {
+    const pkg = findById('packages', id);
+    if (pkg && pkg.remainingUses > 0) {
+      updateById('packages', id, { remainingUses: pkg.remainingUses - 1 });
+    }
+    toast.success('Package session used');
+    return { success: true };
+  },
+
+  'GET /api/v1/financial/packages/:id/usage': (params, id) => {
+    return { data: [], usage: [] };
+  },
 };
 
 // ============================================================================

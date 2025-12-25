@@ -3759,6 +3759,227 @@ const segments = [
 ];
 
 // ============================================================================
+// TASKS (staff tasks for operations)
+// ============================================================================
+const tasks = [
+  {
+    id: 'task-001',
+    title: 'Administer medication to Luna',
+    description: 'Give joint supplement with morning feeding',
+    type: 'medication',
+    status: 'pending',
+    priority: 'high',
+    assignedTo: 'staff-001-maria',
+    assignedToName: 'Maria Santos',
+    petId: 'pet-001-x1y2z3a4',
+    petName: 'Luna',
+    bookingId: 'booking-001-m1n2o3p4',
+    dueDate: formatDate(today),
+    dueTime: '07:00',
+    createdAt: formatDateTime(yesterday),
+    updatedAt: formatDateTime(yesterday)
+  },
+  {
+    id: 'task-002',
+    title: 'Deep clean Run B2',
+    description: 'Full sanitization required after sick pet',
+    type: 'cleaning',
+    status: 'pending',
+    priority: 'high',
+    assignedTo: 'staff-002-james',
+    assignedToName: 'James Wilson',
+    runId: 'run-008',
+    dueDate: formatDate(today),
+    dueTime: '09:00',
+    createdAt: formatDateTime(yesterday),
+    updatedAt: formatDateTime(yesterday)
+  },
+  {
+    id: 'task-003',
+    title: 'Call Sarah Mitchell - vaccination update',
+    description: 'Remind about Luna\'s upcoming rabies booster',
+    type: 'call',
+    status: 'pending',
+    priority: 'medium',
+    assignedTo: 'staff-003-emma',
+    assignedToName: 'Emma Davis',
+    ownerId: 'owner-001-a1b2c3d4',
+    ownerName: 'Sarah Mitchell',
+    dueDate: formatDate(today),
+    dueTime: '10:00',
+    createdAt: formatDateTime(twoDaysAgo),
+    updatedAt: formatDateTime(twoDaysAgo)
+  },
+  {
+    id: 'task-004',
+    title: 'Prepare grooming station for Coco',
+    description: 'Full groom - poodle cut scheduled at 10am',
+    type: 'grooming',
+    status: 'pending',
+    priority: 'medium',
+    assignedTo: 'staff-004-michael',
+    assignedToName: 'Michael Chen',
+    petId: 'pet-007-d7e8f9g0',
+    petName: 'Coco',
+    bookingId: 'booking-005-q5r6s7t8',
+    dueDate: formatDate(today),
+    dueTime: '09:30',
+    createdAt: formatDateTime(yesterday),
+    updatedAt: formatDateTime(yesterday)
+  },
+  {
+    id: 'task-005',
+    title: 'Inventory check - dog food supplies',
+    description: 'Monthly inventory check for all dog food brands',
+    type: 'inventory',
+    status: 'completed',
+    priority: 'low',
+    assignedTo: 'staff-002-james',
+    assignedToName: 'James Wilson',
+    dueDate: formatDate(yesterday),
+    completedAt: formatDateTime(yesterday),
+    createdAt: formatDateTime(threeDaysAgo),
+    updatedAt: formatDateTime(yesterday)
+  }
+];
+
+// ============================================================================
+// WORKFLOWS (automation workflows)
+// ============================================================================
+const workflows = [
+  {
+    id: 'workflow-001',
+    name: 'New Client Welcome',
+    description: 'Automated welcome sequence for new clients',
+    objectType: 'owner',
+    status: 'active',
+    triggerType: 'record_created',
+    steps: [
+      { id: 'step-1', type: 'email', action: 'send_welcome_email', delay: 0 },
+      { id: 'step-2', type: 'task', action: 'create_followup_task', delay: 3 },
+      { id: 'step-3', type: 'email', action: 'send_tips_email', delay: 7 }
+    ],
+    enrollmentCount: 47,
+    lastRunAt: formatDateTime(yesterday),
+    createdAt: formatDateTime(addDays(today, -60)),
+    updatedAt: formatDateTime(addDays(today, -7))
+  },
+  {
+    id: 'workflow-002',
+    name: 'Vaccination Reminder',
+    description: 'Remind owners 2 weeks before vaccination expires',
+    objectType: 'pet',
+    status: 'active',
+    triggerType: 'field_change',
+    triggerField: 'vaccinationExpiry',
+    steps: [
+      { id: 'step-1', type: 'email', action: 'send_vaccination_reminder', delay: -14 },
+      { id: 'step-2', type: 'sms', action: 'send_vaccination_sms', delay: -7 },
+      { id: 'step-3', type: 'task', action: 'create_followup_call', delay: -3 }
+    ],
+    enrollmentCount: 156,
+    lastRunAt: formatDateTime(today),
+    createdAt: formatDateTime(addDays(today, -90)),
+    updatedAt: formatDateTime(addDays(today, -14))
+  },
+  {
+    id: 'workflow-003',
+    name: 'Post-Stay Feedback',
+    description: 'Request feedback after boarding stay completion',
+    objectType: 'booking',
+    status: 'active',
+    triggerType: 'status_change',
+    triggerValue: 'CHECKED_OUT',
+    steps: [
+      { id: 'step-1', type: 'email', action: 'send_thankyou_email', delay: 1 },
+      { id: 'step-2', type: 'email', action: 'request_review', delay: 3 }
+    ],
+    enrollmentCount: 89,
+    lastRunAt: formatDateTime(yesterday),
+    createdAt: formatDateTime(addDays(today, -45)),
+    updatedAt: formatDateTime(addDays(today, -10))
+  },
+  {
+    id: 'workflow-004',
+    name: 'At-Risk Client Re-engagement',
+    description: 'Reach out to clients who haven\'t booked in 60 days',
+    objectType: 'owner',
+    status: 'draft',
+    triggerType: 'schedule',
+    steps: [
+      { id: 'step-1', type: 'email', action: 'send_miss_you_email', delay: 0 },
+      { id: 'step-2', type: 'email', action: 'send_special_offer', delay: 7 }
+    ],
+    enrollmentCount: 0,
+    createdAt: formatDateTime(addDays(today, -7)),
+    updatedAt: formatDateTime(addDays(today, -7))
+  }
+];
+
+// ============================================================================
+// PACKAGES (prepaid service packages)
+// ============================================================================
+const packages = [
+  {
+    id: 'package-001',
+    name: 'Daycare 10-Pack',
+    description: '10 full-day daycare sessions',
+    ownerId: 'owner-002-b2c3d4e5',
+    ownerName: 'Michael Chen',
+    petId: 'pet-003-z3a4b5c6',
+    petName: 'Bella',
+    serviceType: 'daycare',
+    totalSessions: 10,
+    remainingUses: 7,
+    pricePerSession: 3500, // $35.00
+    totalPriceCents: 31500, // $315.00 (10% discount)
+    purchasedAt: formatDateTime(addDays(today, -30)),
+    expiresAt: formatDateTime(addDays(today, 335)),
+    status: 'active',
+    createdAt: formatDateTime(addDays(today, -30)),
+    updatedAt: formatDateTime(addDays(today, -3))
+  },
+  {
+    id: 'package-002',
+    name: 'Grooming Bundle',
+    description: '5 full grooming sessions',
+    ownerId: 'owner-005-e5f6g7h8',
+    ownerName: 'Amanda Foster',
+    petId: 'pet-007-d7e8f9g0',
+    petName: 'Coco',
+    serviceType: 'grooming',
+    totalSessions: 5,
+    remainingUses: 4,
+    pricePerSession: 7500, // $75.00
+    totalPriceCents: 33750, // $337.50 (10% discount)
+    purchasedAt: formatDateTime(addDays(today, -45)),
+    expiresAt: formatDateTime(addDays(today, 320)),
+    status: 'active',
+    createdAt: formatDateTime(addDays(today, -45)),
+    updatedAt: formatDateTime(addDays(today, -14))
+  },
+  {
+    id: 'package-003',
+    name: 'Daycare Monthly Unlimited',
+    description: 'Unlimited daycare for 30 days',
+    ownerId: 'owner-006-f6g7h8i9',
+    ownerName: 'Robert Kim',
+    petId: 'pet-009-f9g0h1i2',
+    petName: 'Zeus',
+    serviceType: 'daycare',
+    totalSessions: -1, // Unlimited
+    remainingUses: -1,
+    pricePerSession: 0,
+    totalPriceCents: 45000, // $450.00
+    purchasedAt: formatDateTime(addDays(today, -10)),
+    expiresAt: formatDateTime(addDays(today, 20)),
+    status: 'active',
+    createdAt: formatDateTime(addDays(today, -10)),
+    updatedAt: formatDateTime(addDays(today, -10))
+  }
+];
+
+// ============================================================================
 // EXPORT FUNCTIONS
 // ============================================================================
 export function seedDemoData() {
@@ -3769,7 +3990,8 @@ export function seedDemoData() {
   const data = {
     owners, pets, bookings, vaccinations, services, serviceAddons, staff,
     runs, runSchedules, runAssignments, feedingSchedules, medications, invoices, payments,
-    incidents, messages, activities, dashboardStats, tenantSettings, segments
+    incidents, messages, activities, dashboardStats, tenantSettings, segments,
+    tasks, workflows, packages
   };
   sessionStorage.setItem(DEMO_DATA_KEY, JSON.stringify(data));
 }
