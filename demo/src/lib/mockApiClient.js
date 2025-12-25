@@ -1384,7 +1384,7 @@ const routes = {
           pets: ownerPets, messages: [], lastMessage: null, unreadCount: 0,
         };
       }
-      const formattedMsg = { ...msg, content: msg.body || msg.replyBody || msg.subject || '', senderType: msg.type === 'outbound' ? 'STAFF' : 'OWNER' };
+      const formattedMsg = { ...msg, content: msg.body || msg.replyBody || msg.subject || '', senderType: msg.type === 'outbound' ? 'OWNER' : 'STAFF' };
       conversationMap[ownerId].messages.push(formattedMsg);
       conversationMap[ownerId].lastMessage = formattedMsg;
       if (!msg.read && msg.type === 'inbound') conversationMap[ownerId].unreadCount++;
@@ -1395,7 +1395,7 @@ const routes = {
   'GET /api/v1/messages/:id': (params, id) => {
     const messages = getCollection('messages') || [];
     const conversationMessages = messages.filter(m => m.ownerId === id || m.conversationId === id || m.id === id)
-      .map(msg => ({ ...msg, content: msg.body || msg.replyBody || msg.subject || '', senderType: msg.type === 'outbound' ? 'STAFF' : 'OWNER' }));
+      .map(msg => ({ ...msg, content: msg.body || msg.replyBody || msg.subject || '', senderType: msg.type === 'outbound' ? 'OWNER' : 'STAFF' }));
     return { data: conversationMessages, messages: conversationMessages };
   },
 
