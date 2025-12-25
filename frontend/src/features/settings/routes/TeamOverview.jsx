@@ -14,6 +14,7 @@ import StyledSelect from '@/components/ui/StyledSelect';
 import TeamMemberCard from './components/TeamMemberCard';
 import PermissionMatrixModal from './components/PermissionMatrixModal';
 import ShiftCoveragePlanner from './components/ShiftCoveragePlanner';
+import StaffRolesSection from '../components/StaffRolesSection';
 import { apiClient } from '@/lib/apiClient';
 
 const TeamOverview = () => {
@@ -392,6 +393,9 @@ const TeamOverview = () => {
               </Button>
             </div>
           </Card>
+
+          {/* Staff Roles Configuration */}
+          <StaffRolesSection />
         </div>
       </div>
 

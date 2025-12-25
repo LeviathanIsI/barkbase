@@ -5,6 +5,14 @@ import { resolvePlanFeatures } from '@/features';
 import apiClient from '@/lib/apiClient';
 import getStorage from '@/lib/storage';
 
+// Default staff roles seeded for new tenants
+const defaultStaffRoles = [
+  { id: 'kennel_tech', name: 'Kennel Tech', color: '#3B82F6', isDefault: true },
+  { id: 'groomer', name: 'Groomer', color: '#8B5CF6', isDefault: false },
+  { id: 'manager', name: 'Manager', color: '#F59E0B', isDefault: false },
+  { id: 'trainer', name: 'Trainer', color: '#10B981', isDefault: false },
+];
+
 const defaultTenant = {
   recordId: null,
   accountCode: null, // BK-XXXXXX format for URLs/display
@@ -22,6 +30,7 @@ const defaultTenant = {
   theme: getDefaultTheme(),
   terminology: {},
   settings: {},
+  staffRoles: defaultStaffRoles,
   recoveryMode: false,
 };
 
@@ -118,6 +127,15 @@ export const useTenantStore = create(
       setTerminology: (terminology = {}) => {
         const { tenant } = get();
         set({ tenant: { ...tenant, terminology } });
+      },
+      setStaffRoles: (staffRoles = []) => {
+        const { tenant } = get();
+        // Ensure at least one role is marked as default
+        const hasDefault = staffRoles.some((r) => r.isDefault);
+        const normalizedRoles = hasDefault
+          ? staffRoles
+          : staffRoles.map((r, i) => ({ ...r, isDefault: i === 0 }));
+        set({ tenant: { ...tenant, staffRoles: normalizedRoles } });
       },
       refreshPlan: async () => {
         // This custom endpoint needs a dedicated Lambda. Commenting out for now.
