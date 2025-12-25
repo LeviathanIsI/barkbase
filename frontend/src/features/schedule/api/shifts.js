@@ -86,6 +86,20 @@ export async function createShiftTemplate(data) {
   return apiClient.post(`${BASE_URL}/templates`, data);
 }
 
+/**
+ * Clone a week's schedule to another week
+ */
+export async function cloneWeek(sourceWeekStart, targetWeekStart) {
+  return apiClient.post(`${BASE_URL}/clone-week`, { sourceWeekStart, targetWeekStart });
+}
+
+/**
+ * Publish a week's schedule (notify staff, lock changes)
+ */
+export async function publishSchedule(weekStart) {
+  return apiClient.post(`${BASE_URL}/publish`, { weekStart });
+}
+
 export default {
   getShifts,
   getShift,
@@ -97,5 +111,7 @@ export default {
   getWeeklySchedule,
   getShiftTemplates,
   createShiftTemplate,
+  cloneWeek,
+  publishSchedule,
 };
 

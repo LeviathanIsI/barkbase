@@ -400,6 +400,8 @@ const ScheduleTab = ({ staff }) => {
   const [loading, setLoading] = useState(false);
   const [showAddShiftModal, setShowAddShiftModal] = useState(false);
   const [selectedCell, setSelectedCell] = useState(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isCloning, setIsCloning] = useState(false);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(selectedWeek, i));
   const weekStartStr = format(weekDays[0], 'yyyy-MM-dd');
@@ -486,6 +488,48 @@ const ScheduleTab = ({ staff }) => {
     }
   };
 
+  const handleCloneWeek = async () => {
+    setIsCloning(true);
+    try {
+      const shiftsApi = await import('@/features/schedule/api/shifts');
+      const prevWeekStart = format(addDays(selectedWeek, -7), 'yyyy-MM-dd');
+      await shiftsApi.cloneWeek(prevWeekStart, weekStartStr);
+      // Refetch current week
+      const response = await shiftsApi.getWeeklySchedule(weekStartStr);
+      setWeeklyData(response);
+      alert('Week cloned successfully');
+    } catch (error) {
+      console.error('Failed to clone week:', error);
+      alert('Failed to clone week. The API endpoint may not be implemented yet.');
+    } finally {
+      setIsCloning(false);
+    }
+  };
+
+  const handlePublishSchedule = async () => {
+    setIsPublishing(true);
+    try {
+      const shiftsApi = await import('@/features/schedule/api/shifts');
+      await shiftsApi.publishSchedule(weekStartStr);
+      // Refetch to update status
+      const response = await shiftsApi.getWeeklySchedule(weekStartStr);
+      setWeeklyData(response);
+      alert('Schedule published successfully');
+    } catch (error) {
+      console.error('Failed to publish schedule:', error);
+      alert('Failed to publish schedule. The API endpoint may not be implemented yet.');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleOpenAddShift = () => {
+    // Open add shift modal without pre-selecting a cell
+    // User will select staff and date in the modal
+    setSelectedCell({ staffId: staff[0]?.id || staff[0]?.recordId, date: new Date() });
+    setShowAddShiftModal(true);
+  };
+
   return (
     <div className="space-y-5">
       {/* Schedule Header */}
@@ -505,9 +549,17 @@ const ScheduleTab = ({ staff }) => {
           </Button>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">Clone Week</Button>
-          <Button variant="outline" size="sm">Publish Schedule</Button>
-          <Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" />Add Shift</Button>
+          <Button variant="outline" size="sm" onClick={handleCloneWeek} disabled={isCloning}>
+            {isCloning ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+            Clone Week
+          </Button>
+          <Button variant="outline" size="sm" onClick={handlePublishSchedule} disabled={isPublishing}>
+            {isPublishing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+            Publish Schedule
+          </Button>
+          <Button size="sm" onClick={handleOpenAddShift}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" />Add Shift
+          </Button>
         </div>
       </div>
 
