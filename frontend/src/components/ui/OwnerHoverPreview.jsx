@@ -93,22 +93,21 @@ const OwnerHoverPreview = ({ children, owner, className }) => {
           left = rect.right + margin;
         }
 
-        // Determine vertical position
-        let top;
-        if (spaceBottom >= previewHeight + margin) {
-          // Align top with trigger
-          top = rect.top;
-        } else if (spaceTop >= previewHeight + margin) {
-          // Position above trigger area
-          top = rect.bottom - previewHeight;
-        } else {
-          // Adjust to fit within viewport
-          top = rect.top;
+        // Determine vertical position - align top of preview with top of trigger
+        let top = rect.top;
+
+        // Adjust if it would go off bottom of screen
+        if (top + previewHeight > window.innerHeight - margin) {
+          top = window.innerHeight - previewHeight - margin;
         }
 
-        // Final bounds check - ensure preview stays within viewport
+        // Adjust if it would go off top of screen
+        if (top < margin) {
+          top = margin;
+        }
+
+        // Final bounds check for horizontal position
         left = Math.max(margin, Math.min(left, window.innerWidth - previewWidth - margin));
-        top = Math.max(margin, Math.min(top, window.innerHeight - previewHeight - margin));
 
         setPosition({ top, left });
         setIsVisible(true);
