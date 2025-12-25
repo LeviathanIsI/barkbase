@@ -395,14 +395,6 @@ const OverviewTab = ({ staff, stats, onViewProfile, onAddStaff }) => {
 // SCHEDULE TAB
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Shift templates for quick-add
-const SHIFT_TEMPLATES = [
-  { id: 'morning-kennel', label: 'Morning Kennel', start: '06:00', end: '14:00', role: 'Kennel Tech' },
-  { id: 'evening-kennel', label: 'Evening Kennel', start: '14:00', end: '22:00', role: 'Kennel Tech' },
-  { id: 'day-groomer', label: 'Day Groomer', start: '09:00', end: '17:00', role: 'Groomer' },
-  { id: 'manager-shift', label: 'Manager', start: '08:00', end: '16:00', role: 'Manager' },
-];
-
 // Role colors for shift blocks
 const ROLE_COLORS = {
   'Kennel Tech': 'bg-blue-500/90 border-blue-400',
@@ -669,48 +661,6 @@ const ScheduleTab = ({ staff }) => {
     setDraggedShift(null);
   };
 
-  // Handle template drag
-  const handleTemplateDragStart = (e, template) => {
-    e.dataTransfer.effectAllowed = 'copy';
-    e.dataTransfer.setData('template', JSON.stringify(template));
-  };
-
-  const handleTemplateDrop = async (e, targetStaffId, targetDayIndex) => {
-    e.preventDefault();
-    setDragOverCell(null);
-
-    const templateData = e.dataTransfer.getData('template');
-    if (!templateData) return;
-
-    const template = JSON.parse(templateData);
-    const targetDate = weekDays[targetDayIndex];
-
-    try {
-      const shiftsApi = await import('@/features/schedule/api/shifts');
-      await shiftsApi.createShift({
-        staffId: targetStaffId,
-        startTime: `${format(targetDate, 'yyyy-MM-dd')}T${template.start}:00`,
-        endTime: `${format(targetDate, 'yyyy-MM-dd')}T${template.end}:00`,
-        role: template.role,
-      });
-
-      const response = await shiftsApi.getWeeklySchedule(weekStartStr);
-      setWeeklyData(response);
-    } catch (error) {
-      console.error('Failed to create shift from template:', error);
-      alert('Failed to create shift');
-    }
-  };
-
-  // Combined drop handler
-  const handleCellDrop = (e, targetStaffId, targetDayIndex) => {
-    if (e.dataTransfer.getData('template')) {
-      handleTemplateDrop(e, targetStaffId, targetDayIndex);
-    } else {
-      handleDrop(e, targetStaffId, targetDayIndex);
-    }
-  };
-
   return (
     <div className="space-y-4">
       {/* Schedule Header */}
@@ -742,23 +692,6 @@ const ScheduleTab = ({ staff }) => {
             <Plus className="h-3.5 w-3.5 mr-1.5" />Add Shift
           </Button>
         </div>
-      </div>
-
-      {/* Shift Templates Row */}
-      <div className="flex items-center gap-2 p-2 bg-surface-alt/50 rounded-lg border border-border/50">
-        <span className="text-xs text-muted font-medium px-2">Templates:</span>
-        {SHIFT_TEMPLATES.map((template) => (
-          <div
-            key={template.id}
-            draggable
-            onDragStart={(e) => handleTemplateDragStart(e, template)}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-grab active:cursor-grabbing
-              ${ROLE_COLORS[template.role] || ROLE_COLORS.default} text-white border
-              hover:opacity-80 transition-opacity select-none`}
-          >
-            {template.label} ({formatShiftTime(template.start)} - {formatShiftTime(template.end)})
-          </div>
-        ))}
       </div>
 
       {/* Coverage Bar */}
@@ -876,7 +809,7 @@ const ScheduleTab = ({ staff }) => {
                       onClick={() => !hasShift && handleAddShift(staffRow.staffId, shift.date)}
                       onDragOver={(e) => handleDragOver(e, staffRow.staffId, dayIndex)}
                       onDragLeave={handleDragLeave}
-                      onDrop={(e) => handleCellDrop(e, staffRow.staffId, dayIndex)}
+                      onDrop={(e) => handleDrop(e, staffRow.staffId, dayIndex)}
                     >
                       {hasShift ? (
                         /* Shift Block */
