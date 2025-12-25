@@ -688,7 +688,7 @@ const Kennels = () => {
     : 0;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] gap-4">
+    <div className="flex flex-col h-[calc(100vh-120px)] gap-4" data-tour="kennels-page">
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between shrink-0">
         <div>

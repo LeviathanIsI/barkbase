@@ -151,10 +151,13 @@ const TodayCommandCenter = () => {
 
 
   return (
-    <div className={cn(
-      "space-y-[var(--bb-space-6,1.5rem)] transition-opacity duration-200",
-      hasLoaded ? "opacity-100" : "opacity-0"
-    )}>
+    <div
+      className={cn(
+        "space-y-[var(--bb-space-6,1.5rem)] transition-opacity duration-200",
+        hasLoaded ? "opacity-100" : "opacity-0"
+      )}
+      data-tour="command-center"
+    >
       {/* Breadcrumbs */}
       <nav className="mb-2">
         <ol className="flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)]">

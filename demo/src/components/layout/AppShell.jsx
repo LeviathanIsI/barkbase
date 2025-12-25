@@ -7,10 +7,14 @@ import Sidebar from '@/components/navigation/Sidebar';
 import Topbar from '@/components/navigation/Topbar';
 import { DemoModeProvider } from '@/contexts/DemoModeContext';
 import DemoBanner from '@/components/layout/DemoBanner';
+import DemoGateModal from '@/components/demo/DemoGateModal';
+import GuidedTour from '@/components/demo/GuidedTour';
 
 const AppShell = () => {
   const tenant = useTenantStore((state) => state.tenant);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [startTour, setStartTour] = useState(false);
+  const [tourComplete, setTourComplete] = useState(false);
 
   const latestExportPath = tenant?.settings?.exports?.lastPath;
   const handleRestore = () => {
@@ -99,6 +103,18 @@ const AppShell = () => {
           </div>
         </div>
       ) : null}
+
+      {/* Demo Gate Modal - shows for first-time visitors */}
+      <DemoGateModal
+        onComplete={() => setStartTour(true)}
+        onSkip={() => setTourComplete(true)}
+      />
+
+      {/* Guided Tour - runs after gate modal is completed */}
+      <GuidedTour
+        startTour={startTour}
+        onTourComplete={() => setTourComplete(true)}
+      />
       </div>
     </DemoModeProvider>
   );

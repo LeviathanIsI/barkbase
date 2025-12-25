@@ -505,7 +505,7 @@ const Bookings = () => {
       />
 
       {/* Main Page */}
-    <div className="flex flex-col flex-grow w-full min-h-[calc(100vh-180px)]">
+    <div className="flex flex-col flex-grow w-full min-h-[calc(100vh-180px)]" data-tour="bookings-calendar">
       {/* Header Section */}
       <div className="pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
         <PageHeader

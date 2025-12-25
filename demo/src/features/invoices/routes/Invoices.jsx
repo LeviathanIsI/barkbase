@@ -1549,7 +1549,7 @@ const Invoices = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" data-tour="invoices-page">
       {/* Header */}
       <div className="flex items-start justify-between" data-tour="invoices-header">
         <div>

@@ -342,6 +342,7 @@ const OwnerDetail = () => {
           <aside
             className="w-64 flex-shrink-0 border-r overflow-y-auto p-4 space-y-4"
             style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            data-tour="inline-edit-owner"
           >
             {/* About this Owner */}
             <PropertyCard title="About" icon={UsersIcon} storageKey={`owner_${ownerId}_about`}>

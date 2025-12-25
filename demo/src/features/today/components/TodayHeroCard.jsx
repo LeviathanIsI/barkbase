@@ -59,6 +59,7 @@ const TodayHeroCard = ({
             size="md"
             className="self-start sm:self-auto gap-2"
             onClick={onNewBooking}
+            data-tour="quick-actions"
           >
             <Plus className="h-4 w-4" />
             New Booking

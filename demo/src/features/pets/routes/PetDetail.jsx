@@ -580,6 +580,7 @@ const PetDetail = () => {
           <aside
             className="w-[420px] min-w-[420px] flex-shrink-0 border-r overflow-y-auto p-4 space-y-4"
             style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            data-tour="inline-edit-pet"
           >
             {/* About this Pet */}
             <PropertyCard
@@ -761,7 +762,7 @@ const PetDetail = () => {
                   />
                 </TabsContent>
 
-                <TabsContent value="health" className="mt-0">
+                <TabsContent value="health" className="mt-0" data-tour="pet-health-tab">
                   <HealthTab
                     pet={pet}
                     vaccinations={vaccinations}

@@ -153,7 +153,7 @@ export default function Workflows() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[var(--bb-color-bg-body)]">
+    <div className="h-full flex flex-col bg-[var(--bb-color-bg-body)]" data-tour="workflows-page">
       {/* Header */}
       <WorkflowsHeader
         searchQuery={searchQuery}

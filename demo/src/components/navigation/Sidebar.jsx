@@ -190,7 +190,7 @@ const SidebarSection = ({ onNavigate }) => {
       </div>
 
       {/* Navigation sections */}
-      <nav className="flex-1 overflow-y-auto px-[var(--bb-space-2,0.5rem)] py-[var(--bb-space-4,1rem)]">
+      <nav className="flex-1 overflow-y-auto px-[var(--bb-space-2,0.5rem)] py-[var(--bb-space-4,1rem)]" data-tour="sidebar-nav">
         <div className="space-y-[var(--bb-space-1,0.25rem)]">
           {sidebarSections.map((section, index) => (
             <div key={section.id}>

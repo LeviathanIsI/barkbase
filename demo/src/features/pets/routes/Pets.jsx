@@ -692,10 +692,13 @@ const Pets = () => {
   return (
     <>
       {/* Main content container - fixed height, no page scroll */}
-      <div className={cn(
-        "flex flex-col w-full h-[calc(100vh-120px)] overflow-hidden transition-opacity duration-200",
-        hasLoaded ? "opacity-100" : "opacity-0"
-      )}>
+      <div
+        className={cn(
+          "flex flex-col w-full h-[calc(100vh-120px)] overflow-hidden transition-opacity duration-200",
+          hasLoaded ? "opacity-100" : "opacity-0"
+        )}
+        data-tour="pets-page"
+      >
         {/* Header Section - fixed, doesn't shrink */}
         <div className="flex-shrink-0 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
           <div>

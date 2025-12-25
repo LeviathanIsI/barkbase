@@ -32,6 +32,7 @@
     "react-error-boundary": "^6.0.0",
     "react-hook-form": "^7.63.0",
     "react-hot-toast": "^2.6.0",
+    "react-joyride": "^2.9.3",
     "react-router-dom": "^7.9.2",
     "react-select": "^5.10.2",
     "react-zoom-pan-pinch": "^3.7.0",
