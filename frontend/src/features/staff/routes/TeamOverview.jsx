@@ -866,7 +866,7 @@ const ScheduleTab = ({ staff }) => {
                 className="grid grid-cols-8 border-b border-border last:border-b-0 hover:bg-surface-alt/20 transition-colors"
               >
                 {/* Staff Name Column */}
-                <div className="p-3 border-r border-border flex items-center gap-2 group/staff">
+                <div className="p-3 border-r border-border flex items-center gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-text truncate">
                       {staffRow.staffName}
@@ -875,11 +875,11 @@ const ScheduleTab = ({ staff }) => {
                       <span className="text-xs text-muted">{staffRow.role}</span>
                       <button
                         onClick={() => handleOpenWeekSchedule(staffRow)}
-                        className="text-xs text-primary hover:text-primary/80 opacity-0 group-hover/staff:opacity-100 transition-opacity flex items-center gap-1"
+                        className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
                         title="Schedule entire week"
                       >
                         <Calendar className="h-3 w-3" />
-                        <span>Week</span>
+                        <span>Schedule Week</span>
                       </button>
                     </div>
                   </div>
