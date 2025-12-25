@@ -358,42 +358,6 @@ const TeamOverview = () => {
             </div>
           </Card>
 
-          {/* Current Shift Status */}
-          <Card className="p-4">
-            <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-primary" />
-              Shift Status
-            </h3>
-            <div className="space-y-1.5">
-              {activeMembers.slice(0, 4).map((member) => (
-                <div key={member.id} className="flex items-center gap-2 py-1.5">
-                  <div className={`w-1.5 h-1.5 rounded-full ${member.isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
-                  <Avatar size="xs" fallback={member.name} />
-                  <span className="text-xs text-text truncate flex-1">{member.name}</span>
-                  <span className="text-xs text-muted">
-                    {member.isOnline ? 'Online' : 'Offline'}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-border">
-              <Button variant="ghost" size="sm" className="text-xs h-7 px-2">
-                Timesheets
-              </Button>
-              <Button variant="ghost" size="sm" className="text-xs h-7 px-2">
-                Clock Terminal
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs h-7 px-2"
-                onClick={() => setShowShiftPlanner(true)}
-              >
-                Coverage
-              </Button>
-            </div>
-          </Card>
-
           {/* Staff Roles Configuration */}
           <StaffRolesSection />
         </div>
