@@ -70,12 +70,15 @@ export const useOwnersQuery = (params = {}) => {
 export const useOwnerDetailsQuery = (ownerId, options = {}) => {
   const tenantKey = useTenantKey();
   const { enabled = Boolean(ownerId), ...queryOptions } = options;
-  
+
   return useQuery({
     queryKey: [...queryKeys.owners(tenantKey), ownerId],
     queryFn: async () => {
       try {
-        const res = await apiClient.get(canonicalEndpoints.owners.detail(ownerId));
+        // Include related entities for display in Owner detail page
+        const res = await apiClient.get(canonicalEndpoints.owners.detail(ownerId), {
+          params: { include: 'pets,bookings,payments,invoices' }
+        });
         return res?.data ?? null;
       } catch (e) {
         return null;
