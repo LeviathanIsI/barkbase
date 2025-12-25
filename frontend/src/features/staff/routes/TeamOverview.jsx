@@ -598,14 +598,6 @@ const ScheduleTab = ({ staff }) => {
     }
   };
 
-  const handleOpenAddShift = () => {
-    // Open add shift modal without pre-selecting a cell
-    // User will select staff and date in the modal
-    setSelectedCell({ staffId: staff[0]?.id || staff[0]?.recordId, date: new Date() });
-    setEditingShift(null);
-    setShowAddShiftModal(true);
-  };
-
   // Native drag-drop handlers
   const handleDragStart = (e, staffId, shift, dayIndex) => {
     setDraggedShift({ staffId, shift, dayIndex });
@@ -715,9 +707,6 @@ const ScheduleTab = ({ staff }) => {
           <Button variant="outline" size="sm" onClick={handlePublishSchedule} disabled={isPublishing}>
             {isPublishing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
             Publish Schedule
-          </Button>
-          <Button size="sm" onClick={handleOpenAddShift}>
-            <Plus className="h-3.5 w-3.5 mr-1.5" />Add Shift
           </Button>
         </div>
       </div>
