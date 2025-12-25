@@ -48,8 +48,9 @@ const selectStyles = {
 };
 import { usePetsQuery, usePetQuery } from '@/features/pets/api';
 import { useServicesQuery } from '@/features/services/api';
+import { useKennels } from '@/features/kennels/api';
 import { useCreateBookingMutation, useUpdateBookingMutation } from '../api';
-import { Calendar, Users, PawPrint, DollarSign, Search, Check } from 'lucide-react';
+import { Calendar, Users, PawPrint, DollarSign, Search, Check, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const BookingSlideoutForm = ({
@@ -65,12 +66,14 @@ const BookingSlideoutForm = ({
   // Form state
   const [selectedOwner, setSelectedOwner] = useState(null);
   const [selectedPets, setSelectedPets] = useState([]);
+  const [selectedKennel, setSelectedKennel] = useState(null);
   const [ownerSearch, setOwnerSearch] = useState('');
   
   // Queries
   const { data: ownersData } = useOwnerSearchQuery(ownerSearch, { enabled: ownerSearch.length >= 2 });
   const { data: petsData } = usePetsQuery();
   const { data: servicesData } = useServicesQuery();
+  const { data: kennelsData } = useKennels();
   const { data: initialPet } = usePetQuery(initialPetId, { enabled: !!initialPetId });
   
   // Mutations
@@ -80,6 +83,7 @@ const BookingSlideoutForm = ({
   const owners = ownersData?.owners || ownersData || [];
   const pets = petsData?.pets || [];
   const services = servicesData?.services || servicesData || [];
+  const kennels = kennelsData || [];
   
   // Filter pets by selected owner
   // Handle both camelCase and snake_case owner IDs from API
@@ -92,6 +96,17 @@ const BookingSlideoutForm = ({
       p.owners?.some(o => (o.recordId || o.id) === ownerRecordId)
     );
   }, [selectedOwner, pets]);
+
+  // Filter available kennels - only show active kennels with capacity
+  const availableKennels = useMemo(() => {
+    return kennels.filter(k => {
+      // Must be active
+      if (!k.isActive) return false;
+      // Must have available capacity
+      const available = (k.capacity || 1) - (k.occupied || 0);
+      return available > 0;
+    });
+  }, [kennels]);
   
   // Form
   const {
@@ -157,8 +172,9 @@ const BookingSlideoutForm = ({
             notes: data.notes,
             specialRequirements: data.specialRequirements,
             status: 'PENDING',
+            kennelId: selectedKennel?.id || selectedKennel?.recordId || null,
           };
-          
+
           if (isEdit) {
             return updateMutation.mutateAsync(payload);
           }
@@ -372,8 +388,72 @@ const BookingSlideoutForm = ({
         </div>
       </FormSection>
 
-      {/* Step 4: Notes */}
-      <FormSection title="4. Notes (Optional)">
+      {/* Step 4: Reserve Kennel (Optional) */}
+      <FormSection title="4. Reserve Kennel (Optional)">
+        {availableKennels.length > 0 ? (
+          <div className="space-y-3">
+            <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+              Optionally reserve a kennel for this booking
+            </p>
+            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+              {availableKennels.map(kennel => {
+                const kennelId = kennel.recordId || kennel.id;
+                const isSelected = (selectedKennel?.recordId || selectedKennel?.id) === kennelId;
+                const available = (kennel.capacity || 1) - (kennel.occupied || 0);
+                return (
+                  <button
+                    key={kennelId}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedKennel(null);
+                      } else {
+                        setSelectedKennel(kennel);
+                      }
+                    }}
+                    className={cn(
+                      "p-3 rounded-lg border text-left transition-colors flex items-center gap-3",
+                      isSelected && "ring-2 ring-[color:var(--bb-color-accent)]"
+                    )}
+                    style={{
+                      borderColor: isSelected ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+                      backgroundColor: isSelected ? 'var(--bb-color-accent-soft)' : 'transparent',
+                    }}
+                  >
+                    <Home className="w-5 h-5" style={{ color: isSelected ? 'var(--bb-color-accent)' : 'var(--bb-color-text-muted)' }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate" style={{ color: 'var(--bb-color-text-primary)' }}>
+                        {kennel.name}
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                        {kennel.type || 'Kennel'} • {available} available
+                      </p>
+                    </div>
+                    {isSelected && <Check className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--bb-color-accent)' }} />}
+                  </button>
+                );
+              })}
+            </div>
+            {selectedKennel && (
+              <div className="flex items-center justify-between p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}>
+                <span className="text-sm font-medium" style={{ color: 'var(--bb-color-accent)' }}>
+                  Selected: {selectedKennel.name}
+                </span>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedKennel(null)}>
+                  Clear
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-center py-4" style={{ color: 'var(--bb-color-text-muted)' }}>
+            No available kennels
+          </p>
+        )}
+      </FormSection>
+
+      {/* Step 5: Notes */}
+      <FormSection title="5. Notes (Optional)">
         <div className="space-y-2">
           <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
             Special Requirements

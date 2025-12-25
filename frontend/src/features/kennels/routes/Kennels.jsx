@@ -107,12 +107,16 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
   const available = (kennel.capacity || 1) - (kennel.occupied || 0);
   const isFull = available <= 0;
   const isPartial = available > 0 && (kennel.occupied || 0) > 0;
+  // Check for future reservations (hasReservation flag or non-empty reservations array from backend)
+  const hasReservation = kennel.hasReservation || (kennel.reservations && kennel.reservations.length > 0);
 
   // Determine status color
   const getStatusColor = () => {
     if (!kennel.isActive) return { bg: 'bg-gray-400', ring: 'ring-gray-400', glow: 'shadow-gray-400/30', text: 'Inactive' };
     if (isFull) return { bg: 'bg-red-500', ring: 'ring-red-500', glow: 'shadow-red-500/30', text: 'Full' };
     if (isPartial) return { bg: 'bg-amber-500', ring: 'ring-amber-500', glow: 'shadow-amber-500/30', text: `${available} open` };
+    // Show "Reserved" if kennel has a future booking reservation but is currently empty
+    if (hasReservation) return { bg: 'bg-blue-500', ring: 'ring-blue-500', glow: 'shadow-blue-500/30', text: 'Reserved' };
     return { bg: 'bg-emerald-500', ring: 'ring-emerald-500', glow: 'shadow-emerald-500/30', text: 'Open' };
   };
 
@@ -170,6 +174,7 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
           isFull ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
           isPartial ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
           !kennel.isActive ? 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400' :
+          hasReservation ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
           'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
         )}>
           {status.text}
@@ -532,6 +537,13 @@ const MapLegend = () => (
         <div>
           <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Available</span>
           <p className="text-xs text-[color:var(--bb-color-text-muted)]">Ready for new bookings</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+        <span className="w-4 h-4 rounded-full bg-blue-500 flex-shrink-0" />
+        <div>
+          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Reserved</span>
+          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Has future booking</p>
         </div>
       </div>
       <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
