@@ -428,6 +428,9 @@ const ScheduleTab = ({ staff }) => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [showWeekScheduleModal, setShowWeekScheduleModal] = useState(false);
   const [selectedStaffForWeek, setSelectedStaffForWeek] = useState(null);
+  const [showDefaultScheduleModal, setShowDefaultScheduleModal] = useState(false);
+  const [editingDefaultSchedule, setEditingDefaultSchedule] = useState(null);
+  const [defaultSchedules, setDefaultSchedules] = useState([]);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(selectedWeek, i));
   const weekStartStr = format(weekDays[0], 'yyyy-MM-dd');
@@ -550,6 +553,69 @@ const ScheduleTab = ({ staff }) => {
       shifts: staffRow.shifts,
     });
     setShowWeekScheduleModal(true);
+  };
+
+  // Default Schedule handlers
+  const handleAddDefaultSchedule = () => {
+    setEditingDefaultSchedule(null);
+    setShowDefaultScheduleModal(true);
+  };
+
+  const handleEditDefaultSchedule = (schedule) => {
+    setEditingDefaultSchedule(schedule);
+    setShowDefaultScheduleModal(true);
+  };
+
+  const handleDeleteDefaultSchedule = (scheduleId) => {
+    if (confirm('Are you sure you want to delete this default schedule?')) {
+      setDefaultSchedules(prev => prev.filter(s => s.id !== scheduleId));
+    }
+  };
+
+  const handleSaveDefaultSchedule = (data) => {
+    if (editingDefaultSchedule) {
+      // Update existing
+      setDefaultSchedules(prev => prev.map(s =>
+        s.id === editingDefaultSchedule.id ? { ...s, ...data } : s
+      ));
+    } else {
+      // Add new
+      setDefaultSchedules(prev => [...prev, {
+        id: `default-${Date.now()}`,
+        ...data,
+      }]);
+    }
+    setShowDefaultScheduleModal(false);
+  };
+
+  const handleApplyDefaultToWeek = async (defaultSchedule) => {
+    // Apply the default schedule to the current week
+    try {
+      const shiftsApi = await import('@/features/schedule/api/shifts');
+      const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+      for (let i = 0; i < 7; i++) {
+        const daySchedule = defaultSchedule.schedule[days[i]];
+        if (daySchedule) {
+          const targetDate = weekDays[i];
+          await shiftsApi.createShift({
+            staffId: defaultSchedule.staffId,
+            startTime: `${format(targetDate, 'yyyy-MM-dd')}T${daySchedule.start}:00`,
+            endTime: `${format(targetDate, 'yyyy-MM-dd')}T${daySchedule.end}:00`,
+            role: daySchedule.role,
+            source: 'default',
+          });
+        }
+      }
+
+      // Refetch schedule
+      const response = await shiftsApi.getWeeklySchedule(weekStartStr);
+      setWeeklyData(response);
+      alert('Default schedule applied to current week');
+    } catch (error) {
+      console.error('Failed to apply default schedule:', error);
+      alert('Failed to apply default schedule');
+    }
   };
 
   const handleSaveWeekSchedule = async (weekData) => {
@@ -947,6 +1013,120 @@ const ScheduleTab = ({ staff }) => {
         </div>
       )}
 
+      {/* Default Schedules Section */}
+      <div className="mt-8 bg-surface rounded-lg border border-border overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-border bg-surface-alt/30">
+          <div>
+            <h3 className="text-sm font-semibold text-text flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-primary" />
+              Default Schedules
+            </h3>
+            <p className="text-xs text-muted mt-0.5">
+              Staff with recurring weekly schedules auto-populate unless overridden
+            </p>
+          </div>
+          <Button size="sm" onClick={handleAddDefaultSchedule}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            Add Default
+          </Button>
+        </div>
+
+        {defaultSchedules.length === 0 ? (
+          <div className="p-8 text-center">
+            <RefreshCw className="h-8 w-8 text-muted/40 mx-auto mb-3" />
+            <p className="text-sm text-muted">No default schedules configured</p>
+            <p className="text-xs text-muted/70 mt-1">
+              Add a default schedule to automatically populate shifts each week
+            </p>
+            <Button variant="outline" size="sm" className="mt-4" onClick={handleAddDefaultSchedule}>
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Add Default Schedule
+            </Button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-surface-alt/20">
+                  <th className="text-left text-xs font-medium text-muted p-3 w-48">Staff Member</th>
+                  <th className="text-center text-xs font-medium text-muted p-2 w-20">Sun</th>
+                  <th className="text-center text-xs font-medium text-muted p-2 w-20">Mon</th>
+                  <th className="text-center text-xs font-medium text-muted p-2 w-20">Tue</th>
+                  <th className="text-center text-xs font-medium text-muted p-2 w-20">Wed</th>
+                  <th className="text-center text-xs font-medium text-muted p-2 w-20">Thu</th>
+                  <th className="text-center text-xs font-medium text-muted p-2 w-20">Fri</th>
+                  <th className="text-center text-xs font-medium text-muted p-2 w-20">Sat</th>
+                  <th className="text-right text-xs font-medium text-muted p-3 w-32">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {defaultSchedules.map((schedule) => {
+                  const staffMember = staff.find(s => (s.id || s.recordId) === schedule.staffId);
+                  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+                  return (
+                    <tr key={schedule.id} className="border-b border-border last:border-b-0 hover:bg-surface-alt/20">
+                      <td className="p-3">
+                        <div className="text-sm font-medium text-text">
+                          {staffMember?.name || schedule.staffName || 'Unknown'}
+                        </div>
+                        <div className="text-xs text-muted uppercase">
+                          {schedule.defaultRole || staffMember?.role || 'Staff'}
+                        </div>
+                      </td>
+                      {days.map((day) => {
+                        const daySchedule = schedule.schedule?.[day];
+                        return (
+                          <td key={day} className="p-2 text-center">
+                            {daySchedule ? (
+                              <div className="text-xs">
+                                <div className="font-medium text-text">
+                                  {formatShiftTime(daySchedule.start)}-{formatShiftTime(daySchedule.end)}
+                                </div>
+                                <div className="text-muted text-[10px] uppercase">
+                                  {daySchedule.role?.substring(0, 3) || ''}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted/50">OFF</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleApplyDefaultToWeek(schedule)}
+                            className="p-1.5 text-muted hover:text-primary transition-colors"
+                            title="Apply to current week"
+                          >
+                            <Play className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEditDefaultSchedule(schedule)}
+                            className="p-1.5 text-muted hover:text-primary transition-colors"
+                            title="Edit default schedule"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDefaultSchedule(schedule.id)}
+                            className="p-1.5 text-muted hover:text-red-500 transition-colors"
+                            title="Delete default schedule"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Add/Edit Shift Modal */}
       <Modal
         open={showAddShiftModal}
@@ -986,6 +1166,22 @@ const ScheduleTab = ({ staff }) => {
             onCancel={() => setShowWeekScheduleModal(false)}
           />
         )}
+      </Modal>
+
+      {/* Default Schedule Modal */}
+      <Modal
+        open={showDefaultScheduleModal}
+        onClose={() => setShowDefaultScheduleModal(false)}
+        title={editingDefaultSchedule ? 'Edit Default Schedule' : 'Add Default Schedule'}
+        size="lg"
+      >
+        <DefaultScheduleForm
+          staff={staff}
+          existingSchedules={defaultSchedules}
+          editingSchedule={editingDefaultSchedule}
+          onSubmit={handleSaveDefaultSchedule}
+          onCancel={() => setShowDefaultScheduleModal(false)}
+        />
       </Modal>
     </div>
   );
@@ -1477,6 +1673,288 @@ const WeekScheduleForm = ({ staffName, defaultRole, weekDays: initialWeekDays, e
             Save Week
           </Button>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DEFAULT SCHEDULE FORM (for recurring weekly schedules)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const DEFAULT_SCHEDULE_TEMPLATES = [
+  { id: 'mf-9-5', label: 'M-F 9-5', days: [false, true, true, true, true, true, false], start: '09:00', end: '17:00' },
+  { id: 'mf-8-4', label: 'M-F 8-4', days: [false, true, true, true, true, true, false], start: '08:00', end: '16:00' },
+  { id: 'tue-sat', label: 'Tue-Sat', days: [false, false, true, true, true, true, true], start: '09:00', end: '17:00' },
+  { id: 'weekends', label: 'Weekends Only', days: [true, false, false, false, false, false, true], start: '08:00', end: '18:00' },
+];
+
+const DefaultScheduleForm = ({ staff, existingSchedules, editingSchedule, onSubmit, onCancel }) => {
+  const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+  // Filter out staff who already have default schedules (unless editing that schedule)
+  const availableStaff = staff.filter(s => {
+    if (editingSchedule && editingSchedule.staffId === (s.id || s.email)) return true;
+    return !existingSchedules.some(ds => ds.staffId === (s.id || s.email));
+  });
+
+  const roleOptions = [
+    { value: 'Kennel Tech', label: 'Kennel Tech' },
+    { value: 'Groomer', label: 'Groomer' },
+    { value: 'Manager', label: 'Manager' },
+    { value: 'Trainer', label: 'Trainer' },
+  ];
+
+  // Initialize form state
+  const getInitialDays = () => {
+    if (editingSchedule) {
+      return DAY_KEYS.map((key, idx) => {
+        const dayData = editingSchedule.schedule?.[key];
+        return {
+          name: DAY_NAMES[idx],
+          key,
+          isWorking: !!dayData,
+          startTime: dayData?.start || '09:00',
+          endTime: dayData?.end || '17:00',
+          role: dayData?.role || 'Kennel Tech',
+        };
+      });
+    }
+    return DAY_KEYS.map((key, idx) => ({
+      name: DAY_NAMES[idx],
+      key,
+      isWorking: idx >= 1 && idx <= 5, // Default M-F
+      startTime: '09:00',
+      endTime: '17:00',
+      role: 'Kennel Tech',
+    }));
+  };
+
+  const [selectedStaffId, setSelectedStaffId] = useState(
+    editingSchedule?.staffId || (availableStaff[0]?.id || availableStaff[0]?.email || '')
+  );
+  const [days, setDays] = useState(getInitialDays);
+  const [effectiveDate, setEffectiveDate] = useState(
+    editingSchedule?.effectiveFrom || format(new Date(), 'yyyy-MM-dd')
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const updateDay = (index, updates) => {
+    setDays(prev => prev.map((d, i) => i === index ? { ...d, ...updates } : d));
+  };
+
+  const applyTemplate = (template) => {
+    setDays(prev => prev.map((d, i) => ({
+      ...d,
+      isWorking: template.days[i],
+      startTime: template.start,
+      endTime: template.end,
+    })));
+  };
+
+  // Calculate total weekly hours
+  const totalHours = useMemo(() => {
+    return days.reduce((sum, d) => {
+      if (!d.isWorking) return sum;
+      const [startH, startM] = d.startTime.split(':').map(Number);
+      const [endH, endM] = d.endTime.split(':').map(Number);
+      let hours = (endH + endM / 60) - (startH + startM / 60);
+      if (hours < 0) hours += 24;
+      return sum + hours;
+    }, 0);
+  }, [days]);
+
+  const hasOvertime = totalHours > 40;
+
+  const handleSubmit = async () => {
+    if (!selectedStaffId) {
+      alert('Please select a staff member');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Build schedule object
+      const schedule = {};
+      days.forEach(d => {
+        if (d.isWorking) {
+          schedule[d.key] = {
+            start: d.startTime,
+            end: d.endTime,
+            role: d.role,
+          };
+        }
+      });
+
+      const selectedStaffData = staff.find(s => (s.id || s.email) === selectedStaffId);
+
+      await onSubmit({
+        staffId: selectedStaffId,
+        staffName: selectedStaffData?.name || selectedStaffData?.email || 'Unknown',
+        role: days.find(d => d.isWorking)?.role || 'Kennel Tech',
+        schedule,
+        effectiveFrom: effectiveDate,
+      });
+    } catch (error) {
+      console.error('Failed to save default schedule:', error);
+      alert('Failed to save default schedule');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Staff Selection */}
+      <div>
+        <label className="block text-sm font-medium text-text mb-2">Select Staff Member</label>
+        {availableStaff.length === 0 ? (
+          <p className="text-sm text-muted italic">All staff members already have default schedules</p>
+        ) : (
+          <select
+            value={selectedStaffId}
+            onChange={(e) => setSelectedStaffId(e.target.value)}
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+            disabled={!!editingSchedule}
+          >
+            <option value="">Select a staff member...</option>
+            {availableStaff.map(s => (
+              <option key={s.id || s.email} value={s.id || s.email}>
+                {s.name || s.email} {s.role ? `(${s.role})` : ''}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* Quick Templates */}
+      <div>
+        <label className="block text-sm font-medium text-text mb-2">Quick Templates</label>
+        <div className="flex flex-wrap gap-2">
+          {DEFAULT_SCHEDULE_TEMPLATES.map(template => (
+            <button
+              key={template.id}
+              type="button"
+              onClick={() => applyTemplate(template)}
+              className="px-3 py-1.5 text-sm bg-surface border border-border rounded-lg hover:bg-surface-alt hover:border-primary/50 transition-colors"
+            >
+              {template.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Weekly Grid */}
+      <div>
+        <label className="block text-sm font-medium text-text mb-3">Weekly Schedule</label>
+        <div className="border border-border rounded-lg overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-surface-alt border-b border-border">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">Day</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-muted uppercase tracking-wider w-24">Working</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-muted uppercase tracking-wider">Start</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-muted uppercase tracking-wider">End</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-muted uppercase tracking-wider">Role</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {days.map((day, i) => (
+                <tr key={day.key} className={`${day.isWorking ? 'bg-surface' : 'bg-surface-alt/50'}`}>
+                  <td className="px-4 py-3">
+                    <span className={`text-sm font-medium ${day.isWorking ? 'text-text' : 'text-muted'}`}>
+                      {day.name}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={day.isWorking}
+                      onChange={(e) => updateDay(i, { isWorking: e.target.checked })}
+                      className="w-4 h-4 rounded border-border text-primary focus:ring-primary/50"
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <input
+                      type="time"
+                      value={day.startTime}
+                      onChange={(e) => updateDay(i, { startTime: e.target.value })}
+                      disabled={!day.isWorking}
+                      className={`px-2 py-1.5 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 ${!day.isWorking ? 'opacity-40' : ''}`}
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <input
+                      type="time"
+                      value={day.endTime}
+                      onChange={(e) => updateDay(i, { endTime: e.target.value })}
+                      disabled={!day.isWorking}
+                      className={`px-2 py-1.5 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 ${!day.isWorking ? 'opacity-40' : ''}`}
+                    />
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <select
+                      value={day.role}
+                      onChange={(e) => updateDay(i, { role: e.target.value })}
+                      disabled={!day.isWorking}
+                      className={`px-2 py-1.5 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 ${!day.isWorking ? 'opacity-40' : ''}`}
+                    >
+                      {roleOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Total Hours Display */}
+      <div className="flex items-center gap-4">
+        <span className={`text-sm font-semibold ${hasOvertime ? 'text-amber-500' : 'text-text'}`}>
+          Weekly Total: {totalHours.toFixed(1)} hours
+        </span>
+        {hasOvertime && (
+          <span className="flex items-center gap-1.5 text-xs text-amber-500 bg-amber-500/10 px-2 py-1 rounded">
+            <AlertCircle className="h-3.5 w-3.5" />
+            {(totalHours - 40).toFixed(1)}h overtime
+          </span>
+        )}
+      </div>
+
+      {/* Effective Date */}
+      <div>
+        <label className="block text-sm font-medium text-text mb-2">Effective From</label>
+        <input
+          type="date"
+          value={effectiveDate}
+          onChange={(e) => setEffectiveDate(e.target.value)}
+          className="px-3 py-2 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+        />
+        <p className="mt-1 text-xs text-muted">When should this default schedule start being applied?</p>
+      </div>
+
+      {/* Footer Actions */}
+      <div className="flex justify-end gap-3 pt-4 border-t border-border">
+        <Button variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit} disabled={isSubmitting || !selectedStaffId}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Check className="h-4 w-4 mr-2" />
+              {editingSchedule ? 'Update Default Schedule' : 'Save Default Schedule'}
+            </>
+          )}
+        </Button>
       </div>
     </div>
   );
