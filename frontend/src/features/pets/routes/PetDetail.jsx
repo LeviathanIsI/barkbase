@@ -72,7 +72,7 @@ import { ActivityTimeline } from '@/features/activities';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import { getBirthdateFromPet, getFormattedAgeFromPet, formatAgeFromBirthdate } from '../utils/pet-date-utils';
 import { PropertyCard, PropertyList } from '@/components/ui/PropertyCard';
-import { AssociationCard, AssociationItem, AssociationSingleItem } from '@/components/ui/AssociationCard';
+import { AssociationCard, AssociationItem } from '@/components/ui/AssociationCard';
 import { EditablePropertyList, EditablePropertyProvider } from '@/components/ui/EditableProperty';
 
 // ============================================================================
@@ -853,39 +853,24 @@ const PetDetail = () => {
               </Card>
             )}
 
-            {/* Owner */}
-            {primaryOwner && (
-              <AssociationSingleItem
-                name={primaryOwner.name || `${primaryOwner.firstName || ''} ${primaryOwner.lastName || ''}`.trim()}
-                subtitle="Primary Owner"
-                type="owner"
-                href={`/customers/${primaryOwner.recordId}`}
-                actions={
-                  <div className="flex gap-2 w-full">
-                    {primaryOwner.phone && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => window.open(`tel:${primaryOwner.phone}`)}
-                      >
-                        <Phone className="w-3.5 h-3.5 mr-1" />
-                        Call
-                      </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => navigate(`/customers/${primaryOwner.recordId}`)}
-                    >
-                      View
-                      <ChevronRight className="w-3.5 h-3.5 ml-1" />
-                    </Button>
-                  </div>
-                }
-              />
-            )}
+            {/* Owners */}
+            <AssociationCard
+              title="Owners"
+              type="owner"
+              count={pet.owners?.length || 0}
+              showAdd={false}
+              emptyMessage="No owners linked"
+            >
+              {(pet.owners || []).map((owner, index) => (
+                <AssociationItem
+                  key={owner.recordId || index}
+                  type="owner"
+                  name={owner.name || `${owner.firstName || ''} ${owner.lastName || ''}`.trim()}
+                  subtitle={index === 0 ? 'Primary Owner' : (owner.email || owner.phone)}
+                  href={`/customers/${owner.recordId}`}
+                />
+              ))}
+            </AssociationCard>
 
             {/* Bookings */}
             <AssociationCard
@@ -908,27 +893,6 @@ const PetDetail = () => {
                 />
               ))}
             </AssociationCard>
-
-            {/* Other Owners */}
-            {pet.owners && pet.owners.length > 1 && (
-              <AssociationCard
-                title="Other Owners"
-                type="owner"
-                count={pet.owners.length - 1}
-                showAdd={false}
-                emptyMessage="No other owners"
-              >
-                {pet.owners.slice(1).map(owner => (
-                  <AssociationItem
-                    key={owner.recordId}
-                    type="owner"
-                    name={owner.name || `${owner.firstName || ''} ${owner.lastName || ''}`.trim()}
-                    subtitle={owner.email}
-                    href={`/customers/${owner.recordId}`}
-                  />
-                ))}
-              </AssociationCard>
-            )}
 
             {/* Quick Actions */}
             <Card className="p-4">

@@ -265,7 +265,18 @@ const OwnerDetail = () => {
   }
 
   const fullName = `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'Owner';
-  const pets = owner.pets?.filter(pet => pet && pet.recordId) || [];
+
+  // Get pets from owner object, or fallback to filtering allPets by ownerId
+  const ownerPets = owner.pets?.filter(pet => pet && pet.recordId) || [];
+  const petsFromList = ownerPets.length === 0
+    ? allPets.filter(pet =>
+        pet.ownerIds?.includes(ownerId) ||
+        pet.owners?.some(o => o.recordId === ownerId || o.id === ownerId) ||
+        pet.ownerId === ownerId
+      )
+    : [];
+  const pets = ownerPets.length > 0 ? ownerPets : petsFromList;
+
   const bookings = owner.bookings || [];
   const payments = owner.payments || [];
   const invoices = owner.invoices || [];
