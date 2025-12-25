@@ -29,6 +29,7 @@ import {
   Package,
   ScrollText,
   History,
+  Type,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -74,6 +75,7 @@ const NAV_SECTIONS = [
       },
       { id: "properties", label: "Properties", icon: ListTree, path: "/settings/properties", description: "Custom fields and attributes" },
       { id: "import-export", label: "Import & Export", icon: ArrowLeftRight, path: "/settings/import-export", description: "Data migration tools" },
+      { id: "terminology", label: "Terminology", icon: Type, path: "/settings/terminology", description: "Customize navigation labels" },
     ],
   },
   {

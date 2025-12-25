@@ -116,6 +116,9 @@ const SettingsRecordKeeping = lazy(() =>
 const SettingsDataQuality = lazy(() =>
   import("@/features/settings/routes/DataQuality")
 );
+const SettingsTerminology = lazy(() =>
+  import("@/features/settings/routes/Terminology")
+);
 const SettingsForms = lazy(() => import("@/features/settings/routes/Forms"));
 const SettingsDocuments = lazy(() =>
   import("@/features/settings/routes/Documents")
@@ -369,6 +372,7 @@ export const router = createBrowserRouter([
                     element: <SettingsRecordKeeping />,
                   },
                   { path: "data-quality", element: <SettingsDataQuality /> },
+                  { path: "terminology", element: <SettingsTerminology /> },
                   { path: "forms", element: <SettingsForms /> },
                   { path: "documents", element: <SettingsDocuments /> },
                   { path: "files", element: <SettingsFiles /> },

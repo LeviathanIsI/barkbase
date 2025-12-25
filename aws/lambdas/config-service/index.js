@@ -1477,6 +1477,7 @@ async function handleGetTenantConfig(user, event) {
          ts.branding,
          ts.integrations,
          ts.custom_fields,
+         ts.terminology,
          (SELECT COUNT(*) FROM "Service" WHERE tenant_id = t.id) as service_count,
          (SELECT COUNT(*) FROM "Kennel" WHERE tenant_id = t.id) as kennel_count
        FROM "User" u
@@ -1566,6 +1567,7 @@ async function handleGetTenantConfig(user, event) {
       plan: row.tenant_plan || 'FREE',
       settings,
       theme,
+      terminology: row.terminology || {},
       featureFlags: row.tenant_features || {},
       createdAt: row.tenant_created_at,
       // User info
@@ -1678,13 +1680,14 @@ async function handleUpdateTenantConfig(user, body) {
         branding: 'branding',
         integrations: 'integrations',
         customFields: 'custom_fields',
+        terminology: 'terminology',
       };
 
       for (const [frontendKey, dbColumn] of Object.entries(fieldMap)) {
         if (settings[frontendKey] !== undefined) {
           const value = settings[frontendKey];
           // Handle JSONB fields
-          if (['notificationPrefs', 'emailTemplates', 'businessHours', 'branding', 'integrations', 'customFields'].includes(frontendKey)) {
+          if (['notificationPrefs', 'emailTemplates', 'businessHours', 'branding', 'integrations', 'customFields', 'terminology'].includes(frontendKey)) {
             settingsUpdates.push(`${dbColumn} = $${paramIndex++}`);
             settingsValues.push(JSON.stringify(value));
           } else {

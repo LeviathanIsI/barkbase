@@ -1,5 +1,69 @@
 import { useTenantStore } from '@/stores/tenant';
 
+// ============================================================================
+// NAVIGATION LABELS
+// ============================================================================
+
+/**
+ * Default navigation labels
+ * These are the built-in labels that can be customized by tenants
+ */
+export const defaultLabels = {
+  commandCenter: 'Command Center',
+  owners: 'Owners',
+  pets: 'Pets',
+  vaccinations: 'Vaccinations',
+  segments: 'Segments',
+  bookings: 'Bookings',
+  runSchedules: 'Run Schedules',
+  tasks: 'Tasks',
+  kennels: 'Kennels',
+  incidents: 'Incidents',
+  workflows: 'Workflows',
+  messages: 'Messages',
+  payments: 'Payments',
+  invoices: 'Invoices',
+  packages: 'Packages',
+  team: 'Team',
+  reports: 'Reports',
+  settings: 'Settings',
+};
+
+/**
+ * Get a navigation label with custom terminology fallback
+ * @param {string} key - The label key (e.g., 'owners', 'pets')
+ * @param {object} terminology - Custom terminology object from tenant
+ * @returns {string} The custom label or default label
+ */
+export const getLabel = (key, terminology = {}) => {
+  return terminology[key] || defaultLabels[key] || key;
+};
+
+/**
+ * Hook to get navigation label with tenant terminology
+ */
+export const useNavigationLabel = (key) => {
+  const terminology = useTenantStore((state) => state.tenant?.terminology || {});
+  return getLabel(key, terminology);
+};
+
+/**
+ * Hook to get all navigation labels with tenant customization
+ */
+export const useNavigationLabels = () => {
+  const terminology = useTenantStore((state) => state.tenant?.terminology || {});
+
+  const labels = {};
+  for (const key of Object.keys(defaultLabels)) {
+    labels[key] = getLabel(key, terminology);
+  }
+  return labels;
+};
+
+// ============================================================================
+// FACILITY TERMINOLOGY
+// ============================================================================
+
 /**
  * Get custom terminology for facility accommodations
  * Falls back to defaults if not configured

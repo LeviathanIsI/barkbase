@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   Activity,
+  AlertTriangle,
   BarChart3,
   Building2,
   CalendarDays,
@@ -11,6 +12,7 @@ import {
   Circle,
   CreditCard,
   FileText,
+  Gift,
   GitBranch,
   Home,
   Layers,
@@ -25,7 +27,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { sidebarSections } from '@/config/navigation';
+import { getSidebarSections } from '@/config/navigation';
 import { useTenantStore } from '@/stores/tenant';
 import { cn } from '@/lib/utils';
 
@@ -60,8 +62,12 @@ const iconMap = {
   'credit-card': CreditCard,
   '/invoices': FileText,
   'file-text': FileText,
+  '/packages': Gift,
+  gift: Gift,
   '/workflows': GitBranch,
   'git-branch': GitBranch,
+  '/incidents': AlertTriangle,
+  'alert-triangle': AlertTriangle,
   '/reports': BarChart3,
   'bar-chart-3': BarChart3,
   '/staff': UserCog,
@@ -143,13 +149,17 @@ const CollapsibleSection = ({ section, onNavigate, isExpanded, onToggle }) => {
 
 const SidebarSection = ({ onNavigate }) => {
   const tenant = useTenantStore((state) => state.tenant);
+  const terminology = tenant?.terminology || {};
   const tenantName = tenant?.name ?? tenant?.slug ?? 'BarkBase';
   const tenantPlan = tenant?.plan;
+
+  // Get sidebar sections with dynamic labels based on terminology
+  const sidebarSections = useMemo(() => getSidebarSections(terminology), [terminology]);
 
   // Track expanded state for each section
   const [expandedSections, setExpandedSections] = useState(() => {
     const initial = {};
-    sidebarSections.forEach((section) => {
+    getSidebarSections({}).forEach((section) => {
       initial[section.id] = section.defaultExpanded !== false;
     });
     return initial;
