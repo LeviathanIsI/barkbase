@@ -27,7 +27,6 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  MoreHorizontal,
   ExternalLink,
   Eye,
   Edit3,
@@ -380,14 +379,6 @@ const InvoiceRow = ({ invoice, isSelected, onSelect, onClick, onStatusAction }) 
         ) : (
           <span className="text-sm text-muted">—</span>
         )}
-      </td>
-      <td className="px-3 py-3">
-        <button
-          onClick={(e) => { e.stopPropagation(); onClick(); }}
-          className="p-1.5 text-muted hover:text-text hover:bg-surface rounded opacity-0 group-hover:opacity-100 transition-all"
-        >
-          <MoreHorizontal className="h-4 w-4" />
-        </button>
       </td>
     </tr>
   );
@@ -1843,7 +1834,6 @@ const Invoices = () => {
                         )}
                       </button>
                     </th>
-                    <th className="px-3 py-3"></th>
                   </tr>
                 </thead>
                 <tbody>
