@@ -7,7 +7,7 @@ import SettingsPage from '../components/SettingsPage';
 import { useTenantStore } from '@/stores/tenant';
 import apiClient from '@/lib/apiClient';
 import { defaultLabels } from '@/lib/terminology';
-import { RotateCcw, Save, Type } from 'lucide-react';
+import { RotateCcw, Save } from 'lucide-react';
 
 const Terminology = () => {
   const tenant = useTenantStore((state) => state.tenant);
@@ -110,7 +110,6 @@ const Terminology = () => {
       <Card
         title="Navigation Labels"
         description="Customize how navigation items appear in your sidebar. Changes apply immediately after saving."
-        icon={<Type className="w-5 h-5" />}
       >
         <div className="overflow-x-auto">
           <table className="w-full">
