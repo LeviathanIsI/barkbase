@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval } from 'date-fns';
-import { useTour } from '@/contexts/TourContext';
-import { TourIconButton } from '@/components/ui/TourHelpButton';
-import { paymentsTourConfig } from '../tours';
+
+
+
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import {
   CreditCard,
@@ -1070,9 +1070,6 @@ const Payments = () => {
   const [showStripeSettings, setShowStripeSettings] = useState(false);
   const [sidebarPeriod, setSidebarPeriod] = useState('week');
 
-  // Tour integration
-  const { startTour, isTourSeen } = useTour();
-  const tourStartedRef = useRef(false);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -1091,19 +1088,6 @@ const Payments = () => {
   const { data: paymentsData, isLoading, error, refetch } = usePaymentsQuery();
   const { data: summaryData } = usePaymentSummaryQuery();
   const { data: ownersData } = useOwnersQuery();
-
-  // Auto-start tour for first-time visitors
-  useEffect(() => {
-    if (tourStartedRef.current || isLoading) return;
-    const hasSeenTour = isTourSeen(paymentsTourConfig.id);
-    if (!hasSeenTour) {
-      tourStartedRef.current = true;
-      const timer = setTimeout(() => {
-        startTour(paymentsTourConfig);
-      }, 800);
-      return () => clearTimeout(timer);
-    }
-  }, [startTour, isTourSeen, isLoading]);
 
   // Process payments data - normalize backend response
   const payments = useMemo(() => {
@@ -1320,13 +1304,6 @@ const Payments = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <div data-tour="payments-help-button">
-            <TourIconButton
-              tourConfig={paymentsTourConfig}
-              variant="ghost"
-              label="Start Page Tour"
-            />
-          </div>
           {/* Navigation Tabs */}
           <div className="flex items-center bg-surface border border-border rounded-lg p-1" data-tour="payments-tabs">
             {[

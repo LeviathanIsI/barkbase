@@ -5,9 +5,9 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useTour } from '@/contexts/TourContext';
-import { invoicesTourConfig, INVOICES_TOUR_ID, invoicesTourSteps } from '../tours';
-import { TourIconButton } from '@/components/ui/TourHelpButton';
+
+
+
 import { format, isPast, differenceInDays } from 'date-fns';
 import {
   FileText,
@@ -1234,10 +1234,6 @@ const Invoices = () => {
   const [showCreateDrawer, setShowCreateDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
 
-  // Tour integration
-  const { startTour, isTourSeen } = useTour();
-  const tourStartedRef = useRef(false);
-
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState('all');
@@ -1254,17 +1250,6 @@ const Invoices = () => {
   const { data: invoicesData, isLoading, error, refetch } = useBusinessInvoicesQuery();
   const sendEmailMutation = useSendInvoiceEmailMutation();
   const markPaidMutation = useMarkInvoicePaidMutation();
-
-  // Auto-start tour for first-time visitors
-  useEffect(() => {
-    if (!isLoading && !tourStartedRef.current && !isTourSeen(INVOICES_TOUR_ID)) {
-      tourStartedRef.current = true;
-      const timer = setTimeout(() => {
-        startTour(INVOICES_TOUR_ID, invoicesTourSteps);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, startTour, isTourSeen]);
 
   // Process invoices data from normalized response { invoices, total }
   // Normalize status to lowercase for consistent comparison (DB may return UPPERCASE)
@@ -1580,14 +1565,6 @@ const Invoices = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <div data-tour="invoices-help-button">
-            <TourIconButton
-              tourConfig={invoicesTourConfig}
-              variant="ghost"
-              icon="play"
-              label="Start Page Tour"
-            />
-          </div>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
