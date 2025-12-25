@@ -138,24 +138,51 @@ const BookingSlideoutForm = ({
   // Initialize from initialPet when provided (includes setting owner from pet)
   useEffect(() => {
     if (initialPet && !selectedOwner && !prefilledFromPet) {
-      // Get owners from nested owners array or construct from flat owner fields
-      const petOwners = initialPet.owners?.length > 0
-        ? initialPet.owners
-        : (initialPet.owner_id ? [{
-            id: initialPet.owner_id,
-            recordId: initialPet.owner_id,
-            firstName: initialPet.owner_first_name,
-            lastName: initialPet.owner_last_name,
-            email: initialPet.owner_email,
-          }] : []);
+      console.log('[BookingSlideout] initialPet data:', initialPet); // DEBUG
 
-      if (petOwners.length === 1) {
-        // Single owner: auto-select both owner and pet
-        setSelectedOwner(petOwners[0]);
-        setSelectedPets([initialPet]);
-        setPrefilledFromPet(true);
-      } else if (petOwners.length > 1) {
-        // Multiple owners: show picker, pre-select pet
+      // Try multiple possible owner locations
+      let owner = null;
+      let petOwners = [];
+
+      if (initialPet.owners && initialPet.owners.length > 0) {
+        // Has owners array
+        petOwners = initialPet.owners;
+        owner = initialPet.owners[0];
+      } else if (initialPet.owner && (initialPet.owner.id || initialPet.owner.recordId)) {
+        // Has singular owner object
+        owner = initialPet.owner;
+        petOwners = [owner];
+      } else if (initialPet.ownerId || initialPet.owner_id) {
+        // Owner ID exists but no owner object - construct from available fields
+        const ownerId = initialPet.ownerId || initialPet.owner_id;
+        owner = {
+          id: ownerId,
+          recordId: ownerId,
+          firstName: initialPet.ownerFirstName || initialPet.owner_first_name || '',
+          lastName: initialPet.ownerLastName || initialPet.owner_last_name || '',
+          email: initialPet.ownerEmail || initialPet.owner_email || '',
+          name: initialPet.ownerName || initialPet.owner_name || '',
+        };
+        petOwners = [owner];
+      }
+
+      console.log('[BookingSlideout] Extracted owner:', owner); // DEBUG
+      console.log('[BookingSlideout] Pet owners array:', petOwners); // DEBUG
+
+      if (owner && (owner.id || owner.recordId)) {
+        if (petOwners.length === 1) {
+          // Single owner: auto-select both owner and pet
+          setSelectedOwner(owner);
+          setSelectedPets([initialPet]);
+          setPrefilledFromPet(true);
+        } else if (petOwners.length > 1) {
+          // Multiple owners: show picker, pre-select pet
+          setSelectedPets([initialPet]);
+          setPrefilledFromPet(true);
+        }
+      } else {
+        // No owner found - still pre-select the pet
+        console.warn('[BookingSlideout] No owner found for pet:', initialPet.name);
         setSelectedPets([initialPet]);
         setPrefilledFromPet(true);
       }
