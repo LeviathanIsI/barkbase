@@ -68,7 +68,6 @@ import StyledSelect from '@/components/ui/StyledSelect';
 import LoadingState from '@/components/ui/LoadingState';
 import { useStaffQuery } from '../../settings/api';
 import { cn } from '@/lib/cn';
-import ShiftScheduler from '../components/ShiftScheduler';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SHARED COMPONENTS
@@ -464,48 +463,6 @@ const ScheduleTab = ({ staff }) => {
     }));
   }, [weeklyData, staff, weekDays]);
 
-  // Transform shifts for ShiftScheduler component
-  const schedulerShifts = useMemo(() => {
-    if (!weeklyData?.shifts) return [];
-    return weeklyData.shifts.map(shift => ({
-      id: shift.id || shift.recordId,
-      staffId: shift.staffId,
-      start: shift.startTime,
-      end: shift.endTime,
-      title: shift.title || shift.role || 'Shift',
-      role: shift.role,
-      status: shift.status,
-      notes: shift.notes,
-    }));
-  }, [weeklyData]);
-
-  // Handlers for ShiftScheduler
-  const handleSchedulerShiftCreate = async ({ staffId, start, end }) => {
-    setSelectedCell({ staffId, date: new Date(start) });
-    setShowAddShiftModal(true);
-  };
-
-  const handleSchedulerShiftUpdate = async (updatedShift) => {
-    try {
-      const shiftsApi = await import('@/features/schedule/api/shifts');
-      await shiftsApi.updateShift(updatedShift.id, {
-        staffId: updatedShift.staffId,
-        startTime: updatedShift.start,
-        endTime: updatedShift.end,
-      });
-      // Refetch
-      const response = await shiftsApi.getWeeklySchedule(weekStartStr);
-      setWeeklyData(response);
-    } catch (error) {
-      console.error('Failed to update shift:', error);
-      alert('Failed to update shift');
-    }
-  };
-
-  const handleSchedulerShiftClick = (shift) => {
-    // Could open a detail modal here
-    console.log('Shift clicked:', shift);
-  };
 
   const handleAddShift = (staffId, date) => {
     setSelectedCell({ staffId, date });
@@ -607,24 +564,6 @@ const ScheduleTab = ({ staff }) => {
         </div>
       </div>
 
-      {/* Shift Scheduler */}
-      {loading ? (
-        <LoadingState label="Loading schedule..." variant="skeleton" />
-      ) : (
-        <ShiftScheduler
-          staff={staff.map(s => ({
-            id: s.id || s.recordId,
-            name: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.email,
-            role: s.role || s.title || '',
-            avatar: s.avatar,
-          }))}
-          shifts={schedulerShifts}
-          selectedDate={selectedWeek}
-          onShiftCreate={handleSchedulerShiftCreate}
-          onShiftUpdate={handleSchedulerShiftUpdate}
-          onShiftClick={handleSchedulerShiftClick}
-        />
-      )}
 
       {/* Legend */}
       <div className="flex items-center gap-4 text-xs text-muted">
