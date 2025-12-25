@@ -681,6 +681,8 @@ const routes = {
   'GET /api/v1/runs/assignments': (params) => {
     const runs = getCollection('runs') || [];
     const runAssignments = getCollection('runAssignments') || [];
+    const pets = getCollection('pets') || [];
+    const owners = getCollection('owners') || [];
     const today = new Date().toISOString().split('T')[0];
 
     // Filter assignments by date range if provided
@@ -689,6 +691,21 @@ const routes = {
       const assignmentDate = a.date;
       return (!params?.startDate || assignmentDate >= params.startDate) &&
              (!params?.endDate || assignmentDate <= params.endDate);
+    });
+
+    // Transform assignments to match expected format (with assignedDate, startAt, etc.)
+    const transformedAssignments = filteredAssignments.map(a => {
+      const pet = pets.find(p => p.id === a.petId);
+      const owner = owners.find(o => o.id === a.ownerId);
+      return {
+        ...a,
+        assignedDate: a.date, // Schedule component expects assignedDate
+        startAt: `${a.date}T${a.startTime}:00`,
+        endAt: `${a.date}T${a.endTime}:00`,
+        petBreed: pet?.breed,
+        petSpecies: pet?.species,
+        ownerPhone: owner?.phone,
+      };
     });
 
     // Transform runs for the response
@@ -703,12 +720,12 @@ const routes = {
     }));
 
     return {
-      data: filteredAssignments,
-      assignments: filteredAssignments,
+      data: transformedAssignments,
+      assignments: transformedAssignments,
       runs: runsWithInfo,
       startDate: params?.startDate || today,
       endDate: params?.endDate || today,
-      total: filteredAssignments.length,
+      total: transformedAssignments.length,
     };
   },
 
