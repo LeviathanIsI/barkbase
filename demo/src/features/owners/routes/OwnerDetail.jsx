@@ -58,6 +58,26 @@ import toast from 'react-hot-toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useTenantStore } from '@/stores/tenant';
 import { queryKeys } from '@/lib/queryKeys';
+import { PageTour } from '@/components/demo/PageTour';
+import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
+
+// Tour steps for owner detail page (global steps 7-8)
+const ownerDetailTourSteps = [
+  {
+    target: '[data-tour="inline-edit-owner"]',
+    title: 'INLINE EDITING',
+    content: "Click any field - name, phone, email - and edit directly. No forms, no save buttons. Changes save automatically. Competitors make you open a modal for every edit.",
+    placement: 'right',
+    disableBeacon: true,
+  },
+  {
+    target: '[data-tour="owner-pets-section"]',
+    title: 'Pet Associations',
+    content: "All pets for this client in one card. Add new pets, check vaccination status, or jump to any pet's profile with one click. Everything connected.",
+    placement: 'left',
+    disableBeacon: true,
+  },
+];
 import { cn, formatCurrency } from '@/lib/utils';
 
 // Helper to safely format dates
@@ -89,6 +109,7 @@ const OwnerDetail = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const tenantId = useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
+  const { openSlideout } = useSlideout();
 
   const [addPetModalOpen, setAddPetModalOpen] = useState(false);
   const [deleteOwnerDialogOpen, setDeleteOwnerDialogOpen] = useState(false);
@@ -283,6 +304,7 @@ const OwnerDetail = () => {
 
   return (
     <>
+      <PageTour pageRoute={`/owners/${ownerId}`} steps={ownerDetailTourSteps} />
       <div className="h-full flex flex-col">
         {/* Header */}
         <div className="flex-shrink-0 px-6 py-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
@@ -320,7 +342,7 @@ const OwnerDetail = () => {
 
             {/* Actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              <Button variant="primary" onClick={() => navigate('/bookings?action=new')}>
+              <Button variant="primary" onClick={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId })}>
                 <Plus className="w-4 h-4 mr-2" />
                 New Booking
               </Button>
@@ -490,6 +512,7 @@ const OwnerDetail = () => {
               count={pets.length}
               onAdd={() => setAddPetModalOpen(true)}
               emptyMessage="No pets yet"
+              data-tour="owner-pets-section"
             >
               {pets.slice(0, 5).map((pet) => (
                 <AssociationItem
@@ -508,7 +531,7 @@ const OwnerDetail = () => {
               title="Bookings"
               type="booking"
               count={bookings.length}
-              onAdd={() => navigate(`/bookings?action=new&ownerId=${ownerId}`)}
+              onAdd={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId })}
               viewAllLink={`/bookings?ownerId=${ownerId}`}
               emptyMessage="No bookings yet"
             >
@@ -600,7 +623,7 @@ const OwnerDetail = () => {
                   variant="outline"
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => navigate('/bookings?action=new')}
+                  onClick={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId })}
                 >
                   <Calendar className="w-4 h-4 mr-2" />
                   New Booking
@@ -988,7 +1011,7 @@ function BookingsTab({ bookings, ownerId, navigate, onRefresh }) {
         <h3 className="text-lg font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
           All Bookings ({bookings.length})
         </h3>
-        <Button size="sm" onClick={() => navigate(`/bookings?action=new&ownerId=${ownerId}`)}>
+        <Button size="sm" onClick={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId })}>
           <Plus className="h-4 w-4 mr-2" />
           New Booking
         </Button>

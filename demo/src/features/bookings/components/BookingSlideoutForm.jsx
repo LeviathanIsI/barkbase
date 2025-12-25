@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { cn } from '@/lib/cn';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
-import { useOwnerSearchQuery } from '@/features/owners/api';
+import { useOwnerSearchQuery, useOwnerQuery } from '@/features/owners/api';
 
 const selectStyles = {
   control: (base, state) => ({
@@ -74,24 +74,15 @@ const BookingSlideoutForm = ({
   const { data: petsData } = usePetsQuery();
   const { data: servicesData } = useServicesQuery();
   const { data: initialPet } = usePetQuery(initialPetId, { enabled: !!initialPetId });
-  
+  const { data: initialOwnerData } = useOwnerQuery(initialOwnerId, { enabled: !!initialOwnerId && !initialPetId });
+
   // Mutations
   const createMutation = useCreateBookingMutation();
   const updateMutation = useUpdateBookingMutation(bookingId);
-  
+
   const owners = ownersData?.owners || ownersData || [];
   const pets = petsData?.pets || [];
   const services = servicesData?.services || servicesData || [];
-
-  // Watch dates for kennel availability query
-  const watchCheckIn = watch('checkIn');
-  const watchCheckOut = watch('checkOut');
-
-  // Fetch available kennels for selected date range
-  const { data: availableKennels = [], isLoading: kennelsLoading } = useAvailableKennels(
-    watchCheckIn,
-    watchCheckOut
-  );
   
   // Filter pets by selected owner
   // Handle both camelCase and snake_case owner IDs from API
@@ -122,8 +113,18 @@ const BookingSlideoutForm = ({
       specialRequirements: '',
     },
   });
-  
-  // Initialize from initial props when initialPet loads
+
+  // Watch dates for kennel availability query
+  const watchCheckIn = watch('checkIn');
+  const watchCheckOut = watch('checkOut');
+
+  // Fetch available kennels for selected date range
+  const { data: availableKennels = [], isLoading: kennelsLoading } = useAvailableKennels(
+    watchCheckIn,
+    watchCheckOut
+  );
+
+  // Initialize from initialPet - pre-fill owner AND pet when coming from Pet Detail page
   useEffect(() => {
     if (initialPet && !selectedOwner) {
       // Get owner from nested owners array or flat owner fields
@@ -140,8 +141,15 @@ const BookingSlideoutForm = ({
       }
       setSelectedPets([initialPet]);
     }
-  }, [initialPet]);
-  
+  }, [initialPet, selectedOwner]);
+
+  // Initialize from initialOwnerId - pre-fill owner when coming from Owner Detail page
+  useEffect(() => {
+    if (initialOwnerData && !selectedOwner && !initialPetId) {
+      setSelectedOwner(initialOwnerData);
+    }
+  }, [initialOwnerData, selectedOwner, initialPetId]);
+
   const onSubmit = async (data) => {
     if (!selectedOwner) {
       toast.error('Please select an owner');
