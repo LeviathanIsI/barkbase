@@ -1305,15 +1305,16 @@ const WeekScheduleForm = ({ staffName, defaultRole, weekDays: initialWeekDays, e
     })));
   };
 
-  // Apply to all (non-off days)
+  // Apply to all - copies first configured day's settings to ALL days
   const applyToAll = () => {
     const firstActive = schedule.find(d => !d.isOff);
     if (!firstActive) return;
     setSchedule(prev => prev.map(day => ({
       ...day,
-      startTime: day.isOff ? day.startTime : firstActive.startTime,
-      endTime: day.isOff ? day.endTime : firstActive.endTime,
-      role: day.isOff ? day.role : firstActive.role,
+      isOff: false,
+      startTime: firstActive.startTime,
+      endTime: firstActive.endTime,
+      role: firstActive.role,
     })));
   };
 
