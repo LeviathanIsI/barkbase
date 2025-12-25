@@ -1217,7 +1217,13 @@ const WEEK_TEMPLATES = [
 ];
 
 // Week Schedule Form Component
-const WeekScheduleForm = ({ staffName, defaultRole, weekDays, existingShifts, onSubmit, onCancel }) => {
+const WeekScheduleForm = ({ staffName, defaultRole, weekDays: initialWeekDays, existingShifts, onSubmit, onCancel, onWeekChange }) => {
+  const [currentWeekStart, setCurrentWeekStart] = useState(initialWeekDays[0]);
+  const weekDays = useMemo(() =>
+    Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i)),
+    [currentWeekStart]
+  );
+
   // Initialize schedule from existing shifts
   const [schedule, setSchedule] = useState(() =>
     weekDays.map((day, i) => {
@@ -1234,6 +1240,39 @@ const WeekScheduleForm = ({ staffName, defaultRole, weekDays, existingShifts, on
     })
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Update schedule when week changes
+  const handleWeekChange = (direction) => {
+    const newWeekStart = addDays(currentWeekStart, direction * 7);
+    setCurrentWeekStart(newWeekStart);
+    // Reset schedule for new week (no existing data)
+    const newWeekDays = Array.from({ length: 7 }, (_, i) => addDays(newWeekStart, i));
+    setSchedule(newWeekDays.map((day) => ({
+      date: day,
+      isOff: true,
+      startTime: '09:00',
+      endTime: '17:00',
+      role: defaultRole || 'Kennel Tech',
+      existingShiftId: null,
+    })));
+    // Notify parent if callback provided
+    if (onWeekChange) onWeekChange(newWeekStart);
+  };
+
+  const goToToday = () => {
+    const todayWeekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
+    setCurrentWeekStart(todayWeekStart);
+    const newWeekDays = Array.from({ length: 7 }, (_, i) => addDays(todayWeekStart, i));
+    setSchedule(newWeekDays.map((day) => ({
+      date: day,
+      isOff: true,
+      startTime: '09:00',
+      endTime: '17:00',
+      role: defaultRole || 'Kennel Tech',
+      existingShiftId: null,
+    })));
+    if (onWeekChange) onWeekChange(todayWeekStart);
+  };
 
   // Calculate total hours
   const totalHours = useMemo(() => {
@@ -1306,9 +1345,20 @@ const WeekScheduleForm = ({ staffName, defaultRole, weekDays, existingShifts, on
 
   return (
     <div className="space-y-6">
-      {/* Week Range */}
-      <div className="text-lg font-medium text-muted text-center">
-        {format(weekDays[0], 'MMMM d')} - {format(weekDays[6], 'MMMM d, yyyy')}
+      {/* Week Navigation */}
+      <div className="flex items-center justify-center gap-3">
+        <Button variant="outline" size="sm" onClick={() => handleWeekChange(-1)}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <span className="text-lg font-medium text-text min-w-[280px] text-center">
+          {format(weekDays[0], 'MMMM d')} - {format(weekDays[6], 'MMMM d, yyyy')}
+        </span>
+        <Button variant="outline" size="sm" onClick={() => handleWeekChange(1)}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" onClick={goToToday}>
+          Today
+        </Button>
       </div>
 
       {/* Quick Fill Options */}
