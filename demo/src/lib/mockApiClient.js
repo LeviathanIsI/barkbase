@@ -1368,31 +1368,35 @@ const routes = {
   // ---------------------------------------------------------------------------
   'GET /api/v1/messages/conversations': (params) => {
     const messages = getCollection('messages') || [];
-    // Group messages into conversations
-    const conversations = messages.reduce((acc, msg) => {
-      const existing = acc.find(c => c.id === msg.conversationId);
-      if (existing) {
-        existing.messages.push(msg);
-        existing.lastMessage = msg;
-      } else {
-        acc.push({
-          id: msg.conversationId || msg.id,
-          participant: msg.ownerName || 'Unknown',
-          participantId: msg.ownerId,
-          messages: [msg],
-          lastMessage: msg,
-          unreadCount: msg.read ? 0 : 1,
-        });
+    const owners = getCollection('owners') || [];
+    const pets = getCollection('pets') || [];
+    const conversationMap = {};
+    messages.forEach(msg => {
+      const ownerId = msg.ownerId;
+      if (!conversationMap[ownerId]) {
+        const owner = owners.find(o => o.id === ownerId);
+        const ownerPets = pets.filter(p => p.ownerId === ownerId).map(p => ({
+          recordId: p.id, name: p.name, species: p.species, breed: p.breed,
+        }));
+        conversationMap[ownerId] = {
+          id: ownerId, conversationId: ownerId,
+          owner: owner ? { firstName: owner.firstName, lastName: owner.lastName, email: owner.email, phone: owner.phone, recordId: owner.id } : null,
+          pets: ownerPets, messages: [], lastMessage: null, unreadCount: 0,
+        };
       }
-      return acc;
-    }, []);
-    return { data: conversations, conversations, total: conversations.length };
+      const formattedMsg = { ...msg, content: msg.body || msg.replyBody || msg.subject || '', senderType: msg.type === 'outbound' ? 'STAFF' : 'OWNER' };
+      conversationMap[ownerId].messages.push(formattedMsg);
+      conversationMap[ownerId].lastMessage = formattedMsg;
+      if (!msg.read && msg.type === 'inbound') conversationMap[ownerId].unreadCount++;
+    });
+    return { data: Object.values(conversationMap), conversations: Object.values(conversationMap), total: Object.keys(conversationMap).length };
   },
 
   'GET /api/v1/messages/:id': (params, id) => {
     const messages = getCollection('messages') || [];
-    const conversation = messages.filter(m => m.conversationId === id || m.id === id);
-    return { data: conversation, messages: conversation };
+    const conversationMessages = messages.filter(m => m.ownerId === id || m.conversationId === id || m.id === id)
+      .map(msg => ({ ...msg, content: msg.body || msg.replyBody || msg.subject || '', senderType: msg.type === 'outbound' ? 'STAFF' : 'OWNER' }));
+    return { data: conversationMessages, messages: conversationMessages };
   },
 
   'POST /api/v1/messages': (body) => {
