@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Scheduler, SchedulerData, ViewType, DATE_FORMAT } from 'react-big-schedule';
 import dayjs from 'dayjs';
-import 'react-big-schedule/lib/css/style.css';
+import 'react-big-schedule/dist/css/style.css';
 import { schedulerConfig, getRoleColor, getStatusColor } from './schedulerConfig';
 import './ShiftScheduler.css';
 
