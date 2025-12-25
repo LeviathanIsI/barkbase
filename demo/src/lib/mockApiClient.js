@@ -359,6 +359,94 @@ const routes = {
   },
 
   // ---------------------------------------------------------------------------
+  // SEGMENTS - /api/v1/entity/segments
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/entity/segments': (params) => {
+    const segments = getCollection('segments') || [];
+    return { data: segments, segments, items: segments, total: segments.length };
+  },
+
+  'GET /api/v1/entity/segments/:id': (params, id) => {
+    const segment = findById('segments', id);
+    if (!segment) return { error: 'Segment not found', status: 404 };
+    return segment;
+  },
+
+  'POST /api/v1/entity/segments': (body) => {
+    const id = 'segment-' + Date.now();
+    const segment = {
+      id,
+      ...body,
+      memberCount: body.memberIds?.length || 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    addToCollection('segments', segment);
+    toast.success('Segment created');
+    return segment;
+  },
+
+  'PUT /api/v1/entity/segments/:id': (body, id) => {
+    const updated = updateById('segments', id, {
+      ...body,
+      memberCount: body.memberIds?.length || body.memberCount || 0,
+      updatedAt: new Date().toISOString()
+    });
+    toast.success('Segment updated');
+    return updated;
+  },
+
+  'PATCH /api/v1/entity/segments/:id': (body, id) => {
+    const updated = updateById('segments', id, {
+      ...body,
+      updatedAt: new Date().toISOString()
+    });
+    toast.success('Segment updated');
+    return updated;
+  },
+
+  'DELETE /api/v1/entity/segments/:id': (params, id) => {
+    deleteById('segments', id);
+    toast.success('Segment deleted');
+    return { success: true };
+  },
+
+  'GET /api/v1/entity/segments/:id/members': (params, id) => {
+    const segment = findById('segments', id);
+    if (!segment) return { error: 'Segment not found', status: 404 };
+    const owners = getCollection('owners') || [];
+    const members = owners.filter(o => segment.memberIds?.includes(o.id));
+    return { data: members, members, items: members, total: members.length };
+  },
+
+  'POST /api/v1/entity/segments/:id/members': (body, id) => {
+    const segment = findById('segments', id);
+    if (!segment) return { error: 'Segment not found', status: 404 };
+    const { ownerId } = body;
+    const memberIds = [...(segment.memberIds || []), ownerId];
+    const updated = updateById('segments', id, {
+      memberIds,
+      memberCount: memberIds.length,
+      updatedAt: new Date().toISOString()
+    });
+    toast.success('Member added to segment');
+    return updated;
+  },
+
+  'DELETE /api/v1/entity/segments/:segmentId/members/:ownerId': (params, segmentId, ownerId) => {
+    const segment = findById('segments', segmentId);
+    if (!segment) return { error: 'Segment not found', status: 404 };
+    const memberIds = (segment.memberIds || []).filter(id => id !== ownerId);
+    updateById('segments', segmentId, {
+      memberIds,
+      memberCount: memberIds.length,
+      updatedAt: new Date().toISOString()
+    });
+    toast.success('Member removed from segment');
+    return { success: true };
+  },
+
+  // ---------------------------------------------------------------------------
   // BOOKINGS - /api/v1/operations/bookings
   // ---------------------------------------------------------------------------
   'GET /api/v1/operations/bookings': (params) => {

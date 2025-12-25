@@ -1,6 +1,31 @@
 const DEMO_DATA_KEY = 'barkbase_demo_data';
 
 // ============================================================================
+// DATE HELPERS - Generate dynamic dates relative to "today"
+// ============================================================================
+const today = new Date();
+const formatDate = (date) => date.toISOString().split('T')[0];
+const formatDateTime = (date) => date.toISOString();
+
+const addDays = (date, days) => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
+
+// Key dates for bookings (relative to today)
+const yesterday = addDays(today, -1);
+const twoDaysAgo = addDays(today, -2);
+const threeDaysAgo = addDays(today, -3);
+const tomorrow = addDays(today, 1);
+const in2Days = addDays(today, 2);
+const in3Days = addDays(today, 3);
+const in4Days = addDays(today, 4);
+const in5Days = addDays(today, 5);
+const in7Days = addDays(today, 7);
+const in10Days = addDays(today, 10);
+
+// ============================================================================
 // OWNERS (10 total)
 // ============================================================================
 const owners = [
@@ -497,9 +522,10 @@ const pets = [
 ];
 
 // ============================================================================
-// BOOKINGS (14 total - current week Dec 22-28, 2024)
+// BOOKINGS (14 total - dynamic dates relative to today)
 // ============================================================================
 const bookings = [
+  // CHECKED-IN: Currently in facility
   {
     id: 'booking-001-m1n2o3p4',
     petId: 'pet-001-x1y2z3a4',
@@ -507,20 +533,23 @@ const bookings = [
     petName: 'Luna',
     ownerName: 'Sarah Mitchell',
     serviceType: 'boarding',
-    status: 'checked-in',
-    checkInDate: '2024-12-22',
-    checkOutDate: '2024-12-27',
+    status: 'CHECKED_IN',
+    startDate: formatDate(twoDaysAgo),
+    endDate: formatDate(in3Days),
+    checkInDate: formatDate(twoDaysAgo),
+    checkOutDate: formatDate(in3Days),
     checkInTime: '09:00',
     checkOutTime: '17:00',
     runId: 'run-001',
-    runName: 'Run A1',
+    runName: 'A1',
     notes: 'Grain-free food provided by owner',
     specialInstructions: 'Hip dysplasia - help her in/out of run',
     totalAmount: 275.00,
     depositAmount: 50.00,
     depositPaid: true,
-    createdAt: '2024-12-15T10:00:00Z',
-    updatedAt: '2024-12-22T09:15:00Z'
+    checkedInAt: formatDateTime(twoDaysAgo),
+    createdAt: formatDateTime(addDays(today, -10)),
+    updatedAt: formatDateTime(twoDaysAgo)
   },
   {
     id: 'booking-002-n2o3p4q5',
@@ -529,20 +558,23 @@ const bookings = [
     petName: 'Max',
     ownerName: 'Sarah Mitchell',
     serviceType: 'boarding',
-    status: 'checked-in',
-    checkInDate: '2024-12-22',
-    checkOutDate: '2024-12-27',
+    status: 'CHECKED_IN',
+    startDate: formatDate(twoDaysAgo),
+    endDate: formatDate(in3Days),
+    checkInDate: formatDate(twoDaysAgo),
+    checkOutDate: formatDate(in3Days),
     checkInTime: '09:00',
     checkOutTime: '17:00',
     runId: 'run-002',
-    runName: 'Run A2',
+    runName: 'A2',
     notes: 'Checked in with Luna',
     specialInstructions: 'High energy - extra play time needed',
     totalAmount: 275.00,
     depositAmount: 50.00,
     depositPaid: true,
-    createdAt: '2024-12-15T10:00:00Z',
-    updatedAt: '2024-12-22T09:15:00Z'
+    checkedInAt: formatDateTime(twoDaysAgo),
+    createdAt: formatDateTime(addDays(today, -10)),
+    updatedAt: formatDateTime(twoDaysAgo)
   },
   {
     id: 'booking-003-o3p4q5r6',
@@ -551,20 +583,23 @@ const bookings = [
     petName: 'Bella',
     ownerName: 'Michael Chen',
     serviceType: 'daycare',
-    status: 'checked-out',
-    checkInDate: '2024-12-23',
-    checkOutDate: '2024-12-23',
+    status: 'CHECKED_IN',
+    startDate: formatDate(today),
+    endDate: formatDate(today),
+    checkInDate: formatDate(today),
+    checkOutDate: formatDate(today),
     checkInTime: '08:00',
     checkOutTime: '18:00',
     runId: null,
     runName: null,
-    notes: 'Regular Monday daycare',
+    notes: 'Regular daycare',
     specialInstructions: 'Special diet - do not feed treats',
     totalAmount: 45.00,
     depositAmount: 0,
     depositPaid: false,
-    createdAt: '2024-12-20T14:00:00Z',
-    updatedAt: '2024-12-23T18:05:00Z'
+    checkedInAt: formatDateTime(today),
+    createdAt: formatDateTime(addDays(today, -3)),
+    updatedAt: formatDateTime(today)
   },
   {
     id: 'booking-004-p4q5r6s7',
@@ -573,20 +608,23 @@ const bookings = [
     petName: 'Rocky',
     ownerName: 'David Thompson',
     serviceType: 'boarding',
-    status: 'checked-in',
-    checkInDate: '2024-12-23',
-    checkOutDate: '2024-12-28',
+    status: 'CHECKED_IN',
+    startDate: formatDate(threeDaysAgo),
+    endDate: formatDate(in2Days),
+    checkInDate: formatDate(threeDaysAgo),
+    checkOutDate: formatDate(in2Days),
     checkInTime: '10:00',
     checkOutTime: '12:00',
     runId: 'run-003',
-    runName: 'Run B1',
+    runName: 'A3',
     notes: 'VIP client - 10% discount applied',
     specialInstructions: 'Well trained, can be off-leash in play yard',
     totalAmount: 247.50,
     depositAmount: 50.00,
     depositPaid: true,
-    createdAt: '2024-12-10T09:00:00Z',
-    updatedAt: '2024-12-23T10:10:00Z'
+    checkedInAt: formatDateTime(threeDaysAgo),
+    createdAt: formatDateTime(addDays(today, -14)),
+    updatedAt: formatDateTime(threeDaysAgo)
   },
   {
     id: 'booking-005-q5r6s7t8',
@@ -595,9 +633,11 @@ const bookings = [
     petName: 'Coco',
     ownerName: 'Amanda Foster',
     serviceType: 'grooming',
-    status: 'confirmed',
-    checkInDate: '2024-12-24',
-    checkOutDate: '2024-12-24',
+    status: 'CONFIRMED',
+    startDate: formatDate(today),
+    endDate: formatDate(today),
+    checkInDate: formatDate(today),
+    checkOutDate: formatDate(today),
     checkInTime: '10:00',
     checkOutTime: '13:00',
     runId: null,
@@ -607,8 +647,8 @@ const bookings = [
     totalAmount: 85.00,
     depositAmount: 0,
     depositPaid: false,
-    createdAt: '2024-12-18T11:30:00Z',
-    updatedAt: '2024-12-18T11:30:00Z'
+    createdAt: formatDateTime(addDays(today, -7)),
+    updatedAt: formatDateTime(addDays(today, -7))
   },
   {
     id: 'booking-006-r6s7t8u9',
@@ -617,20 +657,23 @@ const bookings = [
     petName: 'Zeus',
     ownerName: 'Robert Kim',
     serviceType: 'daycare',
-    status: 'confirmed',
-    checkInDate: '2024-12-24',
-    checkOutDate: '2024-12-24',
+    status: 'CHECKED_IN',
+    startDate: formatDate(today),
+    endDate: formatDate(today),
+    checkInDate: formatDate(today),
+    checkOutDate: formatDate(today),
     checkInTime: '07:30',
     checkOutTime: '18:00',
     runId: null,
     runName: null,
-    notes: 'Christmas Eve daycare',
+    notes: 'Regular daycare client',
     specialInstructions: 'Experienced handlers only',
     totalAmount: 55.00,
     depositAmount: 0,
     depositPaid: false,
-    createdAt: '2024-12-19T16:00:00Z',
-    updatedAt: '2024-12-19T16:00:00Z'
+    checkedInAt: formatDateTime(today),
+    createdAt: formatDateTime(addDays(today, -5)),
+    updatedAt: formatDateTime(today)
   },
   {
     id: 'booking-007-s7t8u9v0',
@@ -639,20 +682,22 @@ const bookings = [
     petName: 'Milo',
     ownerName: 'Emily Watson',
     serviceType: 'boarding',
-    status: 'confirmed',
-    checkInDate: '2024-12-24',
-    checkOutDate: '2024-12-26',
+    status: 'CONFIRMED',
+    startDate: formatDate(tomorrow),
+    endDate: formatDate(in4Days),
+    checkInDate: formatDate(tomorrow),
+    checkOutDate: formatDate(in4Days),
     checkInTime: '14:00',
     checkOutTime: '11:00',
     runId: 'run-004',
-    runName: 'Run B2',
+    runName: 'A4',
     notes: 'First boarding stay - owner anxious',
     specialInstructions: 'Send photo updates twice daily',
     totalAmount: 130.00,
     depositAmount: 30.00,
     depositPaid: true,
-    createdAt: '2024-12-20T08:45:00Z',
-    updatedAt: '2024-12-20T08:45:00Z'
+    createdAt: formatDateTime(addDays(today, -4)),
+    updatedAt: formatDateTime(addDays(today, -4))
   },
   {
     id: 'booking-008-t8u9v0w1',
@@ -661,20 +706,22 @@ const bookings = [
     petName: 'Sadie',
     ownerName: 'James OBrien',
     serviceType: 'boarding',
-    status: 'pending',
-    checkInDate: '2024-12-26',
-    checkOutDate: '2024-12-31',
+    status: 'PENDING',
+    startDate: formatDate(in3Days),
+    endDate: formatDate(in7Days),
+    checkInDate: formatDate(in3Days),
+    checkOutDate: formatDate(in7Days),
     checkInTime: '09:00',
     checkOutTime: '17:00',
     runId: 'run-005',
-    runName: 'Run C1',
-    notes: 'New Years trip - awaiting vaccination update',
+    runName: 'A5',
+    notes: 'Vacation trip - awaiting vaccination update',
     specialInstructions: 'Needs mental stimulation toys',
     totalAmount: 275.00,
     depositAmount: 50.00,
     depositPaid: false,
-    createdAt: '2024-12-21T13:00:00Z',
-    updatedAt: '2024-12-21T13:00:00Z'
+    createdAt: formatDateTime(addDays(today, -2)),
+    updatedAt: formatDateTime(addDays(today, -2))
   },
   {
     id: 'booking-009-u9v0w1x2',
@@ -683,20 +730,22 @@ const bookings = [
     petName: 'Tucker',
     ownerName: 'James OBrien',
     serviceType: 'boarding',
-    status: 'pending',
-    checkInDate: '2024-12-26',
-    checkOutDate: '2024-12-31',
+    status: 'PENDING',
+    startDate: formatDate(in3Days),
+    endDate: formatDate(in7Days),
+    checkInDate: formatDate(in3Days),
+    checkOutDate: formatDate(in7Days),
     checkInTime: '09:00',
     checkOutTime: '17:00',
     runId: 'run-006',
-    runName: 'Run C2',
+    runName: 'A6',
     notes: 'Boarding with Sadie - same owner',
     specialInstructions: 'Very smart - puzzle feeders recommended',
     totalAmount: 275.00,
     depositAmount: 50.00,
     depositPaid: false,
-    createdAt: '2024-12-21T13:00:00Z',
-    updatedAt: '2024-12-21T13:00:00Z'
+    createdAt: formatDateTime(addDays(today, -2)),
+    updatedAt: formatDateTime(addDays(today, -2))
   },
   {
     id: 'booking-010-v0w1x2y3',
@@ -705,9 +754,11 @@ const bookings = [
     petName: 'Rosie',
     ownerName: 'Maria Santos',
     serviceType: 'grooming',
-    status: 'checked-out',
-    checkInDate: '2024-12-22',
-    checkOutDate: '2024-12-22',
+    status: 'CHECKED_OUT',
+    startDate: formatDate(yesterday),
+    endDate: formatDate(yesterday),
+    checkInDate: formatDate(yesterday),
+    checkOutDate: formatDate(yesterday),
     checkInTime: '08:00',
     checkOutTime: '10:30',
     runId: null,
@@ -717,8 +768,10 @@ const bookings = [
     totalAmount: 45.00,
     depositAmount: 0,
     depositPaid: false,
-    createdAt: '2024-12-19T07:00:00Z',
-    updatedAt: '2024-12-22T10:35:00Z'
+    checkedInAt: formatDateTime(yesterday),
+    checkedOutAt: formatDateTime(yesterday),
+    createdAt: formatDateTime(addDays(today, -5)),
+    updatedAt: formatDateTime(yesterday)
   },
   {
     id: 'booking-011-w1x2y3z4',
@@ -727,20 +780,22 @@ const bookings = [
     petName: 'Charlie',
     ownerName: 'Jennifer Rodriguez',
     serviceType: 'daycare',
-    status: 'confirmed',
-    checkInDate: '2024-12-26',
-    checkOutDate: '2024-12-26',
+    status: 'CONFIRMED',
+    startDate: formatDate(tomorrow),
+    endDate: formatDate(tomorrow),
+    checkInDate: formatDate(tomorrow),
+    checkOutDate: formatDate(tomorrow),
     checkInTime: '08:00',
     checkOutTime: '17:00',
     runId: null,
     runName: null,
-    notes: 'Post-holiday daycare',
+    notes: 'Regular daycare',
     specialInstructions: 'No treats - weight management',
     totalAmount: 45.00,
     depositAmount: 0,
     depositPaid: false,
-    createdAt: '2024-12-22T10:00:00Z',
-    updatedAt: '2024-12-22T10:00:00Z'
+    createdAt: formatDateTime(addDays(today, -3)),
+    updatedAt: formatDateTime(addDays(today, -3))
   },
   {
     id: 'booking-012-x2y3z4a5',
@@ -749,9 +804,11 @@ const bookings = [
     petName: 'Daisy',
     ownerName: 'Jennifer Rodriguez',
     serviceType: 'grooming',
-    status: 'confirmed',
-    checkInDate: '2024-12-27',
-    checkOutDate: '2024-12-27',
+    status: 'CONFIRMED',
+    startDate: formatDate(in2Days),
+    endDate: formatDate(in2Days),
+    checkInDate: formatDate(in2Days),
+    checkOutDate: formatDate(in2Days),
     checkInTime: '11:00',
     checkOutTime: '14:00',
     runId: null,
@@ -761,8 +818,8 @@ const bookings = [
     totalAmount: 75.00,
     depositAmount: 0,
     depositPaid: false,
-    createdAt: '2024-12-20T15:30:00Z',
-    updatedAt: '2024-12-20T15:30:00Z'
+    createdAt: formatDateTime(addDays(today, -5)),
+    updatedAt: formatDateTime(addDays(today, -5))
   },
   {
     id: 'booking-013-y3z4a5b6',
@@ -771,9 +828,11 @@ const bookings = [
     petName: 'Buddy',
     ownerName: 'Amanda Foster',
     serviceType: 'daycare',
-    status: 'confirmed',
-    checkInDate: '2024-12-27',
-    checkOutDate: '2024-12-27',
+    status: 'CHECKED_OUT',
+    startDate: formatDate(yesterday),
+    endDate: formatDate(yesterday),
+    checkInDate: formatDate(yesterday),
+    checkOutDate: formatDate(yesterday),
     checkInTime: '09:00',
     checkOutTime: '16:00',
     runId: null,
@@ -783,8 +842,10 @@ const bookings = [
     totalAmount: 40.00,
     depositAmount: 0,
     depositPaid: false,
-    createdAt: '2024-12-23T09:00:00Z',
-    updatedAt: '2024-12-23T09:00:00Z'
+    checkedInAt: formatDateTime(yesterday),
+    checkedOutAt: formatDateTime(yesterday),
+    createdAt: formatDateTime(addDays(today, -2)),
+    updatedAt: formatDateTime(yesterday)
   },
   {
     id: 'booking-014-z4a5b6c7',
@@ -793,20 +854,22 @@ const bookings = [
     petName: 'Oscar',
     ownerName: 'Maria Santos',
     serviceType: 'boarding',
-    status: 'confirmed',
-    checkInDate: '2024-12-28',
-    checkOutDate: '2025-01-02',
+    status: 'CONFIRMED',
+    startDate: formatDate(in5Days),
+    endDate: formatDate(in10Days),
+    checkInDate: formatDate(in5Days),
+    checkOutDate: formatDate(in10Days),
     checkInTime: '07:00',
     checkOutTime: '18:00',
     runId: 'run-007',
-    runName: 'Run D1',
-    notes: 'New Years boarding',
+    runName: 'B1',
+    notes: 'Extended boarding',
     specialInstructions: 'Use ramp - no jumping due to back issues',
     totalAmount: 275.00,
     depositAmount: 50.00,
     depositPaid: true,
-    createdAt: '2024-12-18T06:30:00Z',
-    updatedAt: '2024-12-18T06:30:00Z'
+    createdAt: formatDateTime(addDays(today, -8)),
+    updatedAt: formatDateTime(addDays(today, -8))
   }
 ];
 
@@ -3445,6 +3508,125 @@ const tenantSettings = {
 };
 
 // ============================================================================
+// CUSTOMER SEGMENTS
+// ============================================================================
+const segments = [
+  {
+    id: 'segment-001-vip',
+    name: 'VIP Clients',
+    description: 'High-value customers with premium memberships or frequent visits',
+    color: '#8B5CF6',
+    icon: 'crown',
+    criteria: {
+      type: 'and',
+      conditions: [
+        { field: 'totalSpend', operator: 'greaterThan', value: 1000 },
+        { field: 'status', operator: 'equals', value: 'active' }
+      ]
+    },
+    memberCount: 4,
+    memberIds: ['owner-004-d4e5f6g7', 'owner-001-a1b2c3d4', 'owner-005-e5f6g7h8', 'owner-009-i9j0k1l2'],
+    isSystem: false,
+    createdAt: formatDateTime(addDays(today, -90)),
+    updatedAt: formatDateTime(addDays(today, -5))
+  },
+  {
+    id: 'segment-002-new',
+    name: 'New Customers',
+    description: 'Customers who joined in the last 30 days',
+    color: '#10B981',
+    icon: 'sparkles',
+    criteria: {
+      type: 'and',
+      conditions: [
+        { field: 'createdAt', operator: 'within', value: 30, unit: 'days' }
+      ]
+    },
+    memberCount: 2,
+    memberIds: ['owner-007-g7h8i9j0', 'owner-010-j0k1l2m3'],
+    isSystem: true,
+    createdAt: formatDateTime(addDays(today, -180)),
+    updatedAt: formatDateTime(addDays(today, -1))
+  },
+  {
+    id: 'segment-003-boarding',
+    name: 'Frequent Boarders',
+    description: 'Customers with 3+ boarding stays in the past 6 months',
+    color: '#3B82F6',
+    icon: 'home',
+    criteria: {
+      type: 'and',
+      conditions: [
+        { field: 'bookingCount', operator: 'greaterThan', value: 2 },
+        { field: 'serviceType', operator: 'includes', value: 'boarding' }
+      ]
+    },
+    memberCount: 5,
+    memberIds: ['owner-001-a1b2c3d4', 'owner-004-d4e5f6g7', 'owner-008-h8i9j0k1', 'owner-009-i9j0k1l2', 'owner-006-f6g7h8i9'],
+    isSystem: false,
+    createdAt: formatDateTime(addDays(today, -60)),
+    updatedAt: formatDateTime(addDays(today, -3))
+  },
+  {
+    id: 'segment-004-daycare',
+    name: 'Daycare Regulars',
+    description: 'Weekly daycare customers',
+    color: '#F59E0B',
+    icon: 'sun',
+    criteria: {
+      type: 'and',
+      conditions: [
+        { field: 'serviceType', operator: 'includes', value: 'daycare' },
+        { field: 'bookingFrequency', operator: 'greaterThan', value: 4, period: 'month' }
+      ]
+    },
+    memberCount: 3,
+    memberIds: ['owner-002-b2c3d4e5', 'owner-003-c3d4e5f6', 'owner-006-f6g7h8i9'],
+    isSystem: false,
+    createdAt: formatDateTime(addDays(today, -45)),
+    updatedAt: formatDateTime(addDays(today, -2))
+  },
+  {
+    id: 'segment-005-inactive',
+    name: 'At Risk',
+    description: 'Customers who have not booked in 60+ days',
+    color: '#EF4444',
+    icon: 'alert-triangle',
+    criteria: {
+      type: 'and',
+      conditions: [
+        { field: 'lastBookingDate', operator: 'olderThan', value: 60, unit: 'days' },
+        { field: 'status', operator: 'equals', value: 'active' }
+      ]
+    },
+    memberCount: 1,
+    memberIds: ['owner-010-j0k1l2m3'],
+    isSystem: true,
+    createdAt: formatDateTime(addDays(today, -180)),
+    updatedAt: formatDateTime(addDays(today, -1))
+  },
+  {
+    id: 'segment-006-grooming',
+    name: 'Grooming Clients',
+    description: 'Regular grooming service customers',
+    color: '#EC4899',
+    icon: 'scissors',
+    criteria: {
+      type: 'and',
+      conditions: [
+        { field: 'serviceType', operator: 'includes', value: 'grooming' },
+        { field: 'bookingCount', operator: 'greaterThan', value: 1 }
+      ]
+    },
+    memberCount: 4,
+    memberIds: ['owner-003-c3d4e5f6', 'owner-005-e5f6g7h8', 'owner-009-i9j0k1l2', 'owner-002-b2c3d4e5'],
+    isSystem: false,
+    createdAt: formatDateTime(addDays(today, -30)),
+    updatedAt: formatDateTime(addDays(today, -7))
+  }
+];
+
+// ============================================================================
 // EXPORT FUNCTIONS
 // ============================================================================
 export function seedDemoData() {
@@ -3455,7 +3637,7 @@ export function seedDemoData() {
   const data = {
     owners, pets, bookings, vaccinations, services, serviceAddons, staff,
     runs, runSchedules, feedingSchedules, medications, invoices, payments,
-    incidents, messages, activities, dashboardStats, tenantSettings
+    incidents, messages, activities, dashboardStats, tenantSettings, segments
   };
   sessionStorage.setItem(DEMO_DATA_KEY, JSON.stringify(data));
 }
