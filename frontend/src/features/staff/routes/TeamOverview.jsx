@@ -425,6 +425,7 @@ const ScheduleTab = ({ staff }) => {
   const [draggedShift, setDraggedShift] = useState(null);
   const [dragOverCell, setDragOverCell] = useState(null);
   const [editingShift, setEditingShift] = useState(null);
+  const [roleFilter, setRoleFilter] = useState('all');
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(selectedWeek, i));
   const weekStartStr = format(weekDays[0], 'yyyy-MM-dd');
@@ -490,17 +491,29 @@ const ScheduleTab = ({ staff }) => {
     }));
   }, [weeklyData, staff, weekDays]);
 
-  // Calculate coverage for each day
+  // Filter shifts by role
+  const filteredShifts = useMemo(() => {
+    if (roleFilter === 'all') return shifts;
+    return shifts.filter(s => s.role === roleFilter);
+  }, [shifts, roleFilter]);
+
+  // Calculate coverage for each day (minimum needed = 2 staff for adequate coverage)
   const coverage = useMemo(() => {
+    const minNeeded = Math.max(2, Math.ceil(shifts.length * 0.5)); // At least 50% or 2 staff
     return weekDays.map((day, dayIndex) => {
       const shiftsOnDay = shifts.filter(s => s.shifts[dayIndex]?.start).length;
-      const totalStaff = shifts.length;
-      const ratio = totalStaff > 0 ? shiftsOnDay / totalStaff : 0;
-      // Coverage thresholds: red < 30%, yellow 30-60%, green > 60%
+      const ratio = minNeeded > 0 ? shiftsOnDay / minNeeded : 0;
+      // Coverage thresholds based on meeting minimum requirements
       let status = 'red';
-      if (ratio >= 0.6) status = 'green';
-      else if (ratio >= 0.3) status = 'yellow';
-      return { count: shiftsOnDay, total: totalStaff, ratio, status };
+      if (ratio >= 1) status = 'green';
+      else if (ratio >= 0.5) status = 'yellow';
+      return {
+        count: shiftsOnDay,
+        needed: minNeeded,
+        ratio,
+        status,
+        dayName: format(day, 'EEEE'),
+      };
     });
   }, [shifts, weekDays]);
 
@@ -527,7 +540,7 @@ const ScheduleTab = ({ staff }) => {
     setShowAddShiftModal(true);
   };
 
-  const handleCreateShift = async (data) => {
+  const handleCreateShift = async (data, addAnother = false) => {
     try {
       const shiftsApi = await import('@/features/schedule/api/shifts');
       await shiftsApi.createShift({
@@ -537,10 +550,13 @@ const ScheduleTab = ({ staff }) => {
         role: data.role,
         notes: data.notes,
       });
-      setShowAddShiftModal(false);
       // Refetch
       const response = await shiftsApi.getWeeklySchedule(weekStartStr);
       setWeeklyData(response);
+      // Only close modal if not adding another
+      if (!addAnother) {
+        setShowAddShiftModal(false);
+      }
     } catch (error) {
       console.error('Failed to create shift:', error);
       alert('Failed to create shift');
@@ -679,7 +695,19 @@ const ScheduleTab = ({ staff }) => {
             Today
           </Button>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          {/* Role Filter */}
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="h-8 px-2 text-xs bg-surface border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
+          >
+            <option value="all">All Roles</option>
+            <option value="Kennel Tech">Kennel Tech</option>
+            <option value="Groomer">Groomer</option>
+            <option value="Manager">Manager</option>
+            <option value="Trainer">Trainer</option>
+          </select>
           <Button variant="outline" size="sm" onClick={handleCloneWeek} disabled={isCloning}>
             {isCloning ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
             Clone Week
@@ -696,18 +724,35 @@ const ScheduleTab = ({ staff }) => {
 
       {/* Coverage Bar */}
       <div className="bg-surface rounded-lg border border-border p-3">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs font-medium text-muted">Coverage</span>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-medium text-muted">Daily Coverage</span>
+          <div className="flex items-center gap-3 text-[10px] text-muted">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Fully Staffed</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Minimal</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Understaffed</span>
+          </div>
         </div>
         <div className="grid grid-cols-8 gap-1">
           <div className="col-span-1" /> {/* Empty for staff column alignment */}
           {coverage.map((cov, i) => (
-            <div key={i} className="flex flex-col items-center">
-              <div className={`h-2 w-full rounded-full ${
+            <div
+              key={i}
+              className="flex flex-col items-center group relative cursor-help"
+              title={`${cov.dayName}: ${cov.count} staff scheduled / ${cov.needed} needed`}
+            >
+              <div className={`h-2.5 w-full rounded-full transition-all ${
                 cov.status === 'green' ? 'bg-green-500' :
                 cov.status === 'yellow' ? 'bg-amber-500' : 'bg-red-500'
-              }`} />
-              <span className="text-[10px] text-muted mt-1">{cov.count}/{cov.total}</span>
+              } group-hover:brightness-110`} />
+              <span className="text-[10px] text-muted mt-1">
+                {cov.count} / {cov.needed}
+              </span>
+              {/* Tooltip */}
+              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                <div className="bg-gray-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap">
+                  {cov.dayName}: {cov.count} staff / {cov.needed} needed
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -767,7 +812,7 @@ const ScheduleTab = ({ staff }) => {
           </div>
 
           {/* Grid Rows */}
-          {shifts.map((staffRow) => {
+          {filteredShifts.map((staffRow) => {
             const weeklyHours = getStaffWeeklyHours(staffRow.shifts);
             const hasOvertime = weeklyHours > 40;
 
@@ -862,14 +907,27 @@ const ScheduleTab = ({ staff }) => {
           editingShift={editingShift}
           onSubmit={handleCreateShift}
           onCancel={() => setShowAddShiftModal(false)}
+          existingWeeklyHours={
+            selectedCell?.staffId
+              ? getStaffWeeklyHours(shifts.find(s => s.staffId === selectedCell.staffId)?.shifts || [])
+              : 0
+          }
         />
       </Modal>
     </div>
   );
 };
 
+// Shift template presets for quick-select
+const SHIFT_PRESETS = [
+  { id: 'morning', label: 'Morning', start: '06:00', end: '14:00', role: 'Kennel Tech' },
+  { id: 'day', label: 'Day', start: '09:00', end: '17:00', role: 'Kennel Tech' },
+  { id: 'evening', label: 'Evening', start: '14:00', end: '22:00', role: 'Kennel Tech' },
+  { id: 'weekend', label: 'Weekend', start: '07:00', end: '19:00', role: 'Kennel Tech' },
+];
+
 // Add/Edit Shift Form Component
-const AddShiftForm = ({ staff, selectedStaffId, selectedDate, editingShift, onSubmit, onCancel }) => {
+const AddShiftForm = ({ staff, selectedStaffId, selectedDate, editingShift, onSubmit, onCancel, existingWeeklyHours = 0 }) => {
   const isEditing = !!editingShift;
   const [formData, setFormData] = useState({
     staffId: selectedStaffId || '',
@@ -881,8 +939,23 @@ const AddShiftForm = ({ staff, selectedStaffId, selectedDate, editingShift, onSu
     shiftId: editingShift?.shiftId || null,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState(null);
 
-  const handleSubmit = async (e) => {
+  // Calculate shift duration
+  const shiftDuration = useMemo(() => {
+    if (!formData.startTime || !formData.endTime) return 0;
+    const [startH, startM] = formData.startTime.split(':').map(Number);
+    const [endH, endM] = formData.endTime.split(':').map(Number);
+    let hours = (endH + endM / 60) - (startH + startM / 60);
+    if (hours < 0) hours += 24; // Handle overnight shifts
+    return hours;
+  }, [formData.startTime, formData.endTime]);
+
+  // Check for warnings
+  const isLongShift = shiftDuration > 10;
+  const wouldCauseOvertime = existingWeeklyHours + shiftDuration > 40;
+
+  const handleSubmit = async (e, addAnother = false) => {
     e.preventDefault();
     if (!formData.staffId || !formData.startTime || !formData.endTime) {
       alert('Please fill in all required fields');
@@ -890,10 +963,33 @@ const AddShiftForm = ({ staff, selectedStaffId, selectedDate, editingShift, onSu
     }
     setIsSubmitting(true);
     try {
-      await onSubmit(formData);
+      await onSubmit(formData, addAnother);
+      if (addAnother) {
+        // Reset form for next entry but keep staff and date
+        setFormData(prev => ({
+          ...prev,
+          startTime: '09:00',
+          endTime: '17:00',
+          role: '',
+          notes: '',
+          shiftId: null,
+        }));
+        setSelectedPreset(null);
+      }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Apply preset to form
+  const applyPreset = (preset) => {
+    setSelectedPreset(preset.id);
+    setFormData(prev => ({
+      ...prev,
+      startTime: preset.start,
+      endTime: preset.end,
+      role: preset.role,
+    }));
   };
 
   // Role dropdown options
@@ -905,7 +1001,30 @@ const AddShiftForm = ({ staff, selectedStaffId, selectedDate, editingShift, onSu
   ];
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={(e) => handleSubmit(e, false)} className="space-y-4">
+      {/* Quick Templates */}
+      {!isEditing && (
+        <div>
+          <label className="block text-xs font-medium text-muted mb-2">Quick Select</label>
+          <div className="flex gap-2 flex-wrap">
+            {SHIFT_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => applyPreset(preset)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-all
+                  ${selectedPreset === preset.id
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-surface-alt border-border text-text hover:border-primary/50'
+                  }`}
+              >
+                {preset.label} ({formatShiftTime(preset.start)}-{formatShiftTime(preset.end)})
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
         <label className="block text-sm font-medium text-text mb-1">Staff Member *</label>
         <StyledSelect
@@ -929,32 +1048,55 @@ const AddShiftForm = ({ staff, selectedStaffId, selectedDate, editingShift, onSu
           disabled={isEditing}
         />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-text mb-1">Start Time *</label>
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-sm font-medium text-text">Shift Time *</label>
+          {shiftDuration > 0 && (
+            <span className={`text-xs font-medium ${isLongShift ? 'text-amber-500' : 'text-muted'}`}>
+              {shiftDuration.toFixed(1)} hours
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           <input
             type="time"
             value={formData.startTime}
-            onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+            onChange={(e) => { setFormData({ ...formData, startTime: e.target.value }); setSelectedPreset(null); }}
             className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-text mb-1">End Time *</label>
           <input
             type="time"
             value={formData.endTime}
-            onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+            onChange={(e) => { setFormData({ ...formData, endTime: e.target.value }); setSelectedPreset(null); }}
             className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
         </div>
       </div>
+
+      {/* Warnings */}
+      {(isLongShift || wouldCauseOvertime) && (
+        <div className="space-y-1">
+          {isLongShift && (
+            <div className="flex items-center gap-2 text-xs text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg">
+              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+              <span>Long shift: {shiftDuration.toFixed(1)} hours exceeds 10 hour guideline</span>
+            </div>
+          )}
+          {wouldCauseOvertime && (
+            <div className="flex items-center gap-2 text-xs text-amber-500 bg-amber-500/10 px-3 py-2 rounded-lg">
+              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+              <span>Overtime: This would bring weekly total to {(existingWeeklyHours + shiftDuration).toFixed(1)}h (over 40h)</span>
+            </div>
+          )}
+        </div>
+      )}
+
       <div>
         <label className="block text-sm font-medium text-text mb-1">Role</label>
         <StyledSelect
           options={roleOptions}
           value={formData.role}
-          onChange={(opt) => setFormData({ ...formData, role: opt?.value || '' })}
+          onChange={(opt) => { setFormData({ ...formData, role: opt?.value || '' }); setSelectedPreset(null); }}
           placeholder="Select role..."
           isClearable
         />
@@ -970,9 +1112,19 @@ const AddShiftForm = ({ staff, selectedStaffId, selectedDate, editingShift, onSu
         />
       </div>
       <div className="flex gap-2 pt-2">
-        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
+        {!isEditing && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={(e) => handleSubmit(e, true)}
+            disabled={isSubmitting}
+          >
+            Save & Add Another
+          </Button>
+        )}
         <Button type="submit" className="flex-1" disabled={isSubmitting}>
           {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : isEditing ? <Check className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
           {isEditing ? 'Update Shift' : 'Add Shift'}
