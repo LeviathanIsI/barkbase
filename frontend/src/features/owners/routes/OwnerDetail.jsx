@@ -58,6 +58,7 @@ import toast from 'react-hot-toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useTenantStore } from '@/stores/tenant';
 import { queryKeys } from '@/lib/queryKeys';
+import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import { cn, formatCurrency } from '@/lib/utils';
 
 // Helper to safely format dates
@@ -105,6 +106,7 @@ const OwnerDetail = () => {
   const addPetMutation = useAddPetToOwnerMutation(ownerId);
   const removePetMutation = useRemovePetFromOwnerMutation(ownerId);
   const createPetMutation = useCreatePetMutation();
+  const { openSlideout } = useSlideout();
 
   // Fetch association labels for owner-to-pet associations
   const associationsQuery = useAssociationsForObjectPairQuery('owner', 'pet');
@@ -320,7 +322,7 @@ const OwnerDetail = () => {
 
             {/* Actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              <Button variant="primary" onClick={() => navigate('/bookings?action=new')}>
+              <Button variant="primary" onClick={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId })}>
                 <Plus className="w-4 h-4 mr-2" />
                 New Booking
               </Button>
@@ -467,7 +469,7 @@ const OwnerDetail = () => {
                 </TabsContent>
 
                 <TabsContent value="bookings" className="mt-0">
-                  <BookingsTab bookings={bookings} ownerId={ownerId} navigate={navigate} onRefresh={() => ownerQuery.refetch()} />
+                  <BookingsTab bookings={bookings} ownerId={ownerId} navigate={navigate} openSlideout={openSlideout} onRefresh={() => ownerQuery.refetch()} />
                 </TabsContent>
 
                 <TabsContent value="billing" className="mt-0">
@@ -507,7 +509,7 @@ const OwnerDetail = () => {
               title="Bookings"
               type="booking"
               count={bookings.length}
-              onAdd={() => navigate(`/bookings?action=new&ownerId=${ownerId}`)}
+              onAdd={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId })}
               viewAllLink={`/bookings?ownerId=${ownerId}`}
               emptyMessage="No bookings yet"
             >
@@ -599,7 +601,7 @@ const OwnerDetail = () => {
                   variant="outline"
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => navigate('/bookings?action=new')}
+                  onClick={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId })}
                 >
                   <Calendar className="w-4 h-4 mr-2" />
                   New Booking
@@ -890,7 +892,7 @@ function ActivityTab({ owner, bookings }) {
   );
 }
 
-function BookingsTab({ bookings, ownerId, navigate, onRefresh }) {
+function BookingsTab({ bookings, ownerId, navigate, openSlideout, onRefresh }) {
   const checkInMutation = useBookingCheckInMutation();
   const checkOutMutation = useBookingCheckOutMutation();
   const [actionDropdownOpen, setActionDropdownOpen] = useState(null);
@@ -987,7 +989,7 @@ function BookingsTab({ bookings, ownerId, navigate, onRefresh }) {
         <h3 className="text-lg font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
           All Bookings ({bookings.length})
         </h3>
-        <Button size="sm" onClick={() => navigate(`/bookings?action=new&ownerId=${ownerId}`)}>
+        <Button size="sm" onClick={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId })}>
           <Plus className="h-4 w-4 mr-2" />
           New Booking
         </Button>

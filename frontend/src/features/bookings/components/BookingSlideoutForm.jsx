@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { cn } from '@/lib/cn';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
-import { useOwnerSearchQuery } from '@/features/owners/api';
+import { useOwnerSearchQuery, useOwnerQuery } from '@/features/owners/api';
 
 const selectStyles = {
   control: (base, state) => ({
@@ -75,6 +75,7 @@ const BookingSlideoutForm = ({
   const { data: servicesData } = useServicesQuery();
   const { data: kennelsData } = useKennels();
   const { data: initialPet } = usePetQuery(initialPetId, { enabled: !!initialPetId });
+  const { data: initialOwner } = useOwnerQuery(initialOwnerId, { enabled: !!initialOwnerId });
   
   // Mutations
   const createMutation = useCreateBookingMutation();
@@ -126,7 +127,14 @@ const BookingSlideoutForm = ({
     },
   });
   
-  // Initialize from initial props when initialPet loads
+  // Initialize from initialOwner when provided (without pet context)
+  useEffect(() => {
+    if (initialOwner && !selectedOwner && !initialPetId) {
+      setSelectedOwner(initialOwner);
+    }
+  }, [initialOwner, initialPetId]);
+
+  // Initialize from initialPet when provided (includes setting owner from pet)
   useEffect(() => {
     if (initialPet && !selectedOwner) {
       // Get owner from nested owners array or flat owner fields
