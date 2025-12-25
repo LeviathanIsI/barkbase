@@ -29,6 +29,7 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
+  AlertCircle,
   Mail,
   Phone,
   MapPin,
@@ -394,6 +395,33 @@ const OverviewTab = ({ staff, stats, onViewProfile, onAddStaff }) => {
 // SCHEDULE TAB
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Shift templates for quick-add
+const SHIFT_TEMPLATES = [
+  { id: 'morning-kennel', label: 'Morning Kennel', start: '06:00', end: '14:00', role: 'Kennel Tech' },
+  { id: 'evening-kennel', label: 'Evening Kennel', start: '14:00', end: '22:00', role: 'Kennel Tech' },
+  { id: 'day-groomer', label: 'Day Groomer', start: '09:00', end: '17:00', role: 'Groomer' },
+  { id: 'manager-shift', label: 'Manager', start: '08:00', end: '16:00', role: 'Manager' },
+];
+
+// Role colors for shift blocks
+const ROLE_COLORS = {
+  'Kennel Tech': 'bg-blue-500/90 border-blue-400',
+  'Groomer': 'bg-purple-500/90 border-purple-400',
+  'Manager': 'bg-orange-500/90 border-orange-400',
+  'Trainer': 'bg-emerald-500/90 border-emerald-400',
+  'default': 'bg-slate-500/90 border-slate-400',
+};
+
+// Format time for display (24h to 12h format)
+const formatShiftTime = (time) => {
+  if (!time) return '';
+  const [hours, minutes] = time.split(':');
+  const h = parseInt(hours, 10);
+  const suffix = h >= 12 ? 'p' : 'a';
+  const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return minutes === '00' ? `${displayHour}${suffix}` : `${displayHour}:${minutes}${suffix}`;
+};
+
 const ScheduleTab = ({ staff }) => {
   const [selectedWeek, setSelectedWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
   const [weeklyData, setWeeklyData] = useState(null);
@@ -402,6 +430,9 @@ const ScheduleTab = ({ staff }) => {
   const [selectedCell, setSelectedCell] = useState(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isCloning, setIsCloning] = useState(false);
+  const [draggedShift, setDraggedShift] = useState(null);
+  const [dragOverCell, setDragOverCell] = useState(null);
+  const [editingShift, setEditingShift] = useState(null);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(selectedWeek, i));
   const weekStartStr = format(weekDays[0], 'yyyy-MM-dd');
@@ -433,11 +464,12 @@ const ScheduleTab = ({ staff }) => {
       return weeklyData.staff.map((s) => ({
         staffId: s.id,
         staffName: s.name,
+        role: s.role || 'Kennel Tech',
         shifts: weekDays.map((day) => {
           const dayIndex = day.getDay();
           const dayShifts = s.shifts?.[dayIndex] || [];
           if (dayShifts.length === 0) {
-            return { date: day, start: null, end: null, type: 'off' };
+            return { date: day, start: null, end: null, type: 'off', role: null };
           }
           const shift = dayShifts[0]; // Take first shift
           return {
@@ -446,6 +478,7 @@ const ScheduleTab = ({ staff }) => {
             end: shift.endTime ? format(new Date(shift.endTime), 'HH:mm') : null,
             type: shift.status === 'CONFIRMED' ? 'confirmed' : 'scheduled',
             shiftId: shift.id,
+            role: shift.role || s.role || 'Kennel Tech',
           };
         }),
       }));
@@ -454,18 +487,51 @@ const ScheduleTab = ({ staff }) => {
     return staff.slice(0, 10).map((s) => ({
       staffId: s.id || s.recordId,
       staffName: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.email,
+      role: s.role || s.position || 'Kennel Tech',
       shifts: weekDays.map((day) => ({
         date: day,
         start: null,
         end: null,
         type: 'off',
+        role: null,
       })),
     }));
   }, [weeklyData, staff, weekDays]);
 
+  // Calculate coverage for each day
+  const coverage = useMemo(() => {
+    return weekDays.map((day, dayIndex) => {
+      const shiftsOnDay = shifts.filter(s => s.shifts[dayIndex]?.start).length;
+      const totalStaff = shifts.length;
+      const ratio = totalStaff > 0 ? shiftsOnDay / totalStaff : 0;
+      // Coverage thresholds: red < 30%, yellow 30-60%, green > 60%
+      let status = 'red';
+      if (ratio >= 0.6) status = 'green';
+      else if (ratio >= 0.3) status = 'yellow';
+      return { count: shiftsOnDay, total: totalStaff, ratio, status };
+    });
+  }, [shifts, weekDays]);
+
+  // Check for conflicts (overtime warning)
+  const getStaffWeeklyHours = (staffShifts) => {
+    return staffShifts.reduce((total, shift) => {
+      if (!shift.start || !shift.end) return total;
+      const [startH, startM] = shift.start.split(':').map(Number);
+      const [endH, endM] = shift.end.split(':').map(Number);
+      const hours = (endH + endM / 60) - (startH + startM / 60);
+      return total + (hours > 0 ? hours : 0);
+    }, 0);
+  };
 
   const handleAddShift = (staffId, date) => {
     setSelectedCell({ staffId, date });
+    setEditingShift(null);
+    setShowAddShiftModal(true);
+  };
+
+  const handleEditShift = (staffId, shift) => {
+    setSelectedCell({ staffId, date: shift.date });
+    setEditingShift(shift);
     setShowAddShiftModal(true);
   };
 
@@ -473,7 +539,7 @@ const ScheduleTab = ({ staff }) => {
     try {
       const shiftsApi = await import('@/features/schedule/api/shifts');
       await shiftsApi.createShift({
-        staffId: selectedCell.staffId,
+        staffId: data.staffId || selectedCell.staffId,
         startTime: `${format(selectedCell.date, 'yyyy-MM-dd')}T${data.startTime}:00`,
         endTime: `${format(selectedCell.date, 'yyyy-MM-dd')}T${data.endTime}:00`,
         role: data.role,
@@ -528,11 +594,125 @@ const ScheduleTab = ({ staff }) => {
     // Open add shift modal without pre-selecting a cell
     // User will select staff and date in the modal
     setSelectedCell({ staffId: staff[0]?.id || staff[0]?.recordId, date: new Date() });
+    setEditingShift(null);
     setShowAddShiftModal(true);
   };
 
+  // Native drag-drop handlers
+  const handleDragStart = (e, staffId, shift, dayIndex) => {
+    setDraggedShift({ staffId, shift, dayIndex });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify({ staffId, shift, dayIndex }));
+    // Add visual feedback
+    e.target.style.opacity = '0.5';
+  };
+
+  const handleDragEnd = (e) => {
+    e.target.style.opacity = '1';
+    setDraggedShift(null);
+    setDragOverCell(null);
+  };
+
+  const handleDragOver = (e, targetStaffId, targetDayIndex) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverCell({ staffId: targetStaffId, dayIndex: targetDayIndex });
+  };
+
+  const handleDragLeave = () => {
+    setDragOverCell(null);
+  };
+
+  const handleDrop = async (e, targetStaffId, targetDayIndex) => {
+    e.preventDefault();
+    setDragOverCell(null);
+
+    if (!draggedShift) return;
+
+    const { staffId: sourceStaffId, shift, dayIndex: sourceDayIndex } = draggedShift;
+
+    // Don't do anything if dropped on same cell
+    if (sourceStaffId === targetStaffId && sourceDayIndex === targetDayIndex) {
+      setDraggedShift(null);
+      return;
+    }
+
+    try {
+      const shiftsApi = await import('@/features/schedule/api/shifts');
+      const targetDate = weekDays[targetDayIndex];
+
+      // Update shift with new staff/date
+      if (shift.shiftId) {
+        await shiftsApi.updateShift(shift.shiftId, {
+          staffId: targetStaffId,
+          startTime: `${format(targetDate, 'yyyy-MM-dd')}T${shift.start}:00`,
+          endTime: `${format(targetDate, 'yyyy-MM-dd')}T${shift.end}:00`,
+        });
+      } else {
+        // Create new shift at target
+        await shiftsApi.createShift({
+          staffId: targetStaffId,
+          startTime: `${format(targetDate, 'yyyy-MM-dd')}T${shift.start}:00`,
+          endTime: `${format(targetDate, 'yyyy-MM-dd')}T${shift.end}:00`,
+          role: shift.role,
+        });
+      }
+
+      // Refetch
+      const response = await shiftsApi.getWeeklySchedule(weekStartStr);
+      setWeeklyData(response);
+    } catch (error) {
+      console.error('Failed to move shift:', error);
+      alert('Failed to move shift');
+    }
+
+    setDraggedShift(null);
+  };
+
+  // Handle template drag
+  const handleTemplateDragStart = (e, template) => {
+    e.dataTransfer.effectAllowed = 'copy';
+    e.dataTransfer.setData('template', JSON.stringify(template));
+  };
+
+  const handleTemplateDrop = async (e, targetStaffId, targetDayIndex) => {
+    e.preventDefault();
+    setDragOverCell(null);
+
+    const templateData = e.dataTransfer.getData('template');
+    if (!templateData) return;
+
+    const template = JSON.parse(templateData);
+    const targetDate = weekDays[targetDayIndex];
+
+    try {
+      const shiftsApi = await import('@/features/schedule/api/shifts');
+      await shiftsApi.createShift({
+        staffId: targetStaffId,
+        startTime: `${format(targetDate, 'yyyy-MM-dd')}T${template.start}:00`,
+        endTime: `${format(targetDate, 'yyyy-MM-dd')}T${template.end}:00`,
+        role: template.role,
+      });
+
+      const response = await shiftsApi.getWeeklySchedule(weekStartStr);
+      setWeeklyData(response);
+    } catch (error) {
+      console.error('Failed to create shift from template:', error);
+      alert('Failed to create shift');
+    }
+  };
+
+  // Combined drop handler
+  const handleCellDrop = (e, targetStaffId, targetDayIndex) => {
+    if (e.dataTransfer.getData('template')) {
+      handleTemplateDrop(e, targetStaffId, targetDayIndex);
+    } else {
+      handleDrop(e, targetStaffId, targetDayIndex);
+    }
+  };
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Schedule Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -564,38 +744,189 @@ const ScheduleTab = ({ staff }) => {
         </div>
       </div>
 
+      {/* Shift Templates Row */}
+      <div className="flex items-center gap-2 p-2 bg-surface-alt/50 rounded-lg border border-border/50">
+        <span className="text-xs text-muted font-medium px-2">Templates:</span>
+        {SHIFT_TEMPLATES.map((template) => (
+          <div
+            key={template.id}
+            draggable
+            onDragStart={(e) => handleTemplateDragStart(e, template)}
+            className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-grab active:cursor-grabbing
+              ${ROLE_COLORS[template.role] || ROLE_COLORS.default} text-white border
+              hover:opacity-80 transition-opacity select-none`}
+          >
+            {template.label} ({formatShiftTime(template.start)} - {formatShiftTime(template.end)})
+          </div>
+        ))}
+      </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-muted">
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded bg-blue-500" />
-          <span>Scheduled</span>
+      {/* Coverage Bar */}
+      <div className="bg-surface rounded-lg border border-border p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs font-medium text-muted">Coverage</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded bg-amber-500" />
-          <span>PTO</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded bg-green-500" />
-          <span>Clocked In</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded bg-gray-300 dark:bg-gray-600" />
-          <span>Off</span>
+        <div className="grid grid-cols-8 gap-1">
+          <div className="col-span-1" /> {/* Empty for staff column alignment */}
+          {coverage.map((cov, i) => (
+            <div key={i} className="flex flex-col items-center">
+              <div className={`h-2 w-full rounded-full ${
+                cov.status === 'green' ? 'bg-green-500' :
+                cov.status === 'yellow' ? 'bg-amber-500' : 'bg-red-500'
+              }`} />
+              <span className="text-[10px] text-muted mt-1">{cov.count}/{cov.total}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Add Shift Modal */}
+      {/* Legend */}
+      <div className="flex items-center gap-4 text-xs text-muted">
+        <span className="font-medium">Roles:</span>
+        <div className="flex items-center gap-1.5">
+          <div className="h-3 w-3 rounded bg-blue-500" />
+          <span>Kennel Tech</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-3 w-3 rounded bg-purple-500" />
+          <span>Groomer</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-3 w-3 rounded bg-orange-500" />
+          <span>Manager</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-3 w-3 rounded bg-emerald-500" />
+          <span>Trainer</span>
+        </div>
+      </div>
+
+      {/* Schedule Grid */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-muted" />
+        </div>
+      ) : (
+        <div className="bg-surface rounded-lg border border-border overflow-hidden">
+          {/* Grid Header */}
+          <div className="grid grid-cols-8 border-b border-border bg-surface-alt/30">
+            <div className="p-3 text-xs font-medium text-muted border-r border-border">
+              Staff Member
+            </div>
+            {weekDays.map((day, i) => {
+              const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+              return (
+                <div
+                  key={i}
+                  className={`p-3 text-center border-r border-border last:border-r-0 ${
+                    isToday ? 'bg-primary/10' : ''
+                  }`}
+                >
+                  <div className={`text-xs font-medium ${isToday ? 'text-primary' : 'text-muted'}`}>
+                    {format(day, 'EEE')}
+                  </div>
+                  <div className={`text-sm font-semibold ${isToday ? 'text-primary' : 'text-text'}`}>
+                    {format(day, 'd')}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Grid Rows */}
+          {shifts.map((staffRow) => {
+            const weeklyHours = getStaffWeeklyHours(staffRow.shifts);
+            const hasOvertime = weeklyHours > 40;
+
+            return (
+              <div
+                key={staffRow.staffId}
+                className="grid grid-cols-8 border-b border-border last:border-b-0 hover:bg-surface-alt/20 transition-colors"
+              >
+                {/* Staff Name Column */}
+                <div className="p-3 border-r border-border flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-text truncate">
+                      {staffRow.staffName}
+                    </div>
+                    <div className="text-xs text-muted">{staffRow.role}</div>
+                  </div>
+                  {hasOvertime && (
+                    <div className="text-amber-500" title={`${weeklyHours.toFixed(1)}h - Overtime warning`}>
+                      <AlertCircle className="h-4 w-4" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Day Cells */}
+                {staffRow.shifts.map((shift, dayIndex) => {
+                  const isDropTarget = dragOverCell?.staffId === staffRow.staffId &&
+                                      dragOverCell?.dayIndex === dayIndex;
+                  const hasShift = shift.start && shift.end;
+                  const roleColor = ROLE_COLORS[shift.role] || ROLE_COLORS.default;
+
+                  return (
+                    <div
+                      key={dayIndex}
+                      className={`relative min-h-[60px] p-1.5 border-r border-border last:border-r-0
+                        transition-all group cursor-pointer
+                        ${isDropTarget ? 'bg-primary/20 ring-2 ring-primary ring-inset' : ''}
+                        ${!hasShift ? 'hover:bg-surface-alt/40' : ''}
+                      `}
+                      onClick={() => !hasShift && handleAddShift(staffRow.staffId, shift.date)}
+                      onDragOver={(e) => handleDragOver(e, staffRow.staffId, dayIndex)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleCellDrop(e, staffRow.staffId, dayIndex)}
+                    >
+                      {hasShift ? (
+                        /* Shift Block */
+                        <div
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, staffRow.staffId, shift, dayIndex)}
+                          onDragEnd={handleDragEnd}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditShift(staffRow.staffId, shift);
+                          }}
+                          className={`h-full rounded-md px-2 py-1.5 ${roleColor} text-white
+                            cursor-grab active:cursor-grabbing border
+                            hover:brightness-110 transition-all shadow-sm
+                            flex flex-col justify-center`}
+                        >
+                          <div className="text-xs font-semibold leading-tight">
+                            {formatShiftTime(shift.start)} - {formatShiftTime(shift.end)}
+                          </div>
+                          <div className="text-[10px] opacity-80 truncate">
+                            {shift.role || staffRow.role}
+                          </div>
+                        </div>
+                      ) : (
+                        /* Empty Cell - Show + on hover */
+                        <div className="h-full flex items-center justify-center">
+                          <Plus className="h-5 w-5 text-muted/0 group-hover:text-muted/60 transition-colors" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add/Edit Shift Modal */}
       <Modal
         open={showAddShiftModal}
         onClose={() => setShowAddShiftModal(false)}
-        title="Add Shift"
+        title={editingShift ? 'Edit Shift' : 'Add Shift'}
         size="sm"
       >
         <AddShiftForm
           staff={staff}
           selectedStaffId={selectedCell?.staffId}
           selectedDate={selectedCell?.date}
+          editingShift={editingShift}
           onSubmit={handleCreateShift}
           onCancel={() => setShowAddShiftModal(false)}
         />
@@ -604,15 +935,17 @@ const ScheduleTab = ({ staff }) => {
   );
 };
 
-// Add Shift Form Component
-const AddShiftForm = ({ staff, selectedStaffId, selectedDate, onSubmit, onCancel }) => {
+// Add/Edit Shift Form Component
+const AddShiftForm = ({ staff, selectedStaffId, selectedDate, editingShift, onSubmit, onCancel }) => {
+  const isEditing = !!editingShift;
   const [formData, setFormData] = useState({
     staffId: selectedStaffId || '',
     date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
-    startTime: '09:00',
-    endTime: '17:00',
-    role: '',
+    startTime: editingShift?.start || '09:00',
+    endTime: editingShift?.end || '17:00',
+    role: editingShift?.role || '',
     notes: '',
+    shiftId: editingShift?.shiftId || null,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -630,6 +963,14 @@ const AddShiftForm = ({ staff, selectedStaffId, selectedDate, onSubmit, onCancel
     }
   };
 
+  // Role dropdown options
+  const roleOptions = [
+    { value: 'Kennel Tech', label: 'Kennel Tech' },
+    { value: 'Groomer', label: 'Groomer' },
+    { value: 'Manager', label: 'Manager' },
+    { value: 'Trainer', label: 'Trainer' },
+  ];
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
@@ -642,6 +983,7 @@ const AddShiftForm = ({ staff, selectedStaffId, selectedDate, onSubmit, onCancel
           value={formData.staffId}
           onChange={(opt) => setFormData({ ...formData, staffId: opt?.value || '' })}
           placeholder="Select staff..."
+          isDisabled={isEditing}
         />
       </div>
       <div>
@@ -651,6 +993,7 @@ const AddShiftForm = ({ staff, selectedStaffId, selectedDate, onSubmit, onCancel
           value={formData.date}
           onChange={(e) => setFormData({ ...formData, date: e.target.value })}
           className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          disabled={isEditing}
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -675,12 +1018,12 @@ const AddShiftForm = ({ staff, selectedStaffId, selectedDate, onSubmit, onCancel
       </div>
       <div>
         <label className="block text-sm font-medium text-text mb-1">Role</label>
-        <input
-          type="text"
+        <StyledSelect
+          options={roleOptions}
           value={formData.role}
-          onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-          placeholder="e.g., Kennel Attendant"
-          className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          onChange={(opt) => setFormData({ ...formData, role: opt?.value || '' })}
+          placeholder="Select role..."
+          isClearable
         />
       </div>
       <div>
@@ -698,8 +1041,8 @@ const AddShiftForm = ({ staff, selectedStaffId, selectedDate, onSubmit, onCancel
           Cancel
         </Button>
         <Button type="submit" className="flex-1" disabled={isSubmitting}>
-          {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-          Add Shift
+          {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : isEditing ? <Check className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+          {isEditing ? 'Update Shift' : 'Add Shift'}
         </Button>
       </div>
     </form>
