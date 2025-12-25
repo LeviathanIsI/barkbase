@@ -11,55 +11,44 @@
  */
 
 import camelcaseKeys from 'camelcase-keys';
-import { seedDemoData, DEMO_STORAGE_KEY } from './demoDataSeeder';
+import toast from 'react-hot-toast';
+import { seedDemoData, getDemoData, updateDemoData, clearDemoData } from './demoDataSeeder';
 
 // Simulate network delay (200-400ms)
 const delay = () => new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 200));
 
-// Generate unique IDs
-let idCounter = Date.now();
-const generateId = () => `demo-${++idCounter}`;
+// Generate unique IDs (UUID-like format)
+const generateId = () => {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 10);
+  return `demo-${timestamp}-${random}`;
+};
 
 // ============================================================================
 // STORAGE HELPERS
 // ============================================================================
 
-const getStore = () => {
-  try {
-    const data = sessionStorage.getItem(DEMO_STORAGE_KEY);
-    if (!data) {
-      seedDemoData();
-      return JSON.parse(sessionStorage.getItem(DEMO_STORAGE_KEY) || '{}');
-    }
-    return JSON.parse(data);
-  } catch {
-    seedDemoData();
-    return JSON.parse(sessionStorage.getItem(DEMO_STORAGE_KEY) || '{}');
-  }
-};
-
-const setStore = (data) => {
-  sessionStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(data));
+const ensureSeeded = () => {
+  seedDemoData();
 };
 
 const getCollection = (name) => {
-  const store = getStore();
-  return store[name] || [];
+  ensureSeeded();
+  const data = getDemoData();
+  return data[name] || [];
 };
 
 const setCollection = (name, items) => {
-  const store = getStore();
-  store[name] = items;
-  setStore(store);
+  updateDemoData(name, items);
 };
 
 const findById = (collection, id) => {
   const items = getCollection(collection);
   return items.find(item =>
     item.id === id ||
-    item.id === parseInt(id, 10) ||
+    item.id === String(id) ||
     item.recordId === id ||
-    item.recordId === parseInt(id, 10)
+    item.recordId === String(id)
   );
 };
 
@@ -67,9 +56,9 @@ const updateById = (collection, id, updates) => {
   const items = getCollection(collection);
   const index = items.findIndex(item =>
     item.id === id ||
-    item.id === parseInt(id, 10) ||
+    item.id === String(id) ||
     item.recordId === id ||
-    item.recordId === parseInt(id, 10)
+    item.recordId === String(id)
   );
   if (index !== -1) {
     items[index] = { ...items[index], ...updates, updatedAt: new Date().toISOString() };
@@ -83,9 +72,9 @@ const deleteById = (collection, id) => {
   const items = getCollection(collection);
   const filtered = items.filter(item =>
     item.id !== id &&
-    item.id !== parseInt(id, 10) &&
+    item.id !== String(id) &&
     item.recordId !== id &&
-    item.recordId !== parseInt(id, 10)
+    item.recordId !== String(id)
   );
   setCollection(collection, filtered);
   return true;
@@ -112,7 +101,7 @@ const addItem = (collection, item) => {
 
 const routes = {
   // ---------------------------------------------------------------------------
-  // PETS
+  // PETS - /api/v1/entity/pets
   // ---------------------------------------------------------------------------
   'GET /api/v1/entity/pets': (params) => {
     let pets = getCollection('pets');
@@ -143,6 +132,9 @@ const routes = {
     if (params?.species) {
       pets = pets.filter(p => p.species?.toLowerCase() === params.species.toLowerCase());
     }
+    if (params?.ownerId) {
+      pets = pets.filter(p => p.ownerId === params.ownerId);
+    }
 
     // Pagination
     const page = parseInt(params?.page) || 1;
@@ -152,9 +144,11 @@ const routes = {
     const paginatedPets = pets.slice(start, start + limit);
 
     return {
-      pets: paginatedPets,
       data: paginatedPets,
+      pets: paginatedPets,
+      items: paginatedPets,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   },
 
@@ -167,44 +161,60 @@ const routes = {
   },
 
   'POST /api/v1/entity/pets': (body) => {
-    return addItem('pets', { ...body, status: body.status || 'active' });
+    const created = addItem('pets', { ...body, status: body.status || 'active' });
+    toast.success('Pet created successfully');
+    return created;
   },
 
   'PUT /api/v1/entity/pets/:id': (body, id) => {
-    return updateById('pets', id, body);
+    const updated = updateById('pets', id, body);
+    toast.success('Pet updated successfully');
+    return updated;
   },
 
   'PATCH /api/v1/entity/pets/:id': (body, id) => {
-    return updateById('pets', id, body);
+    const updated = updateById('pets', id, body);
+    toast.success('Pet updated');
+    return updated;
   },
 
   'DELETE /api/v1/entity/pets/:id': (params, id) => {
     deleteById('pets', id);
+    toast.success('Pet deleted');
     return { success: true };
   },
 
   // Pet vaccinations
   'GET /api/v1/entity/pets/:id/vaccinations': (params, id) => {
     const vaccinations = getCollection('vaccinations').filter(v =>
-      v.petId === id || v.petId === parseInt(id, 10)
+      v.petId === id || v.petId === String(id)
     );
-    return { data: vaccinations, vaccinations };
+    return { data: vaccinations, vaccinations, items: vaccinations };
   },
 
   'POST /api/v1/entity/pets/:id/vaccinations': (body, id) => {
     const pet = findById('pets', id);
-    return addItem('vaccinations', { ...body, petId: id, petName: pet?.name });
+    const created = addItem('vaccinations', { ...body, petId: id, petName: pet?.name });
+    toast.success('Vaccination record added');
+    return created;
   },
 
   'PUT /api/v1/entity/pets/:petId/vaccinations/:vaccinationId': (body, petId, vaccinationId) => {
-    return updateById('vaccinations', vaccinationId, body);
+    const updated = updateById('vaccinations', vaccinationId, body);
+    toast.success('Vaccination updated');
+    return updated;
+  },
+
+  'DELETE /api/v1/entity/pets/:petId/vaccinations/:vaccinationId': (params, petId, vaccinationId) => {
+    deleteById('vaccinations', vaccinationId);
+    toast.success('Vaccination record deleted');
+    return { success: true };
   },
 
   'POST /api/v1/entity/pets/:petId/vaccinations/:vaccinationId/renew': (body, petId, vaccinationId) => {
     const oldVacc = findById('vaccinations', vaccinationId);
     if (!oldVacc) throw new Error('Vaccination not found');
 
-    // Create renewal record
     const renewed = addItem('vaccinations', {
       ...oldVacc,
       ...body,
@@ -212,18 +222,11 @@ const routes = {
       recordId: undefined,
       previousVaccinationId: vaccinationId,
       administeredAt: body.administeredAt || new Date().toISOString(),
-      expiresAt: body.expiresAt,
     });
 
-    // Mark old as renewed
     updateById('vaccinations', vaccinationId, { status: 'renewed', renewedById: renewed.id });
-
+    toast.success('Vaccination renewed');
     return renewed;
-  },
-
-  'DELETE /api/v1/entity/pets/:petId/vaccinations/:vaccinationId': (params, petId, vaccinationId) => {
-    deleteById('vaccinations', vaccinationId);
-    return { success: true };
   },
 
   'GET /api/v1/entity/pets/vaccinations/expiring': (params) => {
@@ -244,11 +247,13 @@ const routes = {
         const pet = pets.find(p => p.id === v.petId || p.recordId === v.petId);
         const owner = pet ? owners.find(o => o.id === pet.ownerId || o.recordId === pet.ownerId) : null;
         const expDate = new Date(v.expiresAt || v.expirationDate);
+        const daysUntil = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
         return {
           ...v,
           petName: pet?.name || 'Unknown',
           ownerName: owner ? `${owner.firstName} ${owner.lastName}` : 'Unknown',
           status: expDate < now ? 'expired' : 'expiring',
+          daysUntil,
         };
       });
 
@@ -256,13 +261,13 @@ const routes = {
   },
 
   // ---------------------------------------------------------------------------
-  // OWNERS
+  // OWNERS - /api/v1/entity/owners
   // ---------------------------------------------------------------------------
   'GET /api/v1/entity/owners': (params) => {
     let owners = getCollection('owners');
     const pets = getCollection('pets');
 
-    // Enrich with pet count
+    // Enrich with pet count and pets
     owners = owners.map(owner => {
       const ownerPets = pets.filter(p => p.ownerId === owner.id || p.ownerId === owner.recordId);
       return {
@@ -295,43 +300,66 @@ const routes = {
     const paginatedOwners = owners.slice(start, start + limit);
 
     return {
-      owners: paginatedOwners,
       data: paginatedOwners,
+      owners: paginatedOwners,
+      items: paginatedOwners,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   },
 
   'GET /api/v1/entity/owners/:id': (params, id) => {
     const owner = findById('owners', id);
     if (!owner) throw new Error('Owner not found');
-    const pets = getCollection('pets').filter(p => p.ownerId === id || p.ownerId === parseInt(id, 10));
+    const pets = getCollection('pets').filter(p => p.ownerId === id || p.ownerId === String(id));
     return { ...owner, name: `${owner.firstName} ${owner.lastName}`, pets, petCount: pets.length };
   },
 
   'POST /api/v1/entity/owners': (body) => {
-    return addItem('owners', { ...body, status: body.status || 'ACTIVE' });
+    const created = addItem('owners', { ...body, status: body.status || 'ACTIVE' });
+    toast.success('Owner created successfully');
+    return created;
   },
 
   'PUT /api/v1/entity/owners/:id': (body, id) => {
-    return updateById('owners', id, body);
+    const updated = updateById('owners', id, body);
+    toast.success('Owner updated successfully');
+    return updated;
   },
 
   'PATCH /api/v1/entity/owners/:id': (body, id) => {
-    return updateById('owners', id, body);
+    const updated = updateById('owners', id, body);
+    toast.success('Owner updated');
+    return updated;
   },
 
   'DELETE /api/v1/entity/owners/:id': (params, id) => {
     deleteById('owners', id);
+    toast.success('Owner deleted');
     return { success: true };
   },
 
   'GET /api/v1/entity/owners/:id/pets': (params, id) => {
-    const pets = getCollection('pets').filter(p => p.ownerId === id || p.ownerId === parseInt(id, 10));
-    return { data: pets, pets };
+    const pets = getCollection('pets').filter(p => p.ownerId === id || p.ownerId === String(id));
+    return { data: pets, pets, items: pets };
+  },
+
+  'POST /api/v1/entity/owners/:id/pets': (body, id) => {
+    // Link pet to owner
+    const { petId, isPrimary } = body;
+    const updated = updateById('pets', petId, { ownerId: id, isPrimaryOwner: isPrimary });
+    toast.success('Pet linked to owner');
+    return updated;
+  },
+
+  'DELETE /api/v1/entity/owners/:ownerId/pets/:petId': (params, ownerId, petId) => {
+    updateById('pets', petId, { ownerId: null });
+    toast.success('Pet unlinked from owner');
+    return { success: true };
   },
 
   // ---------------------------------------------------------------------------
-  // BOOKINGS
+  // BOOKINGS - /api/v1/operations/bookings
   // ---------------------------------------------------------------------------
   'GET /api/v1/operations/bookings': (params) => {
     let bookings = getCollection('bookings');
@@ -348,18 +376,29 @@ const routes = {
         ownerName: owner ? `${owner.firstName} ${owner.lastName}` : 'Unknown',
         pet,
         owner,
+        // Calendar compatibility
+        checkIn: booking.startDate,
+        checkOut: booking.endDate,
       };
     });
 
     // Apply date filters
-    if (params?.startDate) {
-      bookings = bookings.filter(b => b.startDate >= params.startDate);
+    if (params?.from || params?.startDate) {
+      const from = params.from || params.startDate;
+      bookings = bookings.filter(b => b.startDate >= from || b.endDate >= from);
     }
-    if (params?.endDate) {
-      bookings = bookings.filter(b => b.startDate <= params.endDate);
+    if (params?.to || params?.endDate) {
+      const to = params.to || params.endDate;
+      bookings = bookings.filter(b => b.startDate <= to);
     }
     if (params?.status && params.status !== 'all') {
-      bookings = bookings.filter(b => b.status === params.status);
+      bookings = bookings.filter(b => b.status === params.status || b.status === params.status.toUpperCase());
+    }
+    if (params?.petId) {
+      bookings = bookings.filter(b => b.petId === params.petId);
+    }
+    if (params?.ownerId) {
+      bookings = bookings.filter(b => b.owner?.id === params.ownerId || b.ownerId === params.ownerId);
     }
 
     // Pagination
@@ -370,8 +409,9 @@ const routes = {
     const paginatedBookings = bookings.slice(start, start + limit);
 
     return {
-      bookings: paginatedBookings,
       data: paginatedBookings,
+      bookings: paginatedBookings,
+      items: paginatedBookings,
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   },
@@ -383,73 +423,362 @@ const routes = {
     const owners = getCollection('owners');
     const pet = pets.find(p => p.id === booking.petId || p.recordId === booking.petId);
     const owner = pet ? owners.find(o => o.id === pet.ownerId || o.recordId === pet.ownerId) : null;
-    return { ...booking, pet, owner, petName: pet?.name, ownerName: owner ? `${owner.firstName} ${owner.lastName}` : null };
+    return {
+      ...booking,
+      pet,
+      owner,
+      petName: pet?.name,
+      ownerName: owner ? `${owner.firstName} ${owner.lastName}` : null,
+      checkIn: booking.startDate,
+      checkOut: booking.endDate,
+    };
   },
 
   'POST /api/v1/operations/bookings': (body) => {
-    return addItem('bookings', { ...body, status: body.status || 'CONFIRMED' });
+    const created = addItem('bookings', { ...body, status: body.status || 'CONFIRMED' });
+    toast.success('Booking created successfully');
+    return created;
   },
 
   'PUT /api/v1/operations/bookings/:id': (body, id) => {
-    return updateById('bookings', id, body);
+    const updated = updateById('bookings', id, body);
+    toast.success('Booking updated');
+    return updated;
   },
 
   'PATCH /api/v1/operations/bookings/:id': (body, id) => {
-    return updateById('bookings', id, body);
+    const updated = updateById('bookings', id, body);
+    toast.success('Booking updated');
+    return updated;
   },
 
   'DELETE /api/v1/operations/bookings/:id': (params, id) => {
     deleteById('bookings', id);
+    toast.success('Booking cancelled');
     return { success: true };
   },
 
   'POST /api/v1/operations/bookings/:id/checkin': (body, id) => {
-    return updateById('bookings', id, { status: 'CHECKED_IN', checkedInAt: new Date().toISOString() });
+    const updated = updateById('bookings', id, {
+      status: 'CHECKED_IN',
+      checkedInAt: new Date().toISOString(),
+      ...body,
+    });
+    toast.success('Check-in successful');
+    return updated;
   },
 
   'POST /api/v1/operations/bookings/:id/checkout': (body, id) => {
-    return updateById('bookings', id, { status: 'CHECKED_OUT', checkedOutAt: new Date().toISOString() });
+    const updated = updateById('bookings', id, {
+      status: 'CHECKED_OUT',
+      checkedOutAt: new Date().toISOString(),
+      ...body,
+    });
+    toast.success('Check-out successful');
+    return updated;
   },
 
   'PATCH /api/v1/operations/bookings/:id/status': (body, id) => {
-    return updateById('bookings', id, { status: body.status });
+    const updated = updateById('bookings', id, { status: body.status });
+    toast.success('Booking status updated');
+    return updated;
   },
 
   // ---------------------------------------------------------------------------
-  // TASKS
+  // STAFF - /api/v1/entity/staff
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/entity/staff': (params) => {
+    const staff = getCollection('staff');
+    return { data: staff, staff, items: staff, meta: { total: staff.length } };
+  },
+
+  'GET /api/v1/entity/staff/:id': (params, id) => {
+    const member = findById('staff', id);
+    if (!member) throw new Error('Staff member not found');
+    return member;
+  },
+
+  'POST /api/v1/entity/staff': (body) => {
+    const created = addItem('staff', body);
+    toast.success('Staff member added');
+    return created;
+  },
+
+  'PUT /api/v1/entity/staff/:id': (body, id) => {
+    const updated = updateById('staff', id, body);
+    toast.success('Staff member updated');
+    return updated;
+  },
+
+  'DELETE /api/v1/entity/staff/:id': (params, id) => {
+    deleteById('staff', id);
+    toast.success('Staff member removed');
+    return { success: true };
+  },
+
+  // ---------------------------------------------------------------------------
+  // FACILITIES/KENNELS - /api/v1/entity/facilities
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/entity/facilities': (params) => {
+    const runs = getCollection('runs');
+    const bookings = getCollection('bookings');
+
+    // Calculate occupancy for each run
+    const today = new Date().toISOString().split('T')[0];
+    const facilitiesWithOccupancy = runs.map(run => {
+      const activeBookings = bookings.filter(b =>
+        b.runId === run.id &&
+        b.startDate <= today &&
+        b.endDate >= today &&
+        ['CONFIRMED', 'CHECKED_IN'].includes(b.status)
+      );
+      return {
+        ...run,
+        recordId: run.id,
+        occupied: activeBookings.length,
+        isAvailable: run.status === 'available' && activeBookings.length < (run.capacity || 1),
+      };
+    });
+
+    return { data: facilitiesWithOccupancy, facilities: facilitiesWithOccupancy, kennels: facilitiesWithOccupancy };
+  },
+
+  'GET /api/v1/entity/facilities/:id': (params, id) => {
+    const run = findById('runs', id);
+    if (!run) throw new Error('Facility not found');
+    return run;
+  },
+
+  'POST /api/v1/entity/facilities': (body) => {
+    const created = addItem('runs', body);
+    toast.success('Kennel/run created');
+    return created;
+  },
+
+  'PUT /api/v1/entity/facilities/:id': (body, id) => {
+    const updated = updateById('runs', id, body);
+    toast.success('Kennel/run updated');
+    return updated;
+  },
+
+  'DELETE /api/v1/entity/facilities/:id': (params, id) => {
+    deleteById('runs', id);
+    toast.success('Kennel/run deleted');
+    return { success: true };
+  },
+
+  // ---------------------------------------------------------------------------
+  // SERVICES - /api/v1/services
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/services': () => {
+    const services = getCollection('services');
+    return { data: services, services };
+  },
+
+  'GET /api/v1/services/:id': (params, id) => {
+    return findById('services', id);
+  },
+
+  'POST /api/v1/services': (body) => {
+    const created = addItem('services', body);
+    toast.success('Service created');
+    return created;
+  },
+
+  'PUT /api/v1/services/:id': (body, id) => {
+    const updated = updateById('services', id, body);
+    toast.success('Service updated');
+    return updated;
+  },
+
+  'DELETE /api/v1/services/:id': (params, id) => {
+    deleteById('services', id);
+    toast.success('Service deleted');
+    return { success: true };
+  },
+
+  // ---------------------------------------------------------------------------
+  // ADDON SERVICES - /api/v1/addon-services
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/addon-services': () => {
+    const addons = getCollection('serviceAddons');
+    return { data: addons, addonServices: addons };
+  },
+
+  'POST /api/v1/addon-services': (body) => {
+    const created = addItem('serviceAddons', body);
+    toast.success('Add-on service created');
+    return created;
+  },
+
+  'PUT /api/v1/addon-services/:id': (body, id) => {
+    const updated = updateById('serviceAddons', id, body);
+    toast.success('Add-on service updated');
+    return updated;
+  },
+
+  'DELETE /api/v1/addon-services/:id': (params, id) => {
+    deleteById('serviceAddons', id);
+    toast.success('Add-on service deleted');
+    return { success: true };
+  },
+
+  // ---------------------------------------------------------------------------
+  // INVOICES - /api/v1/financial/invoices
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/financial/invoices': (params) => {
+    let invoices = getCollection('invoices');
+    const owners = getCollection('owners');
+
+    // Enrich with owner info
+    invoices = invoices.map(inv => {
+      const owner = owners.find(o => o.id === inv.ownerId);
+      return {
+        ...inv,
+        owner,
+        ownerName: owner ? `${owner.firstName} ${owner.lastName}` : null,
+      };
+    });
+
+    if (params?.status && params.status !== 'all') {
+      invoices = invoices.filter(i => i.status === params.status);
+    }
+    if (params?.ownerId) {
+      invoices = invoices.filter(i => i.ownerId === params.ownerId);
+    }
+
+    return { data: { invoices }, invoices, total: invoices.length };
+  },
+
+  'GET /api/v1/financial/invoices/:id': (params, id) => {
+    return findById('invoices', id);
+  },
+
+  'POST /api/v1/financial/invoices': (body) => {
+    const invoiceNumber = `INV-${Date.now()}`;
+    const created = addItem('invoices', { ...body, invoiceNumber, status: body.status || 'draft' });
+    toast.success('Invoice created');
+    return created;
+  },
+
+  'PUT /api/v1/financial/invoices/:id': (body, id) => {
+    const updated = updateById('invoices', id, body);
+    toast.success('Invoice updated');
+    return updated;
+  },
+
+  'PATCH /api/v1/financial/invoices/:id': (body, id) => {
+    const updated = updateById('invoices', id, body);
+    toast.success('Invoice updated');
+    return updated;
+  },
+
+  'POST /api/v1/financial/invoices/:id/send': (body, id) => {
+    const updated = updateById('invoices', id, { status: 'sent', sentAt: new Date().toISOString() });
+    toast.success('Invoice sent');
+    return updated;
+  },
+
+  'POST /api/v1/financial/invoices/:id/void': (body, id) => {
+    const updated = updateById('invoices', id, { status: 'voided', voidedAt: new Date().toISOString() });
+    toast.success('Invoice voided');
+    return updated;
+  },
+
+  // ---------------------------------------------------------------------------
+  // PAYMENTS - /api/v1/financial/payments
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/financial/payments': (params) => {
+    let payments = getCollection('payments');
+    const owners = getCollection('owners');
+
+    payments = payments.map(pmt => {
+      const owner = owners.find(o => o.id === pmt.ownerId);
+      return { ...pmt, owner, ownerName: owner ? `${owner.firstName} ${owner.lastName}` : null };
+    });
+
+    if (params?.status && params.status !== 'all') {
+      payments = payments.filter(p => p.status === params.status);
+    }
+
+    return { data: payments, payments, total: payments.length };
+  },
+
+  'GET /api/v1/financial/payments/:id': (params, id) => {
+    return findById('payments', id);
+  },
+
+  'POST /api/v1/financial/payments': (body) => {
+    const transactionId = `txn_demo_${Date.now()}`;
+    const created = addItem('payments', {
+      ...body,
+      transactionId,
+      status: body.status || 'completed',
+      paymentDate: new Date().toISOString(),
+    });
+    toast.success('Payment recorded');
+    return created;
+  },
+
+  'POST /api/v1/financial/payments/:id/refund': (body, id) => {
+    const payment = findById('payments', id);
+    if (!payment) throw new Error('Payment not found');
+
+    const refund = addItem('payments', {
+      ...payment,
+      amount: -(body.amount || payment.amount),
+      status: 'refunded',
+      originalPaymentId: id,
+      paymentDate: new Date().toISOString(),
+    });
+
+    updateById('payments', id, { refundedAt: new Date().toISOString() });
+    toast.success('Refund processed');
+    return refund;
+  },
+
+  // ---------------------------------------------------------------------------
+  // TASKS - /api/v1/operations/tasks
   // ---------------------------------------------------------------------------
   'GET /api/v1/operations/tasks': (params) => {
-    let tasks = getCollection('tasks');
+    let tasks = getCollection('tasks') || [];
 
     if (params?.status && params.status !== 'all') {
       tasks = tasks.filter(t => t.status === params.status);
     }
     if (params?.date) {
-      tasks = tasks.filter(t => t.scheduledFor?.startsWith(params.date));
+      tasks = tasks.filter(t => t.scheduledFor?.startsWith(params.date) || t.dueDate?.startsWith(params.date));
     }
 
     return { data: tasks, tasks };
   },
 
   'POST /api/v1/operations/tasks': (body) => {
-    return addItem('tasks', { ...body, status: body.status || 'PENDING' });
+    const created = addItem('tasks', { ...body, status: body.status || 'PENDING' });
+    toast.success('Task created');
+    return created;
   },
 
   'PUT /api/v1/operations/tasks/:id': (body, id) => {
-    return updateById('tasks', id, body);
+    const updated = updateById('tasks', id, body);
+    toast.success('Task updated');
+    return updated;
   },
 
   'POST /api/v1/operations/tasks/:id/complete': (body, id) => {
-    return updateById('tasks', id, { status: 'COMPLETED', completedAt: new Date().toISOString() });
+    const updated = updateById('tasks', id, { status: 'COMPLETED', completedAt: new Date().toISOString() });
+    toast.success('Task completed');
+    return updated;
   },
 
   'DELETE /api/v1/operations/tasks/:id': (params, id) => {
     deleteById('tasks', id);
+    toast.success('Task deleted');
     return { success: true };
   },
 
   // ---------------------------------------------------------------------------
-  // CALENDAR / SCHEDULES
+  // CALENDAR - /api/v1/calendar
   // ---------------------------------------------------------------------------
   'GET /api/v1/calendar/events': (params) => {
     const bookings = getCollection('bookings');
@@ -461,19 +790,20 @@ const routes = {
       const owner = pet ? owners.find(o => o.id === pet.ownerId) : null;
       return {
         id: booking.id,
-        title: pet?.name || 'Unknown',
+        title: pet?.name || 'Booking',
         start: booking.startDate,
         end: booking.endDate,
         status: booking.status,
         petName: pet?.name,
         ownerName: owner ? `${owner.firstName} ${owner.lastName}` : null,
+        serviceType: booking.serviceType,
         booking,
       };
     });
 
-    // Filter by date range
-    if (params?.start) {
-      return events.filter(e => e.end >= params.start && e.start <= (params.end || params.start));
+    // Filter by date range if provided
+    if (params?.start && params?.end) {
+      return events.filter(e => e.end >= params.start && e.start <= params.end);
     }
 
     return { data: events, events };
@@ -481,10 +811,9 @@ const routes = {
 
   'GET /api/v1/calendar/occupancy': (params) => {
     const bookings = getCollection('bookings');
-    const kennels = getCollection('kennels');
-    const capacity = kennels.length || 20;
+    const runs = getCollection('runs');
+    const capacity = runs.length || 20;
 
-    // Calculate occupancy for date range
     const start = params?.start ? new Date(params.start) : new Date();
     const end = params?.end ? new Date(params.end) : new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000);
 
@@ -508,66 +837,33 @@ const routes = {
   },
 
   // ---------------------------------------------------------------------------
-  // STAFF
+  // DASHBOARD / ANALYTICS - /api/v1/analytics
   // ---------------------------------------------------------------------------
-  'GET /api/v1/entity/staff': (params) => {
-    const staff = getCollection('staff');
-    return { data: staff, staff, meta: { total: staff.length } };
-  },
-
-  'POST /api/v1/entity/staff': (body) => {
-    return addItem('staff', body);
-  },
-
-  'PUT /api/v1/entity/staff/:id': (body, id) => {
-    return updateById('staff', id, body);
-  },
-
-  'DELETE /api/v1/entity/staff/:id': (params, id) => {
-    deleteById('staff', id);
-    return { success: true };
-  },
-
-  // ---------------------------------------------------------------------------
-  // KENNELS / FACILITIES
-  // ---------------------------------------------------------------------------
-  'GET /api/v1/entity/facilities': (params) => {
-    const kennels = getCollection('kennels');
-    return { data: kennels, facilities: kennels };
-  },
-
-  'GET /api/v1/entity/facilities/:id': (params, id) => {
-    return findById('kennels', id);
-  },
-
-  'POST /api/v1/entity/facilities': (body) => {
-    return addItem('kennels', body);
-  },
-
-  'PUT /api/v1/entity/facilities/:id': (body, id) => {
-    return updateById('kennels', id, body);
-  },
-
-  // ---------------------------------------------------------------------------
-  // DASHBOARD / ANALYTICS
-  // ---------------------------------------------------------------------------
-  'GET /api/v1/analytics/dashboard': (params) => {
+  'GET /api/v1/analytics/dashboard': () => {
+    const stats = getDemoData().dashboardStats || {};
     const bookings = getCollection('bookings');
     const pets = getCollection('pets');
     const owners = getCollection('owners');
     const today = new Date().toISOString().split('T')[0];
 
-    const arrivalsToday = bookings.filter(b => b.startDate === today && b.status === 'CONFIRMED').length;
+    const arrivalsToday = bookings.filter(b => b.startDate === today && ['PENDING', 'CONFIRMED'].includes(b.status)).length;
     const departuresToday = bookings.filter(b => b.endDate === today && b.status === 'CHECKED_IN').length;
     const inFacility = bookings.filter(b => b.status === 'CHECKED_IN').length;
 
     return {
-      arrivalsToday,
-      departuresToday,
-      inFacility,
-      totalPets: pets.length,
-      totalOwners: owners.length,
-      totalBookings: bookings.length,
+      data: {
+        todayArrivals: stats.arrivals?.total || arrivalsToday,
+        todayDepartures: stats.departures?.total || departuresToday,
+        totalPets: pets.length,
+        totalCustomers: owners.length,
+        pendingTasks: 0,
+        occupancy: stats.occupancy || {
+          current: inFacility,
+          capacity: 18,
+          rate: Math.round((inFacility / 18) * 100),
+        },
+        alerts: stats.alerts || [],
+      },
     };
   },
 
@@ -575,87 +871,146 @@ const routes = {
     const bookings = getCollection('bookings');
     const revenue = bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
     return {
-      totalRevenue: revenue,
-      bookingsThisMonth: bookings.length,
-      averageBookingValue: bookings.length ? revenue / bookings.length : 0,
+      data: {
+        totalRevenue: revenue,
+        bookingsThisMonth: bookings.length,
+        averageBookingValue: bookings.length ? revenue / bookings.length : 0,
+      },
+    };
+  },
+
+  'GET /api/v1/analytics/occupancy/current': () => {
+    const bookings = getCollection('bookings');
+    const runs = getCollection('runs');
+    const inFacility = bookings.filter(b => b.status === 'CHECKED_IN').length;
+    const capacity = runs.length || 18;
+
+    return {
+      data: {
+        currentOccupancy: inFacility,
+        totalCapacity: capacity,
+        occupancyRate: Math.round((inFacility / capacity) * 100),
+        availableSpots: capacity - inFacility,
+      },
+    };
+  },
+
+  'GET /api/v1/analytics/revenue': (params) => {
+    const payments = getCollection('payments');
+    const completed = payments.filter(p => p.status === 'completed' && p.amount > 0);
+    const total = completed.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    return {
+      data: {
+        totalRevenue: total,
+        transactionCount: completed.length,
+        averageTransactionValue: completed.length ? total / completed.length : 0,
+      },
     };
   },
 
   // ---------------------------------------------------------------------------
-  // SERVICES & ADD-ONS
+  // INCIDENTS - /api/v1/operations/incidents
   // ---------------------------------------------------------------------------
-  'GET /api/v1/services': () => {
-    const services = getCollection('services');
-    return { data: services, services };
+  'GET /api/v1/operations/incidents': () => {
+    const incidents = getCollection('incidents');
+    return { data: incidents, incidents };
   },
 
-  'POST /api/v1/services': (body) => {
-    return addItem('services', body);
+  'POST /api/v1/operations/incidents': (body) => {
+    const created = addItem('incidents', { ...body, status: body.status || 'open', reportedAt: new Date().toISOString() });
+    toast.success('Incident reported');
+    return created;
   },
 
-  'PUT /api/v1/services/:id': (body, id) => {
-    return updateById('services', id, body);
-  },
-
-  'DELETE /api/v1/services/:id': (params, id) => {
-    deleteById('services', id);
-    return { success: true };
-  },
-
-  'GET /api/v1/addon-services': () => {
-    const addons = getCollection('addonServices');
-    return { data: addons, addonServices: addons };
+  'PUT /api/v1/operations/incidents/:id': (body, id) => {
+    const updated = updateById('incidents', id, body);
+    toast.success('Incident updated');
+    return updated;
   },
 
   // ---------------------------------------------------------------------------
-  // USER PROFILE & SETTINGS
+  // MESSAGES - /api/v1/communications/messages
   // ---------------------------------------------------------------------------
+  'GET /api/v1/communications/messages': () => {
+    const messages = getCollection('messages');
+    return { data: messages, messages };
+  },
+
+  'POST /api/v1/communications/messages': (body) => {
+    const created = addItem('messages', { ...body, status: body.status || 'pending', receivedAt: new Date().toISOString() });
+    toast.success('Message created');
+    return created;
+  },
+
+  // ---------------------------------------------------------------------------
+  // NOTIFICATIONS - /api/v1/operations/notifications
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/operations/notifications': () => {
+    const notifications = getCollection('notifications') || [];
+    return { data: notifications, notifications };
+  },
+
+  'POST /api/v1/operations/notifications/:id/read': (body, id) => {
+    const updated = updateById('notifications', id, { read: true, readAt: new Date().toISOString() });
+    return updated;
+  },
+
+  // ---------------------------------------------------------------------------
+  // CONFIG / SETTINGS
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/config/tenant': () => {
+    const settings = getDemoData().tenantSettings || {};
+    return {
+      id: 'demo-tenant',
+      recordId: 'demo-tenant',
+      slug: 'demo',
+      name: settings.businessName || 'Pawsome Pet Resort',
+      plan: 'PROFESSIONAL',
+      features: ['vaccinations', 'bookings', 'reports', 'staff', 'payments', 'incidents', 'messaging'],
+      settings,
+    };
+  },
+
+  'GET /api/v1/config/settings': () => {
+    return getDemoData().tenantSettings || {};
+  },
+
+  'PUT /api/v1/config/settings': (body) => {
+    updateDemoData('tenantSettings', { ...getDemoData().tenantSettings, ...body });
+    toast.success('Settings saved');
+    return body;
+  },
+
   'GET /api/v1/profile': () => {
+    const settings = getDemoData().tenantSettings || {};
     return {
       id: 'demo-user',
       email: 'demo@barkbase.io',
       firstName: 'Demo',
       lastName: 'User',
       role: 'ADMIN',
-      propertyName: 'Happy Paws Kennel',
-      businessName: 'Happy Paws Pet Resort',
+      propertyName: settings.businessName || 'Pawsome Pet Resort',
+      businessName: settings.businessName || 'Pawsome Pet Resort',
     };
   },
 
   'PUT /api/v1/profile': (body) => {
+    toast.success('Profile updated');
     return { ...body, id: 'demo-user' };
   },
 
-  'GET /api/v1/config/tenant': () => {
-    return {
-      id: 'demo-tenant',
-      recordId: 'demo-tenant',
-      slug: 'demo',
-      name: 'Happy Paws Pet Resort',
-      plan: 'PROFESSIONAL',
-      features: ['vaccinations', 'bookings', 'reports', 'staff', 'payments'],
-    };
-  },
-
-  'GET /api/v1/config/settings': () => {
-    return getCollection('settings');
-  },
-
-  'PUT /api/v1/config/settings': (body) => {
-    setCollection('settings', body);
-    return body;
-  },
-
   // ---------------------------------------------------------------------------
-  // NOTIFICATIONS
+  // ACTIVITIES - /api/v1/analytics/activities
   // ---------------------------------------------------------------------------
-  'GET /api/v1/operations/notifications': () => {
-    return { data: getCollection('notifications'), notifications: getCollection('notifications') };
+  'GET /api/v1/analytics/activities': (params) => {
+    const activities = getCollection('activities');
+    const limit = parseInt(params?.limit) || 20;
+    return { data: activities.slice(0, limit), activities: activities.slice(0, limit) };
   },
 
-  'POST /api/v1/operations/notifications/:id/read': (body, id) => {
-    return updateById('notifications', id, { read: true, readAt: new Date().toISOString() });
-  },
+  // Health check
+  'GET /api/v1/health': () => ({ status: 'ok', demo: true }),
 };
 
 // ============================================================================
@@ -663,8 +1018,11 @@ const routes = {
 // ============================================================================
 
 const matchRoute = (method, path) => {
+  // Clean path of query string for matching
+  const cleanPath = path.split('?')[0];
+
   // Direct match first
-  const directKey = `${method} ${path}`;
+  const directKey = `${method} ${cleanPath}`;
   if (routes[directKey]) {
     return { handler: routes[directKey], params: [] };
   }
@@ -675,7 +1033,7 @@ const matchRoute = (method, path) => {
     if (routeMethod !== method) continue;
 
     const routeParts = routePath.split('/');
-    const pathParts = path.split('?')[0].split('/');
+    const pathParts = cleanPath.split('/');
 
     if (routeParts.length !== pathParts.length) continue;
 
@@ -720,7 +1078,7 @@ const handleRequest = async (method, path, body = null) => {
   await delay();
 
   // Ensure demo data is seeded
-  getStore();
+  ensureSeeded();
 
   const queryParams = parseQueryParams(path);
   const cleanPath = path.split('?')[0];
@@ -729,7 +1087,7 @@ const handleRequest = async (method, path, body = null) => {
 
   if (!match) {
     console.warn(`[DEMO API] No handler for ${method} ${cleanPath}`);
-    // Return empty data for unhandled routes
+    // Return empty data for unhandled routes instead of throwing
     return { data: [] };
   }
 
@@ -739,6 +1097,7 @@ const handleRequest = async (method, path, body = null) => {
     return { data };
   } catch (error) {
     console.error(`[DEMO API] Error handling ${method} ${cleanPath}:`, error);
+    toast.error(error.message || 'An error occurred');
     throw error;
   }
 };
@@ -776,7 +1135,9 @@ const auth = {
     idToken: 'demo-id-token',
     refreshToken: 'demo-refresh-token',
   }),
-  signOut: async () => {},
+  signOut: async () => {
+    clearDemoData();
+  },
   getCurrentUser: async () => ({
     userId: 'demo-user',
     email: 'demo@barkbase.io',
