@@ -13,20 +13,12 @@ export const defaultLabels = {
   owners: 'Owners',
   pets: 'Pets',
   vaccinations: 'Vaccinations',
-  segments: 'Segments',
   bookings: 'Bookings',
   runSchedules: 'Run Schedules',
-  tasks: 'Tasks',
   kennels: 'Kennels',
   incidents: 'Incidents',
-  workflows: 'Workflows',
   messages: 'Messages',
-  payments: 'Payments',
-  invoices: 'Invoices',
   packages: 'Packages',
-  team: 'Team',
-  reports: 'Reports',
-  settings: 'Settings',
 };
 
 /**

@@ -86,20 +86,12 @@ const Terminology = () => {
     'owners',
     'pets',
     'vaccinations',
-    'segments',
     'bookings',
     'runSchedules',
-    'tasks',
     'kennels',
     'incidents',
-    'workflows',
     'messages',
-    'payments',
-    'invoices',
     'packages',
-    'team',
-    'reports',
-    'settings',
   ];
 
   return (

@@ -27,7 +27,7 @@ const baseSidebarSections = [
       { path: '/owners', terminologyKey: 'owners', icon: 'user-round' },
       { path: '/pets', terminologyKey: 'pets', icon: 'paw-print' },
       { path: '/vaccinations', terminologyKey: 'vaccinations', icon: 'syringe' },
-      { path: '/segments', terminologyKey: 'segments', icon: 'layers' },
+      { path: '/segments', label: 'Segments', icon: 'layers' },
     ],
   },
   {
@@ -38,10 +38,10 @@ const baseSidebarSections = [
     items: [
       { path: '/bookings', terminologyKey: 'bookings', icon: 'calendar-plus' },
       { path: '/run-schedules', terminologyKey: 'runSchedules', icon: 'calendar-days' },
-      { path: '/tasks', terminologyKey: 'tasks', icon: 'check-square' },
+      { path: '/tasks', label: 'Tasks', icon: 'check-square' },
       { path: '/kennels', terminologyKey: 'kennels', icon: 'home' },
       { path: '/incidents', terminologyKey: 'incidents', icon: 'alert-triangle' },
-      { path: '/workflows', terminologyKey: 'workflows', icon: 'git-branch' },
+      { path: '/workflows', label: 'Workflows', icon: 'git-branch' },
     ],
   },
   {
@@ -59,8 +59,8 @@ const baseSidebarSections = [
     collapsible: true,
     defaultExpanded: true,
     items: [
-      { path: '/payments', terminologyKey: 'payments', icon: 'credit-card' },
-      { path: '/invoices', terminologyKey: 'invoices', icon: 'file-text' },
+      { path: '/payments', label: 'Payments', icon: 'credit-card' },
+      { path: '/invoices', label: 'Invoices', icon: 'file-text' },
       { path: '/packages', terminologyKey: 'packages', icon: 'gift' },
     ],
   },
@@ -70,9 +70,9 @@ const baseSidebarSections = [
     collapsible: true,
     defaultExpanded: false,
     items: [
-      { path: '/staff', terminologyKey: 'team', icon: 'user-cog' },
-      { path: '/reports', terminologyKey: 'reports', icon: 'bar-chart-3' },
-      { path: '/settings', terminologyKey: 'settings', icon: 'settings' },
+      { path: '/staff', label: 'Team', icon: 'user-cog' },
+      { path: '/reports', label: 'Reports', icon: 'bar-chart-3' },
+      { path: '/settings', label: 'Settings', icon: 'settings' },
     ],
   },
 ];
