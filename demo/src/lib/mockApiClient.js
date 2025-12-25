@@ -359,23 +359,24 @@ const routes = {
   },
 
   // ---------------------------------------------------------------------------
-  // SEGMENTS - /api/v1/entity/segments
+  // SEGMENTS - /api/v1/segments
   // ---------------------------------------------------------------------------
-  'GET /api/v1/entity/segments': (params) => {
+  'GET /api/v1/segments': (params) => {
     const segments = getCollection('segments') || [];
     return { data: segments, segments, items: segments, total: segments.length };
   },
 
-  'GET /api/v1/entity/segments/:id': (params, id) => {
+  'GET /api/v1/segments/:id': (params, id) => {
     const segment = findById('segments', id);
     if (!segment) return { error: 'Segment not found', status: 404 };
-    return segment;
+    return { data: segment, segment };
   },
 
-  'POST /api/v1/entity/segments': (body) => {
+  'POST /api/v1/segments': (body) => {
     const id = 'segment-' + Date.now();
     const segment = {
       id,
+      recordId: id,
       ...body,
       memberCount: body.memberIds?.length || 0,
       createdAt: new Date().toISOString(),
@@ -383,35 +384,35 @@ const routes = {
     };
     addToCollection('segments', segment);
     toast.success('Segment created');
-    return segment;
+    return { data: segment, segment };
   },
 
-  'PUT /api/v1/entity/segments/:id': (body, id) => {
+  'PUT /api/v1/segments/:id': (body, id) => {
     const updated = updateById('segments', id, {
       ...body,
       memberCount: body.memberIds?.length || body.memberCount || 0,
       updatedAt: new Date().toISOString()
     });
     toast.success('Segment updated');
-    return updated;
+    return { data: updated, segment: updated };
   },
 
-  'PATCH /api/v1/entity/segments/:id': (body, id) => {
+  'PATCH /api/v1/segments/:id': (body, id) => {
     const updated = updateById('segments', id, {
       ...body,
       updatedAt: new Date().toISOString()
     });
     toast.success('Segment updated');
-    return updated;
+    return { data: updated, segment: updated };
   },
 
-  'DELETE /api/v1/entity/segments/:id': (params, id) => {
+  'DELETE /api/v1/segments/:id': (params, id) => {
     deleteById('segments', id);
     toast.success('Segment deleted');
     return { success: true };
   },
 
-  'GET /api/v1/entity/segments/:id/members': (params, id) => {
+  'GET /api/v1/segments/:id/members': (params, id) => {
     const segment = findById('segments', id);
     if (!segment) return { error: 'Segment not found', status: 404 };
     const owners = getCollection('owners') || [];
@@ -419,31 +420,54 @@ const routes = {
     return { data: members, members, items: members, total: members.length };
   },
 
-  'POST /api/v1/entity/segments/:id/members': (body, id) => {
+  'POST /api/v1/segments/:id/members': (body, id) => {
     const segment = findById('segments', id);
     if (!segment) return { error: 'Segment not found', status: 404 };
-    const { ownerId } = body;
-    const memberIds = [...(segment.memberIds || []), ownerId];
+    const { ownerIds } = body;
+    const memberIds = [...new Set([...(segment.memberIds || []), ...(ownerIds || [])])];
     const updated = updateById('segments', id, {
       memberIds,
       memberCount: memberIds.length,
       updatedAt: new Date().toISOString()
     });
-    toast.success('Member added to segment');
-    return updated;
+    toast.success('Members added to segment');
+    return { data: updated, segment: updated };
   },
 
-  'DELETE /api/v1/entity/segments/:segmentId/members/:ownerId': (params, segmentId, ownerId) => {
-    const segment = findById('segments', segmentId);
+  'DELETE /api/v1/segments/:id/members': (body, id) => {
+    const segment = findById('segments', id);
     if (!segment) return { error: 'Segment not found', status: 404 };
-    const memberIds = (segment.memberIds || []).filter(id => id !== ownerId);
-    updateById('segments', segmentId, {
+    const { ownerIds } = body || {};
+    const memberIds = (segment.memberIds || []).filter(mid => !(ownerIds || []).includes(mid));
+    updateById('segments', id, {
       memberIds,
       memberCount: memberIds.length,
       updatedAt: new Date().toISOString()
     });
-    toast.success('Member removed from segment');
+    toast.success('Members removed from segment');
     return { success: true };
+  },
+
+  'POST /api/v1/segments/refresh': () => {
+    toast.success('Segments refreshed');
+    return { success: true };
+  },
+
+  'POST /api/v1/segments/:id/clone': (body, id) => {
+    const segment = findById('segments', id);
+    if (!segment) return { error: 'Segment not found', status: 404 };
+    const newId = 'segment-' + Date.now();
+    const cloned = {
+      ...segment,
+      id: newId,
+      recordId: newId,
+      name: `${segment.name} (Copy)`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    addToCollection('segments', cloned);
+    toast.success('Segment cloned');
+    return { data: cloned, segment: cloned };
   },
 
   // ---------------------------------------------------------------------------
@@ -602,6 +626,143 @@ const routes = {
     deleteById('staff', id);
     toast.success('Staff member removed');
     return { success: true };
+  },
+
+  // ---------------------------------------------------------------------------
+  // RUN TEMPLATES - /api/v1/run-templates
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/run-templates': () => {
+    const runs = getCollection('runs') || [];
+    // Transform runs to run templates format
+    const templates = runs.map(run => ({
+      id: run.id,
+      recordId: run.id,
+      name: run.name,
+      description: run.notes || '',
+      capacity: run.capacity || 1,
+      maxCapacity: run.maxCapacity || 1,
+      type: run.size === 'xlarge' ? 'Suite' : run.size === 'large' ? 'Large' : 'Standard',
+      building: run.building,
+      features: run.features || [],
+      status: run.status || 'available',
+      isActive: true,
+      startTime: '07:00',
+      endTime: '19:00',
+      daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+    }));
+    return { data: templates, runTemplates: templates, total: templates.length };
+  },
+
+  'POST /api/v1/run-templates': (body) => {
+    const created = addItem('runs', {
+      ...body,
+      status: 'available',
+      isClean: true,
+    });
+    toast.success('Run template created');
+    return { data: created };
+  },
+
+  'PUT /api/v1/run-templates/:id': (body, id) => {
+    const updated = updateById('runs', id, body);
+    toast.success('Run template updated');
+    return { data: updated };
+  },
+
+  'DELETE /api/v1/run-templates/:id': (params, id) => {
+    deleteById('runs', id);
+    toast.success('Run template deleted');
+    return { success: true };
+  },
+
+  // ---------------------------------------------------------------------------
+  // RUN ASSIGNMENTS - /api/v1/runs/assignments
+  // ---------------------------------------------------------------------------
+  'GET /api/v1/runs/assignments': (params) => {
+    const runs = getCollection('runs') || [];
+    const bookings = getCollection('bookings') || [];
+    const pets = getCollection('pets') || [];
+    const today = new Date().toISOString().split('T')[0];
+
+    // Get bookings that are checked in for the date range
+    const activeBookings = bookings.filter(b => {
+      const inRange = (!params?.startDate || b.endDate >= params.startDate) &&
+                      (!params?.endDate || b.startDate <= params.endDate);
+      return inRange && ['CHECKED_IN', 'CONFIRMED'].includes(b.status);
+    });
+
+    // Create assignments from active bookings with runs
+    const assignments = activeBookings
+      .filter(b => b.runId)
+      .map(booking => {
+        const pet = pets.find(p => p.id === booking.petId);
+        const run = runs.find(r => r.id === booking.runId);
+        return {
+          id: `assignment-${booking.id}`,
+          bookingId: booking.id,
+          runId: booking.runId,
+          runName: run?.name || booking.runName,
+          petId: booking.petId,
+          petName: pet?.name || booking.petName,
+          ownerId: booking.ownerId,
+          ownerName: booking.ownerName,
+          date: booking.startDate,
+          startTime: booking.checkInTime || '09:00',
+          endTime: booking.checkOutTime || '17:00',
+          status: booking.status,
+          activityType: booking.serviceType === 'daycare' ? 'social' : 'individual',
+        };
+      });
+
+    // Transform runs for the response
+    const runsWithInfo = runs.map(run => ({
+      id: run.id,
+      name: run.name,
+      type: run.size === 'xlarge' ? 'Suite' : run.size === 'large' ? 'Large' : 'Standard',
+      maxCapacity: run.maxCapacity || 1,
+      building: run.building,
+      features: run.features || [],
+      status: run.status,
+    }));
+
+    return {
+      data: assignments,
+      assignments,
+      runs: runsWithInfo,
+      startDate: params?.startDate || today,
+      endDate: params?.endDate || today,
+      total: assignments.length,
+    };
+  },
+
+  'POST /api/v1/runs/assignments': (body) => {
+    // Assign a pet to a run
+    const { runId, petId, bookingId, date, startTime, endTime, activityType } = body;
+
+    // Update the booking with the run assignment
+    if (bookingId) {
+      const runs = getCollection('runs') || [];
+      const run = runs.find(r => r.id === runId);
+      updateById('bookings', bookingId, {
+        runId,
+        runName: run?.name,
+      });
+    }
+
+    toast.success('Pet assigned to run');
+    return {
+      success: true,
+      assignment: {
+        id: `assignment-${Date.now()}`,
+        runId,
+        petId,
+        bookingId,
+        date,
+        startTime,
+        endTime,
+        activityType,
+      }
+    };
   },
 
   // ---------------------------------------------------------------------------
