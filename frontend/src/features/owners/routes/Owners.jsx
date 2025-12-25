@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, Download, Columns, Trash2,
   MessageSquare, Check, X, Star, SlidersHorizontal,
   BookmarkPlus, PawPrint, ArrowUpDown, ArrowUp, ArrowDown, GripVertical,
-  Calendar, Loader2, ShieldCheck, ShieldOff, Clock, Send,
+  Calendar, Loader2, ShieldCheck, ShieldOff, Clock, Send, AlertTriangle,
 } from 'lucide-react';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -57,6 +57,7 @@ const Owners = () => {
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [smsModalOpen, setSmsModalOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmValue, setDeleteConfirmValue] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Search, filter, and view state
@@ -152,6 +153,7 @@ const Owners = () => {
       toast.success(`Deleted ${selectedRows.size} owner${selectedRows.size !== 1 ? 's' : ''}`);
       setSelectedRows(new Set());
       setDeleteConfirmOpen(false);
+      setDeleteConfirmValue('');
     } catch (error) {
       console.error('Failed to delete owners:', error);
       toast.error('Failed to delete some owners');
@@ -706,47 +708,54 @@ const Owners = () => {
       {/* Delete Confirmation Modal */}
       <Modal
         open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
-        title="Delete Owners"
-        description={`Are you sure you want to delete ${selectedRows.size} owner${selectedRows.size !== 1 ? 's' : ''}? This action cannot be undone.`}
-        size="default"
+        onClose={() => { setDeleteConfirmOpen(false); setDeleteConfirmValue(''); }}
+        title={`Delete ${selectedRows.size} owner${selectedRows.size !== 1 ? 's' : ''}`}
+        size="sm"
         footer={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} disabled={isDeleting}>
+            <Button variant="outline" onClick={() => { setDeleteConfirmOpen(false); setDeleteConfirmValue(''); }} disabled={isDeleting}>
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={handleDeleteSelected}
-              disabled={isDeleting}
+              disabled={isDeleting || deleteConfirmValue !== String(selectedRows.size)}
             >
               {isDeleting ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</>
               ) : (
-                <><Trash2 className="h-4 w-4 mr-2" />Delete {selectedRows.size} Owner{selectedRows.size !== 1 ? 's' : ''}</>
+                <><Trash2 className="h-4 w-4 mr-2" />Delete</>
               )}
             </Button>
           </div>
         }
       >
-        <div className="py-2">
-          <p className="text-sm text-[color:var(--bb-color-text-muted)] mb-3">
-            The following owners will be permanently deleted:
-          </p>
-          <div className="max-h-40 overflow-y-auto space-y-1">
-            {selectedOwnerData.slice(0, 10).map((owner) => (
-              <div key={owner.id || owner.recordId} className="flex items-center gap-2 text-sm">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold bg-slate-600 dark:bg-slate-500 text-white">
-                  {owner.fullName?.[0]?.toUpperCase() || 'O'}
-                </div>
-                <span className="text-[color:var(--bb-color-text-primary)]">{owner.fullName}</span>
-              </div>
-            ))}
-            {selectedOwnerData.length > 10 && (
-              <p className="text-xs text-[color:var(--bb-color-text-muted)] mt-2">
-                ...and {selectedOwnerData.length - 10} more
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30">
+            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-red-800 dark:text-red-200">
+                You're about to permanently delete {selectedRows.size} record{selectedRows.size !== 1 ? 's' : ''}.
+                This action cannot be undone.
               </p>
-            )}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1.5 text-[color:var(--bb-color-text-primary)]">
+              Type "{selectedRows.size}" to confirm:
+            </label>
+            <input
+              type="text"
+              value={deleteConfirmValue}
+              onChange={(e) => setDeleteConfirmValue(e.target.value)}
+              placeholder={String(selectedRows.size)}
+              className="w-full px-3 py-2 rounded-lg border text-sm"
+              style={{
+                backgroundColor: 'var(--bb-color-bg-body)',
+                borderColor: 'var(--bb-color-border-subtle)',
+                color: 'var(--bb-color-text-primary)',
+              }}
+            />
           </div>
         </div>
       </Modal>
