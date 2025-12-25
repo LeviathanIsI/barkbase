@@ -1,0 +1,359 @@
+/**
+ * ShiftScheduler Styles
+ * Override react-big-schedule defaults to match BarkBase theme
+ */
+
+/* Container */
+.shift-scheduler {
+  background-color: var(--bb-color-surface-primary, #1a1a2e);
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--bb-color-border, #2d2d44);
+}
+
+.shift-scheduler-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: var(--bb-color-text-muted, #9ca3af);
+}
+
+/* Override react-big-schedule styles */
+.shift-scheduler .scheduler {
+  background-color: var(--bb-color-surface-primary, #1a1a2e) !important;
+}
+
+.shift-scheduler .scheduler-bg {
+  background-color: var(--bb-color-surface-primary, #1a1a2e) !important;
+}
+
+/* Header */
+.shift-scheduler .header2-text {
+  font-weight: 600 !important;
+  color: var(--bb-color-text-primary, #e5e7eb) !important;
+}
+
+.shift-scheduler .header3-text {
+  font-weight: 500 !important;
+  color: var(--bb-color-text-secondary, #9ca3af) !important;
+}
+
+/* Navigation buttons */
+.shift-scheduler .ant-btn {
+  background-color: var(--bb-color-surface-secondary, #252542) !important;
+  border-color: var(--bb-color-border, #2d2d44) !important;
+  color: var(--bb-color-text-primary, #e5e7eb) !important;
+}
+
+.shift-scheduler .ant-btn:hover {
+  background-color: var(--bb-color-surface-hover, #2d2d4a) !important;
+  border-color: var(--bb-color-primary, #3b82f6) !important;
+}
+
+.shift-scheduler .ant-btn-primary {
+  background-color: var(--bb-color-primary, #3b82f6) !important;
+  border-color: var(--bb-color-primary, #3b82f6) !important;
+}
+
+/* Resource column (staff names) */
+.shift-scheduler .resource-table {
+  background-color: var(--bb-color-surface-secondary, #252542) !important;
+}
+
+.shift-scheduler .resource-table td {
+  border-color: var(--bb-color-border, #2d2d44) !important;
+  background-color: var(--bb-color-surface-secondary, #252542) !important;
+}
+
+.shift-scheduler .resource-table th {
+  background-color: var(--bb-color-surface-tertiary, #1f1f38) !important;
+  border-color: var(--bb-color-border, #2d2d44) !important;
+  color: var(--bb-color-text-primary, #e5e7eb) !important;
+  font-weight: 600 !important;
+}
+
+/* Staff slot styling */
+.staff-slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  height: 100%;
+  cursor: pointer;
+}
+
+.staff-slot-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--bb-color-primary, #3b82f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.staff-slot-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.staff-slot-avatar span {
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.staff-slot-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.staff-slot-name {
+  color: var(--bb-color-text-primary, #e5e7eb);
+  font-weight: 500;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.staff-slot-role {
+  color: var(--bb-color-text-muted, #6b7280);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Timeline header */
+.shift-scheduler .scheduler-bg-table th {
+  background-color: var(--bb-color-surface-tertiary, #1f1f38) !important;
+  border-color: var(--bb-color-border, #2d2d44) !important;
+  color: var(--bb-color-text-secondary, #9ca3af) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+/* Timeline cells */
+.shift-scheduler .scheduler-bg-table td {
+  background-color: var(--bb-color-surface-primary, #1a1a2e) !important;
+  border-color: var(--bb-color-border-subtle, #232340) !important;
+}
+
+.shift-scheduler .scheduler-bg-table td:hover {
+  background-color: var(--bb-color-surface-hover, #252545) !important;
+}
+
+/* Today highlight */
+.shift-scheduler .scheduler-bg-table td.day-today {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Event/Shift styling */
+.shift-event {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px 8px;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  overflow: hidden;
+}
+
+.shift-event:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.shift-event-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shift-event-role {
+  font-size: 10px;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Content scrollable area */
+.shift-scheduler .scheduler-content {
+  background-color: var(--bb-color-surface-primary, #1a1a2e) !important;
+}
+
+/* Scrollbar styling */
+.shift-scheduler ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.shift-scheduler ::-webkit-scrollbar-track {
+  background: var(--bb-color-surface-secondary, #252542);
+}
+
+.shift-scheduler ::-webkit-scrollbar-thumb {
+  background: var(--bb-color-border, #3d3d5c);
+  border-radius: 4px;
+}
+
+.shift-scheduler ::-webkit-scrollbar-thumb:hover {
+  background: var(--bb-color-text-muted, #6b7280);
+}
+
+/* Popover */
+.shift-scheduler .ant-popover {
+  z-index: 1050;
+}
+
+.shift-scheduler .ant-popover-inner {
+  background-color: var(--bb-color-surface-secondary, #252542) !important;
+  border: 1px solid var(--bb-color-border, #2d2d44) !important;
+}
+
+.shift-scheduler .ant-popover-inner-content {
+  color: var(--bb-color-text-primary, #e5e7eb) !important;
+}
+
+.shift-scheduler .ant-popover-title {
+  color: var(--bb-color-text-primary, #e5e7eb) !important;
+  border-color: var(--bb-color-border, #2d2d44) !important;
+}
+
+.shift-scheduler .ant-popover-arrow-content {
+  background-color: var(--bb-color-surface-secondary, #252542) !important;
+}
+
+/* Dropdown */
+.shift-scheduler .ant-select {
+  background-color: var(--bb-color-surface-secondary, #252542) !important;
+}
+
+.shift-scheduler .ant-select-selector {
+  background-color: var(--bb-color-surface-secondary, #252542) !important;
+  border-color: var(--bb-color-border, #2d2d44) !important;
+  color: var(--bb-color-text-primary, #e5e7eb) !important;
+}
+
+.shift-scheduler .ant-select-dropdown {
+  background-color: var(--bb-color-surface-secondary, #252542) !important;
+  border-color: var(--bb-color-border, #2d2d44) !important;
+}
+
+.shift-scheduler .ant-select-item {
+  color: var(--bb-color-text-primary, #e5e7eb) !important;
+}
+
+.shift-scheduler .ant-select-item-option-active {
+  background-color: var(--bb-color-surface-hover, #2d2d4a) !important;
+}
+
+.shift-scheduler .ant-select-item-option-selected {
+  background-color: var(--bb-color-primary, #3b82f6) !important;
+}
+
+/* Date picker */
+.shift-scheduler .ant-picker {
+  background-color: var(--bb-color-surface-secondary, #252542) !important;
+  border-color: var(--bb-color-border, #2d2d44) !important;
+}
+
+.shift-scheduler .ant-picker input {
+  color: var(--bb-color-text-primary, #e5e7eb) !important;
+}
+
+.shift-scheduler .ant-picker-suffix {
+  color: var(--bb-color-text-muted, #6b7280) !important;
+}
+
+/* Radio buttons for view toggle */
+.shift-scheduler .ant-radio-group {
+  background-color: var(--bb-color-surface-secondary, #252542) !important;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.shift-scheduler .ant-radio-button-wrapper {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: var(--bb-color-text-secondary, #9ca3af) !important;
+}
+
+.shift-scheduler .ant-radio-button-wrapper:hover {
+  color: var(--bb-color-text-primary, #e5e7eb) !important;
+}
+
+.shift-scheduler .ant-radio-button-wrapper-checked {
+  background-color: var(--bb-color-primary, #3b82f6) !important;
+  color: white !important;
+}
+
+/* Calendar view header row styles */
+.shift-scheduler .scheduler-view {
+  border-color: var(--bb-color-border, #2d2d44) !important;
+}
+
+/* Weekend columns (optional dimming) */
+.shift-scheduler .scheduler-bg-table td.weekend {
+  background-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Current time indicator */
+.shift-scheduler .timeline-event {
+  z-index: 10;
+}
+
+/* Empty state for no shifts */
+.shift-scheduler-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: var(--bb-color-text-muted, #6b7280);
+  gap: 8px;
+}
+
+.shift-scheduler-empty svg {
+  width: 48px;
+  height: 48px;
+  opacity: 0.5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .staff-slot {
+    padding: 6px 8px;
+  }
+
+  .staff-slot-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .staff-slot-name {
+    font-size: 12px;
+  }
+
+  .staff-slot-role {
+    font-size: 10px;
+  }
+
+  .shift-event {
+    padding: 2px 4px;
+    font-size: 11px;
+  }
+
+  .shift-event-role {
+    display: none;
+  }
+}

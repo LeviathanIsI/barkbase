@@ -68,6 +68,7 @@ import StyledSelect from '@/components/ui/StyledSelect';
 import LoadingState from '@/components/ui/LoadingState';
 import { useStaffQuery } from '../../settings/api';
 import { cn } from '@/lib/cn';
+import ShiftScheduler from '../components/ShiftScheduler';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SHARED COMPONENTS
@@ -463,6 +464,49 @@ const ScheduleTab = ({ staff }) => {
     }));
   }, [weeklyData, staff, weekDays]);
 
+  // Transform shifts for ShiftScheduler component
+  const schedulerShifts = useMemo(() => {
+    if (!weeklyData?.shifts) return [];
+    return weeklyData.shifts.map(shift => ({
+      id: shift.id || shift.recordId,
+      staffId: shift.staffId,
+      start: shift.startTime,
+      end: shift.endTime,
+      title: shift.title || shift.role || 'Shift',
+      role: shift.role,
+      status: shift.status,
+      notes: shift.notes,
+    }));
+  }, [weeklyData]);
+
+  // Handlers for ShiftScheduler
+  const handleSchedulerShiftCreate = async ({ staffId, start, end }) => {
+    setSelectedCell({ staffId, date: new Date(start) });
+    setShowAddShiftModal(true);
+  };
+
+  const handleSchedulerShiftUpdate = async (updatedShift) => {
+    try {
+      const shiftsApi = await import('@/features/schedule/api/shifts');
+      await shiftsApi.updateShift(updatedShift.id, {
+        staffId: updatedShift.staffId,
+        startTime: updatedShift.start,
+        endTime: updatedShift.end,
+      });
+      // Refetch
+      const response = await shiftsApi.getWeeklySchedule(weekStartStr);
+      setWeeklyData(response);
+    } catch (error) {
+      console.error('Failed to update shift:', error);
+      alert('Failed to update shift');
+    }
+  };
+
+  const handleSchedulerShiftClick = (shift) => {
+    // Could open a detail modal here
+    console.log('Shift clicked:', shift);
+  };
+
   const handleAddShift = (staffId, date) => {
     setSelectedCell({ staffId, date });
     setShowAddShiftModal(true);
@@ -563,62 +607,24 @@ const ScheduleTab = ({ staff }) => {
         </div>
       </div>
 
-      {/* Schedule Grid */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px]">
-            <thead className="bg-surface border-b border-border">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide w-40">Staff</th>
-                {weekDays.map((day, i) => (
-                  <th key={i} className={cn(
-                    'px-3 py-3 text-center text-xs font-medium uppercase tracking-wide',
-                    format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') ? 'bg-primary/10 text-primary' : 'text-muted'
-                  )}>
-                    <div>{format(day, 'EEE')}</div>
-                    <div className="text-lg font-semibold">{format(day, 'd')}</div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {shifts.map((row, ri) => (
-                <tr key={ri} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-semibold">
-                        {row.staffName?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
-                      </div>
-                      <span className="text-sm font-medium text-text truncate">{row.staffName}</span>
-                    </div>
-                  </td>
-                  {row.shifts.map((shift, si) => (
-                    <td key={si} className="px-2 py-2">
-                      {shift.type === 'off' || !shift.start ? (
-                        <div 
-                          className="text-center text-xs text-muted cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded py-2 transition-colors"
-                          onClick={() => handleAddShift(row.staffId, shift.date)}
-                        >
-                          <Plus className="h-3 w-3 mx-auto opacity-0 group-hover:opacity-100" />
-                          <span className="group-hover:hidden">Off</span>
-                        </div>
-                      ) : shift.type === 'pto' ? (
-                        <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded px-2 py-1.5 text-xs text-center">
-                          PTO
-                        </div>
-                      ) : (
-                        <div className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded px-2 py-1.5 text-xs text-center cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">
-                          {shift.start} - {shift.end}
-                        </div>
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Shift Scheduler */}
+      {loading ? (
+        <LoadingState label="Loading schedule..." variant="skeleton" />
+      ) : (
+        <ShiftScheduler
+          staff={staff.map(s => ({
+            id: s.id || s.recordId,
+            name: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.email,
+            role: s.role || s.title || '',
+            avatar: s.avatar,
+          }))}
+          shifts={schedulerShifts}
+          selectedDate={selectedWeek}
+          onShiftCreate={handleSchedulerShiftCreate}
+          onShiftUpdate={handleSchedulerShiftUpdate}
+          onShiftClick={handleSchedulerShiftClick}
+        />
+      )}
 
       {/* Legend */}
       <div className="flex items-center gap-4 text-xs text-muted">
