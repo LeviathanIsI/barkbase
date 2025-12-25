@@ -3,6 +3,7 @@
  * Visual facility map view with spatial kennel layout
  */
 import { useState, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -101,7 +102,9 @@ const StatCard = ({ icon: Icon, label, value, subValue, variant = 'primary' }) =
 // Kennel Unit Box for the facility map
 const KennelUnit = ({ kennel, onClick, isSelected }) => {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const tooltipRef = useRef(null);
+  const unitRef = useRef(null);
   const typeConfig = KENNEL_TYPES[kennel.type] || KENNEL_TYPES.KENNEL;
 
   const available = (kennel.capacity || 1) - (kennel.occupied || 0);
@@ -132,10 +135,46 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
     }
   };
 
+  const handleMouseEnter = () => {
+    if (unitRef.current) {
+      const rect = unitRef.current.getBoundingClientRect();
+      const tooltipWidth = 256; // w-64 = 16rem = 256px
+      const tooltipHeight = 280; // approximate height
+      const margin = 12;
+
+      // Calculate available space
+      const spaceAbove = rect.top;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceLeft = rect.left;
+      const spaceRight = window.innerWidth - rect.right;
+
+      // Determine vertical position (prefer above)
+      let top;
+      if (spaceAbove >= tooltipHeight + margin) {
+        top = rect.top - tooltipHeight - margin;
+      } else if (spaceBelow >= tooltipHeight + margin) {
+        top = rect.bottom + margin;
+      } else {
+        top = Math.max(margin, rect.top);
+      }
+
+      // Determine horizontal position (prefer centered)
+      let left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+
+      // Final bounds check
+      left = Math.max(margin, Math.min(left, window.innerWidth - tooltipWidth - margin));
+      top = Math.max(margin, Math.min(top, window.innerHeight - tooltipHeight - margin));
+
+      setTooltipPosition({ top, left });
+      setShowTooltip(true);
+    }
+  };
+
   return (
     <div
+      ref={unitRef}
       className="relative"
-      onMouseEnter={() => setShowTooltip(true)}
+      onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setShowTooltip(false)}
     >
       <button
@@ -181,15 +220,19 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
         </span>
       </button>
 
-      {/* Tooltip with pet/booking details */}
-      {showTooltip && (
+      {/* Tooltip with pet/booking details - rendered via portal */}
+      {showTooltip && createPortal(
         <div
           ref={tooltipRef}
-          className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 p-4 rounded-xl shadow-2xl border"
+          className="fixed z-[9999] w-64 p-4 rounded-xl shadow-2xl border"
           style={{
+            top: tooltipPosition.top,
+            left: tooltipPosition.left,
             backgroundColor: 'var(--bb-color-bg-elevated)',
             borderColor: 'var(--bb-color-border-subtle)',
           }}
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => setShowTooltip(false)}
         >
           <div className="flex items-center justify-between mb-3">
             <span className="font-bold text-base text-[color:var(--bb-color-text-primary)]">{kennel.name}</span>
@@ -248,17 +291,8 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
               </div>
             )}
           </div>
-
-          {/* Arrow */}
-          <div
-            className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
-            style={{
-              borderLeft: '10px solid transparent',
-              borderRight: '10px solid transparent',
-              borderTop: '10px solid var(--bb-color-bg-elevated)',
-            }}
-          />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
