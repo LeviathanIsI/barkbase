@@ -27,6 +27,7 @@ import PackagePurchaseModal from '../components/PackagePurchaseModal';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/cn';
 import { differenceInDays, format } from 'date-fns';
+import { useDemoMode } from '@/contexts/DemoModeContext';
 
 // Stat Card Component
 const StatCard = ({ icon: Icon, label, value, subtext, variant = 'primary' }) => {
@@ -74,7 +75,7 @@ const StatCard = ({ icon: Icon, label, value, subtext, variant = 'primary' }) =>
 };
 
 // Sidebar Component
-const PackagesSidebar = ({ packages, onNewPackage, onViewExpiring, navigate }) => {
+const PackagesSidebar = ({ packages, onNewPackage, onViewExpiring, navigate, isViewOnly }) => {
   // Calculate package performance (which packages have been sold most)
   const packagePerformance = useMemo(() => {
     // Group by package name/type and count
@@ -196,7 +197,10 @@ const PackagesSidebar = ({ packages, onNewPackage, onViewExpiring, navigate }) =
       </div>
 
       {/* Quick Actions Card */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
+      <div className={cn(
+        "bg-white dark:bg-surface-primary border border-border rounded-lg p-4",
+        isViewOnly && "opacity-50"
+      )}>
         <div className="flex items-center gap-2 mb-3">
           <Zap className="h-4 w-4 text-muted" />
           <h3 className="text-sm font-medium text-text">Quick Actions</h3>
@@ -208,6 +212,7 @@ const PackagesSidebar = ({ packages, onNewPackage, onViewExpiring, navigate }) =
             size="sm"
             className="w-full justify-start"
             onClick={onNewPackage}
+            disabled={isViewOnly}
           >
             <Plus className="h-3.5 w-3.5 mr-2" />
             New Package
@@ -217,6 +222,7 @@ const PackagesSidebar = ({ packages, onNewPackage, onViewExpiring, navigate }) =
             size="sm"
             className="w-full justify-start"
             onClick={() => navigate('/customers')}
+            disabled={isViewOnly}
           >
             <History className="h-3.5 w-3.5 mr-2" />
             View All Purchases
@@ -226,9 +232,10 @@ const PackagesSidebar = ({ packages, onNewPackage, onViewExpiring, navigate }) =
             size="sm"
             className={cn(
               'w-full justify-start',
-              expiringSoon > 0 && 'text-amber-600 border-amber-300 hover:bg-amber-50'
+              expiringSoon > 0 && !isViewOnly && 'text-amber-600 border-amber-300 hover:bg-amber-50'
             )}
             onClick={onViewExpiring}
+            disabled={isViewOnly}
           >
             <AlertTriangle className="h-3.5 w-3.5 mr-2" />
             Expiring Soon
@@ -244,6 +251,7 @@ const PackagesSidebar = ({ packages, onNewPackage, onViewExpiring, navigate }) =
 
 const Packages = () => {
   const navigate = useNavigate();
+  const { isViewOnly } = useDemoMode();
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
   const [selectedOwner, setSelectedOwner] = useState(null);
   const [showExpiring, setShowExpiring] = useState(false);
@@ -329,7 +337,11 @@ const Packages = () => {
           <p className="text-xs text-muted mt-0.5">Manage package templates and customer purchases</p>
         </div>
 
-        <Button onClick={() => setPurchaseModalOpen(true)}>
+        <Button
+          onClick={() => setPurchaseModalOpen(true)}
+          disabled={isViewOnly}
+          className={cn(isViewOnly && 'opacity-50')}
+        >
           <Plus className="h-4 w-4 mr-2" />
           New Package
         </Button>
@@ -537,7 +549,11 @@ const Packages = () => {
                     View All Packages
                   </Button>
                 ) : (
-                  <Button onClick={() => setPurchaseModalOpen(true)}>
+                  <Button
+                    onClick={() => setPurchaseModalOpen(true)}
+                    disabled={isViewOnly}
+                    className={cn(isViewOnly && 'opacity-50')}
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Create First Package
                   </Button>
@@ -554,6 +570,7 @@ const Packages = () => {
             onNewPackage={() => setPurchaseModalOpen(true)}
             onViewExpiring={() => setShowExpiring(true)}
             navigate={navigate}
+            isViewOnly={isViewOnly}
           />
         </div>
       </div>
