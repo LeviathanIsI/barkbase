@@ -116,12 +116,14 @@ export const usePetsQuery = (params = {}) => {
 export const usePetDetailsQuery = (petId, options = {}) => {
   const tenantId = useTenantId();
   const { enabled = Boolean(petId), ...queryOptions } = options;
-  
+
   return useQuery({
     queryKey: ['pets', { tenantId }, petId],
     queryFn: async () => {
       try {
-        const res = await apiClient.get(canonicalEndpoints.pets.detail(petId));
+        const res = await apiClient.get(canonicalEndpoints.pets.detail(petId), {
+          params: { include: 'owners' }
+        });
         return res?.data ?? null;
       } catch (e) {
         console.warn('[pet] Falling back to null due to API error:', e?.message || e);

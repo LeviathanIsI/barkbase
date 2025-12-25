@@ -71,12 +71,14 @@ export const useOwnersQuery = (params = {}) => {
 export const useOwnerDetailsQuery = (ownerId, options = {}) => {
   const tenantKey = useTenantKey();
   const { enabled = Boolean(ownerId), ...queryOptions } = options;
-  
+
   return useQuery({
     queryKey: [...queryKeys.owners(tenantKey), ownerId],
     queryFn: async () => {
       try {
-        const res = await apiClient.get(canonicalEndpoints.owners.detail(ownerId));
+        const res = await apiClient.get(canonicalEndpoints.owners.detail(ownerId), {
+          params: { include: 'pets' }
+        });
         return res?.data ?? null;
       } catch (e) {
         console.warn('[owner] Falling back to null due to API error:', e?.message || e);
