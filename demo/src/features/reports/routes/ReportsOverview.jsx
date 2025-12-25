@@ -6,6 +6,7 @@
 import { useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useReportDashboard, useCustomerAnalyticsQuery, useServiceAnalyticsQuery } from '../api';
+import { PageTour } from '@/components/demo/PageTour';
 import {
   TrendingUp,
   TrendingDown,
@@ -74,6 +75,20 @@ const ProgressBar = ({ label, value, max = 100, color = 'primary' }) => {
     </div>
   );
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TOUR STEPS
+// ═══════════════════════════════════════════════════════════════════════════
+
+const reportsTourSteps = [
+  {
+    target: '[data-tour="reports-page"]',
+    title: 'Reports & Analytics',
+    content: 'Access comprehensive business intelligence with real-time KPIs, service performance metrics, and actionable insights to optimize your facility operations.',
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+];
 
 // ═══════════════════════════════════════════════════════════════════════════
 // OVERVIEW COMPONENT
@@ -226,7 +241,9 @@ const ReportsOverview = () => {
   }
 
   return (
-    <div className="space-y-3" data-tour="reports-page">
+    <>
+      <PageTour pageRoute="/reports" steps={reportsTourSteps} />
+      <div className="space-y-3" data-tour="reports-page">
       {/* KPI Grid - 6 columns on desktop */}
       <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
         {kpis.map((kpi, i) => (
@@ -301,7 +318,8 @@ const ReportsOverview = () => {
           </ul>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 
