@@ -68,6 +68,7 @@ const BookingSlideoutForm = ({
   const [selectedPets, setSelectedPets] = useState([]);
   const [selectedKennel, setSelectedKennel] = useState(null);
   const [ownerSearch, setOwnerSearch] = useState('');
+  const [prefilledFromPet, setPrefilledFromPet] = useState(false);
   
   // Queries
   const { data: ownersData } = useOwnerSearchQuery(ownerSearch, { enabled: ownerSearch.length >= 2 });
@@ -136,22 +137,30 @@ const BookingSlideoutForm = ({
 
   // Initialize from initialPet when provided (includes setting owner from pet)
   useEffect(() => {
-    if (initialPet && !selectedOwner) {
-      // Get owner from nested owners array or flat owner fields
-      const owner = initialPet.owners?.[0] || (initialPet.owner_id ? {
-        id: initialPet.owner_id,
-        recordId: initialPet.owner_id,
-        firstName: initialPet.owner_first_name,
-        lastName: initialPet.owner_last_name,
-        email: initialPet.owner_email,
-      } : null);
+    if (initialPet && !selectedOwner && !prefilledFromPet) {
+      // Get owners from nested owners array or construct from flat owner fields
+      const petOwners = initialPet.owners?.length > 0
+        ? initialPet.owners
+        : (initialPet.owner_id ? [{
+            id: initialPet.owner_id,
+            recordId: initialPet.owner_id,
+            firstName: initialPet.owner_first_name,
+            lastName: initialPet.owner_last_name,
+            email: initialPet.owner_email,
+          }] : []);
 
-      if (owner) {
-        setSelectedOwner(owner);
+      if (petOwners.length === 1) {
+        // Single owner: auto-select both owner and pet
+        setSelectedOwner(petOwners[0]);
+        setSelectedPets([initialPet]);
+        setPrefilledFromPet(true);
+      } else if (petOwners.length > 1) {
+        // Multiple owners: show picker, pre-select pet
+        setSelectedPets([initialPet]);
+        setPrefilledFromPet(true);
       }
-      setSelectedPets([initialPet]);
     }
-  }, [initialPet]);
+  }, [initialPet, prefilledFromPet]);
   
   const onSubmit = async (data) => {
     if (!selectedOwner) {
@@ -214,12 +223,12 @@ const BookingSlideoutForm = ({
       {/* Step 1: Owner Selection */}
       <FormSection title="1. Select Owner">
         {selectedOwner ? (
-          <div 
+          <div
             className="flex items-center justify-between p-3 rounded-lg border"
             style={{ borderColor: 'var(--bb-color-accent)', backgroundColor: 'var(--bb-color-accent-soft)' }}
           >
             <div className="flex items-center gap-3">
-              <div 
+              <div
                 className="flex h-10 w-10 items-center justify-center rounded-full"
                 style={{ backgroundColor: 'var(--bb-color-purple-soft)', color: 'var(--bb-color-purple)' }}
               >
@@ -234,12 +243,44 @@ const BookingSlideoutForm = ({
                 </p>
               </div>
             </div>
-            <Button type="button" variant="ghost" size="sm" onClick={() => {
-              setSelectedOwner(null);
-              setSelectedPets([]);
-            }}>
-              Change
-            </Button>
+            {/* Only show Change button if not locked from pet pre-fill with single owner */}
+            {(!prefilledFromPet || (initialPet?.owners?.length > 1)) && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => {
+                setSelectedOwner(null);
+                if (!prefilledFromPet) {
+                  setSelectedPets([]);
+                }
+              }}>
+                Change
+              </Button>
+            )}
+          </div>
+        ) : prefilledFromPet && initialPet?.owners?.length > 1 ? (
+          /* Show dropdown of pet's owners when pre-filled from pet with multiple owners */
+          <div className="space-y-3">
+            <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+              Select which owner is booking for {initialPet.name}:
+            </p>
+            <div className="border rounded-lg divide-y" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+              {initialPet.owners.map(owner => (
+                <button
+                  key={owner.id || owner.recordId}
+                  type="button"
+                  onClick={() => setSelectedOwner(owner)}
+                  className="w-full p-3 text-left hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors flex items-center gap-3"
+                >
+                  <Users className="w-4 h-4" style={{ color: 'var(--bb-color-text-muted)' }} />
+                  <div>
+                    <p className="font-medium text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+                      {owner.firstName} {owner.lastName}
+                    </p>
+                    <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                      {owner.email || owner.phone}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -282,7 +323,78 @@ const BookingSlideoutForm = ({
 
       {/* Step 2: Pet Selection */}
       <FormSection title="2. Select Pet(s)">
-        {selectedOwner ? (
+        {/* When pre-filled from pet page, show the pre-selected pet */}
+        {prefilledFromPet && initialPet ? (
+          <div className="space-y-3">
+            {/* Show the pre-selected pet prominently */}
+            <div
+              className="p-3 rounded-lg border ring-2 ring-[color:var(--bb-color-accent)] flex items-center gap-3"
+              style={{
+                borderColor: 'var(--bb-color-accent)',
+                backgroundColor: 'var(--bb-color-accent-soft)',
+              }}
+            >
+              <PawPrint className="w-5 h-5" style={{ color: 'var(--bb-color-accent)' }} />
+              <div className="flex-1">
+                <p className="font-medium text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+                  {initialPet.name}
+                </p>
+                <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                  {initialPet.breed || initialPet.species}
+                </p>
+              </div>
+              <Check className="w-4 h-4" style={{ color: 'var(--bb-color-accent)' }} />
+            </div>
+            {/* Show additional owner pets if owner is selected and has more pets */}
+            {selectedOwner && ownerPets.length > 1 && (
+              <div className="space-y-2">
+                <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                  Add more pets to this booking:
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {ownerPets
+                    .filter(pet => (pet.recordId || pet.id) !== (initialPet.recordId || initialPet.id))
+                    .map(pet => {
+                      const petId = pet.recordId || pet.id;
+                      const isSelected = selectedPets.some(p => (p.recordId || p.id) === petId);
+                      return (
+                        <button
+                          key={petId}
+                          type="button"
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedPets(prev => prev.filter(p => (p.recordId || p.id) !== petId));
+                            } else {
+                              setSelectedPets(prev => [...prev, pet]);
+                            }
+                          }}
+                          className={cn(
+                            "p-3 rounded-lg border text-left transition-colors flex items-center gap-3",
+                            isSelected && "ring-2 ring-[color:var(--bb-color-accent)]"
+                          )}
+                          style={{
+                            borderColor: isSelected ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+                            backgroundColor: isSelected ? 'var(--bb-color-accent-soft)' : 'transparent',
+                          }}
+                        >
+                          <PawPrint className="w-5 h-5" style={{ color: isSelected ? 'var(--bb-color-accent)' : 'var(--bb-color-text-muted)' }} />
+                          <div>
+                            <p className="font-medium text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+                              {pet.name}
+                            </p>
+                            <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                              {pet.breed || pet.species}
+                            </p>
+                          </div>
+                          {isSelected && <Check className="w-4 h-4 ml-auto" style={{ color: 'var(--bb-color-accent)' }} />}
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : selectedOwner ? (
           ownerPets.length > 0 ? (
             <div className="grid grid-cols-2 gap-2">
               {ownerPets.map(pet => {
@@ -303,7 +415,7 @@ const BookingSlideoutForm = ({
                       "p-3 rounded-lg border text-left transition-colors flex items-center gap-3",
                       isSelected && "ring-2 ring-[color:var(--bb-color-accent)]"
                     )}
-                    style={{ 
+                    style={{
                       borderColor: isSelected ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
                       backgroundColor: isSelected ? 'var(--bb-color-accent-soft)' : 'transparent',
                     }}
