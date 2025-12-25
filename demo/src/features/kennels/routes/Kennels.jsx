@@ -39,6 +39,18 @@ import { useKennels, useDeleteKennel } from '../api';
 import { useTerminology } from '@/lib/terminology';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
+import { PageTour } from '@/components/demo/PageTour';
+
+// Tour steps for /kennels page
+const kennelsTourSteps = [
+  {
+    target: '[data-tour="kennels-page"]',
+    title: 'Kennels',
+    content: "Real-time run availability. Know exactly what's open without checking a whiteboard.",
+    placement: 'bottom',
+    disableBeacon: true,
+  },
+];
 
 // Kennel type configurations
 const KENNEL_TYPES = {
@@ -688,7 +700,9 @@ const Kennels = () => {
     : 0;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] gap-4" data-tour="kennels-page">
+    <>
+      <PageTour pageRoute="/kennels" steps={kennelsTourSteps} />
+      <div className="flex flex-col h-[calc(100vh-120px)] gap-4" data-tour="kennels-page">
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between shrink-0">
         <div>
@@ -755,7 +769,7 @@ const Kennels = () => {
       </div>
 
       {/* Two-Column Layout */}
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px] flex-1 min-h-0">
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px] flex-1 min-h-0" data-tour="kennels-grid">
         {/* Left: Facility Map */}
         <div className="space-y-4 overflow-y-auto min-h-0">
           {/* Filter Bar */}
@@ -921,6 +935,7 @@ const Kennels = () => {
         kennel={assignKennel}
       />
     </div>
+    </>
   );
 };
 
