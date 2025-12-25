@@ -72,19 +72,46 @@ const OwnerHoverPreview = ({ children, owner, className }) => {
         const rect = triggerRef.current.getBoundingClientRect();
         const previewWidth = 320;
         const previewHeight = 280;
+        const padding = 10; // Minimum distance from viewport edges
 
-        // Position preview to the right of trigger by default
-        let left = rect.right + 10;
-        let top = rect.top;
+        // Calculate available space in each direction
+        const spaceRight = window.innerWidth - rect.right - padding;
+        const spaceLeft = rect.left - padding;
+        const spaceBottom = window.innerHeight - rect.top - padding;
+        const spaceTop = rect.top - padding;
 
-        // Adjust if preview would go off screen
-        if (left + previewWidth > window.innerWidth) {
-          left = rect.left - previewWidth - 10;
+        let left, top;
+
+        // Horizontal positioning: prefer right, fall back to left
+        if (spaceRight >= previewWidth + padding) {
+          // Enough space on the right
+          left = rect.right + padding;
+        } else if (spaceLeft >= previewWidth + padding) {
+          // Position to the left of trigger
+          left = rect.left - previewWidth - padding;
+        } else {
+          // Not enough space on either side, center horizontally and clamp
+          left = Math.max(padding, Math.min(
+            (rect.left + rect.right) / 2 - previewWidth / 2,
+            window.innerWidth - previewWidth - padding
+          ));
         }
 
-        if (top + previewHeight > window.innerHeight) {
-          top = window.innerHeight - previewHeight - 10;
+        // Vertical positioning: prefer aligned with trigger top, fall back to above
+        if (spaceBottom >= previewHeight) {
+          // Enough space below trigger's top
+          top = rect.top;
+        } else if (spaceTop >= previewHeight) {
+          // Position above trigger
+          top = rect.bottom - previewHeight;
+        } else {
+          // Not enough space, position to maximize visibility
+          top = Math.max(padding, window.innerHeight - previewHeight - padding);
         }
+
+        // Final bounds check to ensure popup stays within viewport
+        left = Math.max(padding, Math.min(left, window.innerWidth - previewWidth - padding));
+        top = Math.max(padding, Math.min(top, window.innerHeight - previewHeight - padding));
 
         setPosition({ top, left });
         setIsVisible(true);
