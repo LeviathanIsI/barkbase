@@ -3271,6 +3271,16 @@ const messages = [
     updatedAt: '2024-12-23T10:30:00Z'
   },
   {
+    id: 'msg-001b-dec2024',
+    type: 'inbound',
+    channel: 'email',
+    ownerId: 'owner-001-a1b2c3d4',
+    body: 'OMG thank you so much!! They look so happy! Can you give them extra belly rubs from me?',
+    read: true,
+    createdAt: '2024-12-23T11:00:00Z',
+    updatedAt: '2024-12-23T11:00:00Z'
+  },
+  {
     id: 'msg-002-dec2024',
     type: 'inbound',
     channel: 'phone',
@@ -3324,6 +3334,16 @@ const messages = [
     replyBody: "Got it! We've updated Rosie's feeding notes. We'll warm her food and have chicken ready as a backup. Thanks for letting us know!",
     createdAt: '2024-12-23T11:45:00Z',
     updatedAt: '2024-12-23T12:00:00Z'
+  },
+  {
+    id: 'msg-004b-dec2024',
+    type: 'inbound',
+    channel: 'email',
+    ownerId: 'owner-008-h8i9j0k1',
+    body: 'Perfect, you guys are the best! She can be such a diva sometimes lol',
+    read: true,
+    createdAt: '2024-12-23T12:30:00Z',
+    updatedAt: '2024-12-23T12:30:00Z'
   },
   {
     id: 'msg-005-dec2024',
