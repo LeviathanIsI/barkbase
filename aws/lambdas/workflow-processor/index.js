@@ -376,7 +376,7 @@ async function evaluateFilterBranches(filterConfig, record, historyContext = nul
   if (branches.length === 0) {
     // If no branches but has filters at root level, evaluate directly
     if (filterConfig.filters && filterConfig.filters.length > 0) {
-      return await evaluateConditionGroup(filterConfig.filters, record, historyContext);
+      return await evaluateFilterGroup(filterConfig.filters, record, historyContext);
     }
     return false;
   }
@@ -389,7 +389,7 @@ async function evaluateFilterBranches(filterConfig, record, historyContext = nul
     // Evaluate filters in this branch
     let filtersResult = true;
     if (filters.length > 0) {
-      filtersResult = await evaluateConditionGroup(filters, record, historyContext);
+      filtersResult = await evaluateFilterGroup(filters, record, historyContext);
     }
 
     // Recursively evaluate nested branches
@@ -416,7 +416,7 @@ async function evaluateFilterBranches(filterConfig, record, historyContext = nul
  * Evaluate a group of enterprise filters (ANDed together)
  * Now async to support historical operators
  */
-async function evaluateConditionGroup(filters, record, historyContext = null) {
+async function evaluateFilterGroup(filters, record, historyContext = null) {
   if (!filters || filters.length === 0) {
     return true;
   }
