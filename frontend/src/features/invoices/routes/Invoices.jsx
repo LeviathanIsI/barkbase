@@ -1,6 +1,6 @@
 /**
  * Invoices - Full-featured invoicing command center
- * Modeled after QuickBooks Online, Stripe Invoicing, and HubSpot Billing
+ * Modeled after QuickBooks Online, Stripe Invoicing, and enterprise billing
  */
 
 import { useState, useMemo, useRef, useEffect } from 'react';

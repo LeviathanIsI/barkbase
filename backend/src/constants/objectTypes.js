@@ -5,7 +5,7 @@
  *
  * Central registry for all object types in the system. Each object type has:
  * - code: Numeric identifier for the object type (used in TenantSequence)
- * - typeId: HubSpot-style type identifier (format: "0-{code}")
+ * - typeId: enterprise type identifier (format: "0-{code}")
  * - table: Database table name (PascalCase, matches Prisma/SQL)
  * - label: Human-readable singular name
  * - labelPlural: Human-readable plural name

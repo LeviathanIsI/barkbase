@@ -5,7 +5,7 @@ import { usePageView } from '@/hooks/useTelemetry';
 
 /**
  * ObjectSetup - Generic setup/configuration page for BarkBase objects
- * Similar to HubSpot's object setup interface with tabbed navigation
+ * Enterprise object setup interface with tabbed navigation
  */
 const ObjectSetup = ({
   objectName,

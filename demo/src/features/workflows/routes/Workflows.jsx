@@ -1,7 +1,7 @@
 /**
  * Workflows Dashboard
  * Main page for viewing and managing all workflows
- * HubSpot-style table view with filters and search
+ * enterprise table view with filters and search
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';

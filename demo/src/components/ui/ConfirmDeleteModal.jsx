@@ -1,5 +1,5 @@
 /**
- * ConfirmDeleteModal - HubSpot-style delete confirmation
+ * ConfirmDeleteModal - enterprise delete confirmation
  * Requires user to type the resource name to confirm deletion
  */
 

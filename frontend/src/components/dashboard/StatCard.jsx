@@ -6,7 +6,7 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
  * Hero stat card for dashboard metrics
  * Shows a single KPI with optional trend and icon
  *
- * HubSpot pattern: Max 5 of these on any dashboard
+ * enterprise pattern: Max 5 of these on any dashboard
  *
  * @param {string} label - Metric label
  * @param {string|number} value - Metric value (REAL data, not placeholder)

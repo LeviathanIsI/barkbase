@@ -433,7 +433,7 @@ export class ServicesStack extends cdk.Stack {
     // =========================================================================
     // Workflow Cleanup Service (EventBridge-scheduled, NOT exposed via API Gateway)
     // =========================================================================
-    // Cleans up old workflow data based on HubSpot-aligned retention policies:
+    // Cleans up old workflow data based on enterprise-aligned retention policies:
     // - WorkflowExecutionLog: 90 days (action logs)
     // - WorkflowExecution: 180 days (enrollment history)
     // Per-tenant customization via Tenant.settings.workflow_log_retention_days

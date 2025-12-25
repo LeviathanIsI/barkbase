@@ -62,7 +62,7 @@ const STEP_EXECUTOR_ARN = process.env.WORKFLOW_STEP_EXECUTOR_ARN;
 const SCHEDULER_ROLE_ARN = process.env.WORKFLOW_SCHEDULER_ROLE_ARN;
 
 // =============================================================================
-// RETRY CONFIGURATION (HubSpot-aligned)
+// RETRY CONFIGURATION (enterprise-aligned)
 // =============================================================================
 const RETRY_CONFIG = {
   MAX_RETRY_WINDOW_MS: 3 * 24 * 60 * 60 * 1000, // 3 days in milliseconds
@@ -1038,10 +1038,10 @@ async function executeEnrollInWorkflow(config, execution, recordData, tenantId) 
 
 /**
  * Execute webhook action
- * HubSpot-aligned: 30-second timeout, proper error handling, retry headers
+ * enterprise-aligned: 30-second timeout, proper error handling, retry headers
  */
 async function executeWebhook(config, execution, recordData, tenantId) {
-  const WEBHOOK_TIMEOUT_MS = 30000; // 30 seconds (HubSpot spec)
+  const WEBHOOK_TIMEOUT_MS = 30000; // 30 seconds (spec)
 
   try {
     const url = config.url;
@@ -1878,13 +1878,13 @@ async function executeDeterminator(step, execution, recordData, tenantId) {
   console.log('[StepExecutor] Executing determinator. Branch type:', branchType);
 
   // Handle static branches (value-equals routing)
-  // HubSpot supports up to 250 branches for static branching
+  // enterprise supports up to 250 branches for static branching
   if (branchType === 'static') {
     return executeStaticBranching(step, config, recordData);
   }
 
   // Handle list branches (if/then conditional routing)
-  // HubSpot supports up to 20 branches for list branching
+  // enterprise supports up to 20 branches for list branching
   return executeListBranching(step, config, recordData);
 }
 
@@ -1971,7 +1971,7 @@ async function executeStaticBranching(step, config, recordData) {
 
 /**
  * Execute list branching (if/then conditional routing)
- * HubSpot-aligned: Supports up to 20 branches with conditions
+ * enterprise-aligned: Supports up to 20 branches with conditions
  * First matching branch wins, then falls back to default 'none-matched' branch
  *
  * Config formats:
@@ -2039,7 +2039,7 @@ async function executeListBranching(step, config, recordData) {
 }
 
 /**
- * Execute multi-branch routing (HubSpot if/then with up to 20 branches)
+ * Execute multi-branch routing (enterprise if/then with up to 20 branches)
  * Evaluates each branch's conditions in order - first match wins
  * Falls back to 'none-matched' / default branch if no conditions match
  *
@@ -2061,7 +2061,7 @@ async function executeMultiBranching(step, branches, recordData) {
 
   let matchedBranch = null;
 
-  // Evaluate each non-default branch's conditions (first match wins - HubSpot behavior)
+  // Evaluate each non-default branch's conditions (first match wins - enterprise behavior)
   for (const branch of sortedBranches) {
     // Skip default branch during condition evaluation
     if (branch.isDefault) continue;
@@ -2304,11 +2304,11 @@ function evaluateCondition(condition, recordData) {
 
 /**
  * Find the next step after the current one
- * HubSpot-aligned: Uses explicit step connections (next_step_id) first,
+ * enterprise-aligned: Uses explicit step connections (next_step_id) first,
  * falls back to position-based lookup for backwards compatibility
  */
 async function findNextStep(workflowId, currentStepId, parentStepId, branchPath) {
-  // First, check for explicit next_step_id connection (HubSpot approach)
+  // First, check for explicit next_step_id connection (standard approach)
   const stepResult = await query(
     `SELECT position, next_step_id FROM "WorkflowStep" WHERE record_id = $1`,
     [currentStepId]

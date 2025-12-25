@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * HubSpot-style board view (Kanban)
+ * enterprise board view (Kanban)
  * Shows items organized by status columns with drag-and-drop
  *
  * CRITICAL: Uses REAL data passed via props. Does NOT generate fake data.
@@ -85,7 +85,7 @@ export function BoardView({
 
 /**
  * Individual card in board view
- * Shows 2-4 properties maximum (HubSpot pattern)
+ * Shows 2-4 properties maximum (enterprise pattern)
  */
 function BoardCard({ item, onClick, renderCard }) {
   return (

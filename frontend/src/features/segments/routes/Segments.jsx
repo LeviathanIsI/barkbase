@@ -1,5 +1,5 @@
 /**
- * Segments List Page - HubSpot-style table view
+ * Segments List Page - enterprise table view
  * /segments
  */
 

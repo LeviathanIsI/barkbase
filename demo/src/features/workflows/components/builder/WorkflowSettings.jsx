@@ -1,6 +1,6 @@
 /**
- * WorkflowSettings - HubSpot-style settings panel for workflow configuration
- * Matches HubSpot's workflow settings design pattern
+ * WorkflowSettings - enterprise settings panel for workflow configuration
+ * Enterprise-grade workflow settings design pattern
  */
 import { useState, useEffect } from 'react';
 import { X, Info, ExternalLink } from 'lucide-react';

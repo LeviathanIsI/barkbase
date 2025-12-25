@@ -26,7 +26,7 @@ import { cn } from '@/lib/cn';
 
 /**
  * UnifiedOwnerCard Component
- * HubSpot-grade CRM card for displaying owner and pet information
+ * enterprise-grade CRM card for displaying owner and pet information
  */
 const UnifiedOwnerCard = ({ owner, getVaccinationStatus, viewMode = 'grid' }) => {
   const [expanded, setExpanded] = useState(false);

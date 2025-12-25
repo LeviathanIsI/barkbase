@@ -33,7 +33,7 @@ const cloudwatch = new CloudWatchClient({
   region: process.env.AWS_REGION_DEPLOY || process.env.AWS_REGION || 'us-east-2',
 });
 
-// Default retention periods (HubSpot-aligned)
+// Default retention periods (enterprise-aligned)
 const DEFAULT_LOG_RETENTION_DAYS = 90;      // Action logs
 const DEFAULT_EXECUTION_RETENTION_DAYS = 180; // Enrollment history (6 months)
 

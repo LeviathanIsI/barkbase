@@ -526,7 +526,7 @@ const IntegrationsOverview = () => {
             <p className="mb-2">Most requested integrations:</p>
             <div className="flex justify-center gap-4 text-xs">
               <span>1. PetDesk (23 votes) - In progress ✓</span>
-              <span>2. HubSpot (18 votes)</span>
+              <span>2. enterprise (18 votes)</span>
               <span>3. Salesforce (12 votes)</span>
             </div>
             <p className="mt-2">

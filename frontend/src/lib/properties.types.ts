@@ -5,7 +5,7 @@
  *
  * Type definitions for the enterprise custom fields system.
  * Properties allow tenants to define their own data model per entity type,
- * similar to HubSpot's custom properties or Airtable's schema editor.
+ * similar to enterprise custom properties or Airtable's schema editor.
  *
  * =============================================================================
  */

@@ -499,7 +499,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
   /**
    * Convert store state to API format
    * Computes explicit step connections (next_step_id, yes_step_id, no_step_id)
-   * for HubSpot-style workflow execution
+   * for enterprise workflow execution
    */
   toAPIFormat: () => {
     const state = get();
@@ -525,7 +525,7 @@ export const useWorkflowBuilderStore = create((set, get) => ({
         position: s.position,
         parent_step_id: s.parentStepId,
         branch_id: s.branchId,
-        // Explicit step connections (HubSpot-style)
+        // Explicit step connections (enterprise)
         next_step_id: stepConnections[s.id]?.next_step_id || null,
         yes_step_id: stepConnections[s.id]?.yes_step_id || null,
         no_step_id: stepConnections[s.id]?.no_step_id || null,
@@ -668,7 +668,7 @@ function recalculatePositions(steps) {
 }
 
 /**
- * Compute explicit step connections (HubSpot-style)
+ * Compute explicit step connections (enterprise)
  * This enables GO-TO connections and explicit branch targeting
  *
  * For each step, determines:

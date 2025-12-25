@@ -8,7 +8,7 @@ const RequestIntegrationModal = ({ isOpen, onClose }) => {
 
   const requestedIntegrations = [
     { name: 'PetDesk', votes: 23, status: 'in-progress', description: 'Client communication platform for vet clinics' },
-    { name: 'HubSpot', votes: 18, status: 'requested', description: 'CRM and marketing automation' },
+    { name: 'enterprise', votes: 18, status: 'requested', description: 'CRM and marketing automation' },
     { name: 'Salesforce', votes: 12, status: 'requested', description: 'Enterprise CRM platform' },
     { name: 'ServiceM8', votes: 9, status: 'requested', description: 'Field service management' }
   ];

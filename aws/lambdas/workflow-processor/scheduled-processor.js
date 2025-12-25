@@ -461,9 +461,9 @@ async function processFilterWorkflows() {
 
 /**
  * Process a single filter-criteria workflow
- * Supports both HubSpot-style and legacy BarkBase filter formats
+ * Supports both enterprise and legacy BarkBase filter formats
  *
- * HubSpot format:
+ * enterprise format:
  * {
  *   filterBranchType: "OR",
  *   filterBranches: [
@@ -496,11 +496,11 @@ async function processFilterWorkflow(workflow) {
 
   // Detect format and build WHERE clause accordingly
   if (filterConfig.filterBranchType || filterConfig.filterBranches) {
-    // HubSpot-style format
-    const hubspotResult = buildHubSpotFilterClause(filterConfig, params, paramIndex);
-    if (hubspotResult.sql) {
-      whereClause += ` AND (${hubspotResult.sql})`;
-      paramIndex = hubspotResult.nextParamIndex;
+    // enterprise format
+    const filterResult = buildFilterClause(filterConfig, params, paramIndex);
+    if (filterResult.sql) {
+      whereClause += ` AND (${filterResult.sql})`;
+      paramIndex = filterResult.nextParamIndex;
     }
   } else if (filterConfig.groups && filterConfig.groups.length > 0) {
     // Legacy BarkBase format with groups
@@ -581,17 +581,17 @@ async function processFilterWorkflow(workflow) {
 }
 
 /**
- * Build SQL WHERE clause from HubSpot-style filter format
+ * Build SQL WHERE clause from enterprise filter format
  * Root level is OR, sub-branches are AND containing filters
  */
-function buildHubSpotFilterClause(filterConfig, params, paramIndex) {
+function buildFilterClause(filterConfig, params, paramIndex) {
   const rootType = (filterConfig.filterBranchType || 'OR').toUpperCase();
   const branches = filterConfig.filterBranches || [];
 
   if (branches.length === 0) {
     // If no branches but has filters at root level, evaluate directly
     if (filterConfig.filters && filterConfig.filters.length > 0) {
-      return buildHubSpotFiltersClause(filterConfig.filters, params, paramIndex);
+      return buildFiltersClause(filterConfig.filters, params, paramIndex);
     }
     return { sql: null, nextParamIndex: paramIndex };
   }
@@ -607,7 +607,7 @@ function buildHubSpotFilterClause(filterConfig, params, paramIndex) {
 
     // Build clause for filters in this branch
     if (filters.length > 0) {
-      const filtersResult = buildHubSpotFiltersClause(filters, params, paramIndex);
+      const filtersResult = buildFiltersClause(filters, params, paramIndex);
       if (filtersResult.sql) {
         clauseParts.push(filtersResult.sql);
         paramIndex = filtersResult.nextParamIndex;
@@ -616,7 +616,7 @@ function buildHubSpotFilterClause(filterConfig, params, paramIndex) {
 
     // Recursively build clause for nested branches
     if (nestedBranches.length > 0) {
-      const nestedResult = buildHubSpotFilterClause({ filterBranchType: branchType, filterBranches: nestedBranches }, params, paramIndex);
+      const nestedResult = buildFilterClause({ filterBranchType: branchType, filterBranches: nestedBranches }, params, paramIndex);
       if (nestedResult.sql) {
         clauseParts.push(nestedResult.sql);
         paramIndex = nestedResult.nextParamIndex;
@@ -638,9 +638,9 @@ function buildHubSpotFilterClause(filterConfig, params, paramIndex) {
 }
 
 /**
- * Build SQL clause for a group of HubSpot-style filters (ANDed together)
+ * Build SQL clause for a group of enterprise filters (ANDed together)
  */
-function buildHubSpotFiltersClause(filters, params, paramIndex) {
+function buildFiltersClause(filters, params, paramIndex) {
   if (!filters || filters.length === 0) {
     return { sql: null, nextParamIndex: paramIndex };
   }
@@ -648,7 +648,7 @@ function buildHubSpotFiltersClause(filters, params, paramIndex) {
   const clauses = [];
 
   for (const filter of filters) {
-    // HubSpot uses 'property' instead of 'field'
+    // enterprise uses 'property' instead of 'field'
     const columnName = sanitizeColumnName(filter.property || filter.field);
     if (!columnName) continue;
 
@@ -672,7 +672,7 @@ function buildHubSpotFiltersClause(filters, params, paramIndex) {
     return { sql: null, nextParamIndex: paramIndex };
   }
 
-  // HubSpot filters within a branch are ANDed
+  // enterprise filters within a branch are ANDed
   return { sql: clauses.join(' AND '), nextParamIndex: paramIndex };
 }
 
@@ -779,7 +779,7 @@ function sanitizeColumnName(name) {
 
 /**
  * Build SQL condition clause for a filter condition
- * Supports both HubSpot-style operators (IS_EQUAL_TO) and legacy (equals)
+ * Supports both enterprise operators (IS_EQUAL_TO) and legacy (equals)
  * @param {string} columnName - Sanitized column name
  * @param {string} operator - Filter operator
  * @param {*} value - Filter value

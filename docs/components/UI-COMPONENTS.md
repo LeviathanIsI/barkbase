@@ -283,7 +283,7 @@ export function ErrorFallback({ error, resetError }) {
 
 ### DeleteConfirmationModal
 
-HubSpot-style deletion confirmation with type-to-confirm.
+enterprise deletion confirmation with type-to-confirm.
 
 **File:** `frontend/src/components/ui/DeleteConfirmationModal.jsx`
 

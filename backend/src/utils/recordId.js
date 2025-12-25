@@ -94,7 +94,7 @@ async function getCurrentSequenceValue(pool, tenantId, tableName) {
 }
 
 /**
- * Parse a HubSpot-style record reference
+ * Parse a enterprise record reference
  *
  * Format: {account_code}/record/{type_id}/{record_id}
  * Example: BK-7X3M9P/record/0-1/1234
@@ -123,7 +123,7 @@ function parseRecordReference(reference) {
 }
 
 /**
- * Build a HubSpot-style record reference
+ * Build a enterprise record reference
  *
  * @param {string} accountCode - Account code (e.g., "BK-7X3M9P")
  * @param {string} typeId - Type ID (e.g., "0-1")

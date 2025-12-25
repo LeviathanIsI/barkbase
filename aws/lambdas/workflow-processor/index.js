@@ -150,7 +150,7 @@ async function processEvent(message) {
     console.log('[WORKFLOW TRIGGER] Processing workflow:', workflow.id, workflow.name);
 
     // INFINITE LOOP PREVENTION: Skip if this record was enrolled by the same workflow
-    // This matches HubSpot's behavior where records created/modified by a workflow
+    // This matches enterprise behavior where records created/modified by a workflow
     // cannot trigger enrollment in that same workflow
     if (eventData?.sourceWorkflowId && eventData.sourceWorkflowId === workflow.id) {
       console.log('[WORKFLOW TRIGGER] INFINITE LOOP PREVENTED: Record from workflow', workflow.id, 'cannot re-enroll in same workflow');
@@ -291,9 +291,9 @@ async function isRecordSuppressed(recordId, recordType, segmentIds, tenantId) {
 
 /**
  * Evaluate if a record matches segment filters
- * Supports both HubSpot-style and legacy BarkBase filter formats
+ * Supports both enterprise and legacy BarkBase filter formats
  *
- * HubSpot format:
+ * enterprise format:
  * {
  *   filterBranchType: "OR",
  *   filterBranches: [
@@ -345,8 +345,8 @@ async function evaluateSegmentFilters(recordId, recordType, filters, tenantId) {
 
     // Detect format and evaluate accordingly
     if (filters.filterBranchType || filters.filterBranches) {
-      // HubSpot-style format
-      return await evaluateHubSpotFilters(filters, record, historyContext);
+      // enterprise format
+      return await evaluateFilterBranches(filters, record, historyContext);
     } else if (filters.groups && filters.groups.length > 0) {
       // Legacy BarkBase format
       return await evaluateLegacyFilters(filters, record, historyContext);
@@ -365,18 +365,18 @@ async function evaluateSegmentFilters(recordId, recordType, filters, tenantId) {
 }
 
 /**
- * Evaluate HubSpot-style filter branches
+ * Evaluate enterprise filter branches
  * Root level is OR, sub-branches are AND containing filters
  * Now async to support historical operators
  */
-async function evaluateHubSpotFilters(filterConfig, record, historyContext = null) {
+async function evaluateFilterBranches(filterConfig, record, historyContext = null) {
   const rootType = (filterConfig.filterBranchType || 'OR').toUpperCase();
   const branches = filterConfig.filterBranches || [];
 
   if (branches.length === 0) {
     // If no branches but has filters at root level, evaluate directly
     if (filterConfig.filters && filterConfig.filters.length > 0) {
-      return await evaluateHubSpotConditionGroup(filterConfig.filters, record, historyContext);
+      return await evaluateConditionGroup(filterConfig.filters, record, historyContext);
     }
     return false;
   }
@@ -389,13 +389,13 @@ async function evaluateHubSpotFilters(filterConfig, record, historyContext = nul
     // Evaluate filters in this branch
     let filtersResult = true;
     if (filters.length > 0) {
-      filtersResult = await evaluateHubSpotConditionGroup(filters, record, historyContext);
+      filtersResult = await evaluateConditionGroup(filters, record, historyContext);
     }
 
     // Recursively evaluate nested branches
     let nestedResult = true;
     if (nestedBranches.length > 0) {
-      nestedResult = await evaluateHubSpotFilters({ filterBranchType: branchType, filterBranches: nestedBranches }, record, historyContext);
+      nestedResult = await evaluateFilterBranches({ filterBranchType: branchType, filterBranches: nestedBranches }, record, historyContext);
     }
 
     // Combine based on branch type
@@ -413,16 +413,16 @@ async function evaluateHubSpotFilters(filterConfig, record, historyContext = nul
 }
 
 /**
- * Evaluate a group of HubSpot-style filters (ANDed together)
+ * Evaluate a group of enterprise filters (ANDed together)
  * Now async to support historical operators
  */
-async function evaluateHubSpotConditionGroup(filters, record, historyContext = null) {
+async function evaluateConditionGroup(filters, record, historyContext = null) {
   if (!filters || filters.length === 0) {
     return true;
   }
 
   const results = await Promise.all(filters.map(async filter => {
-    // HubSpot uses 'property' instead of 'field'
+    // enterprise uses 'property' instead of 'field'
     const condition = {
       field: filter.property || filter.field,
       operator: filter.operator,
@@ -477,7 +477,7 @@ async function evaluateConditionGroup(conditions, logic, record, historyContext 
 
 /**
  * Evaluate a single filter condition against a record
- * Supports both HubSpot-style operators (IS_EQUAL_TO) and legacy (equals)
+ * Supports both enterprise operators (IS_EQUAL_TO) and legacy (equals)
  * Now async to support historical operators that query PropertyHistory
  *
  * @param {object} condition - Filter condition with field, operator, value
@@ -491,7 +491,7 @@ async function evaluateFilterCondition(condition, record, historyContext = null)
   // Normalize operator to uppercase for comparison
   const op = (operator || '').toUpperCase().replace(/-/g, '_');
 
-  // HubSpot includeObjectsWithNoValueSet handling
+  // enterprise includeObjectsWithNoValueSet handling
   // When a field value is null/undefined:
   // - If includeObjectsWithNoValueSet === true: include the record (return true)
   // - If includeObjectsWithNoValueSet === false (default): exclude the record (return false)
@@ -1186,7 +1186,7 @@ async function enrollInWorkflow(workflow, recordId, recordType, tenantId, eventD
     }
   }
 
-  // Check if record already meets goal conditions (HubSpot behavior)
+  // Check if record already meets goal conditions (standard behavior)
   // Records that already satisfy the goal should not be enrolled
   if (workflow.goal_config) {
     console.log('[WorkflowTrigger] Checking if record already meets goal conditions...');

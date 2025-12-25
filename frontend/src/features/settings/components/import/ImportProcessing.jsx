@@ -9,7 +9,7 @@ const STAGES = [
 ];
 
 /**
- * Full-screen processing overlay - HubSpot style
+ * Full-screen processing overlay - enterprise style
  */
 const ImportProcessing = ({
   isVisible,

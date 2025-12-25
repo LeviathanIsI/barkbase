@@ -1,6 +1,6 @@
 /**
  * Enterprise Properties Table - Phase 8 Enterprise Table System
- * HubSpot-style properties table with rich metadata display
+ * enterprise properties table with rich metadata display
  * Token-based styling for consistent theming.
  */
 

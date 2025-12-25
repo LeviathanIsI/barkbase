@@ -19,7 +19,7 @@ import {
 } from './importFieldDefinitions';
 
 /**
- * HubSpot-style Import Mapping Step
+ * enterprise Import Mapping Step
  *
  * Each column gets TWO dropdowns:
  * 1. "Import As" - Choose: [Entity] properties, Association, or Don't import

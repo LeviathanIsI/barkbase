@@ -18,7 +18,7 @@ import {
 } from './importFieldDefinitions';
 
 /**
- * HubSpot-style Import Details/Review Step
+ * enterprise Import Details/Review Step
  *
  * Shows summary of what will be imported:
  * - Records count

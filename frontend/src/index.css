@@ -12,7 +12,7 @@
 
 @layer utilities {
   /* ===== TYPOGRAPHY HIERARCHY - Max 3 Font Weights ===== */
-  /* Based on HubSpot's reduction from 40+ text styles to 3 weights */
+  /* Based on enterprise reduction from 40+ text styles to 3 weights */
 
   /* Headings - font-semibold (600) */
   .text-heading-xl {

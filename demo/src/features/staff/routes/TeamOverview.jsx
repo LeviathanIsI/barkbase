@@ -1,6 +1,6 @@
 /**
  * Staff / Team Module - Enterprise Workforce Management
- * Modeled after Deputy, WhenIWork, Homebase, BambooHR, HubSpot Teams
+ * Modeled after Deputy, WhenIWork, Homebase, BambooHR,  Teams
  */
 
 import { useState, useMemo, useEffect } from 'react';

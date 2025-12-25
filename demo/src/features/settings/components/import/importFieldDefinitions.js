@@ -1,5 +1,5 @@
 /**
- * Field definitions for import mapping - HubSpot Style
+ * Field definitions for import mapping - enterprise style
  *
  * KEY CONCEPTS:
  * 1. ENTITY_TYPES - Define fields for each object type

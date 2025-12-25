@@ -1,6 +1,6 @@
 /**
  * Professional Tabs Component
- * Enterprise underline-style tabs (Linear/HubSpot pattern)
+ * Enterprise underline-style tabs (Linear/enterprise pattern)
  * NO pill/segment style - uses bottom border for active state
  */
 

@@ -3212,7 +3212,7 @@ async function handleGetSegments(tenantId) {
 }
 
 // =============================================================================
-// HUBSPOT-STYLE FILTER TYPE SYSTEM
+// enterprise FILTER TYPE SYSTEM
 // =============================================================================
 
 /**
@@ -3798,7 +3798,7 @@ function buildSingleFilterClause(objectType, filter, paramIndex, tableAlias, ten
 
 /**
  * Build SQL WHERE clause from segment filters
- * Uses the HubSpot-style filter type system for proper handling of
+ * Uses the enterprise filter type system for proper handling of
  * direct columns, computed fields, and associations.
  *
  * @param {object} filters - Filters object with groups and groupLogic

@@ -1,6 +1,6 @@
 /**
  * Workflows Constants
- * BarkBase workflow automation system - HubSpot-style patterns
+ * BarkBase workflow automation system - enterprise patterns
  */
 
 // =============================================================================
@@ -71,7 +71,7 @@ export const OBJECT_TYPE_CONFIG = {
 // ENTRY CONDITIONS (TRIGGERS)
 // =============================================================================
 
-// Entry condition types - HubSpot style
+// Entry condition types - enterprise style
 export const ENTRY_CONDITION_TYPES = [
   {
     value: 'manual',
@@ -135,7 +135,7 @@ export const TRIGGER_TYPE_CONFIG = {
 // EVENT TRIGGERS
 // =============================================================================
 
-// Event triggers organized by category (HubSpot style)
+// Event triggers organized by category (enterprise style)
 export const EVENT_TRIGGERS = {
   bookings: {
     label: 'Bookings',
@@ -684,7 +684,7 @@ export const EXECUTION_STATUS_CONFIG = {
 };
 
 // =============================================================================
-// CONDITION OPERATORS (HubSpot-style by field type)
+// CONDITION OPERATORS (enterprise by field type)
 // =============================================================================
 
 export const CONDITION_OPERATORS = {

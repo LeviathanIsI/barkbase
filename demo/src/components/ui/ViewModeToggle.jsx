@@ -3,7 +3,7 @@ import { Table, LayoutGrid, SplitSquareVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
- * HubSpot-style view mode toggle
+ * enterprise view mode toggle
  * Allows switching between table, board, and split views
  *
  * @param {string} mode - Current mode ('table' | 'board' | 'split')

@@ -1,6 +1,6 @@
 /**
  * ActionLogsTab - Execution logs tab for workflow details
- * Shows detailed action logs in a table format like HubSpot
+ * Shows detailed action logs in a table format enterprise-grade
  */
 import { useState } from 'react';
 import { Filter, X, Calendar } from 'lucide-react';

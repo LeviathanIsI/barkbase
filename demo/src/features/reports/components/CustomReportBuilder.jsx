@@ -1,5 +1,5 @@
 /**
- * CustomReportBuilder - HubSpot-style custom report builder
+ * CustomReportBuilder - enterprise custom report builder
  * 3-column layout: Data sources/Fields | Configure/Filters | Chart Preview
  */
 
@@ -346,7 +346,7 @@ const DROP_ZONE_DEFINITIONS = {
   },
 };
 
-// HubSpot-style operators organized by field type
+// enterprise operators organized by field type
 const FILTER_OPERATORS_BY_TYPE = {
   text: [
     { value: 'is', label: 'is' },
@@ -862,7 +862,7 @@ const DropZone = ({
 };
 
 // =============================================================================
-// FILTER PILL COMPONENT - HubSpot-style filter chip
+// FILTER PILL COMPONENT - enterprise filter chip
 // =============================================================================
 
 const FilterPill = ({ filter, field, onClick, onRemove }) => {
@@ -909,7 +909,7 @@ const FilterPill = ({ filter, field, onClick, onRemove }) => {
 };
 
 // =============================================================================
-// FILTER EDITOR POPOVER - HubSpot-style inline editor
+// FILTER EDITOR POPOVER - enterprise inline editor
 // =============================================================================
 
 const FilterEditorPopover = ({ filter, field, allFields, onUpdate, onClose, onRemove }) => {
@@ -1565,7 +1565,7 @@ const CustomReportBuilder = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-180px)] min-h-[600px] -mt-3">
-      {/* Top Bar - HubSpot Style */}
+      {/* Top Bar - enterprise style */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#1a2433] dark:bg-[#1a2433] border-b border-[#2d3e50]">
         <div className="flex items-center gap-3">
           <Button
@@ -1965,7 +1965,7 @@ const CustomReportBuilder = () => {
               </div>
             </div>
           ) : (
-            /* Filters Tab - HubSpot Style */
+            /* Filters Tab - enterprise style */
             <div className="flex-1 overflow-y-auto">
               {/* ALL/ANY Toggle */}
               <div className="px-4 py-3 border-b border-border bg-surface-secondary/50">

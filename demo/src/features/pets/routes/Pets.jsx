@@ -1087,7 +1087,7 @@ const Pets = () => {
         )}
       </SlideOutDrawer>
 
-      {/* Delete Confirmation Modal - HubSpot-style number confirmation */}
+      {/* Delete Confirmation Modal - enterprise number confirmation */}
       <Modal
         open={deleteModalOpen}
         onClose={() => {

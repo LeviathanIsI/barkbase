@@ -418,7 +418,7 @@ describe('Goal Evaluation', () => {
     });
   });
 
-  describe('HubSpot-style Operator Names', () => {
+  describe('enterprise Operator Names', () => {
     const recordData = {
       status: 'CONFIRMED',
       name: 'Max',

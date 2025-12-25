@@ -1,6 +1,6 @@
 /**
  * WorkflowsTable - Table component for displaying workflows
- * HubSpot-style table with columns for name, object type, created, enrolled, status
+ * enterprise table with columns for name, object type, created, enrolled, status
  */
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';

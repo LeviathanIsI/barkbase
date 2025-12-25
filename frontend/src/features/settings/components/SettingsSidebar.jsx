@@ -144,7 +144,7 @@ const SettingsSidebar = () => {
       <div className="flex-1 overflow-y-auto py-4">
         {NAV_SECTIONS.map((section) => (
           <div key={section.id} className="mb-4">
-            {/* Section Header - HubSpot style: bold, not clickable */}
+            {/* Section Header - enterprise style: bold, not clickable */}
             <div className="px-4 mb-1">
               <span className="text-sm font-semibold text-text">
                 {section.title}
@@ -209,7 +209,7 @@ const SettingsSidebar = () => {
                   );
                 }
 
-                // Regular items - flat, clean, HubSpot style
+                // Regular items - flat, clean, enterprise style
                 return (
                   <NavLink
                     key={item.to}

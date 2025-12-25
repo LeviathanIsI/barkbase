@@ -1,5 +1,5 @@
 /**
- * MenuBar - HubSpot-style menu bar for the workflow builder
+ * MenuBar - enterprise menu bar for the workflow builder
  * Provides File, Edit, Settings, View, and Help menus
  */
 import { useState, useRef, useEffect } from 'react';

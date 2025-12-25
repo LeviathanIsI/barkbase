@@ -1,7 +1,7 @@
 /**
  * WorkflowLogs - Dedicated logs page for workflow execution history
  * URL: /workflows/:workflowId/logs
- * HubSpot-style layout with breadcrumb, summary bar, and tabs
+ * enterprise layout with breadcrumb, summary bar, and tabs
  */
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -510,7 +510,7 @@ function SummaryItem({ label, value }) {
   );
 }
 
-// Log row component - HubSpot style
+// Log row component - enterprise style
 function LogRow({ log }) {
   // API returns camelCase field names
   const eventType = log.eventType || log.event_type;

@@ -1,7 +1,7 @@
 /**
  * DeterminatorConfig - Configuration panel for determinator (if/then) steps
  * Supports multiple conditional branches with a "None matched" default branch
- * Similar to HubSpot's branch workflow feature
+ * Enterprise branch workflow feature
  */
 import { Plus, Trash2, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/cn';

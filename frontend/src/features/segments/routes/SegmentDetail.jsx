@@ -1,5 +1,5 @@
 /**
- * Segment Detail Page - HubSpot-style full page with tabs
+ * Segment Detail Page - enterprise full page with tabs
  * /segments/:id
  *
  * FIXES APPLIED:

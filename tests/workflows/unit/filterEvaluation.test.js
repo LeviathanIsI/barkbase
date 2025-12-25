@@ -15,7 +15,7 @@ function evaluateOperator(operator, actualValue, filterValue, options = {}) {
   // Normalize operator to uppercase
   const op = (operator || '').toUpperCase().replace(/-/g, '_');
 
-  // Handle empty values (HubSpot includeObjectsWithNoValueSet)
+  // Handle empty values (enterprise includeObjectsWithNoValueSet)
   const emptinessOperators = ['IS_EMPTY', 'IS_NOT_EMPTY', 'IS_KNOWN', 'IS_UNKNOWN'];
   if (!emptinessOperators.includes(op) && (actualValue === null || actualValue === undefined)) {
     if (includeObjectsWithNoValueSet === true) {
@@ -149,8 +149,8 @@ function compareDates(actual, expected) {
   return actualDate.getTime() - expectedDate.getTime();
 }
 
-// Helper to parse HubSpot-style filters
-function evaluateHubSpotFilters(filterConfig, record) {
+// Helper to parse enterprise filters
+function evaluateFilterBranches(filterConfig, record) {
   const rootType = (filterConfig.filterBranchType || 'OR').toUpperCase();
   const branches = filterConfig.filterBranches || [];
 
@@ -436,7 +436,7 @@ describe('Filter Evaluation - Operators', () => {
   });
 });
 
-describe('Filter Evaluation - HubSpot Filter Format', () => {
+describe('Filter Evaluation - enterprise Filter Format', () => {
   const testRecord = {
     name: 'Max',
     species: 'dog',
@@ -459,7 +459,7 @@ describe('Filter Evaluation - HubSpot Filter Format', () => {
       ],
     };
 
-    expect(evaluateHubSpotFilters(filter, testRecord)).toBe(true);
+    expect(evaluateFilterBranches(filter, testRecord)).toBe(true);
   });
 
   test('evaluates AND branch - all conditions must match', () => {
@@ -476,7 +476,7 @@ describe('Filter Evaluation - HubSpot Filter Format', () => {
       ],
     };
 
-    expect(evaluateHubSpotFilters(filter, testRecord)).toBe(true);
+    expect(evaluateFilterBranches(filter, testRecord)).toBe(true);
 
     // Change one condition to fail
     const failingFilter = {
@@ -492,7 +492,7 @@ describe('Filter Evaluation - HubSpot Filter Format', () => {
       ],
     };
 
-    expect(evaluateHubSpotFilters(failingFilter, testRecord)).toBe(false);
+    expect(evaluateFilterBranches(failingFilter, testRecord)).toBe(false);
   });
 
   test('evaluates OR branches - any branch can match', () => {
@@ -514,7 +514,7 @@ describe('Filter Evaluation - HubSpot Filter Format', () => {
       ],
     };
 
-    expect(evaluateHubSpotFilters(filter, testRecord)).toBe(true);
+    expect(evaluateFilterBranches(filter, testRecord)).toBe(true);
   });
 
   test('handles empty filter branches', () => {
@@ -523,7 +523,7 @@ describe('Filter Evaluation - HubSpot Filter Format', () => {
       filterBranches: [],
     };
 
-    expect(evaluateHubSpotFilters(filter, testRecord)).toBe(false);
+    expect(evaluateFilterBranches(filter, testRecord)).toBe(false);
   });
 
   test('handles root level filters without branches', () => {
@@ -533,7 +533,7 @@ describe('Filter Evaluation - HubSpot Filter Format', () => {
       ],
     };
 
-    expect(evaluateHubSpotFilters(filter, testRecord)).toBe(true);
+    expect(evaluateFilterBranches(filter, testRecord)).toBe(true);
   });
 });
 

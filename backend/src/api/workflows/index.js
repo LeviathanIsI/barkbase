@@ -1523,7 +1523,7 @@ router.get('/workflows/:id/steps', async (req, res) => {
 
 /**
  * Update workflow steps (full replacement)
- * Supports HubSpot-style step flow connections
+ * Supports enterprise step flow connections
  */
 router.put('/workflows/:id/steps', async (req, res) => {
   const pool = getPool();

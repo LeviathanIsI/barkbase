@@ -571,12 +571,12 @@ exports.handler = async (event, context) => {
       return handleDownloadExport(user, jobId);
     }
 
-    // GET /api/v1/imports - List all imports (HubSpot-style history)
+    // GET /api/v1/imports - List all imports (enterprise history)
     if ((path === '/api/v1/imports' || path === '/imports') && method === 'GET') {
       return handleListImports(user, event.queryStringParameters || {});
     }
 
-    // GET /api/v1/imports/:id - Get import details (HubSpot-style summary)
+    // GET /api/v1/imports/:id - Get import details (enterprise summary)
     const importDetailMatch = path.match(/^\/(?:api\/v1\/)?imports\/([a-f0-9-]+)$/i);
     if (importDetailMatch && method === 'GET') {
       const importId = importDetailMatch[1];
@@ -773,7 +773,7 @@ exports.handler = async (event, context) => {
     // =========================================================================
     // CUSTOM PROPERTIES API (v2)
     // =========================================================================
-    // Enterprise custom fields system - like HubSpot's custom properties
+    // Enterprise custom fields system - enterprise-grade's custom properties
     // Allows tenants to define their own data model per entity type
     // =========================================================================
 
@@ -2660,7 +2660,7 @@ async function handleDeleteMembership(user, membershipId) {
 // =============================================================================
 //
 // Enterprise custom fields system that allows tenants to define their own
-// data model. Similar to HubSpot's custom properties or Airtable's fields.
+// data model. Enterprise custom properties or Airtable's fields.
 //
 // Feature Gating:
 // - FREE: 5 custom fields max
@@ -9125,7 +9125,7 @@ function arrayToCSV(data) {
 }
 
 /**
- * Process an import - HubSpot-style with tracking
+ * Process an import - enterprise with tracking
  */
 async function handleProcessImport(user, event) {
   let importId = null;
@@ -9570,7 +9570,7 @@ async function handleProcessImport(user, event) {
 }
 
 /**
- * Import owners with detailed tracking for HubSpot-style results
+ * Import owners with detailed tracking for enterprise results
  */
 async function importOwnersWithTracking(tenantId, owners, options = {}) {
   const detailedErrors = [];
@@ -9717,7 +9717,7 @@ async function importOwnersWithTracking(tenantId, owners, options = {}) {
 }
 
 /**
- * Import pets with detailed tracking for HubSpot-style results
+ * Import pets with detailed tracking for enterprise results
  */
 async function importPetsWithTracking(tenantId, pets, options = {}) {
   const detailedErrors = [];
@@ -9829,7 +9829,7 @@ async function importPetsWithTracking(tenantId, pets, options = {}) {
 }
 
 /**
- * Resolve associations for pets using NEW HubSpot-style format
+ * Resolve associations for pets using NEW enterprise format
  * associations is an array of arrays: [[{type: 'owners', field: 'email', value: 'x@y.com'}], ...]
  */
 async function resolveAssociationsForPets(tenantId, records, associationsByRow) {
@@ -10318,7 +10318,7 @@ async function handleDownloadExport(user, jobId) {
 }
 
 // =============================================================================
-// IMPORT HISTORY HANDLERS (HubSpot-style)
+// IMPORT HISTORY HANDLERS (enterprise)
 // =============================================================================
 
 /**
@@ -10391,7 +10391,7 @@ async function handleListImports(user, queryParams = {}) {
 }
 
 /**
- * Get detailed import information (HubSpot-style summary page)
+ * Get detailed import information (enterprise summary page)
  */
 async function handleGetImportDetail(user, importId) {
   try {

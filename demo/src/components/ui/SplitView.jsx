@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * HubSpot-style split view
+ * enterprise split view
  * Left: Compact list, Right: Selected item details
  *
  * CRITICAL: Uses REAL data. Does NOT create mock data.
