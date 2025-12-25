@@ -58,6 +58,7 @@ import {
   Loader2,
   Coffee,
   Zap,
+  Repeat2,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -989,8 +990,14 @@ const ScheduleTab = ({ staff }) => {
                           className={`h-full rounded-md px-2 py-1.5 ${roleColor} text-white
                             cursor-grab active:cursor-grabbing border
                             hover:brightness-110 transition-all shadow-sm
-                            flex flex-col justify-center`}
+                            flex flex-col justify-center relative`}
                         >
+                          {/* Auto-generated indicator */}
+                          {shift.source === 'default' && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-white/90 rounded-full flex items-center justify-center shadow-sm" title="Auto-generated from default schedule">
+                              <Repeat2 className="h-2.5 w-2.5 text-slate-600" />
+                            </div>
+                          )}
                           <div className="text-xs font-semibold leading-tight">
                             {formatShiftTime(shift.start)} - {formatShiftTime(shift.end)}
                           </div>
@@ -1173,7 +1180,7 @@ const ScheduleTab = ({ staff }) => {
         open={showDefaultScheduleModal}
         onClose={() => setShowDefaultScheduleModal(false)}
         title={editingDefaultSchedule ? 'Edit Default Schedule' : 'Add Default Schedule'}
-        size="lg"
+        size="xl"
       >
         <DefaultScheduleForm
           staff={staff}
