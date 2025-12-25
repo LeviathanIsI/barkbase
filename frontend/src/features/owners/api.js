@@ -76,8 +76,9 @@ export const useOwnerDetailsQuery = (ownerId, options = {}) => {
     queryKey: [...queryKeys.owners(tenantKey), ownerId],
     queryFn: async () => {
       try {
+        // Try multiple parameter names for including related records
         const res = await apiClient.get(canonicalEndpoints.owners.detail(ownerId), {
-          params: { include: 'pets' }
+          params: { include: 'pets', expand: 'pets', with: 'pets' }
         });
         return res?.data ?? null;
       } catch (e) {

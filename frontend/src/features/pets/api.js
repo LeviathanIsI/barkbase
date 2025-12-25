@@ -121,8 +121,9 @@ export const usePetDetailsQuery = (petId, options = {}) => {
     queryKey: ['pets', { tenantId }, petId],
     queryFn: async () => {
       try {
+        // Try multiple parameter names for including related records
         const res = await apiClient.get(canonicalEndpoints.pets.detail(petId), {
-          params: { include: 'owners' }
+          params: { include: 'owners', expand: 'owners', with: 'owners' }
         });
         return res?.data ?? null;
       } catch (e) {
