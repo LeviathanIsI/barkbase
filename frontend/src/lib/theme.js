@@ -257,12 +257,14 @@ export const applyBranding = (branding) => {
     root.style.setProperty('--bb-color-sidebar-item-active-text', isDarkMode ? accentLight : accentDarker);
   }
 
-  // Apply font pairing
+  // Apply font pairing to ALL text elements
   if (branding.fontPreset) {
     const fonts = FONT_PAIRINGS[branding.fontPreset] || FONT_PAIRINGS.modern;
-    root.style.setProperty('--font-heading', fonts.heading);
-    root.style.setProperty('--font-sans', fonts.body);
-    root.style.setProperty('--font-body', fonts.body);
+    // Set all font variables to ensure fonts apply everywhere
+    root.style.setProperty('--font-family-sans', fonts.body);  // body, tailwind font-sans
+    root.style.setProperty('--font-heading', fonts.heading);   // headings
+    root.style.setProperty('--font-sans', fonts.body);         // legacy support
+    root.style.setProperty('--font-body', fonts.body);         // legacy support
   }
 
   // Store logo URLs for components to use
