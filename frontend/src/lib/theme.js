@@ -185,42 +185,74 @@ const lightenHex = (hex, percent) => {
 /**
  * Apply branding customizations from API response
  * This sets CSS variables that override the design tokens for ALL components
+ *
+ * Three color system:
+ * - Primary: Primary buttons, highlight text, main CTAs
+ * - Secondary: Secondary buttons, less prominent actions
+ * - Accent: Sidebar active states, badges, decorative accents
  */
 export const applyBranding = (branding) => {
   if (typeof window === 'undefined' || !branding) return;
   const root = document.documentElement;
+  const isDarkMode = root.classList.contains('dark');
 
-  // Apply accent color (the main brand color)
-  if (branding.accentColor || branding.primaryColor) {
-    const accentHex = branding.accentColor || branding.primaryColor;
+  // === PRIMARY COLOR (buttons, highlight text, main CTAs) ===
+  if (branding.primaryColor) {
+    const primaryHex = branding.primaryColor;
+    const primaryDark = darkenHex(primaryHex, 0.15);
+    const primaryDarker = darkenHex(primaryHex, 0.25);
+    const primaryLight = lightenHex(primaryHex, 0.15);
+    const textOnPrimary = getContrastTextColor(primaryHex);
+
+    // Primary button background (--bb-color-accent is used by Button primary variant)
+    root.style.setProperty('--bb-color-accent', primaryHex);
+    root.style.setProperty('--bb-color-accent-soft', hexToSoft(primaryHex, isDarkMode ? 0.18 : 0.15));
+    root.style.setProperty('--bb-color-text-on-accent', textOnPrimary);
+
+    // Tailwind primary color scale
+    root.style.setProperty('--color-primary-500', primaryHex);
+    root.style.setProperty('--color-primary-600', primaryDark);
+    root.style.setProperty('--color-primary-700', primaryDarker);
+    root.style.setProperty('--color-primary-400', primaryLight);
+    root.style.setProperty('--color-primary-300', lightenHex(primaryHex, 0.30));
+
+    // Focus ring uses primary color
+    root.style.setProperty('--border-focus', primaryHex);
+    root.style.setProperty('--focus-ring', `0 0 0 3px ${hexToSoft(primaryHex, 0.2)}`);
+  }
+
+  // === SECONDARY COLOR (secondary buttons) ===
+  if (branding.secondaryColor) {
+    const secondaryHex = branding.secondaryColor;
+    const secondaryDark = darkenHex(secondaryHex, 0.15);
+    const secondaryLight = lightenHex(secondaryHex, 0.15);
+
+    // Secondary button styles
+    root.style.setProperty('--bb-color-secondary', secondaryHex);
+    root.style.setProperty('--bb-color-secondary-soft', hexToSoft(secondaryHex, isDarkMode ? 0.18 : 0.15));
+    root.style.setProperty('--bb-color-text-on-secondary', getContrastTextColor(secondaryHex));
+
+    // Tailwind secondary color scale
+    root.style.setProperty('--color-secondary-500', secondaryHex);
+    root.style.setProperty('--color-secondary-600', secondaryDark);
+    root.style.setProperty('--color-secondary-400', secondaryLight);
+  }
+
+  // === ACCENT COLOR (sidebar, badges, decorative accents) ===
+  if (branding.accentColor) {
+    const accentHex = branding.accentColor;
     const accentDark = darkenHex(accentHex, 0.15);
     const accentDarker = darkenHex(accentHex, 0.25);
     const accentLight = lightenHex(accentHex, 0.15);
-    const textOnAccent = getContrastTextColor(accentHex);
-    const isDarkMode = root.classList.contains('dark');
 
-    // === CORE ACCENT VARIABLES (used by Button, Badge, links, etc.) ===
-    root.style.setProperty('--bb-color-accent', accentHex);
-    root.style.setProperty('--bb-color-accent-soft', hexToSoft(accentHex, isDarkMode ? 0.18 : 0.15));
+    // Accent text color (for links, accent text)
     root.style.setProperty('--bb-color-accent-text', isDarkMode ? accentLight : accentDark);
-    root.style.setProperty('--bb-color-text-on-accent', textOnAccent);
 
-    // === SIDEBAR VARIABLES ===
+    // Sidebar uses accent color
     root.style.setProperty('--bb-color-sidebar-item-hover-bg', hexToSoft(accentHex, 0.08));
     root.style.setProperty('--bb-color-sidebar-item-active-bg', hexToSoft(accentHex, isDarkMode ? 0.20 : 0.15));
     root.style.setProperty('--bb-color-sidebar-item-active-border', accentHex);
     root.style.setProperty('--bb-color-sidebar-item-active-text', isDarkMode ? accentLight : accentDarker);
-
-    // === PRIMARY COLOR SCALE (for Tailwind primary-* classes) ===
-    root.style.setProperty('--color-primary-500', accentHex);
-    root.style.setProperty('--color-primary-600', accentDark);
-    root.style.setProperty('--color-primary-700', accentDarker);
-    root.style.setProperty('--color-primary-400', accentLight);
-    root.style.setProperty('--color-primary-300', lightenHex(accentHex, 0.30));
-
-    // === FOCUS RING ===
-    root.style.setProperty('--border-focus', accentHex);
-    root.style.setProperty('--focus-ring', `0 0 0 3px ${hexToSoft(accentHex, 0.2)}`);
   }
 
   // Apply font pairing
