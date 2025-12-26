@@ -13,6 +13,8 @@ import {
   Tag,
   ChevronRight,
   ChevronDown,
+  ChevronLeft,
+  ChevronsLeft,
   ArrowLeft,
   Menu,
   X,
@@ -32,6 +34,7 @@ import {
   Type,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useUIStore } from "@/stores/ui";
 
 const NAV_SECTIONS = [
   {
@@ -159,6 +162,12 @@ export default function SettingsLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [settingsSidebarCollapsed, setSettingsSidebarCollapsed] = useState(false);
+
+  // Main sidebar state from UI store
+  const mainSidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
+  const toggleMainSidebar = useUIStore((state) => state.toggleSidebar);
+  const setSidebarCollapsed = useUIStore((state) => state.setSidebarCollapsed);
 
   // Start with all sections collapsed
   const [collapsedSections, setCollapsedSections] = useState(() => {
@@ -170,6 +179,18 @@ export default function SettingsLayout() {
   });
 
   const [expandedItems, setExpandedItems] = useState([]); // Objects NOT expanded by default
+
+  // Toggle just the settings sidebar
+  const toggleSettingsSidebar = () => {
+    setSettingsSidebarCollapsed((prev) => !prev);
+  };
+
+  // Toggle both sidebars
+  const toggleBothSidebars = () => {
+    const newCollapsed = !settingsSidebarCollapsed || !mainSidebarCollapsed;
+    setSettingsSidebarCollapsed(newCollapsed);
+    setSidebarCollapsed(newCollapsed);
+  };
 
   const toggleSection = (sectionId) => {
     setCollapsedSections((prev) => ({
@@ -280,8 +301,8 @@ export default function SettingsLayout() {
   // Sidebar content
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-border/60">
+      {/* Header with Back button and collapse toggles */}
+      <div className="flex items-center gap-2 px-4 py-4 border-b border-border/60">
         <button
           type="button"
           onClick={() => navigate("/")}
@@ -290,6 +311,29 @@ export default function SettingsLayout() {
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to App
         </button>
+
+        {/* Collapse buttons */}
+        <div className="flex items-center ml-auto">
+          {/* Single arrow - collapse settings sidebar only */}
+          <button
+            type="button"
+            onClick={toggleSettingsSidebar}
+            className="flex items-center justify-center h-8 w-8 rounded-l-md border border-border/80 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            title="Collapse settings sidebar"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
+          {/* Double arrow - collapse both sidebars */}
+          <button
+            type="button"
+            onClick={toggleBothSidebars}
+            className="flex items-center justify-center h-8 w-8 rounded-r-md border border-l-0 border-border/80 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            title="Collapse all sidebars"
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* Title */}
@@ -456,9 +500,28 @@ export default function SettingsLayout() {
   return (
     <div className="flex w-full h-[calc(100vh-4rem)] bg-background rounded-lg border border-border overflow-hidden">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 flex-shrink-0 flex-col border-r border-border bg-card h-full overflow-hidden">
-        {sidebarContent}
+      <aside
+        className={cn(
+          "hidden md:flex flex-shrink-0 flex-col border-r border-border bg-card h-full overflow-hidden transition-all duration-300",
+          settingsSidebarCollapsed ? "w-0" : "w-64"
+        )}
+      >
+        {!settingsSidebarCollapsed && sidebarContent}
       </aside>
+
+      {/* Expand button when settings sidebar is collapsed */}
+      {settingsSidebarCollapsed && (
+        <div className="hidden md:flex flex-col items-center py-4 px-1 border-r border-border bg-card">
+          <button
+            type="button"
+            onClick={toggleSettingsSidebar}
+            className="flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            title="Expand settings sidebar"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-card border-b border-border px-4 py-3">
