@@ -3,9 +3,9 @@ const clone = (value) => (typeof structuredClone === "function" ? structuredClon
 const DEFAULT_THEME = {
   name: 'BarkBase Default',
   colors: {
-    primary: '59 130 246',
-    secondary: '129 140 248',
-    accent: '245 158 11',  // amber-500 (#f59e0b) - actual app default
+    primary: '245 158 11',   // amber-500 (#f59e0b) - actual app primary
+    secondary: '217 119 6',  // amber-600 (#d97706) - darker variant
+    accent: '245 158 11',    // amber-500 (#f59e0b) - actual app default
     background: '248 250 252',
     surface: '255 255 255',
     text: '17 24 39',

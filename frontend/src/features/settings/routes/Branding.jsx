@@ -26,10 +26,11 @@ import apiClient, { uploadFile } from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
 
 // Default theme values - must match the actual app defaults from tokens.css
+// The app uses amber (#f59e0b) as the single brand/accent color
 const DEFAULT_THEME = {
-  primaryHex: '#3b82f6',   // blue-500 - used for primary buttons
-  secondaryHex: '#818cf8', // indigo-400 - used for secondary elements
-  accentHex: '#f59e0b',    // amber-500 - the app's actual accent color from tokens.css
+  primaryHex: '#f59e0b',   // amber-500 - --bb-color-accent, used for primary buttons
+  secondaryHex: '#d97706', // amber-600 - darker variant for secondary elements
+  accentHex: '#f59e0b',    // amber-500 - same as primary, the app's brand color
   terminologyKennel: 'Kennel',
   fontPairing: 'modern',
   squareLogo: null,
@@ -37,21 +38,22 @@ const DEFAULT_THEME = {
 };
 
 // Preset color swatches for quick selection
+// Amber is the app's default brand color
 const COLOR_PRESETS = {
   primary: [
+    { hex: '#f59e0b', name: 'Amber (Default)' },
     { hex: '#3b82f6', name: 'Blue' },
     { hex: '#8b5cf6', name: 'Purple' },
     { hex: '#06b6d4', name: 'Cyan' },
     { hex: '#10b981', name: 'Emerald' },
-    { hex: '#f59e0b', name: 'Amber' },
     { hex: '#ef4444', name: 'Red' },
   ],
   secondary: [
+    { hex: '#d97706', name: 'Amber Dark (Default)' },
     { hex: '#818cf8', name: 'Indigo' },
     { hex: '#a78bfa', name: 'Violet' },
     { hex: '#22d3ee', name: 'Sky' },
     { hex: '#34d399', name: 'Green' },
-    { hex: '#fbbf24', name: 'Yellow' },
     { hex: '#f87171', name: 'Rose' },
   ],
   accent: [
