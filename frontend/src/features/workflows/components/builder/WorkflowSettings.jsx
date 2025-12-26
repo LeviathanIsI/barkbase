@@ -334,7 +334,7 @@ function ToggleSwitch({ checked, onChange }) {
       onClick={() => onChange(!checked)}
       className={cn(
         'relative flex-shrink-0 w-11 h-6 rounded-full transition-colors',
-        checked ? 'bg-[var(--bb-color-status-positive)]' : 'bg-[var(--bb-color-border-subtle)]'
+        checked ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
       )}
     >
       {/* Knob */}
@@ -344,14 +344,6 @@ function ToggleSwitch({ checked, onChange }) {
           checked ? 'left-6' : 'left-1'
         )}
       />
-      {/* OFF label - positioned to the right of the knob */}
-      {!checked && (
-        <span
-          className="absolute top-0 right-0 w-6 h-6 flex items-center justify-center text-[9px] font-bold uppercase text-[var(--bb-color-text-tertiary)]"
-        >
-          OFF
-        </span>
-      )}
     </button>
   );
 }

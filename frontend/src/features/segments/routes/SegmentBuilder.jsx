@@ -409,8 +409,8 @@ export default function SegmentBuilder() {
                   className={cn(
                     'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none',
                     showPreview
-                      ? 'bg-[color:var(--bb-color-accent)]'
-                      : 'bg-[color:var(--bb-color-bg-elevated)]'
+                      ? 'bg-primary'
+                      : 'bg-gray-300 dark:bg-gray-600'
                   )}
                 >
                   <span

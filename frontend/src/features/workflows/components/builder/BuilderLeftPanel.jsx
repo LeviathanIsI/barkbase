@@ -1552,7 +1552,7 @@ function TriggerConfigPanel({
                   onClick={() => updateLocalSetting('allowReenrollment', !localSettings.allowReenrollment)}
                   className={cn(
                     'relative flex-shrink-0 w-11 h-6 rounded-full transition-colors',
-                    localSettings.allowReenrollment ? 'bg-[var(--bb-color-status-positive)]' : 'bg-[var(--bb-color-border-subtle)]'
+                    localSettings.allowReenrollment ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
                   )}
                 >
                   <span
@@ -1561,11 +1561,6 @@ function TriggerConfigPanel({
                       localSettings.allowReenrollment ? 'left-6' : 'left-1'
                     )}
                   />
-                  {!localSettings.allowReenrollment && (
-                    <span className="absolute top-0 right-0 w-6 h-6 flex items-center justify-center text-[9px] font-bold uppercase text-[var(--bb-color-text-tertiary)]">
-                      OFF
-                    </span>
-                  )}
                 </button>
                 <div className="flex-1">
                   <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">
@@ -1616,7 +1611,7 @@ function TriggerConfigPanel({
                     }}
                     className={cn(
                       'relative flex-shrink-0 w-11 h-6 rounded-full transition-colors',
-                      localSettings.suppressionEnabled ? 'bg-[var(--bb-color-status-positive)]' : 'bg-[var(--bb-color-border-subtle)]'
+                      localSettings.suppressionEnabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
                     )}
                   >
                     <span
@@ -1625,11 +1620,6 @@ function TriggerConfigPanel({
                         localSettings.suppressionEnabled ? 'left-6' : 'left-1'
                       )}
                     />
-                    {!localSettings.suppressionEnabled && (
-                      <span className="absolute top-0 right-0 w-6 h-6 flex items-center justify-center text-[9px] font-bold uppercase text-[var(--bb-color-text-tertiary)]">
-                        OFF
-                      </span>
-                    )}
                   </button>
                   <div className="flex-1">
                     <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">
@@ -1656,7 +1646,7 @@ function TriggerConfigPanel({
                     }}
                     className={cn(
                       'relative flex-shrink-0 w-11 h-6 rounded-full transition-colors',
-                      localSettings.goalConfig?.enabled ? 'bg-[var(--bb-color-status-positive)]' : 'bg-[var(--bb-color-border-subtle)]'
+                      localSettings.goalConfig?.enabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
                     )}
                   >
                     <span
@@ -1665,11 +1655,6 @@ function TriggerConfigPanel({
                         localSettings.goalConfig?.enabled ? 'left-6' : 'left-1'
                       )}
                     />
-                    {!localSettings.goalConfig?.enabled && (
-                      <span className="absolute top-0 right-0 w-6 h-6 flex items-center justify-center text-[9px] font-bold uppercase text-[var(--bb-color-text-tertiary)]">
-                        OFF
-                      </span>
-                    )}
                   </button>
                   <div className="flex-1">
                     <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">
