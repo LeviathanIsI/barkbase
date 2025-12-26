@@ -178,6 +178,15 @@ export class ServicesStack extends cdk.Stack {
     this.workflowTriggerQueue.grantSendMessages(lambdaRole);
     this.workflowStepQueue.grantSendMessages(lambdaRole);
 
+    // Grant S3 permissions for file uploads (presigned URLs)
+    // Using frontend bucket for all uploads (logos, avatars, etc.)
+    const uploadsBucketName = `${config.stackPrefix}-frontend`;
+    lambdaRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:PutObject', 's3:GetObject', 's3:DeleteObject'],
+      resources: [`arn:aws:s3:::${uploadsBucketName}/*`],
+    }));
+
     // =========================================================================
     // Environment Variables
     // =========================================================================
@@ -219,6 +228,9 @@ export class ServicesStack extends cdk.Stack {
       WORKFLOW_STEP_QUEUE_URL: this.workflowStepQueue.queueUrl,
       WORKFLOW_STEP_QUEUE_ARN: this.workflowStepQueue.queueArn,
       WORKFLOW_SCHEDULER_ROLE_ARN: this.workflowSchedulerRole.roleArn,
+      // S3 uploads bucket (using frontend bucket)
+      S3_BUCKET: uploadsBucketName,
+      S3_REGION: config.region,
     };
 
     // Common Lambda configuration

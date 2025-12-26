@@ -350,6 +350,7 @@ export class ApiCoreStack extends cdk.Stack {
     // CONFIG SERVICE - Protected routes
     // -------------------------------------------------------------------------
     createRoute('ConfigProxyRoute', 'ANY /api/v1/config/{proxy+}', configIntegration.ref, true);
+    createRoute('UploadUrlBaseRoute', 'POST /api/v1/upload-url', configIntegration.ref, true);
     createRoute('AccountDefaultsBaseRoute', 'ANY /api/v1/account-defaults', configIntegration.ref, true);
     createRoute('AccountDefaultsProxyRoute', 'ANY /api/v1/account-defaults/{proxy+}', configIntegration.ref, true);
     createRoute('PoliciesBaseRoute', 'ANY /api/v1/policies', configIntegration.ref, true);

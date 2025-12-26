@@ -61,6 +61,12 @@ const {
   rewritePathToLegacy,
 } = sharedLayer;
 
+// S3 SDK for file uploads
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+
+const s3Client = new S3Client({ region: process.env.S3_REGION || process.env.AWS_REGION || 'us-east-2' });
+
 /**
  * Route requests to appropriate handlers
  */
@@ -214,6 +220,15 @@ exports.handler = async (event, context) => {
       }
       if (method === 'PUT' || method === 'PATCH') {
         return handleUpdateBranding(user, parseBody(event));
+      }
+    }
+
+    // =========================================================================
+    // FILE UPLOAD API - Generate presigned S3 URLs
+    // =========================================================================
+    if (path === '/api/v1/upload-url' || path === '/upload-url') {
+      if (method === 'POST') {
+        return handleGetUploadUrl(user, parseBody(event));
       }
     }
 
@@ -5204,6 +5219,71 @@ async function handleUpdateBranding(user, body) {
   } catch (error) {
     console.error('[Branding] Failed to update:', error.message);
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update branding' });
+  }
+}
+
+// =============================================================================
+// FILE UPLOAD HANDLERS
+// =============================================================================
+
+/**
+ * Generate presigned S3 URL for file upload
+ * POST /api/v1/upload-url
+ * Body: { fileName, fileType, category }
+ * Returns: { uploadUrl, key, publicUrl }
+ */
+async function handleGetUploadUrl(user, body) {
+  try {
+    const { fileName, fileType, category = 'general' } = body || {};
+
+    if (!fileName || !fileType) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'fileName and fileType are required'
+      });
+    }
+
+    // Get user's tenant context
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    const bucket = process.env.S3_BUCKET;
+    if (!bucket) {
+      console.error('[Upload] S3_BUCKET environment variable not set');
+      return createResponse(500, { error: 'Internal Server Error', message: 'Upload service not configured' });
+    }
+
+    // Generate unique key: uploads/{tenantId}/{category}/{timestamp}-{fileName}
+    const timestamp = Date.now();
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const key = `uploads/${ctx.tenantId}/${category}/${timestamp}-${sanitizedFileName}`;
+
+    // Create presigned URL for PUT
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ContentType: fileType,
+    });
+
+    const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 }); // 1 hour expiry
+
+    // Public URL (if bucket is behind CloudFront, adjust accordingly)
+    const region = process.env.S3_REGION || process.env.AWS_REGION || 'us-east-2';
+    const publicUrl = `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+
+    console.log('[Upload] Generated presigned URL for:', { key, category, tenantId: ctx.tenantId });
+
+    return createResponse(200, {
+      uploadUrl,
+      key,
+      publicUrl,
+    });
+  } catch (error) {
+    console.error('[Upload] Failed to generate upload URL:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to generate upload URL' });
   }
 }
 
