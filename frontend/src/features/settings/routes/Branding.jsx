@@ -66,7 +66,7 @@ const COLOR_PRESETS = {
   ],
 };
 
-// Font pairings
+// Font pairings with CSS font-family values
 const FONT_PAIRINGS = [
   {
     id: 'modern',
@@ -74,8 +74,8 @@ const FONT_PAIRINGS = [
     description: 'Clean and contemporary',
     heading: 'Inter',
     body: 'Inter',
-    headingClass: 'font-sans',
-    bodyClass: 'font-sans',
+    headingFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    bodyFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   {
     id: 'classic',
@@ -83,8 +83,8 @@ const FONT_PAIRINGS = [
     description: 'Timeless and elegant',
     heading: 'Georgia',
     body: 'system-ui',
-    headingClass: 'font-serif',
-    bodyClass: 'font-sans',
+    headingFamily: "Georgia, 'Times New Roman', serif",
+    bodyFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
   },
   {
     id: 'friendly',
@@ -92,8 +92,8 @@ const FONT_PAIRINGS = [
     description: 'Warm and approachable',
     heading: 'Nunito',
     body: 'Nunito',
-    headingClass: 'font-sans',
-    bodyClass: 'font-sans',
+    headingFamily: "'Nunito', -apple-system, BlinkMacSystemFont, sans-serif",
+    bodyFamily: "'Nunito', -apple-system, BlinkMacSystemFont, sans-serif",
   },
   {
     id: 'professional',
@@ -101,8 +101,8 @@ const FONT_PAIRINGS = [
     description: 'Corporate and trustworthy',
     heading: 'Roboto',
     body: 'Roboto',
-    headingClass: 'font-sans',
-    bodyClass: 'font-sans',
+    headingFamily: "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    bodyFamily: "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   },
   {
     id: 'playful',
@@ -110,8 +110,8 @@ const FONT_PAIRINGS = [
     description: 'Fun and energetic',
     heading: 'Poppins',
     body: 'Poppins',
-    headingClass: 'font-sans',
-    bodyClass: 'font-sans',
+    headingFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif",
+    bodyFamily: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif",
   },
 ];
 
@@ -281,7 +281,7 @@ const ColorField = ({ label, colorKey, presets, register, watch, setValue, disab
   );
 };
 
-// Font Pairing Selector
+// Font Pairing Selector - renders each option with its actual font
 const FontPairingSelector = ({ value, onChange, disabled }) => (
   <div className="space-y-3">
     {FONT_PAIRINGS.map((pairing) => (
@@ -298,12 +298,20 @@ const FontPairingSelector = ({ value, onChange, disabled }) => (
         )}
       >
         <div className="flex items-center justify-between mb-1">
-          <span className={cn('text-sm font-semibold text-text', pairing.headingClass)}>
+          <span
+            className="text-sm font-semibold text-text"
+            style={{ fontFamily: pairing.headingFamily }}
+          >
             {pairing.name}
           </span>
           {value === pairing.id && <Check className="h-4 w-4 text-primary" />}
         </div>
-        <p className={cn('text-xs text-muted', pairing.bodyClass)}>{pairing.description}</p>
+        <p
+          className="text-xs text-muted"
+          style={{ fontFamily: pairing.bodyFamily }}
+        >
+          {pairing.description}
+        </p>
         <div className="mt-2 pt-2 border-t border-border/50 flex gap-2 text-[10px] text-muted">
           <span>Heading: {pairing.heading}</span>
           <span>|</span>
@@ -325,10 +333,15 @@ const LivePreview = ({ colors, terminology, fontPairing, squareLogo, previewMode
   const textColor = isDark ? '#e5e7eb' : '#111827';         // --text-primary / --color-gray-900
   const mutedColor = isDark ? '#9ca3af' : '#6b7280';        // --text-secondary / --color-gray-500
 
+  // Get the selected font pairing
+  const selectedFont = FONT_PAIRINGS.find((f) => f.id === fontPairing) || FONT_PAIRINGS[0];
+  const headingFont = selectedFont.headingFamily;
+  const bodyFont = selectedFont.bodyFamily;
+
   return (
     <div
       className="rounded-lg border overflow-hidden transition-colors"
-      style={{ backgroundColor: bgColor, borderColor }}
+      style={{ backgroundColor: bgColor, borderColor, fontFamily: bodyFont }}
     >
       {/* Mini Header */}
       <div
@@ -344,7 +357,7 @@ const LivePreview = ({ colors, terminology, fontPairing, squareLogo, previewMode
               style={{ backgroundColor: colors.primaryHex }}
             />
           )}
-          <span className="text-xs font-semibold" style={{ color: textColor }}>
+          <span className="text-xs font-semibold" style={{ color: textColor, fontFamily: headingFont }}>
             BarkBase
           </span>
         </div>
@@ -414,7 +427,7 @@ const LivePreview = ({ colors, terminology, fontPairing, squareLogo, previewMode
         >
           <div
             className="px-2 py-1.5 border-b text-[10px] font-medium"
-            style={{ borderColor, backgroundColor: surfaceColor, color: textColor }}
+            style={{ borderColor, backgroundColor: surfaceColor, color: textColor, fontFamily: headingFont }}
           >
             <div className="flex items-center justify-between">
               <span>Pet Name</span>
@@ -472,7 +485,7 @@ const LivePreview = ({ colors, terminology, fontPairing, squareLogo, previewMode
               B
             </div>
             <div>
-              <div className="text-[10px] font-medium" style={{ color: textColor }}>
+              <div className="text-[10px] font-medium" style={{ color: textColor, fontFamily: headingFont }}>
                 Buddy
               </div>
               <div className="text-[8px]" style={{ color: mutedColor }}>
