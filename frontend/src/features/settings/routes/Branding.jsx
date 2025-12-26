@@ -726,25 +726,6 @@ const Branding = () => {
                   setValue={setValue}
                   disabled={!canEditTheme}
                 />
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted">Background Color</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      className="h-9 w-12 cursor-pointer rounded border border-border bg-surface-secondary"
-                      {...register('backgroundHex')}
-                      disabled={!canEditTheme}
-                    />
-                    <input
-                      type="text"
-                      value={watchedValues.backgroundHex}
-                      onChange={(e) => setValue('backgroundHex', e.target.value, { shouldDirty: true })}
-                      className="flex-1 rounded border border-border bg-surface-secondary px-2 py-1.5 text-xs font-mono"
-                      disabled={!canEditTheme}
-                      placeholder="#ffffff"
-                    />
-                  </div>
-                </div>
               </div>
             </form>
           </Card>
@@ -847,7 +828,6 @@ const Branding = () => {
                 { key: 'primaryHex', label: 'Primary' },
                 { key: 'secondaryHex', label: 'Secondary' },
                 { key: 'accentHex', label: 'Accent' },
-                { key: 'backgroundHex', label: 'Background' },
               ].map(({ key, label }) => (
                 <div key={key} className="flex-1 text-center">
                   <div
