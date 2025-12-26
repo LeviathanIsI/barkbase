@@ -1087,10 +1087,10 @@ const EmptyState = ({ hasFilters, onClearFilters, onAddOwner }) => (
 );
 
 // Status Badge Dropdown Component - Clickable to change status
-// Uses branding secondary color for status badges
+// Uses branding secondary color for active, neutral grey for inactive
 const STATUS_OPTIONS = [
   { value: true, label: 'Active', icon: ShieldCheck, variant: 'secondary', color: 'text-[color:var(--bb-color-secondary,#a78bfa)]' },
-  { value: false, label: 'Inactive', icon: ShieldOff, variant: 'warning', color: 'text-amber-600 dark:text-amber-500' },
+  { value: false, label: 'Inactive', icon: ShieldOff, variant: 'neutral', color: 'text-[color:var(--bb-color-text-muted)]' },
 ];
 
 const StatusBadgeDropdown = ({ owner, onStatusChange }) => {
