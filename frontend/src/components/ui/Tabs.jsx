@@ -70,16 +70,27 @@ const TabsTrigger = React.forwardRef(({ className, value, children, ...props }, 
 });
 TabsTrigger.displayName = 'TabsTrigger';
 
-const TabsContent = React.forwardRef(({ className, value, children, ...props }, ref) => {
+const TabsContent = React.forwardRef(({ className, value, children, forceMount = false, ...props }, ref) => {
   const context = useContext(TabsContext);
+  const isActive = context.value === value;
 
-  if (context.value !== value) return null;
+  // If not forceMount and not active, don't render (original behavior for non-form tabs)
+  // But by default, keep mounted to preserve form state
+  if (!forceMount && !isActive) {
+    // Use hidden instead of null to preserve form field registrations
+    return (
+      <div ref={ref} className="hidden" {...props}>
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div
       ref={ref}
       className={cn(
         'mt-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
+        !isActive && 'hidden',
         className
       )}
       {...props}
