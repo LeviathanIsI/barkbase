@@ -244,12 +244,14 @@ export const applyBranding = (branding) => {
     const accentDark = darkenHex(accentHex, 0.15);
     const accentDarker = darkenHex(accentHex, 0.25);
     const accentLight = lightenHex(accentHex, 0.15);
+    const accentLighter = lightenHex(accentHex, 0.30);
 
     // Accent text color (for links, accent text)
     root.style.setProperty('--bb-color-accent-text', isDarkMode ? accentLight : accentDark);
 
     // Sidebar uses accent color
     root.style.setProperty('--bb-color-sidebar-item-hover-bg', hexToSoft(accentHex, 0.08));
+    root.style.setProperty('--bb-color-sidebar-item-hover-text', isDarkMode ? accentLighter : accentHex);
     root.style.setProperty('--bb-color-sidebar-item-active-bg', hexToSoft(accentHex, isDarkMode ? 0.20 : 0.15));
     root.style.setProperty('--bb-color-sidebar-item-active-border', accentHex);
     root.style.setProperty('--bb-color-sidebar-item-active-text', isDarkMode ? accentLight : accentDarker);

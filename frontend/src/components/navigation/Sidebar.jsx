@@ -164,7 +164,7 @@ const CollapsibleSection = ({ section, onNavigate, isExpanded, onToggle, isSideb
                   'group flex items-center gap-3 rounded-lg px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)]',
                   'text-[0.8125rem] font-[var(--bb-font-weight-medium,500)] transition-all duration-150',
                   'text-[color:var(--bb-color-sidebar-text-primary)]',
-                  'hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)]',
+                  'hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)] hover:text-[color:var(--bb-color-sidebar-item-hover-text,var(--bb-color-sidebar-text-primary))]',
                   'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)] focus-visible:ring-inset',
                   isActive
                     ? 'bg-[color:var(--bb-color-sidebar-item-active-bg)] text-[color:var(--bb-color-sidebar-item-active-text)] font-[var(--bb-font-weight-semibold,600)] shadow-sm'
