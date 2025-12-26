@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   User, Mail, Phone, Save, AlertTriangle,
-  Camera, Shield, Monitor, QrCode,
+  Camera, Shield, Monitor,
   CheckCircle, Link2, Unlink, Check, Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -85,6 +86,14 @@ const Profile = () => {
   // 2FA
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [show2FAModal, setShow2FAModal] = useState(false);
+  const [mfaSetupStep, setMfaSetupStep] = useState(1);
+  const [mfaSetupData, setMfaSetupData] = useState(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaError, setMfaError] = useState('');
+  const [isMfaLoading, setIsMfaLoading] = useState(true);
+  const [isMfaSetupLoading, setIsMfaSetupLoading] = useState(false);
+  const [isMfaVerifying, setIsMfaVerifying] = useState(false);
+  const [isMfaDisabling, setIsMfaDisabling] = useState(false);
 
   // Password management
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -140,6 +149,22 @@ const Profile = () => {
     };
 
     fetchConnectedEmail();
+  }, []);
+
+  // Fetch MFA status on mount
+  useEffect(() => {
+    const fetchMfaStatus = async () => {
+      try {
+        const response = await apiClient.get('/api/v1/auth/mfa');
+        setTwoFactorEnabled(response.data?.enabled || false);
+      } catch (error) {
+        console.error('[Profile] Failed to fetch MFA status:', error);
+        setTwoFactorEnabled(false);
+      } finally {
+        setIsMfaLoading(false);
+      }
+    };
+    fetchMfaStatus();
   }, []);
 
   // Handle OAuth callback params
@@ -277,6 +302,89 @@ const Profile = () => {
     } finally {
       setIsDisconnecting(false);
     }
+  };
+
+  // MFA Handlers
+  const handleMfaEnable = () => {
+    setShow2FAModal(true);
+    setMfaSetupStep(1);
+    setMfaSetupData(null);
+    setMfaCode('');
+    setMfaError('');
+  };
+
+  const handleMfaStartSetup = async () => {
+    setIsMfaSetupLoading(true);
+    setMfaError('');
+    try {
+      const response = await apiClient.post('/api/v1/auth/mfa/setup');
+      setMfaSetupData({
+        secretCode: response.data.secretCode,
+        otpauthUri: response.data.otpauthUri,
+      });
+      setMfaSetupStep(2);
+    } catch (error) {
+      console.error('[Profile] MFA setup failed:', error);
+      toast.error(error.response?.data?.message || 'Failed to start 2FA setup');
+    } finally {
+      setIsMfaSetupLoading(false);
+    }
+  };
+
+  const handleMfaVerify = async () => {
+    if (mfaCode.length !== 6) {
+      setMfaError('Please enter a 6-digit code');
+      return;
+    }
+
+    setIsMfaVerifying(true);
+    setMfaError('');
+    try {
+      await apiClient.post('/api/v1/auth/mfa/verify', { code: mfaCode });
+      setTwoFactorEnabled(true);
+      setShow2FAModal(false);
+      setMfaSetupStep(1);
+      setMfaSetupData(null);
+      setMfaCode('');
+      toast.success('Two-factor authentication enabled!');
+    } catch (error) {
+      console.error('[Profile] MFA verification failed:', error);
+      setMfaError(error.response?.data?.message || 'Invalid code. Please try again.');
+    } finally {
+      setIsMfaVerifying(false);
+    }
+  };
+
+  const handleMfaDisable = async () => {
+    if (!confirm('Are you sure you want to disable two-factor authentication? This will make your account less secure.')) {
+      return;
+    }
+
+    setIsMfaDisabling(true);
+    try {
+      await apiClient.delete('/api/v1/auth/mfa');
+      setTwoFactorEnabled(false);
+      toast.success('Two-factor authentication disabled');
+    } catch (error) {
+      console.error('[Profile] MFA disable failed:', error);
+      toast.error(error.response?.data?.message || 'Failed to disable 2FA');
+    } finally {
+      setIsMfaDisabling(false);
+    }
+  };
+
+  const handleMfaCloseModal = () => {
+    setShow2FAModal(false);
+    setMfaSetupStep(1);
+    setMfaSetupData(null);
+    setMfaCode('');
+    setMfaError('');
+  };
+
+  // Format secret for display (groups of 4 characters)
+  const formatSecret = (secret) => {
+    if (!secret) return '';
+    return secret.match(/.{1,4}/g)?.join(' ') || secret;
   };
 
   if (error) {
@@ -447,16 +555,26 @@ const Profile = () => {
               <div className="flex items-center justify-between p-3 border border-border rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-text">Two-Factor Auth</p>
-                  <Badge variant={twoFactorEnabled ? 'success' : 'neutral'} size="sm" className="mt-1">
-                    {twoFactorEnabled ? 'Enabled' : 'Off'}
-                  </Badge>
+                  {isMfaLoading ? (
+                    <Loader2 className="w-3 h-3 animate-spin text-muted mt-1" />
+                  ) : (
+                    <Badge variant={twoFactorEnabled ? 'success' : 'neutral'} size="sm" className="mt-1">
+                      {twoFactorEnabled ? 'Enabled' : 'Off'}
+                    </Badge>
+                  )}
                 </div>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => twoFactorEnabled ? setTwoFactorEnabled(false) : setShow2FAModal(true)}
+                  onClick={twoFactorEnabled ? handleMfaDisable : handleMfaEnable}
+                  disabled={isMfaLoading || isMfaDisabling}
                 >
-                  {twoFactorEnabled ? 'Disable' : 'Enable'}
+                  {isMfaDisabling ? (
+                    <>
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Disabling...
+                    </>
+                  ) : twoFactorEnabled ? 'Disable' : 'Enable'}
                 </Button>
               </div>
 
@@ -685,28 +803,133 @@ const Profile = () => {
 
       {/* 2FA Setup Modal */}
       {show2FAModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-surface-primary rounded-lg p-6 w-full max-w-sm mx-4">
-            <h3 className="text-lg font-semibold mb-4">Enable Two-Factor Auth</h3>
-            <div className="text-center">
-              <QrCode className="w-24 h-24 mx-auto mb-3 border border-border rounded-lg p-2" />
-              <p className="text-xs text-muted mb-3">Scan with authenticator app</p>
-              <input
-                type="text"
-                placeholder="000000"
-                maxLength="6"
-                className="w-full px-3 py-2 text-center text-lg font-mono border border-border rounded-md"
-              />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-md relative">
+            {/* Header */}
+            <div className="p-5 border-b border-border">
+              <h3 className="text-lg font-semibold text-text">
+                {mfaSetupStep === 1 ? 'Set Up Two-Factor Authentication' : 'Scan QR Code'}
+              </h3>
+              <button
+                onClick={handleMfaCloseModal}
+                className="absolute top-4 right-4 p-2 hover:bg-surface-secondary rounded-full text-muted"
+              >
+                ×
+              </button>
             </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" size="sm" onClick={() => setShow2FAModal(false)}>Cancel</Button>
-              <Button size="sm" onClick={() => {
-                setTwoFactorEnabled(true);
-                setShow2FAModal(false);
-                toast.success('2FA enabled');
-              }}>
-                Enable
+
+            {/* Content */}
+            <div className="p-5">
+              {mfaSetupStep === 1 ? (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 p-4 border border-primary/20 bg-primary/5 rounded-lg">
+                    <Shield className="w-5 h-5 text-primary mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-text">Authenticator App</h4>
+                      <p className="text-sm text-muted mt-1">
+                        Use Google Authenticator, Authy, 1Password, or any TOTP-compatible app.
+                      </p>
+                      <p className="text-xs text-muted mt-2">
+                        Works offline • Most secure option
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted">
+                    You'll need to scan a QR code with your authenticator app and enter a verification code to complete setup.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="text-center">
+                    {/* QR Code */}
+                    {mfaSetupData?.otpauthUri && (
+                      <div className="inline-block p-4 bg-white rounded-lg border border-border mb-4">
+                        <QRCodeSVG
+                          value={mfaSetupData.otpauthUri}
+                          size={160}
+                          level="M"
+                          includeMargin={false}
+                        />
+                      </div>
+                    )}
+
+                    <div className="space-y-1 text-sm text-muted mb-4">
+                      <p>1. Open your authenticator app</p>
+                      <p>2. Scan the QR code above</p>
+                      <p>3. Enter the 6-digit code from your app</p>
+                    </div>
+
+                    {/* Manual Entry */}
+                    {mfaSetupData?.secretCode && (
+                      <div className="bg-surface-secondary border border-border rounded p-3 mb-4">
+                        <p className="text-xs text-muted mb-1">Or enter this code manually:</p>
+                        <p className="font-mono text-sm bg-white dark:bg-surface-primary px-2 py-1 rounded border select-all">
+                          {formatSecret(mfaSetupData.secretCode)}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Verification Code Input */}
+                    <div>
+                      <label className="block text-sm font-medium text-text mb-2">
+                        Enter 6-digit code:
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={mfaCode}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          setMfaCode(value);
+                          setMfaError('');
+                        }}
+                        placeholder="000000"
+                        maxLength={6}
+                        className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 text-center text-lg font-mono tracking-widest"
+                        autoFocus
+                      />
+                      {mfaError && (
+                        <p className="mt-2 text-sm text-red-600">{mfaError}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 p-5 border-t border-border">
+              <Button variant="outline" size="sm" onClick={handleMfaCloseModal}>
+                Cancel
               </Button>
+              {mfaSetupStep === 1 ? (
+                <Button size="sm" onClick={handleMfaStartSetup} disabled={isMfaSetupLoading}>
+                  {isMfaSetupLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Starting...
+                    </>
+                  ) : (
+                    'Continue'
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={handleMfaVerify}
+                  disabled={isMfaVerifying || mfaCode.length !== 6}
+                >
+                  {isMfaVerifying ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    'Verify & Enable'
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </div>

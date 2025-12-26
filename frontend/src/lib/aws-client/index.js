@@ -168,6 +168,11 @@ export const createAWSClient = (overrideConfig = {}) => {
       const client = await this._getClient();
       return client.getAccessToken?.();
     },
+
+    async respondToMfaChallenge(params) {
+      const client = await this._getClient();
+      return client.respondToMfaChallenge?.(params);
+    },
   };
 
   return {

@@ -43,6 +43,7 @@ const Login = () => {
   const [mfaCode, setMfaCode] = useState('');
   const [mfaError, setMfaError] = useState('');
   const [isMfaSubmitting, setIsMfaSubmitting] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false); // Shows "Signing in..." after MFA success
 
   // If already authenticated, redirect to app
   useEffect(() => {
@@ -249,9 +250,9 @@ const Login = () => {
 
       if (import.meta.env.DEV) console.log('[Login] MFA verification successful');
 
-      // Clear MFA state
-      setMfaChallenge(null);
-      setMfaCode('');
+      // Show "Signing in..." state (keep MFA UI visible with loading indicator)
+      setIsAuthenticating(true);
+      setIsMfaSubmitting(false);
 
       // Call backend to create session record
       try {
@@ -326,7 +327,7 @@ const Login = () => {
     } catch (err) {
       console.error('[Login] MFA Error:', err);
       setMfaError(err.message || 'Invalid verification code. Please try again.');
-    } finally {
+      setIsAuthenticating(false);
       setIsMfaSubmitting(false);
     }
   };
@@ -359,62 +360,76 @@ const Login = () => {
       <Card className="max-w-md p-6 w-full">
         <div className="grid gap-4">
           {/* MFA Challenge UI */}
-          {mfaChallenge ? (
-            <form onSubmit={handleMfaSubmit} className="grid gap-4">
-              <div className="text-center">
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                  <Shield className="h-6 w-6 text-primary" />
+          {mfaChallenge || isAuthenticating ? (
+            isAuthenticating ? (
+              /* Signing in animation after MFA success */
+              <div className="py-8 text-center">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center">
+                  <span className="animate-spin rounded-full h-10 w-10 border-4 border-primary border-t-transparent"></span>
                 </div>
-                <h2 className="text-lg font-semibold text-white">Two-Factor Authentication</h2>
-                <p className="mt-1 text-sm text-gray-400">
-                  Enter the 6-digit code from your authenticator app
+                <h2 className="text-lg font-semibold text-white">Signing you in...</h2>
+                <p className="mt-2 text-sm text-gray-400">
+                  Setting up your workspace
                 </p>
               </div>
-
-              {mfaError && (
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                  <p className="text-sm text-red-600 dark:text-red-400">{mfaError}</p>
+            ) : (
+              /* MFA code entry form */
+              <form onSubmit={handleMfaSubmit} className="grid gap-4">
+                <div className="text-center">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <Shield className="h-6 w-6 text-primary" />
+                  </div>
+                  <h2 className="text-lg font-semibold text-white">Two-Factor Authentication</h2>
+                  <p className="mt-1 text-sm text-gray-400">
+                    Enter the 6-digit code from your authenticator app
+                  </p>
                 </div>
-              )}
 
-              <div>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={6}
-                  value={mfaCode}
-                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
-                  className="w-full rounded-lg border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-3 text-center text-2xl font-mono tracking-[0.5em] text-gray-900 dark:text-text-primary"
-                  autoComplete="one-time-code"
-                  autoFocus
-                />
-              </div>
-
-              <Button
-                type="submit"
-                disabled={isMfaSubmitting || mfaCode.length !== 6}
-                className="w-full"
-              >
-                {isMfaSubmitting ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
-                    Verifying...
-                  </span>
-                ) : (
-                  'Verify'
+                {mfaError && (
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <p className="text-sm text-red-600 dark:text-red-400">{mfaError}</p>
+                  </div>
                 )}
-              </Button>
 
-              <button
-                type="button"
-                onClick={handleMfaCancel}
-                className="text-sm text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary"
-              >
-                ← Back to login
-              </button>
-            </form>
+                <div>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    value={mfaCode}
+                    onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    className="w-full rounded-lg border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-3 text-center text-2xl font-mono tracking-[0.5em] text-gray-900 dark:text-text-primary"
+                    autoComplete="one-time-code"
+                    autoFocus
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={isMfaSubmitting || mfaCode.length !== 6}
+                  className="w-full"
+                >
+                  {isMfaSubmitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                      Verifying...
+                    </span>
+                  ) : (
+                    'Verify'
+                  )}
+                </Button>
+
+                <button
+                  type="button"
+                  onClick={handleMfaCancel}
+                  className="text-sm text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary"
+                >
+                  ← Back to login
+                </button>
+              </form>
+            )
           ) : (
             <>
               {/* Configuration Warning */}
