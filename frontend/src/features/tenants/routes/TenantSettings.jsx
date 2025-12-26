@@ -708,7 +708,7 @@ const DomainSSLTab = () => {
             onClick={() => setForceHttps(!forceHttps)}
             className={cn(
               'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-              forceHttps ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+              forceHttps ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'
             )}
           >
             <span className={cn(
@@ -985,7 +985,7 @@ const FeatureTogglesTab = () => {
                   onClick={() => setFeatures({ ...features, [feature.key]: !features[feature.key] })}
                   className={cn(
                     'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
-                    features[feature.key] ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                    features[feature.key] ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'
                   )}
                 >
                   <span className={cn(

@@ -32,7 +32,7 @@ const SettingsToggle = ({
       disabled={disabled}
       className={cn(
         'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2',
-        checked ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600',
+        checked ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600',
         disabled && 'opacity-50 cursor-not-allowed'
       )}
     >

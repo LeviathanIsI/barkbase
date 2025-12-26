@@ -1552,7 +1552,7 @@ function TriggerConfigPanel({
                   onClick={() => updateLocalSetting('allowReenrollment', !localSettings.allowReenrollment)}
                   className={cn(
                     'relative flex-shrink-0 w-11 h-6 rounded-full transition-colors',
-                    localSettings.allowReenrollment ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                    localSettings.allowReenrollment ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'
                   )}
                 >
                   <span
@@ -1611,7 +1611,7 @@ function TriggerConfigPanel({
                     }}
                     className={cn(
                       'relative flex-shrink-0 w-11 h-6 rounded-full transition-colors',
-                      localSettings.suppressionEnabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                      localSettings.suppressionEnabled ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'
                     )}
                   >
                     <span
@@ -1646,7 +1646,7 @@ function TriggerConfigPanel({
                     }}
                     className={cn(
                       'relative flex-shrink-0 w-11 h-6 rounded-full transition-colors',
-                      localSettings.goalConfig?.enabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                      localSettings.goalConfig?.enabled ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'
                     )}
                   >
                     <span

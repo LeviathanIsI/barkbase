@@ -334,7 +334,7 @@ function ToggleSwitch({ checked, onChange }) {
       onClick={() => onChange(!checked)}
       className={cn(
         'relative flex-shrink-0 w-11 h-6 rounded-full transition-colors',
-        checked ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+        checked ? 'bg-primary-600' : 'bg-gray-300 dark:bg-gray-600'
       )}
     >
       {/* Knob */}
