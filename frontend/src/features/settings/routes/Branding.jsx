@@ -314,14 +314,16 @@ const FontPairingSelector = ({ value, onChange, disabled }) => (
   </div>
 );
 
-// Live Preview Component
+// Live Preview Component - uses actual app theme colors from design-tokens.css
 const LivePreview = ({ colors, terminology, fontPairing, squareLogo, previewMode }) => {
   const isDark = previewMode === 'dark';
-  const bgColor = isDark ? '#1a1a2e' : colors.backgroundHex;
-  const surfaceColor = isDark ? '#16213e' : '#f8fafc';
-  const borderColor = isDark ? '#2d3748' : '#e2e8f0';
-  const textColor = isDark ? '#f7fafc' : '#1a202c';
-  const mutedColor = isDark ? '#a0aec0' : '#718096';
+
+  // Actual app theme colors from design-tokens.css
+  const bgColor = isDark ? '#1a1d23' : '#ffffff';           // --bg-primary
+  const surfaceColor = isDark ? '#242930' : '#f9fafb';      // --bg-secondary / --color-gray-50
+  const borderColor = isDark ? 'rgba(255, 255, 255, 0.08)' : '#d1d5db'; // --border-color / --color-gray-300
+  const textColor = isDark ? '#e5e7eb' : '#111827';         // --text-primary / --color-gray-900
+  const mutedColor = isDark ? '#9ca3af' : '#6b7280';        // --text-secondary / --color-gray-500
 
   return (
     <div
