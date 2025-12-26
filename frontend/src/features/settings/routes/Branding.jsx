@@ -528,15 +528,15 @@ const Branding = () => {
   const [previewMode, setPreviewMode] = useState('dark');
   const [isSaving, setIsSaving] = useState(false);
 
-  // Get initial values from tenant branding or fallback to theme colors
+  // Get initial values from tenant branding or fallback to DEFAULT_THEME
   const getInitialValues = () => ({
-    primaryHex: tenant.branding?.primaryColor ?? rgbToHex(tenant.theme?.colors?.primary ?? '59 130 246'),
-    secondaryHex: tenant.branding?.secondaryColor ?? rgbToHex(tenant.theme?.colors?.secondary ?? '129 140 248'),
-    accentHex: tenant.branding?.accentColor ?? rgbToHex(tenant.theme?.colors?.accent ?? '249 115 22'),
-    terminologyKennel: tenant.branding?.terminology?.kennel ?? tenant.terminology?.kennel ?? 'Kennel',
-    fontPairing: tenant.branding?.fontPreset ?? tenant.theme?.fontPairing ?? 'modern',
-    squareLogo: tenant.branding?.squareLogoUrl ?? null,
-    wideLogo: tenant.branding?.wideLogoUrl ?? null,
+    primaryHex: tenant.branding?.primaryColor ?? DEFAULT_THEME.primaryHex,
+    secondaryHex: tenant.branding?.secondaryColor ?? DEFAULT_THEME.secondaryHex,
+    accentHex: tenant.branding?.accentColor ?? DEFAULT_THEME.accentHex,
+    terminologyKennel: tenant.branding?.terminology?.kennel ?? tenant.terminology?.kennel ?? DEFAULT_THEME.terminologyKennel,
+    fontPairing: tenant.branding?.fontPreset ?? DEFAULT_THEME.fontPairing,
+    squareLogo: tenant.branding?.squareLogoUrl ?? DEFAULT_THEME.squareLogo,
+    wideLogo: tenant.branding?.wideLogoUrl ?? DEFAULT_THEME.wideLogo,
   });
 
   const { register, handleSubmit, reset, watch, setValue, formState: { isDirty } } = useForm({
