@@ -101,11 +101,11 @@ const badgeVariants = cva(
           'text-[var(--bb-color-accent)]',
         ],
 
-        // Secondary - Alias for neutral (backward compatibility)
+        // Secondary - Uses branding secondary color
         secondary: [
-          'bg-[var(--bb-color-bg-elevated)]',
-          'border-[var(--bb-color-border-subtle)]',
-          'text-[var(--bb-color-text-primary)]',
+          'bg-[var(--bb-color-secondary-soft,var(--bb-color-bg-elevated))]',
+          'border-[var(--bb-color-secondary-soft,var(--bb-color-border-subtle))]',
+          'text-[var(--bb-color-secondary,var(--bb-color-text-primary))]',
         ],
 
         // Purple - For special states like No Show

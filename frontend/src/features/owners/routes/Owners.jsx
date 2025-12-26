@@ -929,7 +929,7 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStat
             <span className={cn(
               "font-semibold",
               owner.pendingBalance > 0
-                ? "text-amber-600 dark:text-amber-400"
+                ? "text-[color:var(--bb-color-accent)]"
                 : "text-[color:var(--bb-color-text-muted)]"
             )}>
               {formatCurrency(owner.pendingBalance)}
@@ -1087,9 +1087,9 @@ const EmptyState = ({ hasFilters, onClearFilters, onAddOwner }) => (
 );
 
 // Status Badge Dropdown Component - Clickable to change status
-// Active is subtle/muted, only non-active states draw attention
+// Uses branding secondary color for status badges
 const STATUS_OPTIONS = [
-  { value: true, label: 'Active', icon: ShieldCheck, variant: 'neutral', color: 'text-slate-500 dark:text-slate-400' },
+  { value: true, label: 'Active', icon: ShieldCheck, variant: 'secondary', color: 'text-[color:var(--bb-color-secondary,#a78bfa)]' },
   { value: false, label: 'Inactive', icon: ShieldOff, variant: 'warning', color: 'text-amber-600 dark:text-amber-500' },
 ];
 
