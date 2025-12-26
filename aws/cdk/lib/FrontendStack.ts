@@ -61,9 +61,11 @@ export class FrontendStack extends cdk.Stack {
           allowedMethods: [
             s3.HttpMethods.GET,
             s3.HttpMethods.HEAD,
+            s3.HttpMethods.PUT, // For file uploads via presigned URLs
           ],
           allowedOrigins: config.corsOrigins,
-          exposedHeaders: [],
+          exposedHeaders: ['ETag'],
+          maxAge: 3000,
         },
       ],
     });
