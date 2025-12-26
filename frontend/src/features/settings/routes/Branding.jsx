@@ -754,28 +754,6 @@ const Branding = () => {
             />
           </Card>
 
-          {/* Terminology Card */}
-          <Card className="p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <Type className="w-4 h-4 text-primary" />
-              <h2 className="text-sm font-semibold text-text">Terminology</h2>
-            </div>
-            <p className="text-xs text-muted mb-3">Customize labels used throughout the app to match your business</p>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted">Kennel Term</label>
-                <input
-                  type="text"
-                  className="w-full rounded border border-border bg-surface-secondary px-2 py-1.5 text-sm"
-                  {...register('terminologyKennel')}
-                  disabled={!canEditTheme}
-                  placeholder="Kennel"
-                />
-                <p className="text-[10px] text-muted">e.g., Suite, Room, Unit, Crate</p>
-              </div>
-            </div>
-          </Card>
         </div>
 
         {/* Right Column - Preview + Domain */}
