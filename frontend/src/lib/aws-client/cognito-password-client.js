@@ -112,6 +112,17 @@ export class CognitoPasswordClient {
       AuthParameters: { USERNAME: email, PASSWORD: password },
     });
     const res = await this.client.send(command);
+
+    // Check if MFA challenge is required
+    if (res.ChallengeName === 'SOFTWARE_TOKEN_MFA') {
+      return {
+        mfaRequired: true,
+        challengeName: res.ChallengeName,
+        session: res.Session,
+        email: email,
+      };
+    }
+
     const tokens = res.AuthenticationResult;
     if (!tokens?.AccessToken) throw new Error('Authentication failed');
     return {
@@ -119,6 +130,36 @@ export class CognitoPasswordClient {
       idToken: tokens.IdToken,
       refreshToken: tokens.RefreshToken,
       expiresIn: tokens.ExpiresIn,
+      user: null,
+      tenant: null,
+    };
+  }
+
+  async respondToMfaChallenge({ session, code, email }) {
+    if (!this.apiBaseUrl) throw new Error('API base URL not configured');
+    if (!session || !code || !email) throw new Error('Session, code, and email are required');
+
+    const response = await fetch(`${this.apiBaseUrl}/api/v1/auth/mfa/challenge`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ session, code, email }),
+      mode: 'cors',
+      credentials: 'omit',
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'MFA verification failed');
+    }
+
+    const data = await response.json();
+    return {
+      accessToken: data.tokens.accessToken,
+      idToken: data.tokens.idToken,
+      refreshToken: data.tokens.refreshToken,
+      expiresIn: data.tokens.expiresIn,
       user: null,
       tenant: null,
     };

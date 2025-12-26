@@ -20,7 +20,7 @@
  * =============================================================================
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth';
@@ -30,12 +30,19 @@ import { config } from '@/config/env';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import { Shield } from 'lucide-react';
 
 const Login = () => {
   const navigate = useNavigate();
   const { setAuth, updateTokens, isAuthenticated } = useAuthStore();
   const { setTenant, setLoading: setTenantLoading } = useTenantStore();
   const { register, handleSubmit, formState: { errors, isSubmitting }, setError } = useForm();
+
+  // MFA challenge state
+  const [mfaChallenge, setMfaChallenge] = useState(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaError, setMfaError] = useState('');
+  const [isMfaSubmitting, setIsMfaSubmitting] = useState(false);
 
   // If already authenticated, redirect to app
   useEffect(() => {
@@ -73,6 +80,16 @@ const Login = () => {
 
       // Call Cognito USER_PASSWORD_AUTH via CognitoPasswordClient
       const result = await auth.signIn({ email, password });
+
+      // Check if MFA is required
+      if (result.mfaRequired) {
+        if (import.meta.env.DEV) console.log('[Login] MFA challenge required');
+        setMfaChallenge({
+          session: result.session,
+          email: result.email,
+        });
+        return;
+      }
 
       if (!result || !result.accessToken) {
         throw new Error('Authentication failed - no access token received');
@@ -210,6 +227,117 @@ const Login = () => {
     }
   };
 
+  // Handle MFA code submission
+  const handleMfaSubmit = async (e) => {
+    e.preventDefault();
+    if (!mfaChallenge || mfaCode.length !== 6) return;
+
+    setIsMfaSubmitting(true);
+    setMfaError('');
+
+    try {
+      // Respond to MFA challenge
+      const result = await auth.respondToMfaChallenge({
+        session: mfaChallenge.session,
+        code: mfaCode,
+        email: mfaChallenge.email,
+      });
+
+      if (!result || !result.accessToken) {
+        throw new Error('MFA verification failed');
+      }
+
+      if (import.meta.env.DEV) console.log('[Login] MFA verification successful');
+
+      // Clear MFA state
+      setMfaChallenge(null);
+      setMfaCode('');
+
+      // Call backend to create session record
+      try {
+        const loginResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/auth/login`, { // eslint-disable-line no-restricted-syntax
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            accessToken: result.accessToken,
+            idToken: result.idToken,
+          }),
+        });
+
+        if (!loginResponse.ok) {
+          console.warn('[Login] Backend login call failed:', loginResponse.status);
+        }
+      } catch (backendError) {
+        console.warn('[Login] Failed to create backend session:', backendError.message);
+      }
+
+      // Decode ID token to get user info
+      const userInfo = result.idToken ? decodeIdToken(result.idToken) : { email: mfaChallenge.email };
+
+      // Store tokens in auth store
+      setAuth({
+        user: userInfo,
+        accessToken: result.accessToken,
+      });
+
+      // Store refresh token
+      if (result.refreshToken) {
+        try {
+          sessionStorage.setItem('barkbase_refresh_token', result.refreshToken);
+        } catch {
+          console.warn('[Login] Could not store refresh token');
+        }
+      }
+
+      // Bootstrap tenant config
+      setTenantLoading(true);
+      try {
+        const tenantResponse = await apiClient.get(canonicalEndpoints.settings.tenant);
+        if (tenantResponse.data) {
+          const tenantConfig = tenantResponse.data;
+          updateTokens({
+            tenantId: tenantConfig.tenantId || tenantConfig.recordId,
+            role: tenantConfig.user?.role,
+          });
+          setTenant({
+            recordId: tenantConfig.tenantId || tenantConfig.recordId,
+            accountCode: tenantConfig.accountCode,
+            slug: tenantConfig.slug,
+            name: tenantConfig.name,
+            plan: tenantConfig.plan,
+            settings: tenantConfig.settings,
+            theme: tenantConfig.theme,
+            featureFlags: tenantConfig.featureFlags,
+          });
+        }
+      } catch (tenantError) {
+        console.warn('[Login] Failed to bootstrap tenant config:', tenantError.message);
+      } finally {
+        setTenantLoading(false);
+      }
+
+      // Redirect to the app
+      const returnPath = sessionStorage.getItem('barkbase_return_path') || '/today';
+      sessionStorage.removeItem('barkbase_return_path');
+      navigate(returnPath, { replace: true });
+
+    } catch (err) {
+      console.error('[Login] MFA Error:', err);
+      setMfaError(err.message || 'Invalid verification code. Please try again.');
+    } finally {
+      setIsMfaSubmitting(false);
+    }
+  };
+
+  // Cancel MFA and go back to login
+  const handleMfaCancel = () => {
+    setMfaChallenge(null);
+    setMfaCode('');
+    setMfaError('');
+  };
+
   // Determine which mode to use
   // 'embedded', 'password', 'cognito' (default) → show email/password form
   // 'hosted' → redirect to Cognito Hosted UI
@@ -230,21 +358,80 @@ const Login = () => {
       
       <Card className="max-w-md p-6 w-full">
         <div className="grid gap-4">
-          {/* Configuration Warning */}
-          {showConfigWarning && (
-            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-              <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                ⚠️ Cognito not configured. Set VITE_COGNITO_USER_POOL_ID and VITE_COGNITO_CLIENT_ID in your .env file.
-              </p>
-            </div>
-          )}
+          {/* MFA Challenge UI */}
+          {mfaChallenge ? (
+            <form onSubmit={handleMfaSubmit} className="grid gap-4">
+              <div className="text-center">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                  <Shield className="h-6 w-6 text-primary" />
+                </div>
+                <h2 className="text-lg font-semibold text-white">Two-Factor Authentication</h2>
+                <p className="mt-1 text-sm text-gray-400">
+                  Enter the 6-digit code from your authenticator app
+                </p>
+              </div>
 
-          {/* Error Display */}
-          {errors.root?.serverError && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-sm text-red-600 dark:text-red-400">{errors.root.serverError.message}</p>
-            </div>
-          )}
+              {mfaError && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-sm text-red-600 dark:text-red-400">{mfaError}</p>
+                </div>
+              )}
+
+              <div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  value={mfaCode}
+                  onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="000000"
+                  className="w-full rounded-lg border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-3 text-center text-2xl font-mono tracking-[0.5em] text-gray-900 dark:text-text-primary"
+                  autoComplete="one-time-code"
+                  autoFocus
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isMfaSubmitting || mfaCode.length !== 6}
+                className="w-full"
+              >
+                {isMfaSubmitting ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                    Verifying...
+                  </span>
+                ) : (
+                  'Verify'
+                )}
+              </Button>
+
+              <button
+                type="button"
+                onClick={handleMfaCancel}
+                className="text-sm text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary"
+              >
+                ← Back to login
+              </button>
+            </form>
+          ) : (
+            <>
+              {/* Configuration Warning */}
+              {showConfigWarning && (
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    ⚠️ Cognito not configured. Set VITE_COGNITO_USER_POOL_ID and VITE_COGNITO_CLIENT_ID in your .env file.
+                  </p>
+                </div>
+              )}
+
+              {/* Error Display */}
+              {errors.root?.serverError && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-sm text-red-600 dark:text-red-400">{errors.root.serverError.message}</p>
+                </div>
+              )}
 
           {/* Embedded Login Form (default) */}
           {isEmbeddedMode && (
@@ -332,6 +519,8 @@ const Login = () => {
               Create one
             </Link>
           </p>
+            </>
+          )}
         </div>
       </Card>
 

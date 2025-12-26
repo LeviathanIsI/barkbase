@@ -2,15 +2,23 @@
  * =============================================================================
  * BarkBase Auth API Lambda
  * =============================================================================
- * 
+ *
  * Handles authentication endpoints:
  * - POST /api/v1/auth/login - User login (validates Cognito tokens)
  * - POST /api/v1/auth/register - User registration
  * - POST /api/v1/auth/refresh - Token refresh
  * - GET /api/v1/auth/me - Get current user info
  * - POST /api/v1/auth/logout - User logout
+ * - POST /api/v1/auth/change-password - Change password
  * - GET /api/v1/health - Health check
- * 
+ *
+ * MFA endpoints:
+ * - GET /api/v1/auth/mfa - Get MFA status
+ * - POST /api/v1/auth/mfa/setup - Initiate MFA setup (returns QR code secret)
+ * - POST /api/v1/auth/mfa/verify - Verify TOTP code and enable MFA
+ * - POST /api/v1/auth/mfa/challenge - Respond to MFA challenge during login
+ * - DELETE /api/v1/auth/mfa - Disable MFA
+ *
  * =============================================================================
  */
 
@@ -22,7 +30,7 @@ try {
   sharedLayer = require('/opt/nodejs/index');
 } catch (e) {
   // Local development fallback
-  dbLayer = require('../../layers/db-layer/nodejs/db');
+  dbLayer = require('/opt/nodejs/db');
   sharedLayer = require('../../layers/shared-layer/nodejs/index');
 }
 
@@ -37,7 +45,7 @@ const {
   decryptToken,
 } = sharedLayer;
 
-// Cognito SDK for user creation
+// Cognito SDK for user creation and MFA
 const {
   CognitoIdentityProviderClient,
   SignUpCommand,
@@ -45,6 +53,11 @@ const {
   InitiateAuthCommand,
   AdminDeleteUserCommand,
   ChangePasswordCommand,
+  AssociateSoftwareTokenCommand,
+  VerifySoftwareTokenCommand,
+  SetUserMFAPreferenceCommand,
+  RespondToAuthChallengeCommand,
+  AdminGetUserCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
 
 const cognitoClient = new CognitoIdentityProviderClient({
@@ -150,6 +163,34 @@ exports.handler = async (event, context) => {
       }
       if (method === 'DELETE') {
         return handleDisconnectEmail(event);
+      }
+    }
+
+    // MFA endpoints
+    if (path === '/api/v1/auth/mfa/setup' || path === '/auth/mfa/setup') {
+      if (method === 'POST') {
+        return handleMfaSetup(event);
+      }
+    }
+
+    if (path === '/api/v1/auth/mfa/verify' || path === '/auth/mfa/verify') {
+      if (method === 'POST') {
+        return handleMfaVerify(event);
+      }
+    }
+
+    if (path === '/api/v1/auth/mfa/challenge' || path === '/auth/mfa/challenge') {
+      if (method === 'POST') {
+        return handleMfaChallenge(event);
+      }
+    }
+
+    if (path === '/api/v1/auth/mfa' || path === '/auth/mfa') {
+      if (method === 'DELETE') {
+        return handleMfaDisable(event);
+      }
+      if (method === 'GET') {
+        return handleMfaStatus(event);
       }
     }
 
@@ -1034,6 +1075,416 @@ async function handleSessions(event, method) {
   });
 }
 
+// =============================================================================
+// MFA HANDLERS
+// =============================================================================
+
+/**
+ * Get MFA status for the current user
+ * GET /api/v1/auth/mfa
+ */
+async function handleMfaStatus(event) {
+  const authResult = await authenticateRequest(event);
+
+  if (!authResult.authenticated) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: authResult.error || 'Authentication required',
+    });
+  }
+
+  try {
+    const config = getAuthConfig();
+
+    // Get user's MFA settings from Cognito
+    const getUserCommand = new AdminGetUserCommand({
+      UserPoolId: config.userPoolId,
+      Username: authResult.user.email,
+    });
+
+    const userResponse = await cognitoClient.send(getUserCommand);
+
+    // Check if TOTP MFA is enabled
+    const mfaEnabled = userResponse.UserMFASettingList?.includes('SOFTWARE_TOKEN_MFA') || false;
+    const preferredMfa = userResponse.PreferredMfaSetting || null;
+
+    return createResponse(200, {
+      enabled: mfaEnabled,
+      preferredMethod: preferredMfa,
+      methods: userResponse.UserMFASettingList || [],
+    });
+
+  } catch (error) {
+    console.error('[MFA] Failed to get MFA status:', error.message);
+    return createResponse(500, {
+      error: 'Server Error',
+      message: 'Failed to get MFA status',
+    });
+  }
+}
+
+/**
+ * Initiate MFA setup - returns secret for QR code
+ * POST /api/v1/auth/mfa/setup
+ *
+ * Requires authenticated user. Returns secret key to generate QR code.
+ */
+async function handleMfaSetup(event) {
+  const authResult = await authenticateRequest(event);
+
+  if (!authResult.authenticated) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: authResult.error || 'Authentication required',
+    });
+  }
+
+  // Get access token from header
+  const authHeader = event.headers?.authorization || event.headers?.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: 'Access token required',
+    });
+  }
+
+  const accessToken = authHeader.replace('Bearer ', '');
+
+  try {
+    // Associate software token with the user
+    const associateCommand = new AssociateSoftwareTokenCommand({
+      AccessToken: accessToken,
+    });
+
+    const response = await cognitoClient.send(associateCommand);
+    const secretCode = response.SecretCode;
+
+    // Generate otpauth URI for QR code
+    // Format: otpauth://totp/{issuer}:{email}?secret={secret}&issuer={issuer}
+    const issuer = 'BarkBase';
+    const email = authResult.user.email;
+    const otpauthUri = `otpauth://totp/${issuer}:${encodeURIComponent(email)}?secret=${secretCode}&issuer=${issuer}`;
+
+    console.log('[MFA] Setup initiated for user:', authResult.user.id);
+
+    return createResponse(200, {
+      success: true,
+      secretCode,
+      otpauthUri,
+      message: 'Scan the QR code with your authenticator app',
+    });
+
+  } catch (error) {
+    console.error('[MFA] Setup failed:', error.name, error.message);
+
+    if (error.name === 'NotAuthorizedException') {
+      return createResponse(401, {
+        error: 'Unauthorized',
+        message: 'Session expired. Please sign in again.',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Server Error',
+      message: 'Failed to initiate MFA setup',
+    });
+  }
+}
+
+/**
+ * Verify TOTP code and enable MFA
+ * POST /api/v1/auth/mfa/verify
+ *
+ * Requires: { code: "123456" }
+ * Verifies the TOTP code and enables MFA for the user.
+ */
+async function handleMfaVerify(event) {
+  const authResult = await authenticateRequest(event);
+
+  if (!authResult.authenticated) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: authResult.error || 'Authentication required',
+    });
+  }
+
+  const body = parseBody(event);
+  const { code } = body;
+
+  if (!code || code.length !== 6) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'A 6-digit verification code is required',
+    });
+  }
+
+  // Get access token from header
+  const authHeader = event.headers?.authorization || event.headers?.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: 'Access token required',
+    });
+  }
+
+  const accessToken = authHeader.replace('Bearer ', '');
+
+  try {
+    // Verify the software token
+    const verifyCommand = new VerifySoftwareTokenCommand({
+      AccessToken: accessToken,
+      UserCode: code,
+      FriendlyDeviceName: 'Authenticator App',
+    });
+
+    const verifyResponse = await cognitoClient.send(verifyCommand);
+
+    if (verifyResponse.Status !== 'SUCCESS') {
+      return createResponse(400, {
+        error: 'Verification Failed',
+        message: 'Invalid verification code. Please try again.',
+      });
+    }
+
+    // Enable TOTP MFA as preferred method
+    const setMfaCommand = new SetUserMFAPreferenceCommand({
+      AccessToken: accessToken,
+      SoftwareTokenMfaSettings: {
+        Enabled: true,
+        PreferredMfa: true,
+      },
+    });
+
+    await cognitoClient.send(setMfaCommand);
+
+    // Record MFA enablement in database
+    try {
+      await getPoolAsync();
+      await query(
+        `UPDATE "User" SET mfa_enabled_at = NOW(), updated_at = NOW() WHERE cognito_sub = $1`,
+        [authResult.user.id]
+      );
+    } catch (dbError) {
+      console.warn('[MFA] Failed to record MFA enablement:', dbError.message);
+    }
+
+    console.log('[MFA] Successfully enabled for user:', authResult.user.id);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Two-factor authentication has been enabled',
+    });
+
+  } catch (error) {
+    console.error('[MFA] Verification failed:', error.name, error.message);
+
+    if (error.name === 'EnableSoftwareTokenMFAException') {
+      return createResponse(400, {
+        error: 'Verification Failed',
+        message: 'Invalid verification code. Please try again.',
+      });
+    }
+
+    if (error.name === 'NotAuthorizedException') {
+      return createResponse(401, {
+        error: 'Unauthorized',
+        message: 'Session expired. Please sign in again.',
+      });
+    }
+
+    if (error.name === 'CodeMismatchException') {
+      return createResponse(400, {
+        error: 'Verification Failed',
+        message: 'Invalid verification code. Please try again.',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Server Error',
+      message: 'Failed to verify MFA code',
+    });
+  }
+}
+
+/**
+ * Respond to MFA challenge during login
+ * POST /api/v1/auth/mfa/challenge
+ *
+ * Requires: { session: "...", code: "123456" }
+ * Completes the MFA challenge and returns tokens.
+ */
+async function handleMfaChallenge(event) {
+  const body = parseBody(event);
+  const { session, code, email } = body;
+
+  if (!session) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Session token is required',
+    });
+  }
+
+  if (!code || code.length !== 6) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'A 6-digit verification code is required',
+    });
+  }
+
+  if (!email) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Email is required',
+    });
+  }
+
+  const config = getAuthConfig();
+
+  try {
+    // Respond to the SOFTWARE_TOKEN_MFA challenge
+    const challengeCommand = new RespondToAuthChallengeCommand({
+      ClientId: config.clientId,
+      ChallengeName: 'SOFTWARE_TOKEN_MFA',
+      Session: session,
+      ChallengeResponses: {
+        USERNAME: email,
+        SOFTWARE_TOKEN_MFA_CODE: code,
+      },
+    });
+
+    const response = await cognitoClient.send(challengeCommand);
+
+    // If successful, we get authentication result with tokens
+    if (response.AuthenticationResult) {
+      console.log('[MFA] Challenge completed successfully for:', email);
+
+      return createResponse(200, {
+        success: true,
+        tokens: {
+          accessToken: response.AuthenticationResult.AccessToken,
+          idToken: response.AuthenticationResult.IdToken,
+          refreshToken: response.AuthenticationResult.RefreshToken,
+          expiresIn: response.AuthenticationResult.ExpiresIn,
+        },
+      });
+    }
+
+    // If there's another challenge (shouldn't happen for TOTP)
+    if (response.ChallengeName) {
+      return createResponse(400, {
+        error: 'Challenge Error',
+        message: `Unexpected challenge: ${response.ChallengeName}`,
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Server Error',
+      message: 'Unexpected response from authentication service',
+    });
+
+  } catch (error) {
+    console.error('[MFA] Challenge failed:', error.name, error.message);
+
+    if (error.name === 'CodeMismatchException') {
+      return createResponse(401, {
+        error: 'Verification Failed',
+        message: 'Invalid verification code. Please try again.',
+      });
+    }
+
+    if (error.name === 'ExpiredCodeException') {
+      return createResponse(401, {
+        error: 'Code Expired',
+        message: 'Verification code has expired. Please request a new one.',
+      });
+    }
+
+    if (error.name === 'NotAuthorizedException') {
+      return createResponse(401, {
+        error: 'Session Expired',
+        message: 'Login session expired. Please sign in again.',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Server Error',
+      message: 'Failed to verify MFA code',
+    });
+  }
+}
+
+/**
+ * Disable MFA for the current user
+ * DELETE /api/v1/auth/mfa
+ */
+async function handleMfaDisable(event) {
+  const authResult = await authenticateRequest(event);
+
+  if (!authResult.authenticated) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: authResult.error || 'Authentication required',
+    });
+  }
+
+  // Get access token from header
+  const authHeader = event.headers?.authorization || event.headers?.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: 'Access token required',
+    });
+  }
+
+  const accessToken = authHeader.replace('Bearer ', '');
+
+  try {
+    // Disable TOTP MFA
+    const disableCommand = new SetUserMFAPreferenceCommand({
+      AccessToken: accessToken,
+      SoftwareTokenMfaSettings: {
+        Enabled: false,
+        PreferredMfa: false,
+      },
+    });
+
+    await cognitoClient.send(disableCommand);
+
+    // Record MFA disablement in database
+    try {
+      await getPoolAsync();
+      await query(
+        `UPDATE "User" SET mfa_enabled_at = NULL, updated_at = NOW() WHERE cognito_sub = $1`,
+        [authResult.user.id]
+      );
+    } catch (dbError) {
+      console.warn('[MFA] Failed to record MFA disablement:', dbError.message);
+    }
+
+    console.log('[MFA] Successfully disabled for user:', authResult.user.id);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Two-factor authentication has been disabled',
+    });
+
+  } catch (error) {
+    console.error('[MFA] Disable failed:', error.name, error.message);
+
+    if (error.name === 'NotAuthorizedException') {
+      return createResponse(401, {
+        error: 'Unauthorized',
+        message: 'Session expired. Please sign in again.',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Server Error',
+      message: 'Failed to disable MFA',
+    });
+  }
+}
+
 /**
  * Handle contact form submission (public endpoint)
  * Sends email via SES and stores submission in database
@@ -1528,3 +1979,7 @@ function createRedirectResponse(path) {
   };
 }
 
+
+// Force rebuild 12/25/2025 18:22:28
+
+// Force rebuild 12/25/2025 18:28:24
