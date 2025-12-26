@@ -3,11 +3,13 @@ import { Outlet } from 'react-router-dom';
 import GlobalKeyboardShortcuts from '@/components/GlobalKeyboardShortcuts';
 import Button from '@/components/ui/Button';
 import { useTenantStore } from '@/stores/tenant';
+import { useUIStore } from '@/stores/ui';
 import Sidebar from '@/components/navigation/Sidebar';
 import Topbar from '@/components/navigation/Topbar';
 
 const AppShell = () => {
   const tenant = useTenantStore((state) => state.tenant);
+  const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const latestExportPath = tenant?.settings?.exports?.lastPath;
@@ -39,7 +41,11 @@ const AppShell = () => {
         </div>
       ) : null}
 
-      <div className="flex min-h-screen flex-col lg:pl-[var(--bb-sidebar-width,240px)]">
+      <div
+        className={`flex min-h-screen flex-col transition-all duration-300 ${
+          sidebarCollapsed ? 'lg:pl-[64px]' : 'lg:pl-[var(--bb-sidebar-width,240px)]'
+        }`}
+      >
         <Topbar onToggleSidebar={() => setMobileSidebarOpen(true)} />
         <GlobalKeyboardShortcuts />
         <main

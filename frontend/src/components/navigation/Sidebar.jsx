@@ -9,6 +9,8 @@ import {
   CalendarPlus,
   CheckSquare,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Circle,
   CreditCard,
   FileText,
@@ -29,6 +31,7 @@ import {
 } from 'lucide-react';
 import { getSidebarSections } from '@/config/navigation';
 import { useTenantStore } from '@/stores/tenant';
+import { useUIStore } from '@/stores/ui';
 import { cn } from '@/lib/utils';
 
 const iconMap = {
@@ -78,8 +81,42 @@ const iconMap = {
   settings: Settings,
 };
 
-const CollapsibleSection = ({ section, onNavigate, isExpanded, onToggle }) => {
+const CollapsibleSection = ({ section, onNavigate, isExpanded, onToggle, isSidebarCollapsed }) => {
   const canCollapse = section.collapsible !== false;
+
+  // When sidebar is collapsed, always show items (no section headers)
+  if (isSidebarCollapsed) {
+    return (
+      <div className="space-y-1">
+        {section.items.map((item) => {
+          const Icon = iconMap[item.icon ?? item.path] ?? Circle;
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                cn(
+                  'group flex items-center justify-center rounded-lg p-2',
+                  'transition-all duration-150',
+                  'text-[color:var(--bb-color-sidebar-text-primary)]',
+                  'hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)]',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)] focus-visible:ring-inset',
+                  isActive
+                    ? 'bg-[color:var(--bb-color-sidebar-item-active-bg)] text-[color:var(--bb-color-sidebar-item-active-text)] shadow-sm'
+                    : ''
+                )
+              }
+              onClick={onNavigate}
+              end={item.path === '/today'}
+              title={item.label}
+            >
+              <Icon className="h-5 w-5 shrink-0 transition-transform group-hover:scale-110" />
+            </NavLink>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className="relative">
@@ -147,8 +184,9 @@ const CollapsibleSection = ({ section, onNavigate, isExpanded, onToggle }) => {
   );
 };
 
-const SidebarSection = ({ onNavigate }) => {
+const SidebarSection = ({ onNavigate, isCollapsed = false }) => {
   const tenant = useTenantStore((state) => state.tenant);
+  const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const terminology = tenant?.terminology || {};
   const tenantName = tenant?.name ?? tenant?.slug ?? 'BarkBase';
   const tenantPlan = tenant?.plan;
@@ -172,64 +210,113 @@ const SidebarSection = ({ onNavigate }) => {
     }));
   };
 
+  const tenantInitials = tenantName
+    .split(' ')
+    .slice(0, 2)
+    .map((chunk) => chunk.charAt(0))
+    .join('')
+    .toUpperCase();
+
   return (
     <div className="flex h-full flex-col">
       {/* Tenant header */}
-      <div className="flex items-center gap-3 border-b border-[color:var(--bb-color-sidebar-border)] px-[var(--bb-space-4,1rem)] py-[var(--bb-space-5,1.25rem)]">
+      <div
+        className={cn(
+          'flex items-center border-b border-[color:var(--bb-color-sidebar-border)]',
+          isCollapsed ? 'justify-center px-2 py-4' : 'gap-3 px-[var(--bb-space-4,1rem)] py-[var(--bb-space-5,1.25rem)]'
+        )}
+      >
         <div
-          className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-semibold shadow-md"
-          style={{ backgroundColor: 'var(--bb-color-accent)', color: 'var(--bb-color-text-on-accent)' }}
-        >
-          {tenantName
-            .split(' ')
-            .slice(0, 2)
-            .map((chunk) => chunk.charAt(0))
-            .join('')
-            .toUpperCase()}
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[0.875rem] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-sidebar-text-primary)]">
-            {tenantName}
-          </p>
-          {tenantPlan && (
-            <p className="text-[0.7rem] uppercase tracking-wide text-[color:var(--bb-color-sidebar-text-muted)]">
-              {tenantPlan}
-            </p>
+          className={cn(
+            'flex items-center justify-center rounded-xl font-semibold shadow-md',
+            isCollapsed ? 'h-9 w-9 text-xs' : 'h-10 w-10 text-sm'
           )}
+          style={{ backgroundColor: 'var(--bb-color-accent)', color: 'var(--bb-color-text-on-accent)' }}
+          title={isCollapsed ? tenantName : undefined}
+        >
+          {tenantInitials}
         </div>
+        {!isCollapsed && (
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[0.875rem] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-sidebar-text-primary)]">
+              {tenantName}
+            </p>
+            {tenantPlan && (
+              <p className="text-[0.7rem] uppercase tracking-wide text-[color:var(--bb-color-sidebar-text-muted)]">
+                {tenantPlan}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Navigation sections */}
-      <nav className="flex-1 overflow-y-auto px-[var(--bb-space-2,0.5rem)] py-[var(--bb-space-4,1rem)]">
-        <div className="space-y-[var(--bb-space-1,0.25rem)]">
+      <nav className={cn(
+        'flex-1 overflow-y-auto py-[var(--bb-space-4,1rem)]',
+        isCollapsed ? 'px-2' : 'px-[var(--bb-space-2,0.5rem)]'
+      )}>
+        <div className={cn(isCollapsed ? 'space-y-1' : 'space-y-[var(--bb-space-1,0.25rem)]')}>
           {sidebarSections.map((section, index) => (
             <div key={section.id}>
               {/* Separator between sections */}
               {index > 0 && (
-                <div className="my-[var(--bb-space-3,0.75rem)] mx-[var(--bb-space-3,0.75rem)] border-t border-[color:var(--bb-color-sidebar-border)] opacity-50" />
+                <div
+                  className={cn(
+                    'border-t border-[color:var(--bb-color-sidebar-border)] opacity-50',
+                    isCollapsed ? 'my-2 mx-1' : 'my-[var(--bb-space-3,0.75rem)] mx-[var(--bb-space-3,0.75rem)]'
+                  )}
+                />
               )}
               <CollapsibleSection
                 section={section}
                 onNavigate={onNavigate}
                 isExpanded={expandedSections[section.id]}
                 onToggle={() => toggleSection(section.id)}
+                isSidebarCollapsed={isCollapsed}
               />
             </div>
           ))}
         </div>
       </nav>
 
-      {/* Footer - version/help */}
-      <div className="border-t border-[color:var(--bb-color-sidebar-border)] px-[var(--bb-space-4,1rem)] py-[var(--bb-space-3,0.75rem)]">
-        <p className="text-[0.65rem] text-[color:var(--bb-color-sidebar-text-muted)] text-center">
-          BarkBase v1.0
-        </p>
+      {/* Footer with collapse toggle */}
+      <div className={cn(
+        'border-t border-[color:var(--bb-color-sidebar-border)]',
+        isCollapsed ? 'px-2 py-3' : 'px-[var(--bb-space-4,1rem)] py-[var(--bb-space-3,0.75rem)]'
+      )}>
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          className={cn(
+            'flex items-center gap-2 w-full rounded-lg p-2 transition-colors',
+            'text-[color:var(--bb-color-sidebar-text-muted)]',
+            'hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)] hover:text-[color:var(--bb-color-sidebar-text-primary)]',
+            isCollapsed && 'justify-center'
+          )}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <>
+              <ChevronLeft className="h-4 w-4" />
+              <span className="text-[0.75rem]">Collapse</span>
+            </>
+          )}
+        </button>
+        {!isCollapsed && (
+          <p className="text-[0.65rem] text-[color:var(--bb-color-sidebar-text-muted)] text-center mt-2">
+            BarkBase v1.0
+          </p>
+        )}
       </div>
     </div>
   );
 };
 
 const Sidebar = ({ variant = 'desktop', onNavigate }) => {
+  const isCollapsed = useUIStore((state) => state.sidebarCollapsed);
+
   if (variant === 'mobile') {
     return (
       <div
@@ -248,21 +335,24 @@ const Sidebar = ({ variant = 'desktop', onNavigate }) => {
         >
           <X className="h-5 w-5" />
         </button>
-        <SidebarSection onNavigate={onNavigate} />
+        <SidebarSection onNavigate={onNavigate} isCollapsed={false} />
       </div>
     );
   }
 
   return (
     <aside
-      className="fixed left-0 top-0 hidden h-screen w-[var(--bb-sidebar-width,240px)] flex-col border-r lg:flex"
+      className={cn(
+        'fixed left-0 top-0 hidden h-screen flex-col border-r lg:flex transition-all duration-300',
+        isCollapsed ? 'w-[64px]' : 'w-[var(--bb-sidebar-width,240px)]'
+      )}
       style={{
         backgroundColor: 'var(--bb-color-sidebar-bg)',
         borderColor: 'var(--bb-color-sidebar-border)',
         color: 'var(--bb-color-sidebar-text-primary)',
       }}
     >
-      <SidebarSection />
+      <SidebarSection isCollapsed={isCollapsed} />
     </aside>
   );
 };
