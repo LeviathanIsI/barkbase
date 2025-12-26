@@ -353,9 +353,31 @@ const normalizeResponse = (payload, tenantName, plan) => {
     ? payload.holidays.map(normalizeHoliday).filter(Boolean)
     : [];
 
+  // Normalize regionalSettings - API may return lowercase values
+  const rawRegional = payload.regionalSettings ?? {};
+  const normalizeWeekStart = (val) => {
+    if (!val) return defaults.regionalSettings.weekStartsOn;
+    const lower = val.toLowerCase();
+    if (lower === 'sunday') return 'Sunday';
+    if (lower === 'monday') return 'Monday';
+    return defaults.regionalSettings.weekStartsOn;
+  };
+  const normalizeTimeFormat = (val) => {
+    if (!val) return defaults.regionalSettings.timeFormat;
+    if (val === '12-hour' || val === '24-hour') return val;
+    return defaults.regionalSettings.timeFormat;
+  };
+  const normalizeDateFormat = (val) => {
+    if (!val) return defaults.regionalSettings.dateFormat;
+    if (['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'].includes(val)) return val;
+    return defaults.regionalSettings.dateFormat;
+  };
+
   const regionalSettings = {
-    ...defaults.regionalSettings,
-    ...(payload.regionalSettings ?? {}),
+    timeZone: rawRegional.timeZone || defaults.regionalSettings.timeZone,
+    dateFormat: normalizeDateFormat(rawRegional.dateFormat),
+    timeFormat: normalizeTimeFormat(rawRegional.timeFormat),
+    weekStartsOn: normalizeWeekStart(rawRegional.weekStartsOn),
   };
 
   let currencySettings = {
@@ -662,14 +684,11 @@ const LocaleSection = ({ control, errors }) => (
         render={({ field }) => (
           <Select
             label="Default Time Zone"
+            options={TIME_ZONES}
             value={field.value}
             onChange={(event) => field.onChange(event.target.value)}
             error={errors.regionalSettings?.timeZone?.message}
-          >
-            {TIME_ZONES.map((tz) => (
-              <option key={tz.value} value={tz.value}>{tz.label}</option>
-            ))}
-          </Select>
+          />
         )}
       />
     </Card>
@@ -682,33 +701,36 @@ const LocaleSection = ({ control, errors }) => (
           name="regionalSettings.dateFormat"
           control={control}
           render={({ field }) => (
-            <Select label="Date" value={field.value} onChange={(event) => field.onChange(event.target.value)}>
-              {DATE_FORMATS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </Select>
+            <Select
+              label="Date"
+              options={DATE_FORMATS}
+              value={field.value}
+              onChange={(event) => field.onChange(event.target.value)}
+            />
           )}
         />
         <Controller
           name="regionalSettings.timeFormat"
           control={control}
           render={({ field }) => (
-            <Select label="Time" value={field.value} onChange={(event) => field.onChange(event.target.value)}>
-              {TIME_FORMATS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </Select>
+            <Select
+              label="Time"
+              options={TIME_FORMATS}
+              value={field.value}
+              onChange={(event) => field.onChange(event.target.value)}
+            />
           )}
         />
         <Controller
           name="regionalSettings.weekStartsOn"
           control={control}
           render={({ field }) => (
-            <Select label="Week Starts" value={field.value} onChange={(event) => field.onChange(event.target.value)}>
-              {WEEK_START_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </Select>
+            <Select
+              label="Week Starts"
+              options={WEEK_START_OPTIONS}
+              value={field.value}
+              onChange={(event) => field.onChange(event.target.value)}
+            />
           )}
         />
       </div>
@@ -772,17 +794,15 @@ const BillingSection = ({
         render={({ field }) => (
           <Select
             label="Default Currency"
+            options={
+              (isFreePlan ? [{ value: 'USD', label: 'USD - US Dollar' }] : CURRENCY_OPTIONS)
+                .filter((c) => currencySettings?.supportedCurrencies?.includes(c.value))
+            }
             value={field.value}
             onChange={(event) => field.onChange(event.target.value)}
             error={errors.currencySettings?.defaultCurrency?.message}
             disabled={isFreePlan}
-          >
-            {(isFreePlan ? [{ value: 'USD', label: 'USD - US Dollar' }] : CURRENCY_OPTIONS)
-              .filter((c) => currencySettings?.supportedCurrencies?.includes(c.value))
-              .map((currency) => (
-                <option key={currency.value} value={currency.value}>{currency.label}</option>
-              ))}
-          </Select>
+          />
         )}
       />
     </div>
