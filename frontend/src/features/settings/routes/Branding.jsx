@@ -25,11 +25,11 @@ import { useAuthStore } from '@/stores/auth';
 import apiClient, { uploadFile } from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
 
-// Default theme values
+// Default theme values - must match the actual app defaults from tokens.css
 const DEFAULT_THEME = {
-  primaryHex: '#3b82f6',
-  secondaryHex: '#818cf8',
-  accentHex: '#f97316',
+  primaryHex: '#3b82f6',   // blue-500 - used for primary buttons
+  secondaryHex: '#818cf8', // indigo-400 - used for secondary elements
+  accentHex: '#f59e0b',    // amber-500 - the app's actual accent color from tokens.css
   terminologyKennel: 'Kennel',
   fontPairing: 'modern',
   squareLogo: null,
@@ -55,11 +55,11 @@ const COLOR_PRESETS = {
     { hex: '#f87171', name: 'Rose' },
   ],
   accent: [
+    { hex: '#f59e0b', name: 'Amber (Default)' },
     { hex: '#f97316', name: 'Orange' },
     { hex: '#ec4899', name: 'Pink' },
     { hex: '#14b8a6', name: 'Teal' },
     { hex: '#84cc16', name: 'Lime' },
-    { hex: '#eab308', name: 'Gold' },
     { hex: '#6366f1', name: 'Indigo' },
   ],
 };
