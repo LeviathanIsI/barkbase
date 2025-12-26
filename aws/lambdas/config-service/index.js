@@ -5270,9 +5270,11 @@ async function handleGetUploadUrl(user, body) {
 
     const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 }); // 1 hour expiry
 
-    // Public URL (if bucket is behind CloudFront, adjust accordingly)
-    const region = process.env.S3_REGION || process.env.AWS_REGION || 'us-east-2';
-    const publicUrl = `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+    // Public URL - use CloudFront if configured (bucket has blocked public access)
+    const cloudfrontDomain = process.env.CLOUDFRONT_DOMAIN;
+    const publicUrl = cloudfrontDomain
+      ? `https://${cloudfrontDomain}/${key}`
+      : `https://${bucket}.s3.${process.env.S3_REGION || 'us-east-2'}.amazonaws.com/${key}`;
 
     console.log('[Upload] Generated presigned URL for:', { key, category, tenantId: ctx.tenantId });
 

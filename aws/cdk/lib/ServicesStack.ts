@@ -231,6 +231,8 @@ export class ServicesStack extends cdk.Stack {
       // S3 uploads bucket (using frontend bucket)
       S3_BUCKET: uploadsBucketName,
       S3_REGION: config.region,
+      // CloudFront domain for serving uploaded files
+      CLOUDFRONT_DOMAIN: envConfig.CLOUDFRONT_DOMAIN || '',
     };
 
     // Common Lambda configuration
