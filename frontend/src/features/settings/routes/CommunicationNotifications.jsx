@@ -193,7 +193,7 @@ const CommunicationNotifications = () => {
                   </div>
                   <Switch
                     checked={settings[key]}
-                    onChange={(checked) => updateSetting(key, checked)}
+                    onCheckedChange={(checked) => updateSetting(key, checked)}
                     disabled={disabled}
                   />
                 </div>
@@ -234,7 +234,7 @@ const CommunicationNotifications = () => {
                 </div>
                 <Switch
                   checked={settings[key]}
-                  onChange={(checked) => updateSetting(key, checked)}
+                  onCheckedChange={(checked) => updateSetting(key, checked)}
                 />
               </div>
             ))}
