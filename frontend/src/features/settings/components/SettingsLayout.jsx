@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronsLeft,
+  ChevronsRight,
   ArrowLeft,
   Menu,
   X,
@@ -190,6 +191,12 @@ export default function SettingsLayout() {
     const newCollapsed = !settingsSidebarCollapsed || !mainSidebarCollapsed;
     setSettingsSidebarCollapsed(newCollapsed);
     setSidebarCollapsed(newCollapsed);
+  };
+
+  // Expand both sidebars
+  const expandBothSidebars = () => {
+    setSettingsSidebarCollapsed(false);
+    setSidebarCollapsed(false);
   };
 
   const toggleSection = (sectionId) => {
@@ -511,7 +518,8 @@ export default function SettingsLayout() {
 
       {/* Expand button when settings sidebar is collapsed */}
       {settingsSidebarCollapsed && (
-        <div className="hidden md:flex flex-col items-center py-4 px-1 border-r border-border bg-card">
+        <div className="hidden md:flex flex-col items-center py-4 px-1 border-r border-border bg-card gap-2">
+          {/* Single chevron - expand settings sidebar only */}
           <button
             type="button"
             onClick={toggleSettingsSidebar}
@@ -520,6 +528,18 @@ export default function SettingsLayout() {
           >
             <ChevronRight className="h-4 w-4" />
           </button>
+
+          {/* Double chevron - expand both sidebars (only show when main sidebar is also collapsed) */}
+          {mainSidebarCollapsed && (
+            <button
+              type="button"
+              onClick={expandBothSidebars}
+              className="flex items-center justify-center h-8 w-8 rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              title="Expand all sidebars"
+            >
+              <ChevronsRight className="h-4 w-4" />
+            </button>
+          )}
         </div>
       )}
 
