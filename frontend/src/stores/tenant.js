@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { applyTheme, getDefaultTheme, mergeTheme } from '@/lib/theme';
+import { applyTheme, applyBranding, getDefaultTheme, mergeTheme } from '@/lib/theme';
 import { resolvePlanFeatures } from '@/features';
 import apiClient from '@/lib/apiClient';
 import getStorage from '@/lib/storage';
@@ -52,6 +52,7 @@ export const useTenantStore = create(
         const dbProvider = tenantPayload.dbProvider ?? defaultTenant.dbProvider;
         const migrationState = tenantPayload.migrationState ?? defaultTenant.migrationState;
         const migrationInfo = tenantPayload.migrationInfo ?? null;
+        const branding = tenantPayload.branding ?? null;
         const tenant = {
           ...defaultTenant,
           ...tenantPayload,
@@ -65,8 +66,13 @@ export const useTenantStore = create(
           usage,
           recoveryMode,
           theme: mergedTheme,
+          branding,
         };
         applyTheme(mergedTheme);
+        // Apply branding customizations (colors, fonts, logos)
+        if (branding) {
+          applyBranding(branding);
+        }
         set({ tenant, initialized: true });
       },
       setLoading: (loading) => set({ isLoading: loading }),
@@ -127,6 +133,29 @@ export const useTenantStore = create(
       setTerminology: (terminology = {}) => {
         const { tenant } = get();
         set({ tenant: { ...tenant, terminology } });
+      },
+      setBranding: (branding = {}) => {
+        const { tenant } = get();
+        const mergedBranding = { ...tenant.branding, ...branding };
+        applyBranding(mergedBranding);
+        set({ tenant: { ...tenant, branding: mergedBranding } });
+      },
+      loadBranding: async () => {
+        try {
+          const res = await apiClient.get('/api/v1/config/branding');
+          const branding = res?.data ?? null;
+          if (branding) {
+            get().setBranding(branding);
+            // Also update terminology if included in branding response
+            if (branding.terminology) {
+              get().setTerminology(branding.terminology);
+            }
+          }
+          return branding;
+        } catch (error) {
+          console.warn('[tenant] Failed to load branding:', error?.message);
+          return null;
+        }
       },
       setStaffRoles: (staffRoles = []) => {
         const { tenant } = get();

@@ -5070,6 +5070,7 @@ async function handleUploadLogo(user, event) {
 /**
  * Get branding settings
  * NEW SCHEMA: Uses TenantSettings.branding JSONB column
+ * Supports: primaryColor, secondaryColor, accentColor, fontPreset, squareLogoUrl, wideLogoUrl, terminology
  */
 async function handleGetBranding(user) {
   try {
@@ -5078,7 +5079,7 @@ async function handleGetBranding(user) {
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
     const result = await query(
-      `SELECT t.name, ts.business_name, ts.branding
+      `SELECT t.name, ts.business_name, ts.branding, ts.terminology
        FROM "Tenant" t
        LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
        WHERE t.id = $1`,
@@ -5091,13 +5092,29 @@ async function handleGetBranding(user) {
 
     const row = result.rows[0];
     const branding = row.branding || {};
+    const terminology = row.terminology || {};
 
     return createResponse(200, {
       businessName: row.business_name || row.name || '',
-      logoUrl: branding.logoUrl || '',
+      // Legacy support
+      logoUrl: branding.logoUrl || branding.squareLogoUrl || '',
+      // Colors
       primaryColor: branding.primaryColor || '#3B82F6',
       secondaryColor: branding.secondaryColor || '#10B981',
-      customTerminology: branding.customTerminology || {},
+      accentColor: branding.accentColor || '#F97316',
+      // Typography
+      fontPreset: branding.fontPreset || 'modern',
+      // Logos
+      squareLogoUrl: branding.squareLogoUrl || branding.logoUrl || '',
+      wideLogoUrl: branding.wideLogoUrl || '',
+      // Terminology
+      terminology: {
+        kennel: terminology.kennel || branding.customTerminology?.kennel || 'Kennel',
+        ...terminology,
+        ...branding.customTerminology,
+      },
+      // Legacy fields for backwards compatibility
+      customTerminology: branding.customTerminology || terminology || {},
       themeSettings: branding.themeSettings || {},
     });
   } catch (error) {
@@ -5109,21 +5126,35 @@ async function handleGetBranding(user) {
 /**
  * Update branding settings
  * NEW SCHEMA: Updates TenantSettings.branding JSONB column
+ * Supports: primaryColor, secondaryColor, accentColor, fontPreset, squareLogoUrl, wideLogoUrl, terminology
  */
 async function handleUpdateBranding(user, body) {
-  const { businessName, logoUrl, primaryColor, secondaryColor, customTerminology, themeSettings } = body;
+  const {
+    businessName,
+    logoUrl,
+    primaryColor,
+    secondaryColor,
+    accentColor,
+    fontPreset,
+    squareLogoUrl,
+    wideLogoUrl,
+    terminology,
+    customTerminology,
+    themeSettings,
+  } = body;
 
   try {
     await getPoolAsync();
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    // Get current branding to merge
+    // Get current branding and terminology to merge
     const currentResult = await query(
-      `SELECT ts.branding FROM "TenantSettings" ts WHERE ts.tenant_id = $1`,
+      `SELECT ts.branding, ts.terminology FROM "TenantSettings" ts WHERE ts.tenant_id = $1`,
       [ctx.tenantId]
     );
     let currentBranding = currentResult.rows[0]?.branding || {};
+    let currentTerminology = currentResult.rows[0]?.terminology || {};
 
     // Update business_name in TenantSettings if provided
     if (businessName !== undefined) {
@@ -5133,12 +5164,35 @@ async function handleUpdateBranding(user, body) {
       );
     }
 
-    // Merge branding fields
-    if (logoUrl !== undefined) currentBranding.logoUrl = logoUrl;
+    // Merge branding fields - colors
     if (primaryColor !== undefined) currentBranding.primaryColor = primaryColor;
     if (secondaryColor !== undefined) currentBranding.secondaryColor = secondaryColor;
+    if (accentColor !== undefined) currentBranding.accentColor = accentColor;
+
+    // Typography
+    if (fontPreset !== undefined) currentBranding.fontPreset = fontPreset;
+
+    // Logos - support both new and legacy field names
+    if (squareLogoUrl !== undefined) currentBranding.squareLogoUrl = squareLogoUrl;
+    if (wideLogoUrl !== undefined) currentBranding.wideLogoUrl = wideLogoUrl;
+    if (logoUrl !== undefined) {
+      currentBranding.logoUrl = logoUrl;
+      // Also set squareLogoUrl for backwards compatibility
+      if (!squareLogoUrl) currentBranding.squareLogoUrl = logoUrl;
+    }
+
+    // Legacy fields
     if (customTerminology !== undefined) currentBranding.customTerminology = customTerminology;
     if (themeSettings !== undefined) currentBranding.themeSettings = themeSettings;
+
+    // Update terminology in its own column
+    if (terminology !== undefined) {
+      currentTerminology = { ...currentTerminology, ...terminology };
+      await query(
+        `UPDATE "TenantSettings" SET terminology = $2, updated_at = NOW() WHERE tenant_id = $1`,
+        [ctx.tenantId, JSON.stringify(currentTerminology)]
+      );
+    }
 
     // Update branding JSONB
     await query(
@@ -15053,3 +15107,5 @@ async function handleGetIntegration(user, provider) {
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get integration' });
   }
 }
+
+// Force rebuild 12/25/2025 18:28:24

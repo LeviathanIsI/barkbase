@@ -22,8 +22,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
-import { saveTenantTheme } from '@/features/tenants/api';
-import { uploadFile } from '@/lib/apiClient';
+import apiClient, { uploadFile } from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
 
 // Default theme values
@@ -31,7 +30,6 @@ const DEFAULT_THEME = {
   primaryHex: '#3b82f6',
   secondaryHex: '#818cf8',
   accentHex: '#f97316',
-  backgroundHex: '#ffffff',
   terminologyKennel: 'Kennel',
   fontPairing: 'modern',
   squareLogo: null,
@@ -522,8 +520,7 @@ const LivePreview = ({ colors, terminology, fontPairing, squareLogo, previewMode
 
 const Branding = () => {
   const tenant = useTenantStore((state) => state.tenant);
-  const updateTheme = useTenantStore((state) => state.updateTheme);
-  const setTenant = useTenantStore((state) => state.setTenant);
+  const setBranding = useTenantStore((state) => state.setBranding);
   const setTerminology = useTenantStore((state) => state.setTerminology);
   const hasWriteAccess = useAuthStore((state) => state.hasRole(['OWNER', 'ADMIN']));
   const canEditTheme = hasWriteAccess;
@@ -531,69 +528,61 @@ const Branding = () => {
   const [previewMode, setPreviewMode] = useState('dark');
   const [isSaving, setIsSaving] = useState(false);
 
+  // Get initial values from tenant branding or fallback to theme colors
+  const getInitialValues = () => ({
+    primaryHex: tenant.branding?.primaryColor ?? rgbToHex(tenant.theme?.colors?.primary ?? '59 130 246'),
+    secondaryHex: tenant.branding?.secondaryColor ?? rgbToHex(tenant.theme?.colors?.secondary ?? '129 140 248'),
+    accentHex: tenant.branding?.accentColor ?? rgbToHex(tenant.theme?.colors?.accent ?? '249 115 22'),
+    terminologyKennel: tenant.branding?.terminology?.kennel ?? tenant.terminology?.kennel ?? 'Kennel',
+    fontPairing: tenant.branding?.fontPreset ?? tenant.theme?.fontPairing ?? 'modern',
+    squareLogo: tenant.branding?.squareLogoUrl ?? null,
+    wideLogo: tenant.branding?.wideLogoUrl ?? null,
+  });
+
   const { register, handleSubmit, reset, watch, setValue, formState: { isDirty } } = useForm({
-    defaultValues: {
-      primaryHex: rgbToHex(tenant.theme?.colors?.primary ?? '59 130 246'),
-      secondaryHex: rgbToHex(tenant.theme?.colors?.secondary ?? '129 140 248'),
-      accentHex: rgbToHex(tenant.theme?.colors?.accent ?? '249 115 22'),
-      backgroundHex: rgbToHex(tenant.theme?.colors?.background ?? '255 255 255'),
-      terminologyKennel: tenant.terminology?.kennel ?? 'Kennel',
-      fontPairing: tenant.theme?.fontPairing ?? 'modern',
-      squareLogo: tenant.branding?.squareLogo ?? null,
-      wideLogo: tenant.branding?.wideLogo ?? null,
-    },
+    defaultValues: getInitialValues(),
   });
 
   const watchedValues = watch();
 
   useEffect(() => {
-    reset({
-      primaryHex: rgbToHex(tenant.theme?.colors?.primary ?? '59 130 246'),
-      secondaryHex: rgbToHex(tenant.theme?.colors?.secondary ?? '129 140 248'),
-      accentHex: rgbToHex(tenant.theme?.colors?.accent ?? '249 115 22'),
-      backgroundHex: rgbToHex(tenant.theme?.colors?.background ?? '255 255 255'),
-      terminologyKennel: tenant.terminology?.kennel ?? 'Kennel',
-      fontPairing: tenant.theme?.fontPairing ?? 'modern',
-      squareLogo: tenant.branding?.squareLogo ?? null,
-      wideLogo: tenant.branding?.wideLogo ?? null,
-    });
+    reset(getInitialValues());
   }, [tenant, reset]);
 
   const onSubmit = async (values) => {
     if (!canEditTheme) return;
 
     setIsSaving(true);
-    const themePayload = {
-      colors: {
-        primary: hexToRgb(values.primaryHex),
-        secondary: hexToRgb(values.secondaryHex),
-        accent: hexToRgb(values.accentHex),
-        background: hexToRgb(values.backgroundHex),
-        surface: tenant.theme?.colors?.surface,
-        text: tenant.theme?.colors?.text,
-        muted: tenant.theme?.colors?.muted,
-        border: tenant.theme?.colors?.border,
-        success: tenant.theme?.colors?.success,
-        warning: tenant.theme?.colors?.warning,
-        danger: tenant.theme?.colors?.danger,
-      },
-      fontPairing: values.fontPairing,
-      branding: {
-        squareLogo: values.squareLogo,
-        wideLogo: values.wideLogo,
+
+    // Build branding payload for API
+    const brandingPayload = {
+      primaryColor: values.primaryHex,
+      secondaryColor: values.secondaryHex,
+      accentColor: values.accentHex,
+      fontPreset: values.fontPairing,
+      squareLogoUrl: values.squareLogo,
+      wideLogoUrl: values.wideLogo,
+      terminology: {
+        kennel: values.terminologyKennel,
       },
     };
 
-    updateTheme(themePayload);
-    setTerminology({ kennel: values.terminologyKennel });
-
     try {
-      const updated = await saveTenantTheme(themePayload);
-      setTenant(updated);
+      // Save branding to API
+      const res = await apiClient.put('/api/v1/config/branding', brandingPayload);
+      const savedBranding = res?.data ?? brandingPayload;
+
+      // Update local store (which also applies CSS variables)
+      setBranding(savedBranding);
+      if (savedBranding.terminology) {
+        setTerminology(savedBranding.terminology);
+      }
+
       reset(values);
-      toast.success('Theme saved successfully');
+      toast.success('Branding saved successfully');
     } catch (error) {
-      toast.error(error.message ?? 'Failed to save theme');
+      console.error('[Branding] Save failed:', error);
+      toast.error(error?.response?.data?.message ?? error.message ?? 'Failed to save branding');
     } finally {
       setIsSaving(false);
     }
@@ -602,38 +591,40 @@ const Branding = () => {
   const handleResetToDefault = async () => {
     if (!canEditTheme) return;
 
-    reset(DEFAULT_THEME);
-
-    const defaultThemePayload = {
-      colors: {
-        primary: hexToRgb(DEFAULT_THEME.primaryHex),
-        secondary: hexToRgb(DEFAULT_THEME.secondaryHex),
-        accent: hexToRgb(DEFAULT_THEME.accentHex),
-        background: hexToRgb(DEFAULT_THEME.backgroundHex),
-        surface: tenant.theme?.colors?.surface,
-        text: tenant.theme?.colors?.text,
-        muted: tenant.theme?.colors?.muted,
-        border: tenant.theme?.colors?.border,
-        success: tenant.theme?.colors?.success,
-        warning: tenant.theme?.colors?.warning,
-        danger: tenant.theme?.colors?.danger,
-      },
+    const defaultFormValues = {
+      primaryHex: DEFAULT_THEME.primaryHex,
+      secondaryHex: DEFAULT_THEME.secondaryHex,
+      accentHex: DEFAULT_THEME.accentHex,
+      terminologyKennel: DEFAULT_THEME.terminologyKennel,
       fontPairing: DEFAULT_THEME.fontPairing,
-      branding: {
-        squareLogo: null,
-        wideLogo: null,
+      squareLogo: null,
+      wideLogo: null,
+    };
+
+    reset(defaultFormValues);
+
+    // Build default branding payload
+    const defaultBrandingPayload = {
+      primaryColor: DEFAULT_THEME.primaryHex,
+      secondaryColor: DEFAULT_THEME.secondaryHex,
+      accentColor: DEFAULT_THEME.accentHex,
+      fontPreset: DEFAULT_THEME.fontPairing,
+      squareLogoUrl: null,
+      wideLogoUrl: null,
+      terminology: {
+        kennel: DEFAULT_THEME.terminologyKennel,
       },
     };
 
-    updateTheme(defaultThemePayload);
-    setTerminology({ kennel: DEFAULT_THEME.terminologyKennel });
-
     try {
-      const updated = await saveTenantTheme(defaultThemePayload);
-      setTenant(updated);
-      toast.success('Theme reset to defaults');
+      const res = await apiClient.put('/api/v1/config/branding', defaultBrandingPayload);
+      const savedBranding = res?.data ?? defaultBrandingPayload;
+      setBranding(savedBranding);
+      setTerminology({ kennel: DEFAULT_THEME.terminologyKennel });
+      toast.success('Branding reset to defaults');
     } catch (error) {
-      toast.error(error.message ?? 'Failed to reset theme');
+      console.error('[Branding] Reset failed:', error);
+      toast.error(error?.response?.data?.message ?? error.message ?? 'Failed to reset branding');
     }
   };
 
@@ -826,7 +817,6 @@ const Branding = () => {
                 primaryHex: watchedValues.primaryHex,
                 secondaryHex: watchedValues.secondaryHex,
                 accentHex: watchedValues.accentHex,
-                backgroundHex: watchedValues.backgroundHex,
               }}
               terminology={watchedValues.terminologyKennel}
               fontPairing={watchedValues.fontPairing}

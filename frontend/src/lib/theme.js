@@ -32,6 +32,31 @@ const DEFAULT_THEME = {
     staff: 'Staff',
     booking: 'Booking',
   },
+  fontPairing: 'modern',
+};
+
+// Font pairing definitions (must match FONT_PAIRINGS in Branding.jsx)
+const FONT_PAIRINGS = {
+  modern: {
+    heading: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    body: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  },
+  classic: {
+    heading: "Georgia, 'Times New Roman', serif",
+    body: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+  },
+  friendly: {
+    heading: "'Nunito', -apple-system, BlinkMacSystemFont, sans-serif",
+    body: "'Nunito', -apple-system, BlinkMacSystemFont, sans-serif",
+  },
+  professional: {
+    heading: "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    body: "'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  },
+  playful: {
+    heading: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif",
+    body: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif",
+  },
 };
 
 const cssVariableMap = {
@@ -46,6 +71,29 @@ const cssVariableMap = {
   success: '--color-success',
   warning: '--color-warning',
   danger: '--color-danger',
+};
+
+/**
+ * Convert hex color to RGB string "r g b"
+ */
+const hexToRgb = (hex) => {
+  if (!hex) return null;
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return null;
+  return `${parseInt(result[1], 16)} ${parseInt(result[2], 16)} ${parseInt(result[3], 16)}`;
+};
+
+/**
+ * Generate a soft/translucent version of a color for hover/active states
+ */
+const hexToSoft = (hex, alpha = 0.15) => {
+  if (!hex) return null;
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return null;
+  const r = parseInt(result[1], 16);
+  const g = parseInt(result[2], 16);
+  const b = parseInt(result[3], 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
 export const mergeTheme = (overrides = {}) => {
@@ -86,6 +134,47 @@ export const applyTheme = (incomingTheme) => {
   }
 
   return theme;
+};
+
+/**
+ * Apply branding customizations from API response
+ * This sets CSS variables that override the design tokens
+ */
+export const applyBranding = (branding) => {
+  if (typeof window === 'undefined' || !branding) return;
+  const root = document.documentElement;
+
+  // Apply accent color (the main brand color)
+  if (branding.accentColor || branding.primaryColor) {
+    const accentHex = branding.accentColor || branding.primaryColor;
+    root.style.setProperty('--bb-color-accent', accentHex);
+    root.style.setProperty('--bb-color-accent-soft', hexToSoft(accentHex, 0.15));
+    root.style.setProperty('--bb-color-accent-text', accentHex);
+
+    // Also set sidebar active states to match accent
+    root.style.setProperty('--bb-color-sidebar-item-hover-bg', hexToSoft(accentHex, 0.08));
+    root.style.setProperty('--bb-color-sidebar-item-active-bg', hexToSoft(accentHex, 0.15));
+    root.style.setProperty('--bb-color-sidebar-item-active-border', accentHex);
+  }
+
+  // Apply font pairing
+  if (branding.fontPreset) {
+    const fonts = FONT_PAIRINGS[branding.fontPreset] || FONT_PAIRINGS.modern;
+    root.style.setProperty('--font-heading', fonts.heading);
+    root.style.setProperty('--font-sans', fonts.body);
+    root.style.setProperty('--font-body', fonts.body);
+  }
+
+  // Store logo URLs for components to use
+  if (branding.squareLogoUrl) {
+    root.style.setProperty('--bb-logo-square-url', `url(${branding.squareLogoUrl})`);
+  }
+  if (branding.wideLogoUrl) {
+    root.style.setProperty('--bb-logo-wide-url', `url(${branding.wideLogoUrl})`);
+  }
+
+  // Return the branding for chaining
+  return branding;
 };
 
 export const getDefaultTheme = () => clone(DEFAULT_THEME);
