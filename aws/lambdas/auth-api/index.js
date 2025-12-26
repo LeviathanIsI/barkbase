@@ -57,7 +57,8 @@ const {
   VerifySoftwareTokenCommand,
   SetUserMFAPreferenceCommand,
   RespondToAuthChallengeCommand,
-  AdminGetUserCommand,
+  GetUserCommand,
+  GlobalSignOutCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
 
 const cognitoClient = new CognitoIdentityProviderClient({
@@ -141,6 +142,12 @@ exports.handler = async (event, context) => {
 
     if (path === '/api/v1/auth/sessions' || path === '/auth/sessions') {
       return handleSessions(event, method);
+    }
+
+    if (path === '/api/v1/auth/sessions/all' || path === '/auth/sessions/all') {
+      if (method === 'DELETE') {
+        return handleRevokeAllSessions(event);
+      }
     }
 
     // OAuth endpoints for Gmail integration
@@ -1075,6 +1082,81 @@ async function handleSessions(event, method) {
   });
 }
 
+/**
+ * Revoke all sessions (global sign out)
+ * DELETE /api/v1/auth/sessions/all
+ *
+ * Signs out user from all devices by invalidating all refresh tokens.
+ */
+async function handleRevokeAllSessions(event) {
+  const authResult = await authenticateRequest(event);
+
+  if (!authResult.authenticated) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: authResult.error || 'Authentication required',
+    });
+  }
+
+  // Get access token from header
+  const authHeader = event.headers?.authorization || event.headers?.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: 'Access token required',
+    });
+  }
+
+  const accessToken = authHeader.replace('Bearer ', '');
+
+  try {
+    // Global sign out invalidates all refresh tokens for this user
+    const signOutCommand = new GlobalSignOutCommand({
+      AccessToken: accessToken,
+    });
+
+    await cognitoClient.send(signOutCommand);
+
+    console.log('[AUTH-API] Global sign out for user:', authResult.user.id);
+
+    // Also deactivate all sessions in our database
+    try {
+      await getPoolAsync();
+      const result = await query(
+        `UPDATE "UserSession"
+         SET is_active = false, logged_out_at = NOW()
+         WHERE user_id = $1 AND is_active = true
+         RETURNING record_id`,
+        [authResult.user.userId]
+      );
+      console.log('[AUTH-API] Deactivated', result.rowCount, 'sessions in database');
+    } catch (dbError) {
+      console.warn('[AUTH-API] Failed to deactivate DB sessions:', dbError.message);
+      // Don't fail - Cognito sign out already succeeded
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Signed out from all devices. You will need to sign in again.',
+    });
+
+  } catch (error) {
+    console.error('[AUTH-API] Global sign out failed:', error.message);
+
+    if (error.name === 'NotAuthorizedException') {
+      return createResponse(401, {
+        error: 'Session Expired',
+        message: 'Your session has expired. Please sign in again.',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Server Error',
+      message: 'Failed to sign out from all devices',
+    });
+  }
+}
+
 // =============================================================================
 // MFA HANDLERS
 // =============================================================================
@@ -1093,13 +1175,21 @@ async function handleMfaStatus(event) {
     });
   }
 
-  try {
-    const config = getAuthConfig();
+  // Get access token from header
+  const authHeader = event.headers?.authorization || event.headers?.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: 'Access token required',
+    });
+  }
 
-    // Get user's MFA settings from Cognito
-    const getUserCommand = new AdminGetUserCommand({
-      UserPoolId: config.userPoolId,
-      Username: authResult.user.email,
+  const accessToken = authHeader.replace('Bearer ', '');
+
+  try {
+    // Get user's MFA settings using their access token (no admin permissions needed)
+    const getUserCommand = new GetUserCommand({
+      AccessToken: accessToken,
     });
 
     const userResponse = await cognitoClient.send(getUserCommand);

@@ -1664,3 +1664,5 @@ async function emitThrottledEnrollmentMetric(tenantId, count = 1) {
     console.error('[RATE LIMIT] Error emitting CloudWatch metric:', error);
   }
 }
+
+// Force rebuild 12/25/2025 18:28:24

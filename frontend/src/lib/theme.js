@@ -137,8 +137,54 @@ export const applyTheme = (incomingTheme) => {
 };
 
 /**
+ * Calculate relative luminance for contrast calculations
+ */
+const getLuminance = (hex) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return 0;
+  const [r, g, b] = [
+    parseInt(result[1], 16) / 255,
+    parseInt(result[2], 16) / 255,
+    parseInt(result[3], 16) / 255,
+  ].map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
+/**
+ * Determine if text on this background should be dark or light
+ */
+const getContrastTextColor = (hex) => {
+  const luminance = getLuminance(hex);
+  return luminance > 0.4 ? '#18181b' : '#ffffff';
+};
+
+/**
+ * Darken a hex color by a percentage
+ */
+const darkenHex = (hex, percent) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return hex;
+  const r = Math.max(0, Math.floor(parseInt(result[1], 16) * (1 - percent)));
+  const g = Math.max(0, Math.floor(parseInt(result[2], 16) * (1 - percent)));
+  const b = Math.max(0, Math.floor(parseInt(result[3], 16) * (1 - percent)));
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+};
+
+/**
+ * Lighten a hex color by a percentage
+ */
+const lightenHex = (hex, percent) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!result) return hex;
+  const r = Math.min(255, Math.floor(parseInt(result[1], 16) + (255 - parseInt(result[1], 16)) * percent));
+  const g = Math.min(255, Math.floor(parseInt(result[2], 16) + (255 - parseInt(result[2], 16)) * percent));
+  const b = Math.min(255, Math.floor(parseInt(result[3], 16) + (255 - parseInt(result[3], 16)) * percent));
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+};
+
+/**
  * Apply branding customizations from API response
- * This sets CSS variables that override the design tokens
+ * This sets CSS variables that override the design tokens for ALL components
  */
 export const applyBranding = (branding) => {
   if (typeof window === 'undefined' || !branding) return;
@@ -147,14 +193,34 @@ export const applyBranding = (branding) => {
   // Apply accent color (the main brand color)
   if (branding.accentColor || branding.primaryColor) {
     const accentHex = branding.accentColor || branding.primaryColor;
-    root.style.setProperty('--bb-color-accent', accentHex);
-    root.style.setProperty('--bb-color-accent-soft', hexToSoft(accentHex, 0.15));
-    root.style.setProperty('--bb-color-accent-text', accentHex);
+    const accentDark = darkenHex(accentHex, 0.15);
+    const accentDarker = darkenHex(accentHex, 0.25);
+    const accentLight = lightenHex(accentHex, 0.15);
+    const textOnAccent = getContrastTextColor(accentHex);
+    const isDarkMode = root.classList.contains('dark');
 
-    // Also set sidebar active states to match accent
+    // === CORE ACCENT VARIABLES (used by Button, Badge, links, etc.) ===
+    root.style.setProperty('--bb-color-accent', accentHex);
+    root.style.setProperty('--bb-color-accent-soft', hexToSoft(accentHex, isDarkMode ? 0.18 : 0.15));
+    root.style.setProperty('--bb-color-accent-text', isDarkMode ? accentLight : accentDark);
+    root.style.setProperty('--bb-color-text-on-accent', textOnAccent);
+
+    // === SIDEBAR VARIABLES ===
     root.style.setProperty('--bb-color-sidebar-item-hover-bg', hexToSoft(accentHex, 0.08));
-    root.style.setProperty('--bb-color-sidebar-item-active-bg', hexToSoft(accentHex, 0.15));
+    root.style.setProperty('--bb-color-sidebar-item-active-bg', hexToSoft(accentHex, isDarkMode ? 0.20 : 0.15));
     root.style.setProperty('--bb-color-sidebar-item-active-border', accentHex);
+    root.style.setProperty('--bb-color-sidebar-item-active-text', isDarkMode ? accentLight : accentDarker);
+
+    // === PRIMARY COLOR SCALE (for Tailwind primary-* classes) ===
+    root.style.setProperty('--color-primary-500', accentHex);
+    root.style.setProperty('--color-primary-600', accentDark);
+    root.style.setProperty('--color-primary-700', accentDarker);
+    root.style.setProperty('--color-primary-400', accentLight);
+    root.style.setProperty('--color-primary-300', lightenHex(accentHex, 0.30));
+
+    // === FOCUS RING ===
+    root.style.setProperty('--border-focus', accentHex);
+    root.style.setProperty('--focus-ring', `0 0 0 3px ${hexToSoft(accentHex, 0.2)}`);
   }
 
   // Apply font pairing

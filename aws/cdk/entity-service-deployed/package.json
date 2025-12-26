@@ -1,0 +1,17 @@
+{
+  "name": "entity-service",
+  "version": "1.0.0",
+  "description": "BarkBase Entity Service - CRUD operations for core business entities",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "barkbase",
+    "entity",
+    "crud"
+  ],
+  "author": "BarkBase",
+  "license": "UNLICENSED",
+  "dependencies": {}
+}
