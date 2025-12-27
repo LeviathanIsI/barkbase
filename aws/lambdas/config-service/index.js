@@ -1452,8 +1452,7 @@ async function handleGetTenantConfig(user, event) {
       `SELECT
          u.record_id as user_id,
          u.email,
-         us.first_name,
-         us.last_name,
+         us.full_name,
          r.name as role,
          u.tenant_id,
          t.id as tenant_record_id,
@@ -1591,8 +1590,7 @@ async function handleGetTenantConfig(user, event) {
       user: {
         id: row.user_id,
         email: row.email,
-        firstName: row.first_name,
-        lastName: row.last_name,
+        name: row.full_name || row.email,
         role: row.role,
       },
       // Nested tenant object for some frontend code paths
@@ -2208,8 +2206,7 @@ async function handleGetMemberships(user) {
          u.record_id,
          u.tenant_id,
          u.email,
-         us.first_name,
-         us.last_name,
+         us.full_name,
          u.cognito_sub,
          u.created_at,
          u.updated_at,
@@ -2246,11 +2243,7 @@ async function handleGetMemberships(user) {
         updatedAt: row.updated_at,
         // User details
         email: row.email,
-        firstName: row.first_name,
-        lastName: row.last_name,
-        name: row.first_name && row.last_name
-          ? `${row.first_name} ${row.last_name}`
-          : row.email,
+        name: row.full_name || row.email,
         // Flag if this is the current user
         isCurrentUser: row.cognito_sub === user.id,
       };

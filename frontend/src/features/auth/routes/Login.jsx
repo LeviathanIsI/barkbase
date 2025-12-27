@@ -155,6 +155,14 @@ const Login = () => {
             role: tenantConfig.user?.role,
           });
 
+          // Update user with name from database (overrides JWT-decoded Cognito username)
+          if (tenantConfig.user?.name) {
+            setAuth({
+              user: { ...userInfo, name: tenantConfig.user.name },
+              accessToken: result.accessToken,
+            });
+          }
+
           // Update tenant store with full tenant data
           setTenant({
             recordId: tenantConfig.tenantId || tenantConfig.recordId,
@@ -302,6 +310,15 @@ const Login = () => {
             tenantId: tenantConfig.tenantId || tenantConfig.recordId,
             role: tenantConfig.user?.role,
           });
+
+          // Update user with name from database (overrides JWT-decoded Cognito username)
+          if (tenantConfig.user?.name) {
+            setAuth({
+              user: { ...userInfo, name: tenantConfig.user.name },
+              accessToken: result.accessToken,
+            });
+          }
+
           setTenant({
             recordId: tenantConfig.tenantId || tenantConfig.recordId,
             accountCode: tenantConfig.accountCode,
