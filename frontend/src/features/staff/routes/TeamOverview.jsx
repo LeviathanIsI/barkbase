@@ -2757,6 +2757,23 @@ const AddStaffWizard = ({ isOpen, onClose, onComplete }) => {
     wage: '',
   });
 
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        role: '',
+        department: '',
+        permissions: [],
+        availability: {},
+        wage: '',
+      });
+    }
+  }, [isOpen]);
+
   // Fetch roles and departments from API
   const { data: staffRoles, isLoading: rolesLoading } = useStaffRoles();
   const { data: departmentsData, isLoading: departmentsLoading } = useDepartments();
