@@ -201,8 +201,8 @@ async function getUserAuthorizationFromDB(cognitoSub) {
         u.cognito_sub,
         u.tenant_id,
         u.email,
-        u.first_name,
-        u.last_name,
+        us.first_name,
+        us.last_name,
         u.is_active,
         t.id as tenant_record_id,
         t.name as tenant_name,
@@ -219,6 +219,7 @@ async function getUserAuthorizationFromDB(cognitoSub) {
       FROM "User" u
       LEFT JOIN "Tenant" t ON u.tenant_id = t.id
       LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
+      LEFT JOIN "UserSettings" us ON u.record_id = us.user_record_id
       WHERE u.cognito_sub = $1
         AND u.is_active = true`,
       [cognitoSub]
