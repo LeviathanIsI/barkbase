@@ -1,9 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval } from 'date-fns';
-import { useTour } from '@/contexts/TourContext';
-import { TourIconButton } from '@/components/ui/TourHelpButton';
-import { paymentsTourConfig } from '../tours';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import {
   CreditCard,
@@ -1070,10 +1067,6 @@ const Payments = () => {
   const [showStripeSettings, setShowStripeSettings] = useState(false);
   const [sidebarPeriod, setSidebarPeriod] = useState('week');
 
-  // Tour integration
-  const { startTour, isTourSeen } = useTour();
-  const tourStartedRef = useRef(false);
-
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -1091,19 +1084,6 @@ const Payments = () => {
   const { data: paymentsData, isLoading, error, refetch } = usePaymentsQuery();
   const { data: summaryData } = usePaymentSummaryQuery();
   const { data: ownersData } = useOwnersQuery();
-
-  // Auto-start tour for first-time visitors
-  useEffect(() => {
-    if (tourStartedRef.current || isLoading) return;
-    const hasSeenTour = isTourSeen(paymentsTourConfig.id);
-    if (!hasSeenTour) {
-      tourStartedRef.current = true;
-      const timer = setTimeout(() => {
-        startTour(paymentsTourConfig);
-      }, 800);
-      return () => clearTimeout(timer);
-    }
-  }, [startTour, isTourSeen, isLoading]);
 
   // Process payments data - normalize backend response
   const payments = useMemo(() => {
@@ -1306,7 +1286,7 @@ const Payments = () => {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between" data-tour="payments-header">
+      <div className="flex items-start justify-between">
         <div>
           <nav className="mb-1">
             <ol className="flex items-center gap-1 text-xs text-muted">
@@ -1320,15 +1300,8 @@ const Payments = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <div data-tour="payments-help-button">
-            <TourIconButton
-              tourConfig={paymentsTourConfig}
-              variant="ghost"
-              label="Start Page Tour"
-            />
-          </div>
           {/* Navigation Tabs */}
-          <div className="flex items-center bg-surface border border-border rounded-lg p-1" data-tour="payments-tabs">
+          <div className="flex items-center bg-surface border border-border rounded-lg p-1">
             {[
               { key: 'overview', label: 'Overview', icon: CreditCard },
               { key: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -1356,7 +1329,7 @@ const Payments = () => {
             ))}
           </div>
 
-          <div data-tour="payments-record">
+          <div>
             <Button size="sm" onClick={() => setShowManualPayment(true)}>
               <Plus className="h-3.5 w-3.5 mr-1.5" />
               Record Payment
@@ -1369,7 +1342,7 @@ const Payments = () => {
       {currentView === 'overview' && (
         <>
           {/* Tier 1: KPI Tiles */}
-          <div className="space-y-3" data-tour="payments-kpis">
+          <div className="space-y-3">
             {/* Row 1: Big metrics */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <KPITile
@@ -1444,7 +1417,7 @@ const Payments = () => {
       {currentView === 'overview' && (
         <>
           {/* Tier 2: Processor Status */}
-          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4" data-tour="payments-processor">
+          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className={cn(
@@ -1525,7 +1498,7 @@ const Payments = () => {
           {/* Left Column: Filters & Transactions Table (70%) */}
           <div className="flex-1 min-w-0 space-y-4">
             {/* Filters Toolbar */}
-            <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3" data-tour="payments-filters">
+            <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3">
               <div className="flex flex-wrap items-center gap-3">
                 {/* Search */}
                 <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -1630,7 +1603,7 @@ const Payments = () => {
             </div>
 
             {/* Transactions Table */}
-            <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden" data-tour="payments-transactions">
+            <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden">
               {isLoading ? (
                 <div className="p-8 text-center">
                   <LoadingState label="Loading payments…" variant="spinner" />

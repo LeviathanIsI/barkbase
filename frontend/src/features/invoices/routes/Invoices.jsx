@@ -5,9 +5,6 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useTour } from '@/contexts/TourContext';
-import { invoicesTourConfig, INVOICES_TOUR_ID, invoicesTourSteps } from '../tours';
-import { TourIconButton } from '@/components/ui/TourHelpButton';
 import { format, isPast, differenceInDays } from 'date-fns';
 import {
   FileText,
@@ -1225,10 +1222,6 @@ const Invoices = () => {
   const [showCreateDrawer, setShowCreateDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
 
-  // Tour integration
-  const { startTour, isTourSeen } = useTour();
-  const tourStartedRef = useRef(false);
-
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState('all');
@@ -1245,17 +1238,6 @@ const Invoices = () => {
   const { data: invoicesData, isLoading, error, refetch } = useBusinessInvoicesQuery();
   const sendEmailMutation = useSendInvoiceEmailMutation();
   const markPaidMutation = useMarkInvoicePaidMutation();
-
-  // Auto-start tour for first-time visitors
-  useEffect(() => {
-    if (!isLoading && !tourStartedRef.current && !isTourSeen(INVOICES_TOUR_ID)) {
-      tourStartedRef.current = true;
-      const timer = setTimeout(() => {
-        startTour(INVOICES_TOUR_ID, invoicesTourSteps);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, startTour, isTourSeen]);
 
   // Process invoices data from normalized response { invoices, total }
   // Normalize status to lowercase for consistent comparison (DB may return UPPERCASE)
@@ -1559,7 +1541,7 @@ const Invoices = () => {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between" data-tour="invoices-header">
+      <div className="flex items-start justify-between">
         <div>
           <nav className="mb-1">
             <ol className="flex items-center gap-1 text-xs text-muted">
@@ -1573,18 +1555,10 @@ const Invoices = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <div data-tour="invoices-help-button">
-            <TourIconButton
-              tourConfig={invoicesTourConfig}
-              variant="ghost"
-              icon="play"
-              label="Start Page Tour"
-            />
-          </div>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
-          <Button size="sm" onClick={() => setShowCreateDrawer(true)} data-tour="invoices-create">
+          <Button size="sm" onClick={() => setShowCreateDrawer(true)}>
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             Create Invoice
           </Button>
@@ -1592,7 +1566,7 @@ const Invoices = () => {
       </div>
 
       {/* KPI Tiles */}
-      <div className="flex gap-3 overflow-x-auto pb-1" data-tour="invoices-kpis">
+      <div className="flex gap-3 overflow-x-auto pb-1">
         <KPITile
           icon={FileText}
           label="Draft"
@@ -1627,7 +1601,7 @@ const Invoices = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-border" data-tour="invoices-tabs">
+      <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-border">
         {[
           { key: 'all', label: 'All' },
           { key: 'draft', label: 'Draft' },
@@ -1666,7 +1640,7 @@ const Invoices = () => {
         {/* Left Column: Filters & Invoice Table (70%) */}
         <div className="flex-1 min-w-0 space-y-4">
           {/* Filters Toolbar */}
-          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3" data-tour="invoices-filters">
+          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3">
             <div className="flex flex-wrap items-center gap-3">
               {/* Search */}
               <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -1733,7 +1707,7 @@ const Invoices = () => {
           </div>
 
           {/* Invoice Table */}
-          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden" data-tour="invoices-table">
+          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center">
             <LoadingState label="Loading invoices…" variant="spinner" />
