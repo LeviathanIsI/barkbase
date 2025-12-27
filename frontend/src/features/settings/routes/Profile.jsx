@@ -73,7 +73,8 @@ const Profile = () => {
   const user = useAuthStore((state) => state.user);
 
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     phone: '',
     timezone: '',
     language: 'en',
@@ -118,14 +119,15 @@ const Profile = () => {
   useEffect(() => {
     if (profile) {
       setFormData({
-        name: profile.name || user?.name || '',
+        firstName: profile.firstName || '',
+        lastName: profile.lastName || '',
         phone: profile.phone || '',
         timezone: profile.timezone || '',
         language: profile.language || 'en',
       });
       setAvatarPreview(null);
     }
-  }, [profile, user]);
+  }, [profile]);
 
   // Fetch connected email status from API
   useEffect(() => {
@@ -466,14 +468,29 @@ const Profile = () => {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label htmlFor="profile-name" className="block text-xs font-medium text-muted mb-1">Full Name</label>
+                <label htmlFor="profile-firstName" className="block text-xs font-medium text-muted mb-1">First Name</label>
                 <div className="relative">
                   <User className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
                   <input
-                    id="profile-name"
+                    id="profile-firstName"
                     type="text"
-                    name="name"
-                    value={formData.name}
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="profile-lastName" className="block text-xs font-medium text-muted mb-1">Last Name</label>
+                <div className="relative">
+                  <User className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+                  <input
+                    id="profile-lastName"
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
                     onChange={handleChange}
                     className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   />

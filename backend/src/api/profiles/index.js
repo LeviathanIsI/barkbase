@@ -318,6 +318,8 @@ async function getCurrentUserProfile(event, userId, tenantId) {
       u.avatar_url AS "avatarUrl",
       u.created_at AS "createdAt",
       u.updated_at AS "updatedAt",
+      us.first_name AS "firstName",
+      us.last_name AS "lastName",
       us.full_name AS "name",
       us.email,
       us.phone,
@@ -345,6 +347,8 @@ async function getCurrentUserProfile(event, userId, tenantId) {
   return ok(event, 200, {
     recordId: profile.recordId,
     email: profile.email,
+    firstName: profile.firstName || '',
+    lastName: profile.lastName || '',
     name: profile.name,
     phone: profile.phone,
     avatarUrl: profile.avatarUrl,
@@ -370,7 +374,8 @@ async function updateCurrentUserProfile(event, userId, tenantId, data = {}) {
 
   // Map frontend field names to database column names
   const fieldMap = {
-    name: 'full_name',
+    firstName: 'first_name',
+    lastName: 'last_name',
     phone: 'phone',
     language: 'language',
     timezone: 'timezone',
