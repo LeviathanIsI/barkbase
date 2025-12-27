@@ -384,7 +384,7 @@ const OverviewTab = ({ staff, stats, onViewProfile, onAddStaff }) => {
               member={{
                 ...member,
                 status: member.isActive === false ? 'off' : (member.status || 'scheduled'),
-                nextShift: member.nextShift || 'Tomorrow 8:00 AM',
+                nextShift: member.nextShift || 'Not Scheduled',
               }}
               onViewProfile={onViewProfile}
               onAssignTask={() => {}}
