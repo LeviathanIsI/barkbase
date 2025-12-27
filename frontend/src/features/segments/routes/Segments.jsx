@@ -10,9 +10,9 @@ import {
   Plus,
   RefreshCw,
   Search,
-  MoreHorizontal,
-  Eye,
-  Edit2,
+  X,
+  
+  
   Copy,
   Trash2,
   Zap,
@@ -47,6 +47,7 @@ export default function Segments() {
   const [sortDirection, setSortDirection] = useState('desc');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [segmentToDelete, setSegmentToDelete] = useState(null);
+  const [selectedRows, setSelectedRows] = useState(new Set());
 
   const { data: segments, isLoading } = useSegments();
   const deleteSegment = useDeleteSegment();
@@ -145,6 +146,56 @@ export default function Segments() {
   // Navigate to full page on row click
   const handleRowClick = (segment) => {
     navigate(`/segments/${segment.recordId ?? segment.id}`);
+  };
+
+  // Selection handlers
+  const handleSelectAll = () => {
+    if (selectedRows.size === filteredSegments.length) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(filteredSegments.map((s) => s.recordId ?? s.id)));
+    }
+  };
+
+  const handleSelectRow = (segmentId, e) => {
+    e?.stopPropagation();
+    const newSelected = new Set(selectedRows);
+    if (newSelected.has(segmentId)) {
+      newSelected.delete(segmentId);
+    } else {
+      newSelected.add(segmentId);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const handleBulkDelete = () => {
+    // For bulk delete, we'll delete one at a time with confirmation
+    const selectedSegments = filteredSegments.filter(
+      (s) => selectedRows.has(s.recordId ?? s.id)
+    );
+    if (selectedSegments.length === 1) {
+      setSegmentToDelete(selectedSegments[0]);
+      setDeleteModalOpen(true);
+    } else if (selectedSegments.length > 1) {
+      // For multiple, set a placeholder that indicates bulk delete
+      setSegmentToDelete({ name: `${selectedSegments.length} segments`, _bulk: selectedSegments });
+      setDeleteModalOpen(true);
+    }
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    if (segmentToDelete?._bulk) {
+      // Bulk delete
+      for (const seg of segmentToDelete._bulk) {
+        await deleteSegment.mutateAsync(seg.recordId ?? seg.id);
+      }
+      setSelectedRows(new Set());
+    } else if (segmentToDelete) {
+      await deleteSegment.mutateAsync(segmentToDelete.recordId ?? segmentToDelete.id);
+      setSelectedRows(new Set());
+    }
+    setDeleteModalOpen(false);
+    setSegmentToDelete(null);
   };
 
   const SortHeader = ({ field, children }) => (
@@ -249,6 +300,33 @@ export default function Segments() {
         </div>
       </div>
 
+      {/* Bulk Actions Bar */}
+      {selectedRows.size > 0 && (
+        <div className="flex-shrink-0 flex items-center gap-4 px-4 py-3 mb-4 rounded-lg bg-[color:var(--bb-color-accent)]/10 border border-[color:var(--bb-color-accent)]/30">
+          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">
+            {selectedRows.size} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkDelete}
+              className="text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/20"
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Delete
+            </Button>
+          </div>
+          <button
+            type="button"
+            className="ml-auto p-1 rounded hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
+            onClick={() => setSelectedRows(new Set())}
+          >
+            <X className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+          </button>
+        </div>
+      )}
+
       {/* Table - scrollable */}
       {filteredSegments.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center py-16 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)]">
@@ -275,6 +353,14 @@ export default function Segments() {
           <table className="w-full">
             <thead className="sticky top-0 z-10">
               <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', boxShadow: '0 1px 0 var(--bb-color-border-subtle)' }}>
+                <th className="w-12 px-4 py-3" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedRows.size === filteredSegments.length && filteredSegments.length > 0}
+                    onChange={handleSelectAll}
+                    className="h-4 w-4 rounded border-gray-300 text-[color:var(--bb-color-accent)] focus:ring-[color:var(--bb-color-accent)]"
+                  />
+                </th>
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
                   <SortHeader field="name">Name</SortHeader>
                 </th>
@@ -299,7 +385,6 @@ export default function Segments() {
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
                   <SortHeader field="updatedAt">Last Updated</SortHeader>
                 </th>
-                <th className="w-12" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[color:var(--bb-color-border-subtle)]">
@@ -312,12 +397,25 @@ export default function Segments() {
                 const objectType = segment.object_type || segment.objectType || 'owners';
                 const change7d = segment.change7d ?? segment.sevenDayChange ?? null;
 
+                const segmentId = segment.recordId ?? segment.id;
+
                 return (
                   <tr
-                    key={segment.recordId ?? segment.id}
-                    className="hover:bg-[color:var(--bb-color-bg-elevated)] cursor-pointer transition-colors"
+                    key={segmentId}
+                    className={cn(
+                      "hover:bg-[color:var(--bb-color-bg-elevated)] cursor-pointer transition-colors",
+                      selectedRows.has(segmentId) && "bg-[color:var(--bb-color-accent)]/5"
+                    )}
                     onClick={() => handleRowClick(segment)}
                   >
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.has(segmentId)}
+                        onChange={(e) => handleSelectRow(segmentId, e)}
+                        className="h-4 w-4 rounded border-gray-300 text-[color:var(--bb-color-accent)] focus:ring-[color:var(--bb-color-accent)]"
+                      />
+                    </td>
                     <td className="px-4 py-3">
                       <div>
                         <p className="font-medium text-[color:var(--bb-color-text-primary)]">
@@ -385,17 +483,6 @@ export default function Segments() {
                           })
                         : '—'}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="relative" onClick={(e) => e.stopPropagation()}>
-                        <RowActionsMenu
-                          segment={segment}
-                          onView={() => navigate(`/segments/${segment.recordId ?? segment.id}`)}
-                          onEdit={() => navigate(`/segments/${segment.recordId ?? segment.id}/edit`)}
-                          onClone={(e) => handleClone(segment, e)}
-                          onDelete={(e) => handleDeleteClick(segment, e)}
-                        />
-                      </div>
-                    </td>
                   </tr>
                 );
               })}
@@ -411,7 +498,7 @@ export default function Segments() {
           setDeleteModalOpen(false);
           setSegmentToDelete(null);
         }}
-        onConfirm={handleDeleteConfirm}
+        onConfirm={handleBulkDeleteConfirm}
         resourceName={segmentToDelete?.name || ''}
         resourceType="segment"
         isDeleting={deleteSegment.isPending}
@@ -419,85 +506,3 @@ export default function Segments() {
     </div>
   );
 }
-
-// Row Actions Menu Component
-const RowActionsMenu = ({ segment, onView, onEdit, onClone, onDelete }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  // Use segment_type as single source of truth (consistent with detail page)
-  const segmentType = segment.segment_type || (segment.isAutomatic ?? segment.isDynamic ? 'active' : 'static');
-  const isAuto = segmentType === 'active';
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        className="p-1.5 rounded-md hover:bg-[color:var(--bb-color-bg-surface)] transition-colors"
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen(!isOpen);
-        }}
-      >
-        <MoreHorizontal className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-      </button>
-
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)] shadow-lg py-1">
-            <button
-              type="button"
-              className="w-full px-3 py-2 text-left text-sm text-[color:var(--bb-color-text-primary)] hover:bg-[color:var(--bb-color-bg-elevated)] flex items-center gap-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsOpen(false);
-                onView();
-              }}
-            >
-              <Eye className="h-4 w-4" />
-              View
-            </button>
-            {!isAuto && (
-              <button
-                type="button"
-                className="w-full px-3 py-2 text-left text-sm text-[color:var(--bb-color-text-primary)] hover:bg-[color:var(--bb-color-bg-elevated)] flex items-center gap-2"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsOpen(false);
-                  onEdit();
-                }}
-              >
-                <Edit2 className="h-4 w-4" />
-                Edit
-              </button>
-            )}
-            <button
-              type="button"
-              className="w-full px-3 py-2 text-left text-sm text-[color:var(--bb-color-text-primary)] hover:bg-[color:var(--bb-color-bg-elevated)] flex items-center gap-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsOpen(false);
-                onClone(e);
-              }}
-            >
-              <Copy className="h-4 w-4" />
-              Clone
-            </button>
-            <div className="border-t border-[color:var(--bb-color-border-subtle)] my-1" />
-            <button
-              type="button"
-              className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsOpen(false);
-                onDelete(e);
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
