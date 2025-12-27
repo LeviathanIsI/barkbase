@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
-  Calendar, Plus, List, ChevronLeft, ChevronRight, Search,
+  Calendar, Plus, ChevronLeft, ChevronRight, Search,
   SlidersHorizontal, RefreshCw, X,
   PawPrint, User, CheckCircle2, Mail, Info,
   Edit, Trash2, Eye, ArrowUpDown, ArrowUp, ArrowDown,
@@ -22,7 +22,7 @@ import toast from 'react-hot-toast';
 // View modes - Calendar and List (NO Run Board - that belongs on Schedule page)
 const VIEW_MODES = {
   CALENDAR: 'calendar',
-  LIST: 'list',
+  
 };
 
 // Date period modes
@@ -519,36 +519,8 @@ const Bookings = () => {
           Manage reservations and view booking schedules over time
         </p>
 
-        {/* View Toggle + New Booking */}
-        <div className="flex items-center justify-between mt-4">
-          {/* View Mode Tabs - Calendar and List View */}
-          <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-            <Button
-              variant={viewMode === VIEW_MODES.CALENDAR ? 'primary' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode(VIEW_MODES.CALENDAR)}
-              className={cn(
-                'rounded-none gap-2',
-                viewMode !== VIEW_MODES.CALENDAR && 'bg-[color:var(--bb-color-bg-surface)]'
-              )}
-              leftIcon={<Calendar className="h-4 w-4" />}
-            >
-              Calendar
-            </Button>
-            <Button
-              variant={viewMode === VIEW_MODES.LIST ? 'primary' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode(VIEW_MODES.LIST)}
-              className={cn(
-                'rounded-none gap-2',
-                viewMode !== VIEW_MODES.LIST && 'bg-[color:var(--bb-color-bg-surface)]'
-              )}
-              leftIcon={<List className="h-4 w-4" />}
-            >
-              List View
-            </Button>
-          </div>
-
+        {/* New Booking Button */}
+        <div className="flex items-center justify-end mt-4">
           <Button size="sm" onClick={() => setShowNewBooking(true)} className="gap-1.5 h-9">
             <Plus className="h-4 w-4" />
             New Booking
@@ -565,52 +537,43 @@ const Bookings = () => {
         }}
       >
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          {/* Left: Period + Date Nav (only for Calendar view) */}
+          {/* Left: Period + Date Nav */}
           <div className="flex flex-wrap items-center gap-2">
-            {viewMode === VIEW_MODES.CALENDAR ? (
-              <>
-                {/* Period Toggles */}
-                <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-                  {Object.entries(PERIOD_MODES).map(([key, value]) => (
-                    <Button
-                      key={value}
-                      variant={periodMode === value ? 'primary' : 'ghost'}
-                      size="sm"
-                      onClick={() => setPeriodMode(value)}
-                      className={cn(
-                        'rounded-none h-8',
-                        periodMode !== value && 'bg-[color:var(--bb-color-bg-body)]'
-                      )}
-                    >
-                      {key.charAt(0) + key.slice(1).toLowerCase()}
-                    </Button>
-                  ))}
-                </div>
-
-                {/* Today Button */}
-                <Button variant="outline" size="sm" onClick={goToToday} className="h-8">
-                  Today
+            {/* Period Toggles */}
+            <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+              {Object.entries(PERIOD_MODES).map(([key, value]) => (
+                <Button
+                  key={value}
+                  variant={periodMode === value ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setPeriodMode(value)}
+                  className={cn(
+                    'rounded-none h-8',
+                    periodMode !== value && 'bg-[color:var(--bb-color-bg-body)]'
+                  )}
+                >
+                  {key.charAt(0) + key.slice(1).toLowerCase()}
                 </Button>
+              ))}
+            </div>
 
-                {/* Date Navigation */}
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="sm" onClick={() => navigatePeriod(-1)} className="px-2 h-8" aria-label="Previous period">
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] min-w-[180px] text-center">
-                    {dateRangeDisplay}
-                  </span>
-                  <Button variant="ghost" size="sm" onClick={() => navigatePeriod(1)} className="px-2 h-8" aria-label="Next period">
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </>
-            ) : (
-              /* List view: Just show "Today" label */
-              <span className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
-                Today – {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            {/* Today Button */}
+            <Button variant="outline" size="sm" onClick={goToToday} className="h-8">
+              Today
+            </Button>
+
+            {/* Date Navigation */}
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={() => navigatePeriod(-1)} className="px-2 h-8" aria-label="Previous period">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] min-w-[180px] text-center">
+                {dateRangeDisplay}
               </span>
-            )}
+              <Button variant="ghost" size="sm" onClick={() => navigatePeriod(1)} className="px-2 h-8" aria-label="Next period">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
 
             {/* Service Filter */}
             <div className="min-w-[150px]">
@@ -702,60 +665,37 @@ const Bookings = () => {
         )}
       </div>
 
-      {/* Main Content - Two-column layout for calendar views */}
+      {/* Main Content - Two-column layout */}
       <div className="flex-1 mt-4">
-        {viewMode === VIEW_MODES.CALENDAR ? (
-          <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-            {/* Left: Calendar */}
-            <div className="flex flex-col">
-              {periodMode === PERIOD_MODES.MONTH ? (
-                <MonthCalendarView
-                  currentDate={currentDate}
-                  dateRange={dateRange}
-                  bookingsByDate={bookingsByDate}
-                  isLoading={isLoading}
-                  onDayClick={handleDayClick}
-                  onNewBooking={() => setShowNewBooking(true)}
-                />
-              ) : (
-                <WeeklyCalendarView
-                  bookings={filteredBookings}
-                  dateRange={dateRange}
-                  bookingsByDate={bookingsByDate}
-                  isLoading={isLoading}
-                  onBookingClick={handleBookingClick}
-                  onNewBooking={() => setShowNewBooking(true)}
-                />
-              )}
-            </div>
-
-            {/* Right: Legend Sidebar */}
-            <div className="space-y-6">
-              <LegendSidebar />
-            </div>
+        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+          {/* Left: Calendar */}
+          <div className="flex flex-col">
+            {periodMode === PERIOD_MODES.MONTH ? (
+              <MonthCalendarView
+                currentDate={currentDate}
+                dateRange={dateRange}
+                bookingsByDate={bookingsByDate}
+                isLoading={isLoading}
+                onDayClick={handleDayClick}
+                onNewBooking={() => setShowNewBooking(true)}
+              />
+            ) : (
+              <WeeklyCalendarView
+                bookings={filteredBookings}
+                dateRange={dateRange}
+                bookingsByDate={bookingsByDate}
+                isLoading={isLoading}
+                onBookingClick={handleBookingClick}
+                onNewBooking={() => setShowNewBooking(true)}
+              />
+            )}
           </div>
-        ) : (
-          /* List view - full width, no sidebar */
-          <ListView
-            bookings={paginatedBookings}
-            sortedBookings={sortedBookings}
-            selectedRows={selectedRows}
-            sortConfig={sortConfig}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            totalPages={totalPages}
-            isLoading={isLoading}
-            onSort={handleSort}
-            onSelectAll={handleSelectAll}
-            onSelectRow={handleSelectRow}
-            onBookingClick={handleBookingClick}
-            onPageChange={setCurrentPage}
-            onPageSizeChange={setPageSize}
-            hasActiveFilters={hasActiveFilters}
-            onClearFilters={clearFilters}
-            onNewBooking={() => setShowNewBooking(true)}
-          />
-        )}
+
+          {/* Right: Legend Sidebar */}
+          <div className="space-y-6">
+            <LegendSidebar />
+          </div>
+        </div>
       </div>
 
       {/* Day Bookings Modal (for month view day click) */}
