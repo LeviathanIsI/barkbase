@@ -110,6 +110,13 @@ export default function SegmentDetail() {
   const convertMutation = useConvertSegment();
   const refreshMutation = useRefreshSegment();
   const exportMutation = useExportSegment();
+  const updateSegmentMutation = useUpdateSegment();
+
+  // Inline editing state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
 
   // Single source of truth for segment type
   // Falls back to isAutomatic/isDynamic for legacy data, defaults to 'static' if nothing set
@@ -117,6 +124,33 @@ export default function SegmentDetail() {
   const isActive = segmentType === 'active';
   const memberCount = segment?._count?.members ?? segment?.memberCount ?? segment?.member_count ?? 0;
   const objectType = segment?.object_type || segment?.objectType || 'owners';
+
+  // Handle inline name save
+  const handleNameSave = async () => {
+    if (editedName.trim() && editedName.trim() !== segment?.name) {
+      try {
+        await updateSegmentMutation.mutateAsync({ segmentId: id, name: editedName.trim() });
+        refetch();
+      } catch (error) {
+        toast.error('Failed to update name');
+      }
+    }
+    setIsEditingName(false);
+  };
+
+  // Handle inline description save
+  const handleDescriptionSave = async () => {
+    const newDesc = editedDescription.trim();
+    if (newDesc !== (segment?.description || '')) {
+      try {
+        await updateSegmentMutation.mutateAsync({ segmentId: id, description: newDesc });
+        refetch();
+      } catch (error) {
+        toast.error('Failed to update description');
+      }
+    }
+    setIsEditingDescription(false);
+  };
 
   const handleDelete = async () => {
     try {
@@ -219,13 +253,6 @@ export default function SegmentDetail() {
             </button>
 
             <div className="flex items-center gap-2">
-              {!isActive && (
-                <Button variant="outline" onClick={() => navigate(`/segments/${id}/edit`)}>
-                  <Edit2 className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              )}
-
               {/* Use In Menu */}
               <div className="relative">
                 <Button variant="outline" onClick={() => setShowUseInMenu(!showUseInMenu)}>
@@ -325,18 +352,34 @@ export default function SegmentDetail() {
             </div>
           </div>
 
-          {/* Segment name and badges - FIXED: Using segmentType as single source of truth */}
+          {/* Segment name and badges - Inline editable */}
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">
-              {segment.name}
-            </h1>
-            {!isActive && (
+            {isEditingName ? (
+              <input
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                onBlur={handleNameSave}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleNameSave();
+                  if (e.key === 'Escape') setIsEditingName(false);
+                }}
+                autoFocus
+                className="text-2xl font-bold text-[color:var(--bb-color-text-primary)] bg-transparent border-b-2 border-[color:var(--bb-color-accent)] outline-none px-0 py-0"
+              />
+            ) : (
               <button
                 type="button"
-                onClick={() => navigate(`/segments/${id}/edit`)}
-                className="p-1 rounded hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
+                onClick={() => {
+                  setEditedName(segment.name || '');
+                  setIsEditingName(true);
+                }}
+                className="flex items-center gap-2 group"
               >
-                <Pencil className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+                <h1 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">
+                  {segment.name}
+                </h1>
+                <Pencil className="h-4 w-4 text-[color:var(--bb-color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
             )}
             <Badge variant="outline" size="sm">
@@ -351,16 +394,40 @@ export default function SegmentDetail() {
             </Badge>
           </div>
 
-          {/* Description */}
-          {segment.description ? (
-            <p className="text-sm text-[color:var(--bb-color-text-muted)]">
+          {/* Description - Inline editable */}
+          {isEditingDescription ? (
+            <input
+              type="text"
+              value={editedDescription}
+              onChange={(e) => setEditedDescription(e.target.value)}
+              onBlur={handleDescriptionSave}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleDescriptionSave();
+                if (e.key === 'Escape') setIsEditingDescription(false);
+              }}
+              autoFocus
+              placeholder="Enter segment description..."
+              className="text-sm text-[color:var(--bb-color-text-muted)] bg-transparent border-b border-[color:var(--bb-color-accent)] outline-none w-full max-w-xl"
+            />
+          ) : segment.description ? (
+            <button
+              type="button"
+              onClick={() => {
+                setEditedDescription(segment.description || '');
+                setIsEditingDescription(true);
+              }}
+              className="text-sm text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] text-left transition-colors"
+            >
               {segment.description}
-            </p>
+            </button>
           ) : (
             <button
               type="button"
               className="text-sm text-[color:var(--bb-color-accent)] hover:underline"
-              onClick={() => navigate(`/segments/${id}/edit`)}
+              onClick={() => {
+                setEditedDescription('');
+                setIsEditingDescription(true);
+              }}
             >
               What is the purpose of this segment? Create description
             </button>
