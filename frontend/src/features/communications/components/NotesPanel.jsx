@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Plus, Pin, Edit2, Trash2, Eye, EyeOff } from 'lucide-react';
 import Card from '@/components/ui/Card';
@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
+import CreatableSelect from '@/components/ui/CreatableSelect';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   useEntityNotes,
@@ -13,7 +14,8 @@ import {
   useUpdateNote,
   useDeleteNote,
   useToggleNotePin,
-  useNoteCategories
+  useNoteCategories,
+  useAddNoteCategory
 } from '../api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
@@ -93,7 +95,17 @@ const NoteForm = ({ entityType, entityId, note, onClose }) => {
 
   const createNote = useCreateNote();
   const updateNote = useUpdateNote();
-  const { data: categories } = useNoteCategories();
+  const { data: categories, isLoading: categoriesLoading } = useNoteCategories();
+  const addNoteCategory = useAddNoteCategory();
+
+  // Convert categories array to options format for CreatableSelect
+  const categoryOptions = (categories || []).map(c => ({ value: c, label: c }));
+
+  // Handle creating a new category
+  const handleCreateCategory = useCallback(async (newCategoryName) => {
+    const result = await addNoteCategory.mutateAsync(newCategoryName);
+    return result; // Returns { value, label } for immediate selection
+  }, [addNoteCategory]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -133,24 +145,17 @@ const NoteForm = ({ entityType, entityId, note, onClose }) => {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1">
-            Category
-          </label>
-          <input
-            type="text"
-            list="note-categories"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="Optional"
-          />
-          <datalist id="note-categories">
-            {categories?.map((cat) => (
-              <option key={cat} value={cat} />
-            ))}
-          </datalist>
-        </div>
+        <CreatableSelect
+          label="Category"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          onCreate={handleCreateCategory}
+          options={categoryOptions}
+          placeholder="Select or add category..."
+          isLoading={categoriesLoading}
+          menuPortalTarget={document.body}
+          helpText="Optional"
+        />
 
         <Select
           label="Visibility"

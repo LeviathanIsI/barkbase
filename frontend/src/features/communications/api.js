@@ -140,6 +140,48 @@ export const useNoteCategories = () => {
   });
 };
 
+/**
+ * Add a new note category
+ *
+ * Fetches current categories, adds the new one, and updates the array.
+ * Returns the new option in { value, label } format for immediate use.
+ */
+export const useAddNoteCategory = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (newCategory) => {
+      // Get current categories from cache or fetch
+      const currentCategories = queryClient.getQueryData(['note-categories']) || [];
+
+      // Check if category already exists (case-insensitive)
+      const exists = currentCategories.some(
+        c => c.toLowerCase() === newCategory.toLowerCase()
+      );
+      if (exists) {
+        throw new Error(`Category "${newCategory}" already exists`);
+      }
+
+      // Add new category and update via API
+      const updatedCategories = [...currentCategories, newCategory];
+      await apiClient.put('/api/v1/notes/categories', { categories: updatedCategories });
+
+      // Return the new option for immediate selection
+      return { value: newCategory, label: newCategory };
+    },
+    onSuccess: (_, newCategory) => {
+      // Update the cache with the new category
+      queryClient.setQueryData(['note-categories'], (oldCategories = []) => {
+        if (oldCategories.includes(newCategory)) return oldCategories;
+        return [...oldCategories, newCategory];
+      });
+    },
+    onError: (error) => {
+      console.error('[note-categories] Add failed:', error?.message);
+    },
+  });
+};
+
 // Note mutations
 export const useCreateNote = () => {
   const queryClient = useQueryClient();
