@@ -538,14 +538,6 @@ const Login = () => {
           )}
         </div>
       </Card>
-
-      {/* Environment Info (dev only) */}
-      {config.isDevelopment && (
-        <div className="mt-4 text-center text-xs text-gray-400 dark:text-text-secondary">
-          <p>Auth Mode: {config.authMode}</p>
-          <p>API: {config.apiBaseUrl}</p>
-        </div>
-      )}
     </div>
   );
 };
