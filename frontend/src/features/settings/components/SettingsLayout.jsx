@@ -47,50 +47,51 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    id: "account",
-    title: "Account Management",
+    id: "business",
+    title: "Business",
     items: [
       { id: "account", label: "Business Info", icon: Building2, path: "/settings/account", description: "Business info and operating hours" },
       { id: "team", label: "Users & Teams", icon: Users, path: "/settings/team", description: "Manage staff and permissions" },
-      { id: "branding", label: "Branding", icon: Palette, path: "/settings/branding", description: "Logo and brand colors" },
     ],
   },
   {
-    id: "data",
-    title: "Data Management",
+    id: "appearance",
+    title: "Appearance",
     items: [
-      {
-        id: "objects",
-        label: "Objects",
-        icon: Database,
-        expandable: true,
-        description: "Configure data objects",
-        children: [
-          { id: "objects-owners", label: "Owners", path: "/settings/objects/owners" },
-          { id: "objects-pets", label: "Pets", path: "/settings/objects/pets" },
-          { id: "objects-bookings", label: "Bookings", path: "/settings/objects/bookings" },
-          { id: "objects-services", label: "Services", path: "/settings/objects/services" },
-          { id: "objects-facilities", label: "Facilities", path: "/settings/objects/facilities" },
-          { id: "objects-packages", label: "Packages", path: "/settings/objects/packages" },
-          { id: "objects-invoices", label: "Invoices", path: "/settings/objects/invoices" },
-          { id: "objects-payments", label: "Payments", path: "/settings/objects/payments" },
-          { id: "objects-tickets", label: "Tickets", path: "/settings/objects/tickets" },
-        ],
-      },
-      { id: "properties", label: "Properties", icon: ListTree, path: "/settings/properties", description: "Custom fields and attributes" },
-      { id: "import-export", label: "Import & Export", icon: ArrowLeftRight, path: "/settings/import-export", description: "Data migration tools" },
+      { id: "branding", label: "Branding", icon: Palette, path: "/settings/branding", description: "Logo and brand colors" },
       { id: "terminology", label: "Terminology", icon: Type, path: "/settings/terminology", description: "Customize navigation labels" },
     ],
   },
   {
     id: "operations",
-    title: "Kennel Operations",
+    title: "Operations",
     items: [
       { id: "facility", label: "Facility Setup", icon: Building, path: "/settings/facility", description: "Locations and accommodations" },
       { id: "services", label: "Services & Pricing", icon: Tag, path: "/settings/services", description: "Service offerings and rates" },
       { id: "booking-rules", label: "Booking Rules", icon: ClipboardList, path: "/settings/booking-config", description: "Booking policies and limits" },
       { id: "online-booking", label: "Online Booking", icon: Globe, path: "/settings/online-booking", description: "Customer booking portal" },
       { id: "calendar", label: "Calendar Settings", icon: Calendar, path: "/settings/calendar-settings", description: "Calendar display options" },
+    ],
+  },
+  {
+    id: "data",
+    title: "Data",
+    items: [
+      {
+        id: "custom-fields",
+        label: "Custom Fields",
+        icon: Database,
+        expandable: true,
+        description: "Configure custom fields per object",
+        children: [
+          { id: "objects-pets", label: "Pets", path: "/settings/objects/pets" },
+          { id: "objects-owners", label: "Owners", path: "/settings/objects/owners" },
+          { id: "objects-bookings", label: "Bookings", path: "/settings/objects/bookings" },
+          { id: "objects-invoices", label: "Invoices", path: "/settings/objects/invoices" },
+          { id: "objects-payments", label: "Payments", path: "/settings/objects/payments" },
+        ],
+      },
+      { id: "import-export", label: "Import & Export", icon: ArrowLeftRight, path: "/settings/import-export", description: "Data migration tools" },
     ],
   },
   {
@@ -109,6 +110,12 @@ const NAV_SECTIONS = [
     items: [
       { id: "email", label: "Email Templates", icon: Mail, path: "/settings/email", description: "Customize email content" },
       { id: "sms", label: "SMS Settings", icon: MessageSquare, path: "/settings/sms", description: "Text message configuration" },
+    ],
+  },
+  {
+    id: "automation",
+    title: "Automation",
+    items: [
       { id: "triggers", label: "Notification Triggers", icon: BellRing, path: "/settings/communication-notifications", description: "Automated alerts" },
     ],
   },
@@ -179,7 +186,7 @@ export default function SettingsLayout() {
     return initial;
   });
 
-  const [expandedItems, setExpandedItems] = useState([]); // Objects NOT expanded by default
+  const [expandedItems, setExpandedItems] = useState([]); // Custom Fields NOT expanded by default
 
   // Toggle just the settings sidebar
   const toggleSettingsSidebar = () => {
@@ -296,10 +303,10 @@ export default function SettingsLayout() {
         [activeSectionId]: false,
       }));
 
-      // If active item is an object child, expand Objects
+      // If active item is an object child, expand Custom Fields
       if (currentPath.startsWith("/settings/objects/")) {
         setExpandedItems((prev) =>
-          prev.includes("Objects") ? prev : [...prev, "Objects"]
+          prev.includes("Custom Fields") ? prev : [...prev, "Custom Fields"]
         );
       }
     }
