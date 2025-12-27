@@ -458,23 +458,27 @@ const CheckOutModal = ({ booking, open, onClose }) => {
           <Select
             value={incidentMode}
             onChange={(e) => setIncidentMode(e.target.value)}
-          >
-            <option value="none">No incident to report</option>
-            <option value="create">Create new incident report</option>
-            {incidentQuery.data?.length > 0 && <option value="existing">Link existing incident</option>}
-          </Select>
+            options={[
+              { value: 'none', label: 'No incident to report' },
+              { value: 'create', label: 'Create new incident report' },
+              ...(incidentQuery.data?.length > 0 ? [{ value: 'existing', label: 'Link existing incident' }] : []),
+            ]}
+            menuPortalTarget={document.body}
+          />
 
           {incidentMode === 'create' && (
             <div className="mt-[var(--bb-space-3)] space-y-[var(--bb-space-3)] rounded-[var(--bb-radius-lg)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)] p-[var(--bb-space-3)]">
               <Select
                 value={incidentSeverity}
                 onChange={(e) => setIncidentSeverity(e.target.value)}
-              >
-                <option value="MINOR">Minor</option>
-                <option value="MODERATE">Moderate</option>
-                <option value="SEVERE">Severe</option>
-                <option value="CRITICAL">Critical</option>
-              </Select>
+                options={[
+                  { value: 'MINOR', label: 'Minor' },
+                  { value: 'MODERATE', label: 'Moderate' },
+                  { value: 'SEVERE', label: 'Severe' },
+                  { value: 'CRITICAL', label: 'Critical' },
+                ]}
+                menuPortalTarget={document.body}
+              />
               <Textarea
                 rows={3}
                 value={incidentNarrative}
@@ -498,14 +502,16 @@ const CheckOutModal = ({ booking, open, onClose }) => {
               value={selectedIncidentId}
               onChange={(e) => setSelectedIncidentId(e.target.value)}
               className="mt-[var(--bb-space-2)]"
-            >
-              <option value="">Select an incident...</option>
-              {incidentQuery.data?.map((incident) => (
-                <option key={incident.recordId} value={incident.recordId}>
-                  {format(new Date(incident.occurredAt), 'PPpp')} - {incident.severity}
-                </option>
-              ))}
-            </Select>
+              options={[
+                { value: '', label: 'Select an incident...' },
+                ...(incidentQuery.data?.map((incident) => ({
+                  value: incident.recordId,
+                  label: `${format(new Date(incident.occurredAt), 'PPpp')} - ${incident.severity}`,
+                })) || []),
+              ]}
+              placeholder="Select an incident..."
+              menuPortalTarget={document.body}
+            />
           )}
         </FormField>
 
