@@ -181,22 +181,14 @@ export const useDeleteStaffMutation = () => {
  */
 export const useStaffRolesQuery = () => {
   const tenantKey = useTenantKey();
-  const isTenantReady = useTenantReady();
 
   return useQuery({
     queryKey: ['roles', tenantKey],
     queryFn: async () => {
-      try {
-        const res = await apiClient.get('/api/v1/roles');
-        const roles = res.data?.data || res.data?.roles || res.data || [];
-        return Array.isArray(roles) ? roles : [];
-      } catch (e) {
-        console.warn('[roles] Error:', e?.message);
-        return [];
-      }
+      const res = await apiClient.get('/api/v1/roles');
+      return Array.isArray(res.data) ? res.data : [];
     },
     staleTime: 5 * 60 * 1000,
-    enabled: isTenantReady,
   });
 };
 
