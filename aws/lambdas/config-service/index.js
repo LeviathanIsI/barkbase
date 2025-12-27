@@ -15384,11 +15384,18 @@ async function handleCreateRole(user, body) {
       return createResponse(409, { error: 'Conflict', message: `Role "${name}" already exists` });
     }
 
+    // Get next record_id from TenantSequence (Role object_type_code = 52)
+    const seqResult = await query(
+      `SELECT next_record_id($1, 52) as record_id`,
+      [ctx.tenantId]
+    );
+    const recordId = seqResult.rows[0].record_id;
+
     const result = await query(
-      `INSERT INTO "Role" (tenant_id, name, description, is_system, created_at, updated_at)
-       VALUES ($1, $2, $3, false, NOW(), NOW())
+      `INSERT INTO "Role" (tenant_id, record_id, name, description, is_system, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, false, NOW(), NOW())
        RETURNING record_id, name, description, is_system, created_at, updated_at`,
-      [ctx.tenantId, name.trim(), description || null]
+      [ctx.tenantId, recordId, name.trim(), description || null]
     );
 
     return createResponse(201, result.rows[0]);
