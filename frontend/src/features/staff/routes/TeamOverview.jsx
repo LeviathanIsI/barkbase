@@ -77,6 +77,7 @@ import {
   useAddDepartment,
 } from '../api';
 import { useStaffRoles, useAddStaffRole } from '@/features/roles/api';
+import apiClient from '@/lib/apiClient';
 import { cn } from '@/lib/cn';
 import { useStaffRoleOptions, useDefaultRole, getRoleColor } from '@/lib/useStaffRoles';
 
@@ -375,14 +376,20 @@ const OverviewTab = ({ staff, stats, onViewProfile, onAddStaff }) => {
   }, [staff, searchTerm, statusFilter, roleFilter]);
 
   const kpis = [
-    { icon: Users, label: 'Total Staff', value: stats.totalStaff, subtitle: '+2 this month', trend: '+2', trendType: 'positive' },
-    { icon: CheckCircle, label: 'Active', value: stats.activeMembers, subtitle: 'On duty' },
+    {
+      icon: Users,
+      label: 'Total Staff',
+      value: stats.totalStaff,
+      subtitle: stats.newThisMonth > 0 ? `+${stats.newThisMonth} this month` : 'Total count',
+      trend: stats.newThisMonth > 0 ? `+${stats.newThisMonth}` : null,
+      trendType: stats.newThisMonth > 0 ? 'positive' : null,
+    },
+    { icon: CheckCircle, label: 'Active', value: stats.activeMembers, subtitle: 'Active staff' },
     { icon: Briefcase, label: 'Roles', value: stats.roles, subtitle: 'Defined roles' },
-    { icon: Target, label: 'Avg Tasks', value: stats.avgTasksPerStaff || 0, subtitle: 'Per staff/day' },
+    { icon: Target, label: 'Avg Tasks', value: stats.avgTasksPerStaff || 0, subtitle: 'Per staff today' },
     { icon: Clock, label: 'Clocked In', value: stats.clockedIn || 0, subtitle: 'Working now' },
     { icon: Calendar, label: 'On Schedule', value: stats.scheduled || 0, subtitle: 'Today' },
     { icon: Coffee, label: 'On PTO', value: stats.onPto || 0, subtitle: 'Time off' },
-    { icon: Percent, label: 'Utilization', value: `${stats.utilization || 0}%`, subtitle: 'Efficiency' },
   ];
 
   return (
@@ -3065,6 +3072,14 @@ const TeamOverview = () => {
   const [showAddStaff, setShowAddStaff] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
 
+  // Real-time stats from APIs
+  const [realStats, setRealStats] = useState({
+    clockedIn: 0,
+    scheduled: 0,
+    avgTasksPerStaff: 0,
+    newThisMonth: 0,
+  });
+
   // Handle ?tab=timeclock from topbar link
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -3076,12 +3091,82 @@ const TeamOverview = () => {
   // Fetch staff data
   const { data: staffData, isLoading } = useStaffQuery();
 
+  // Fetch real stats from APIs
+  useEffect(() => {
+    const fetchRealStats = async () => {
+      try {
+        const today = format(new Date(), 'yyyy-MM-dd');
+
+        // Fetch in parallel
+        const [timeClockApi, shiftsApi, tasksApi] = await Promise.all([
+          import('../api-timeclock'),
+          import('@/features/schedule/api/shifts'),
+          import('@/features/tasks/api').then(m => ({ useTasksQuery: m.useTasksQuery })).catch(() => null),
+        ]);
+
+        // Get active time entries (clocked in)
+        let clockedIn = 0;
+        try {
+          const timeResponse = await timeClockApi.getTimeEntries({ status: 'active' });
+          const entries = timeResponse?.data || [];
+          clockedIn = entries.filter(e => e.clockInTime && !e.clockOutTime).length;
+        } catch (e) {
+          console.warn('[stats] Failed to fetch time entries:', e?.message);
+        }
+
+        // Get today's shifts (on schedule)
+        let scheduled = 0;
+        try {
+          const shiftsResponse = await shiftsApi.getShifts({ startDate: today, endDate: today });
+          const shifts = shiftsResponse?.data || [];
+          // Count unique staff members scheduled today
+          const scheduledStaffIds = new Set(shifts.map(s => s.staffId || s.staff_id));
+          scheduled = scheduledStaffIds.size;
+        } catch (e) {
+          console.warn('[stats] Failed to fetch shifts:', e?.message);
+        }
+
+        // Calculate avg tasks per staff (from tasks due today)
+        let avgTasksPerStaff = 0;
+        try {
+          const tasksResponse = await apiClient.get('/api/v1/tasks', { params: { startDate: today, endDate: today } });
+          const tasks = tasksResponse?.data?.tasks || tasksResponse?.data || [];
+          const taskArray = Array.isArray(tasks) ? tasks : [];
+          if (staffData?.length > 0 && taskArray.length > 0) {
+            avgTasksPerStaff = Math.round((taskArray.length / staffData.length) * 10) / 10;
+          }
+        } catch (e) {
+          console.warn('[stats] Failed to fetch tasks:', e?.message);
+        }
+
+        // Calculate new staff this month
+        let newThisMonth = 0;
+        if (staffData?.length > 0) {
+          const now = new Date();
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+          newThisMonth = staffData.filter(s => {
+            const createdAt = s.createdAt || s.created_at;
+            return createdAt && new Date(createdAt) >= monthStart;
+          }).length;
+        }
+
+        setRealStats({ clockedIn, scheduled, avgTasksPerStaff, newThisMonth });
+      } catch (error) {
+        console.warn('[stats] Failed to fetch real stats:', error?.message);
+      }
+    };
+
+    if (staffData?.length > 0) {
+      fetchRealStats();
+    }
+  }, [staffData]);
+
   // Process staff data
   const { staff, stats, hasStaff } = useMemo(() => {
     if (!staffData || isLoading) {
       return {
         staff: [],
-        stats: { totalStaff: 0, activeMembers: 0, roles: 0, avgTasksPerStaff: 0, clockedIn: 0, scheduled: 0, onPto: 0, utilization: 0 },
+        stats: { totalStaff: 0, activeMembers: 0, roles: 0, avgTasksPerStaff: 0, clockedIn: 0, scheduled: 0, onPto: 0, newThisMonth: 0 },
         hasStaff: false,
       };
     }
@@ -3095,16 +3180,16 @@ const TeamOverview = () => {
       stats: {
         totalStaff: staffArray.length,
         activeMembers,
-        roles: roles || 1,
-        avgTasksPerStaff: 4,
-        clockedIn: Math.min(activeMembers, 3),
-        scheduled: Math.min(activeMembers, 4),
-        onPto: 0,
-        utilization: 78,
+        roles: roles || 0,
+        avgTasksPerStaff: realStats.avgTasksPerStaff,
+        clockedIn: realStats.clockedIn,
+        scheduled: realStats.scheduled,
+        onPto: 0, // TODO: implement when PTO tracking exists
+        newThisMonth: realStats.newThisMonth,
       },
       hasStaff: staffArray.length > 0,
     };
-  }, [staffData, isLoading]);
+  }, [staffData, isLoading, realStats]);
 
   const tabs = [
     { key: 'overview', label: 'Overview', icon: Users },
