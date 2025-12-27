@@ -366,10 +366,6 @@ const OverviewTab = ({ staff, stats, onViewProfile, onAddStaff }) => {
           <Download className="h-3.5 w-3.5 mr-1.5" />
           Export
         </Button>
-        <Button size="sm" onClick={onAddStaff}>
-          <UserPlus className="h-3.5 w-3.5 mr-1.5" />
-          Add Staff
-        </Button>
       </FilterToolbar>
 
       {/* Staff Directory Grid - 3 columns */}
