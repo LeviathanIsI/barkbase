@@ -132,8 +132,8 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
                     className={cn(
                       "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-sm font-medium transition-all",
                       isActive && "border-primary-500 bg-primary-600 text-white shadow-sm",
-                      isCompleted && "border-primary-500/50 bg-gray-800 text-primary-400 hover:bg-gray-700",
-                      !isActive && !isCompleted && "border-gray-700 bg-gray-800 text-gray-500"
+                      isCompleted && "border-primary-500/50 bg-gray-100 dark:bg-gray-800 text-primary-600 dark:text-primary-400 hover:bg-gray-200 dark:hover:bg-gray-700",
+                      !isActive && !isCompleted && "border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-500"
                     )}
                     disabled={index > currentStep}
                   >
@@ -141,7 +141,7 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
                       "flex h-6 w-6 items-center justify-center rounded-full border shrink-0",
                       isActive && "border-white/40 bg-white/10 text-white",
                       isCompleted && "border-primary-500 bg-primary-600 text-white",
-                      !isActive && !isCompleted && "border-gray-600 bg-gray-700 text-gray-500"
+                      !isActive && !isCompleted && "border-gray-400 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 text-gray-500"
                     )}>
                       {isCompleted ? (
                         <CheckCircle className="h-4 w-4" />
