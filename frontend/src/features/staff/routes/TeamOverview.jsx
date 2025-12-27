@@ -460,7 +460,7 @@ const formatShiftTime = (time) => {
 
 const ScheduleTab = ({ staff }) => {
   // Get dynamic staff roles from tenant configuration
-  const staffRoles = useStaffRoles();
+  const { data: staffRoles } = useStaffRoles();
   const roleOptions = useStaffRoleOptions();
 
   const [selectedWeek, setSelectedWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
