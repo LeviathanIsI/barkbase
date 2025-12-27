@@ -49,6 +49,7 @@ import { usePetsQuery } from '@/features/pets/api';
 import { useStaffQuery } from '@/features/staff/api';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
+import SlideOutDrawer from '@/components/ui/SlideOutDrawer';
 
 // Stat Card Component - Matching Schedule/Run Assignment style
 const StatCard = ({ icon: Icon, label, value, variant = 'primary', tooltip }) => {
@@ -1486,21 +1487,40 @@ const Tasks = () => {
         </div>
       </div>
 
-      {/* Task Creation Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-surface-primary rounded-xl w-full max-w-md max-h-[90vh] overflow-hidden shadow-xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h3 className="text-lg font-semibold text-text">Create New Task</h3>
-              <button 
-                onClick={() => setShowCreateModal(false)} 
-                className="p-2 text-muted hover:text-text hover:bg-surface rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateTask} className="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-140px)]">
+      {/* Task Creation Slide-out */}
+      <SlideOutDrawer
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="Create New Task"
+        subtitle="Add a new task to your schedule"
+        size="md"
+        footerContent={
+          <div className="flex items-center justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowCreateModal(false)}
+              disabled={createMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateTask}
+              disabled={createMutation.isPending}
+            >
+              {createMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create Task'
+              )}
+            </Button>
+          </div>
+        }
+      >
+        <form onSubmit={handleCreateTask} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-text mb-1.5">
                   Task Type <span className="text-red-500">*</span>
@@ -1645,33 +1665,8 @@ const Tasks = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowCreateModal(false)}
-                  disabled={createMutation.isPending}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={createMutation.isPending}
-                >
-                  {createMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating...
-                    </>
-                  ) : (
-                    'Create Task'
-                  )}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+        </form>
+      </SlideOutDrawer>
     </div>
   );
 };
