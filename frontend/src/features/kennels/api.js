@@ -232,13 +232,8 @@ export const useKennelTypes = () => {
   return useQuery({
     queryKey: ['kennelTypes', tenantKey],
     queryFn: async () => {
-      try {
-        const res = await apiClient.get('/api/v1/config/kennel-types');
-        return res.data?.kennelTypes || ['Standard', 'Suite', 'Cabin', 'VIP', 'Medical'];
-      } catch (e) {
-        console.warn('[kennelTypes] Error fetching:', e?.message);
-        return ['Standard', 'Suite', 'Cabin', 'VIP', 'Medical'];
-      }
+      const res = await apiClient.get('/api/v1/config/kennel-types');
+      return res.data?.kennelTypes || [];
     },
     staleTime: 10 * 60 * 1000,
     enabled: isTenantReady,

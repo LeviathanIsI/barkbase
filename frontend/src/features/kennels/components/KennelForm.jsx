@@ -33,7 +33,10 @@ const AMENITY_OPTIONS = [
 const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
   const createMutation = useCreateKennel();
   const updateMutation = useUpdateKennel(kennel?.id || kennel?.recordId);
-  const { data: kennelTypes = ['Standard', 'Suite', 'Cabin', 'VIP', 'Medical'] } = useKennelTypes();
+  const { data: kennelTypes, isLoading: typesLoading } = useKennelTypes();
+
+  // Convert kennel types array to options format for Select
+  const typeOptions = (kennelTypes || []).map(t => ({ value: t, label: t }));
   
   const [formData, setFormData] = useState({
     name: '',
@@ -146,13 +149,12 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
               label="Type"
               value={formData.type}
               onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
+              options={typeOptions}
+              placeholder="Select type..."
+              isLoading={typesLoading}
+              menuPortalTarget={document.body}
               required
-            >
-              <option value="">Select...</option>
-              {(kennelTypes || ['Standard', 'Suite', 'Cabin', 'VIP', 'Medical']).map(t => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </Select>
+            />
           </FormGrid>
 
           <FormGrid cols={2}>
@@ -161,13 +163,16 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
               value={formData.size}
               onChange={(e) => setFormData(prev => ({ ...prev, size: e.target.value }))}
               helpText="Optional - limit to specific pet sizes"
-            >
-              <option value="">Any Size</option>
-              <option value="SMALL">Small (up to 25 lbs)</option>
-              <option value="MEDIUM">Medium (26-60 lbs)</option>
-              <option value="LARGE">Large (61-100 lbs)</option>
-              <option value="XLARGE">Extra Large (100+ lbs)</option>
-            </Select>
+              options={[
+                { value: '', label: 'Any Size' },
+                { value: 'SMALL', label: 'Small (up to 25 lbs)' },
+                { value: 'MEDIUM', label: 'Medium (26-60 lbs)' },
+                { value: 'LARGE', label: 'Large (61-100 lbs)' },
+                { value: 'XLARGE', label: 'Extra Large (100+ lbs)' },
+              ]}
+              placeholder="Any Size"
+              menuPortalTarget={document.body}
+            />
             <Input
               label="Capacity"
               type="number"
