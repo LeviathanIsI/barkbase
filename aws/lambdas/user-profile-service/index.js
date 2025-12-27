@@ -134,14 +134,14 @@ async function handleGetProfile(user) {
          u.record_id,
          u.cognito_sub,
          u.email,
-         u.first_name,
-         u.last_name,
-         u.phone,
+         us.first_name,
+         us.last_name,
+         us.phone,
          u.avatar_url,
          u.tenant_id,
          u.created_at,
          u.updated_at,
-         u.password_changed_at,
+         us.password_changed_at,
          t.name as tenant_name,
          t.slug as tenant_slug,
          t.plan as tenant_plan,
@@ -152,6 +152,7 @@ async function handleGetProfile(user) {
            ARRAY[]::VARCHAR[]
          ) as roles
        FROM "User" u
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        LEFT JOIN "Tenant" t ON u.tenant_id = t.id
        WHERE u.cognito_sub = $1
        LIMIT 1`,

@@ -4621,11 +4621,12 @@ async function handleGetSegmentActivity(tenantId, segmentId, queryParams) {
          sa.member_count_after,
          sa.created_by,
          sa.created_at,
-         u.first_name as user_first_name,
-         u.last_name as user_last_name,
+         us.first_name as user_first_name,
+         us.last_name as user_last_name,
          u.email as user_email
        FROM "SegmentActivity" sa
        LEFT JOIN "User" u ON sa.created_by = u.record_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE sa.segment_id = $1
        ORDER BY sa.created_at DESC
        LIMIT $2 OFFSET $3`,
@@ -5679,7 +5680,7 @@ async function handleGetAuditLogs(tenantId, queryParams) {
 
     if (audit_exists) {
       queries.push(`
-        SELECT 
+        SELECT
           a.id,
           a.id as "recordId",
           a.action,
@@ -5694,25 +5695,26 @@ async function handleGetAuditLogs(tenantId, queryParams) {
           a.metadata,
           a.created_at as timestamp,
           u.record_id as "actorId",
-          u.first_name as "actorFirstName",
-          u.last_name as "actorLastName",
+          us.first_name as "actorFirstName",
+          us.last_name as "actorLastName",
           u.email as "actorEmail",
           'general' as source_type
         FROM "AuditLog" a
         LEFT JOIN "User" u ON a.user_id = u.record_id
+        LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
         WHERE a.tenant_id = $1${dateFilterAudit}
       `);
     }
 
     if (auth_audit_exists) {
       queries.push(`
-        SELECT 
+        SELECT
           aa.id,
           aa.id as "recordId",
           aa.action,
           'session' as "entityType",
           NULL::uuid as "entityId",
-          CASE 
+          CASE
             WHEN aa.action = 'login' THEN 'App login'
             WHEN aa.action = 'login_failed' THEN 'Portal login'
             WHEN aa.action = 'logout' THEN 'Session ended'
@@ -5732,12 +5734,13 @@ async function handleGetAuditLogs(tenantId, queryParams) {
           ) as metadata,
           aa.created_at as timestamp,
           u.record_id as "actorId",
-          u.first_name as "actorFirstName",
-          u.last_name as "actorLastName",
+          us.first_name as "actorFirstName",
+          us.last_name as "actorLastName",
           u.email as "actorEmail",
           'auth' as source_type
         FROM "AuthAuditLog" aa
         LEFT JOIN "User" u ON aa.user_id = u.record_id
+        LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
         WHERE (aa.tenant_id = $1 OR aa.tenant_id IS NULL)${dateFilterAuth}
       `);
     }
@@ -6073,36 +6076,38 @@ async function handleExportAuditLogs(tenantId, queryParams) {
     
     if (audit_exists) {
       queries.push(`
-        SELECT 
+        SELECT
           a.id,
           a.created_at as timestamp,
           a.action,
           a.entity_type,
           COALESCE(a.new_values->>'name', a.entity_type) as entity_name,
           a.ip_address,
-          u.first_name || ' ' || u.last_name as actor_name,
+          us.first_name || ' ' || us.last_name as actor_name,
           u.email as actor_email,
           'Dashboard' as source
         FROM "AuditLog" a
         LEFT JOIN "User" u ON a.user_id = u.record_id
+        LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
         WHERE a.tenant_id = $1 ${dateFilter}
       `);
     }
 
     if (auth_audit_exists) {
       queries.push(`
-        SELECT 
+        SELECT
           aa.id,
           aa.created_at as timestamp,
           aa.action,
           'session' as entity_type,
           CASE WHEN aa.action = 'login_failed' THEN 'Failed login' ELSE 'Auth event' END as entity_name,
           aa.ip_address::text,
-          u.first_name || ' ' || u.last_name as actor_name,
+          us.first_name || ' ' || us.last_name as actor_name,
           u.email as actor_email,
           'Auth System' as source
         FROM "AuthAuditLog" aa
         LEFT JOIN "User" u ON aa.user_id = u.record_id
+        LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
         WHERE (aa.tenant_id = $1 OR aa.tenant_id IS NULL) ${authDateFilter}
       `);
     }

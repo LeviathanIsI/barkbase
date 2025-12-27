@@ -2819,11 +2819,12 @@ async function handleGetTasks(tenantId, queryParams) {
          t.pet_id,
          t.created_at,
          t.updated_at,
-         u.first_name as assignee_first_name,
-         u.last_name as assignee_last_name,
+         us.first_name as assignee_first_name,
+         us.last_name as assignee_last_name,
          p.name as pet_name
        FROM "Task" t
        LEFT JOIN "User" u ON t.assigned_to = u.record_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        LEFT JOIN "Pet" p ON p.tenant_id = t.tenant_id AND t.pet_id = p.record_id
        WHERE ${whereClause}
        ORDER BY t.due_at ASC NULLS LAST, t.priority DESC
@@ -2899,9 +2900,10 @@ async function handleGetTask(tenantId, taskId) {
     await getPoolAsync();
 
     const result = await query(
-      `SELECT t.*, u.first_name, u.last_name
+      `SELECT t.*, us.first_name, us.last_name
        FROM "Task" t
        LEFT JOIN "User" u ON t.assigned_to = u.record_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE t.record_id = $1 AND t.tenant_id = $2`,
       [taskId, tenantId]
     );
@@ -3192,11 +3194,12 @@ async function handleGetStaffSchedules(tenantId, queryParams) {
       `SELECT
          s.record_id,
          s.title,
-         u.first_name,
-         u.last_name,
+         us.first_name,
+         us.last_name,
          u.email
        FROM "Staff" s
        JOIN "User" u ON s.user_id = u.record_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE s.tenant_id = $1 AND s.is_active = true`,
       [tenantId]
     );
@@ -5246,11 +5249,12 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
            t.task_type,
            t.scheduled_for,
            t.due_at,
-           u.first_name as assignee_first_name,
-           u.last_name as assignee_last_name,
+           us.first_name as assignee_first_name,
+           us.last_name as assignee_last_name,
            p.name as pet_name
          FROM "Task" t
          LEFT JOIN "User" u ON t.assigned_to = u.record_id
+         LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
          LEFT JOIN "Pet" p ON p.tenant_id = t.tenant_id AND t.pet_id = p.record_id
          WHERE t.tenant_id = $1
                      AND (
@@ -6820,13 +6824,14 @@ async function handleGetIncidents(tenantId, queryParams) {
          o.last_name as owner_last_name,
          o.email as owner_email,
          o.phone as owner_phone,
-         u.first_name as reported_by_first_name,
-         u.last_name as reported_by_last_name
+         us.first_name as reported_by_first_name,
+         us.last_name as reported_by_last_name
        FROM "Incident" i
        LEFT JOIN "Pet" p ON p.tenant_id = i.tenant_id AND i.pet_id = p.record_id
        LEFT JOIN "PetOwner" po ON p.record_id = po.pet_id AND po.is_primary = true
        LEFT JOIN "Owner" o ON o.tenant_id = po.tenant_id AND po.owner_id = o.record_id
        LEFT JOIN "User" u ON i.reported_by = u.record_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE ${whereClause}
        ORDER BY i.incident_date DESC, i.created_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -6912,15 +6917,17 @@ async function handleGetIncident(tenantId, incidentId) {
          o.last_name as owner_last_name,
          o.email as owner_email,
          o.phone as owner_phone,
-         u.first_name as created_by_first_name,
-         u.last_name as created_by_last_name,
-         ru.first_name as resolved_by_first_name,
-         ru.last_name as resolved_by_last_name
+         us.first_name as created_by_first_name,
+         us.last_name as created_by_last_name,
+         rus.first_name as resolved_by_first_name,
+         rus.last_name as resolved_by_last_name
        FROM "Incident" i
        LEFT JOIN "Pet" p ON p.tenant_id = i.tenant_id AND i.pet_id = p.record_id
        LEFT JOIN "Owner" o ON o.tenant_id = i.tenant_id AND i.owner_id = o.record_id
        LEFT JOIN "User" u ON i.created_by = u.record_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        LEFT JOIN "User" ru ON i.resolved_by = ru.record_id
+       LEFT JOIN "UserSettings" rus ON rus.user_record_id = ru.record_id AND rus.tenant_id = ru.tenant_id
        WHERE i.record_id = $1 AND i.tenant_id = $2`,
       [incidentId, tenantId]
     );
@@ -7397,9 +7404,10 @@ async function handleGetWorkflows(tenantId, queryParams) {
     }
 
     const result = await query(
-      `SELECT w.*, u.first_name as created_by_first_name, u.last_name as created_by_last_name
+      `SELECT w.*, us.first_name as created_by_first_name, us.last_name as created_by_last_name
        FROM "Workflow" w
        LEFT JOIN "User" u ON w.created_by = u.record_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE ${whereClause}
        ORDER BY w.updated_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -7462,9 +7470,10 @@ async function handleGetWorkflow(tenantId, workflowId) {
     await getPoolAsync();
 
     const result = await query(
-      `SELECT w.*, u.first_name as created_by_first_name, u.last_name as created_by_last_name
+      `SELECT w.*, us.first_name as created_by_first_name, us.last_name as created_by_last_name
        FROM "Workflow" w
        LEFT JOIN "User" u ON w.created_by = u.record_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE w.record_id = $1 AND w.tenant_id = $2 AND w.deleted_at IS NULL`,
       [workflowId, tenantId]
     );
@@ -10097,9 +10106,10 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
 
     // Get active entry
     const activeResult = await query(
-      `SELECT te.*, u.first_name, u.last_name
+      `SELECT te.*, us.first_name, us.last_name
        FROM "TimeEntry" te
        JOIN "User" u ON te.user_id = u.record_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE te.tenant_id = $1 AND te.user_id = $2 AND te.clock_out IS NULL
        LIMIT 1`,
       [tenantId, userId]
@@ -10215,11 +10225,13 @@ async function handleGetTimeEntries(tenantId, queryParams) {
     const result = await query(
       `SELECT
          te.*,
-         u.first_name, u.last_name, u.email as user_email,
-         approver.first_name as approved_by_first, approver.last_name as approved_by_last
+         us.first_name, us.last_name, u.email as user_email,
+         approver_us.first_name as approved_by_first, approver_us.last_name as approved_by_last
        FROM "TimeEntry" te
        JOIN "User" u ON te.user_id = u.record_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        LEFT JOIN "User" approver ON te.approved_by = approver.record_id
+       LEFT JOIN "UserSettings" approver_us ON approver_us.user_record_id = approver.record_id AND approver_us.tenant_id = approver.tenant_id
        WHERE ${whereClause}
        ORDER BY te.clock_in DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -10287,9 +10299,10 @@ async function handleGetTimeEntry(tenantId, entryId) {
     const result = await query(
       `SELECT
          te.*,
-         u.first_name, u.last_name, u.email as user_email
+         us.first_name, us.last_name, u.email as user_email
        FROM "TimeEntry" te
        JOIN "User" u ON te.user_id = u.record_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE te.record_id = $1 AND te.tenant_id = $2`,
       [entryId, tenantId]
     );
@@ -12648,14 +12661,15 @@ async function handleGetStaffMembers(tenantId, queryParams) {
          s.hire_date,
          s.created_at,
          s.updated_at,
-         u.first_name,
-         u.last_name,
+         us.first_name,
+         us.last_name,
          u.email,
-         u.phone
+         us.phone
        FROM "Staff" s
        LEFT JOIN "User" u ON s.user_id = u.record_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE ${whereClause}
-       ORDER BY u.last_name ASC, u.first_name ASC
+       ORDER BY us.last_name ASC, us.first_name ASC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...params, parseInt(limit), parseInt(offset)]
     );
@@ -12718,12 +12732,13 @@ async function handleGetStaffMember(tenantId, staffId) {
     const result = await query(
       `SELECT
          s.*,
-         u.first_name,
-         u.last_name,
+         us.first_name,
+         us.last_name,
          u.email,
-         u.phone
+         us.phone
        FROM "Staff" s
        LEFT JOIN "User" u ON s.user_id = u.record_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE s.record_id = $1 AND s.tenant_id = $2`,
       [staffId, tenantId]
     );

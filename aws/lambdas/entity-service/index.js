@@ -2143,17 +2143,19 @@ async function getStaff(event) {
     await getPoolAsync();
     // Query User table directly - no separate Staff table needed
     // Users with tenant_id are staff/admin accounts for that tenant
+    // User profile data (first_name, last_name, phone) now in UserSettings table
     const result = await query(
       `SELECT u.record_id, u.tenant_id, u.record_id as user_id,
-              u.first_name, u.last_name, u.email, u.phone, u.avatar_url,
+              us.first_name, us.last_name, u.email, us.phone, u.avatar_url,
               u.is_active, u.created_at, u.updated_at,
               COALESCE(r.name, 'user') AS role,
               r.name as title
        FROM "User" u
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
        LEFT JOIN "Role" r ON r.tenant_id = u.tenant_id AND r.record_id = ur.role_id
        WHERE u.tenant_id = $1
-       ORDER BY u.last_name, u.first_name`,
+       ORDER BY us.last_name, us.first_name`,
       [tenantId]
     );
 
@@ -2184,14 +2186,15 @@ async function getStaffMember(event) {
 
   try {
     await getPoolAsync();
-    // Query User table directly
+    // Query User table directly - profile data in UserSettings
     const result = await query(
       `SELECT u.record_id, u.tenant_id, u.record_id as user_id,
-              u.first_name, u.last_name, u.email, u.phone, u.avatar_url,
+              us.first_name, us.last_name, u.email, us.phone, u.avatar_url,
               u.is_active, u.created_at, u.updated_at,
               COALESCE(r.name, 'user') AS role,
               r.name as title
        FROM "User" u
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
        LEFT JOIN "Role" r ON r.tenant_id = u.tenant_id AND r.record_id = ur.role_id
        WHERE u.record_id = $1 AND u.tenant_id = $2`,
@@ -2270,9 +2273,10 @@ async function createStaffMember(event) {
 
     // Fetch with user info joined
     const staffWithUser = await query(
-      `SELECT s.*, u.first_name, u.last_name, u.email
+      `SELECT s.*, us.first_name, us.last_name, u.email
        FROM "Staff" s
        LEFT JOIN "User" u ON u.tenant_id = s.tenant_id AND u.record_id = s.user_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE s.record_id = $1`,
       [result.rows[0].record_id]
     );
@@ -2339,9 +2343,10 @@ async function updateStaffMember(event) {
 
     // Fetch with user info joined
     const staffWithUser = await query(
-      `SELECT s.*, u.first_name, u.last_name, u.email
+      `SELECT s.*, us.first_name, us.last_name, u.email
        FROM "Staff" s
        LEFT JOIN "User" u ON u.tenant_id = s.tenant_id AND u.record_id = s.user_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE s.record_id = $1`,
       [result.rows[0].record_id]
     );
@@ -3612,10 +3617,11 @@ async function getActivities(event) {
               a.call_duration_seconds, a.call_direction, a.call_outcome,
               a.recipient, a.is_pinned,
               a.created_by, a.created_at, a.updated_at,
-              u.first_name as creator_first_name, u.last_name as creator_last_name,
+              us.first_name as creator_first_name, us.last_name as creator_last_name,
               u.email as creator_email
        FROM "Activity" a
-       LEFT JOIN "User" u ON a.created_by = u.record_id
+       LEFT JOIN "User" u ON a.created_by = u.record_id AND u.tenant_id = a.tenant_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE ${whereClause}
        ORDER BY a.is_pinned DESC, a.created_at DESC
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -3680,10 +3686,11 @@ async function getActivity(event) {
               a.call_duration_seconds, a.call_direction, a.call_outcome,
               a.recipient, a.is_pinned,
               a.created_by, a.created_at, a.updated_at,
-              u.first_name as creator_first_name, u.last_name as creator_last_name,
+              us.first_name as creator_first_name, us.last_name as creator_last_name,
               u.email as creator_email
        FROM "Activity" a
        LEFT JOIN "User" u ON u.tenant_id = a.tenant_id AND u.record_id = a.created_by
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE a.record_id = $1 AND a.tenant_id = $2`,
       [id, tenantId]
     );
