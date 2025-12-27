@@ -277,10 +277,74 @@ const ProgressBar = ({ value, max = 100, color = 'primary', showLabel = true }) 
 // OVERVIEW TAB
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Format next shift time as "Today 2:00 PM", "Tomorrow 9:00 AM", "Mon 8:00 AM", etc.
+const formatNextShift = (date) => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = addDays(today, 1);
+  const shiftDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const timeStr = format(date, 'h:mm a');
+
+  if (shiftDay.getTime() === today.getTime()) {
+    return `Today ${timeStr}`;
+  }
+  if (shiftDay.getTime() === tomorrow.getTime()) {
+    return `Tomorrow ${timeStr}`;
+  }
+  // Within this week, show day name
+  const daysAhead = Math.floor((shiftDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (daysAhead <= 6) {
+    return `${format(date, 'EEE')} ${timeStr}`;
+  }
+  // Further out, show date
+  return `${format(date, 'MMM d')} ${timeStr}`;
+};
+
 const OverviewTab = ({ staff, stats, onViewProfile, onAddStaff }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [upcomingShifts, setUpcomingShifts] = useState({});
+
+  // Fetch upcoming shifts to compute "Next:" for each staff member
+  useEffect(() => {
+    const fetchUpcomingShifts = async () => {
+      try {
+        const shiftsApi = await import('@/features/schedule/api/shifts');
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const endDate = format(addDays(new Date(), 14), 'yyyy-MM-dd'); // Look ahead 2 weeks
+        const response = await shiftsApi.getShifts({ startDate: today, endDate });
+        const shifts = response?.data || [];
+
+        // Group by staffId and find the earliest upcoming shift for each
+        const nextShiftMap = {};
+        const now = new Date();
+
+        shifts.forEach(shift => {
+          const staffId = shift.staffId || shift.staff_id;
+          const startTime = new Date(shift.startTime || shift.start_time);
+
+          if (startTime > now) {
+            if (!nextShiftMap[staffId] || startTime < new Date(nextShiftMap[staffId].startTime)) {
+              nextShiftMap[staffId] = {
+                startTime: shift.startTime || shift.start_time,
+                formatted: formatNextShift(startTime),
+              };
+            }
+          }
+        });
+
+        setUpcomingShifts(nextShiftMap);
+      } catch (error) {
+        console.warn('[OverviewTab] Failed to fetch upcoming shifts:', error?.message);
+      }
+    };
+
+    if (staff.length > 0) {
+      fetchUpcomingShifts();
+    }
+  }, [staff]);
 
   // Get unique roles
   const roles = useMemo(() => {
@@ -378,19 +442,23 @@ const OverviewTab = ({ staff, stats, onViewProfile, onAddStaff }) => {
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredStaff.map((member, i) => (
-            <StaffCard
-              key={member.id || member.recordId || i}
-              member={{
-                ...member,
-                status: member.isActive === false ? 'off' : (member.status || 'scheduled'),
-                nextShift: member.nextShift || 'Not Scheduled',
-              }}
-              onViewProfile={onViewProfile}
-              onAssignTask={() => {}}
-              onMessage={() => {}}
-            />
-          ))}
+          {filteredStaff.map((member, i) => {
+            const staffId = member.id || member.recordId;
+            const nextShift = upcomingShifts[staffId]?.formatted;
+            return (
+              <StaffCard
+                key={staffId || i}
+                member={{
+                  ...member,
+                  status: member.isActive === false ? 'off' : (member.status || 'scheduled'),
+                  nextShift: nextShift || null, // null hides the field entirely if no upcoming shift
+                }}
+                onViewProfile={onViewProfile}
+                onAssignTask={() => {}}
+                onMessage={() => {}}
+              />
+            );
+          })}
         </div>
       )}
     </div>
