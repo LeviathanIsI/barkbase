@@ -376,6 +376,8 @@ export class ApiCoreStack extends cdk.Stack {
     createRoute('IntegrationsProxyRoute', 'ANY /api/v1/integrations/{proxy+}', configIntegration.ref, true);
     createRoute('ImportsBaseRoute', 'ANY /api/v1/imports', configIntegration.ref, true);
     createRoute('ImportsProxyRoute', 'ANY /api/v1/imports/{proxy+}', configIntegration.ref, true);
+    createRoute('RolesBaseRoute', 'ANY /api/v1/roles', configIntegration.ref, true);
+    createRoute('RolesProxyRoute', 'ANY /api/v1/roles/{proxy+}', configIntegration.ref, true);
 
     // -------------------------------------------------------------------------
     // FINANCIAL SERVICE - Protected routes + public webhook
@@ -442,6 +444,8 @@ export class ApiCoreStack extends cdk.Stack {
     // Admin Config Routes
     createAdminRoute('AdminConfigProxyRoute', 'ANY /admin/v1/config/{proxy+}', configIntegration.ref);
     createAdminRoute('AdminSettingsProxyRoute', 'ANY /admin/v1/settings/{proxy+}', configIntegration.ref);
+    createAdminRoute('AdminRolesBaseRoute', 'ANY /admin/v1/roles', configIntegration.ref);
+    createAdminRoute('AdminRolesProxyRoute', 'ANY /admin/v1/roles/{proxy+}', configIntegration.ref);
 
     // Admin Financial Routes
     createAdminRoute('AdminFinancialProxyRoute', 'ANY /admin/v1/financial/{proxy+}', financialIntegration.ref);

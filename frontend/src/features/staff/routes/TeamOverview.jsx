@@ -76,9 +76,9 @@ import {
   useDepartments,
   useAddDepartment,
 } from '../api';
-import { useRoles, useCreateRole } from '@/features/roles/api';
+import { useStaffRoles, useAddStaffRole } from '@/features/roles/api';
 import { cn } from '@/lib/cn';
-import { useStaffRoles, useStaffRoleOptions, useDefaultRole, getRoleColor } from '@/lib/useStaffRoles';
+import { useStaffRoleOptions, useDefaultRole, getRoleColor } from '@/lib/useStaffRoles';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SHARED COMPONENTS
@@ -2758,27 +2758,20 @@ const AddStaffWizard = ({ isOpen, onClose, onComplete }) => {
   });
 
   // Fetch roles and departments from API
-  const { data: rolesResponse, isLoading: rolesLoading } = useRoles();
+  const { data: staffRoles, isLoading: rolesLoading } = useStaffRoles();
   const { data: departmentsData, isLoading: departmentsLoading } = useDepartments();
-  const createRoleMutation = useCreateRole();
+  const addStaffRole = useAddStaffRole();
   const addDepartment = useAddDepartment();
 
-  // Convert to options format for CreatableSelect
-  // useRoles returns axios response, data is in rolesResponse.data
-  const rolesData = rolesResponse?.data || [];
-  const toTitleCase = (str) => str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
-  const roleOptions = (Array.isArray(rolesData) ? rolesData : []).map(r => ({
-    value: r.recordId || r.id,
-    label: toTitleCase(r.name)
-  }));
+  // Convert to options format for CreatableSelect (simple array like kennel types)
+  const roleOptions = (staffRoles || []).map(r => ({ value: r, label: r }));
   const departmentOptions = (departmentsData || []).map(d => ({ value: d, label: d }));
 
   // Handle creating new role
   const handleCreateRole = useCallback(async (newRoleName) => {
-    const result = await createRoleMutation.mutateAsync({ name: newRoleName });
-    const newRole = result?.data || result;
-    return { value: newRole.recordId || newRole.id, label: toTitleCase(newRole.name) };
-  }, [createRoleMutation]);
+    const result = await addStaffRole.mutateAsync(newRoleName);
+    return result; // Returns { value, label } for immediate selection
+  }, [addStaffRole]);
 
   // Handle creating new department
   const handleCreateDepartment = useCallback(async (newDeptName) => {
