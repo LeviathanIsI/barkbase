@@ -53,7 +53,12 @@ const AuthLoader = () => {
   useEffect(() => {
     if (accessToken && !tokenRefreshInitializedRef.current) {
       tokenRefreshInitializedRef.current = true;
-      console.log('[AuthLoader] Initializing proactive token refresh');
+      console.log('[AuthLoader] 🚀 Initializing proactive token refresh');
+      console.log('[AuthLoader] Access token (first 50 chars):', accessToken.substring(0, 50) + '...');
+
+      // Check if refresh token exists
+      const refreshToken = sessionStorage.getItem('barkbase_refresh_token');
+      console.log('[AuthLoader] Refresh token exists:', !!refreshToken);
 
       // Set up token refresh timer
       initTokenRefresh(accessToken, handleTokenRefresh, handleSessionExpired);

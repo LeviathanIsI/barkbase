@@ -154,9 +154,9 @@ export const createAWSClient = (overrideConfig = {}) => {
       return client.handleCallback?.(code);
     },
 
-    async refreshSession() {
+    async refreshSession(params) {
       const client = await this._getClient();
-      return client.refreshSession?.();
+      return client.refreshSession?.(params);
     },
 
     async getIdToken() {

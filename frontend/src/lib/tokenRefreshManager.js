@@ -108,12 +108,13 @@ async function performRefresh() {
 
   const refreshToken = getRefreshToken();
   if (!refreshToken) {
-    console.warn('[TokenRefresh] No refresh token available');
+    console.warn('[TokenRefresh] No refresh token available in sessionStorage');
     return null;
   }
 
   isRefreshing = true;
-  console.log('[TokenRefresh] Refreshing access token...');
+  console.log('[TokenRefresh] 🔄 Starting token refresh with Cognito...');
+  console.log('[TokenRefresh] Refresh token (first 20 chars):', refreshToken.substring(0, 20) + '...');
 
   try {
     const result = await auth.refreshSession({ refreshToken });
@@ -122,14 +123,21 @@ async function performRefresh() {
       throw new Error('No access token in refresh response');
     }
 
-    console.log('[TokenRefresh] Token refreshed successfully');
+    console.log('[TokenRefresh] ✅ Cognito returned new access token');
+    console.log('[TokenRefresh] New token expires in:', result.expiresIn, 'seconds');
     return result.accessToken;
   } catch (error) {
-    console.error('[TokenRefresh] Failed to refresh token:', error);
+    console.error('[TokenRefresh] ❌ Cognito refresh failed:', error);
+    console.error('[TokenRefresh] Error details:', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+    });
 
     // Clear stored tokens and redirect to login
     try {
       sessionStorage.removeItem('barkbase_refresh_token');
+      console.log('[TokenRefresh] Cleared refresh token from sessionStorage');
     } catch {}
 
     return null;
@@ -154,16 +162,26 @@ export function scheduleTokenRefresh(accessToken, onRefreshSuccess, onRefreshFai
   }
 
   const timeUntilExpiry = getTimeUntilExpiry(accessToken);
+  const expiresAt = getTokenExpiration(accessToken);
+
+  console.log('[TokenRefresh] Token info:', {
+    expiresAt: expiresAt ? new Date(expiresAt).toLocaleString() : 'unknown',
+    timeUntilExpiryMs: timeUntilExpiry,
+    timeUntilExpiryMin: Math.round(timeUntilExpiry / 1000 / 60),
+    hasRefreshToken: !!getRefreshToken(),
+  });
 
   if (timeUntilExpiry < 0) {
-    console.log('[TokenRefresh] Token already expired');
+    console.log('[TokenRefresh] Token already expired, attempting immediate refresh');
     // Token already expired, try to refresh immediately
     performRefresh().then((newToken) => {
       if (newToken) {
+        console.log('[TokenRefresh] Immediate refresh succeeded');
         onRefreshSuccess?.(newToken);
         // Schedule next refresh
         scheduleTokenRefresh(newToken, onRefreshSuccess, onRefreshFailure);
       } else {
+        console.log('[TokenRefresh] Immediate refresh failed');
         onRefreshFailure?.();
       }
     });
@@ -174,16 +192,19 @@ export function scheduleTokenRefresh(accessToken, onRefreshSuccess, onRefreshFai
   const refreshIn = Math.max(timeUntilExpiry - REFRESH_BUFFER_MS, MIN_REFRESH_INTERVAL_MS);
 
   const refreshTime = new Date(Date.now() + refreshIn);
-  console.log(`[TokenRefresh] Token expires in ${Math.round(timeUntilExpiry / 1000 / 60)} minutes. Scheduling refresh at ${refreshTime.toLocaleTimeString()}`);
+  console.log(`[TokenRefresh] ⏰ Timer SET: Token expires in ${Math.round(timeUntilExpiry / 1000 / 60)} min. Will refresh at ${refreshTime.toLocaleTimeString()} (in ${Math.round(refreshIn / 1000 / 60)} min)`);
 
   refreshTimerId = setTimeout(async () => {
+    console.log('[TokenRefresh] ⏰ Timer FIRED: Executing scheduled refresh');
     const newToken = await performRefresh();
 
     if (newToken) {
+      console.log('[TokenRefresh] ✅ Scheduled refresh succeeded');
       onRefreshSuccess?.(newToken);
       // Schedule next refresh for the new token
       scheduleTokenRefresh(newToken, onRefreshSuccess, onRefreshFailure);
     } else {
+      console.log('[TokenRefresh] ❌ Scheduled refresh failed');
       onRefreshFailure?.();
     }
   }, refreshIn);
