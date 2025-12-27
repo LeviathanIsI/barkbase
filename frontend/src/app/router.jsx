@@ -183,6 +183,7 @@ const FacilitySettings = lazy(() =>
 const PublicHome = lazy(() => import("@/features/public/routes/Home"));
 const Signup = lazy(() => import("@/features/public/routes/Signup"));
 const VerifyEmail = lazy(() => import("@/features/public/routes/VerifyEmail"));
+const InviteAccept = lazy(() => import("@/features/public/routes/InviteAccept"));
 
 // Placeholder routes for BarkBase features
 // Removed: FeedingMeds and DaycareCheckin - using Tasks feature instead
@@ -238,6 +239,7 @@ export const router = createBrowserRouter([
       { index: true, element: <PublicHome /> },
       { path: "signup", element: <Signup /> },
       { path: "verify-email", element: <VerifyEmail /> },
+      { path: "invite", element: <InviteAccept /> },
       {
         element: <ProtectedRoute />,
         children: [

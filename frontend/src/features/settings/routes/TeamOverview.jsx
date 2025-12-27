@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
   Users, UserPlus, Upload, Clock, TrendingUp, AlertTriangle, CheckCircle,
-  Mail, Loader2, Search
+  Mail, Loader2, Search, Copy, Check, Link
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Avatar from '@/components/ui/Avatar';
@@ -17,6 +17,87 @@ import ShiftCoveragePlanner from './components/ShiftCoveragePlanner';
 import StaffRolesSection from '../components/StaffRolesSection';
 import { apiClient } from '@/lib/apiClient';
 
+/**
+ * InviteSuccessView - Shows the invite link after successful invitation
+ */
+const InviteSuccessView = ({ inviteResult, onClose, onInviteAnother }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteResult.inviteUrl);
+      setCopied(true);
+      toast.success('Invite link copied!');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  };
+
+  const expiresDate = inviteResult.expiresAt
+    ? new Date(inviteResult.expiresAt).toLocaleDateString()
+    : '7 days';
+
+  return (
+    <div className="text-center">
+      <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
+        <CheckCircle className="w-6 h-6 text-green-500" />
+      </div>
+      <h2 className="text-base font-semibold text-text mb-1">Invitation Sent!</h2>
+      <p className="text-sm text-muted mb-4">
+        Share this link with <span className="font-medium text-text">{inviteResult.email}</span>
+      </p>
+
+      {/* Invite Link Box */}
+      <div className="bg-surface-secondary border border-border rounded-lg p-3 mb-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Link className="w-4 h-4 text-muted flex-shrink-0" />
+          <span className="text-xs text-muted">Invite Link</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            readOnly
+            value={inviteResult.inviteUrl}
+            className="flex-1 text-xs bg-transparent border-none outline-none text-text truncate"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCopy}
+            className="flex-shrink-0"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5 mr-1" />
+                Copied
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5 mr-1" />
+                Copy
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      <p className="text-xs text-muted mb-4">
+        This link expires on {expiresDate}
+      </p>
+
+      <div className="flex gap-2 justify-center">
+        <Button variant="ghost" size="sm" onClick={onInviteAnother}>
+          Invite Another
+        </Button>
+        <Button size="sm" onClick={onClose}>
+          Done
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 const TeamOverview = () => {
   const queryClient = useQueryClient();
   const [selectedMembers, setSelectedMembers] = useState([]);
@@ -25,6 +106,7 @@ const TeamOverview = () => {
   const [showShiftPlanner, setShowShiftPlanner] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: '', firstName: '', lastName: '', role: 'STAFF' });
+  const [inviteResult, setInviteResult] = useState(null); // Stores successful invite with URL
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
 
@@ -43,11 +125,21 @@ const TeamOverview = () => {
       const { data } = await apiClient.post('/api/v1/memberships', { data: formData });
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['team-members'] });
-      setShowInviteModal(false);
+      // Store invite result to show the invite link
+      if (data?.invitation?.inviteUrl) {
+        setInviteResult({
+          email: inviteForm.email,
+          inviteUrl: data.invitation.inviteUrl,
+          tenantName: data.invitation.tenantName,
+          expiresAt: data.invitation.expiresAt,
+        });
+      } else {
+        setShowInviteModal(false);
+        toast.success('Team member invited');
+      }
       setInviteForm({ email: '', firstName: '', lastName: '', role: 'STAFF' });
-      toast.success('Team member invited');
     },
     onError: (err) => toast.error(err.message || 'Failed to invite'),
   });
@@ -366,55 +458,70 @@ const TeamOverview = () => {
       {/* Invite Modal */}
       {showInviteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-surface-primary rounded-lg shadow-xl max-w-sm w-full mx-4 p-5">
-            <h2 className="text-base font-semibold text-text mb-4">Invite Team Member</h2>
-            <div className="space-y-3">
-              <Input
-                label="Email"
-                type="email"
-                value={inviteForm.email}
-                onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-                placeholder="colleague@example.com"
+          <div className="bg-surface-primary rounded-lg shadow-xl max-w-md w-full mx-4 p-5">
+            {inviteResult ? (
+              // Success state - show invite link
+              <InviteSuccessView
+                inviteResult={inviteResult}
+                onClose={() => {
+                  setShowInviteModal(false);
+                  setInviteResult(null);
+                }}
+                onInviteAnother={() => setInviteResult(null)}
               />
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="First Name"
-                  value={inviteForm.firstName}
-                  onChange={(e) => setInviteForm({ ...inviteForm, firstName: e.target.value })}
-                  placeholder="John"
-                />
-                <Input
-                  label="Last Name"
-                  value={inviteForm.lastName}
-                  onChange={(e) => setInviteForm({ ...inviteForm, lastName: e.target.value })}
-                  placeholder="Doe"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-text mb-1">Role</label>
-                <StyledSelect
-                  options={[
-                    { value: 'OWNER', label: 'Owner' },
-                    { value: 'ADMIN', label: 'Admin' },
-                    { value: 'STAFF', label: 'Staff' },
-                    { value: 'READONLY', label: 'Read Only' },
-                  ]}
-                  value={inviteForm.role}
-                  onChange={(opt) => setInviteForm({ ...inviteForm, role: opt?.value || 'STAFF' })}
-                  isClearable={false}
-                  isSearchable={false}
-                  menuPortalTarget={document.body}
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 mt-5">
-              <Button variant="ghost" size="sm" onClick={() => setShowInviteModal(false)}>
-                Cancel
-              </Button>
-              <Button size="sm" onClick={handleInvite} disabled={inviteMutation.isPending || !inviteForm.email}>
-                {inviteMutation.isPending ? 'Sending...' : 'Send Invite'}
-              </Button>
-            </div>
+            ) : (
+              // Form state
+              <>
+                <h2 className="text-base font-semibold text-text mb-4">Invite Team Member</h2>
+                <div className="space-y-3">
+                  <Input
+                    label="Email"
+                    type="email"
+                    value={inviteForm.email}
+                    onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                    placeholder="colleague@example.com"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      label="First Name"
+                      value={inviteForm.firstName}
+                      onChange={(e) => setInviteForm({ ...inviteForm, firstName: e.target.value })}
+                      placeholder="John"
+                    />
+                    <Input
+                      label="Last Name"
+                      value={inviteForm.lastName}
+                      onChange={(e) => setInviteForm({ ...inviteForm, lastName: e.target.value })}
+                      placeholder="Doe"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-text mb-1">Role</label>
+                    <StyledSelect
+                      options={[
+                        { value: 'OWNER', label: 'Owner' },
+                        { value: 'ADMIN', label: 'Admin' },
+                        { value: 'STAFF', label: 'Staff' },
+                        { value: 'READONLY', label: 'Read Only' },
+                      ]}
+                      value={inviteForm.role}
+                      onChange={(opt) => setInviteForm({ ...inviteForm, role: opt?.value || 'STAFF' })}
+                      isClearable={false}
+                      isSearchable={false}
+                      menuPortalTarget={document.body}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-5">
+                  <Button variant="ghost" size="sm" onClick={() => setShowInviteModal(false)}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={handleInvite} disabled={inviteMutation.isPending || !inviteForm.email}>
+                    {inviteMutation.isPending ? 'Sending...' : 'Send Invite'}
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
