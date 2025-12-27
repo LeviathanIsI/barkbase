@@ -2768,7 +2768,7 @@ const AddStaffWizard = ({ isOpen, onClose, onComplete }) => {
   const rolesData = rolesResponse?.data || [];
   const toTitleCase = (str) => str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
   const roleOptions = (Array.isArray(rolesData) ? rolesData : []).map(r => ({
-    value: r.record_id || r.id,
+    value: r.recordId || r.id,
     label: toTitleCase(r.name)
   }));
   const departmentOptions = (departmentsData || []).map(d => ({ value: d, label: d }));
@@ -2777,7 +2777,7 @@ const AddStaffWizard = ({ isOpen, onClose, onComplete }) => {
   const handleCreateRole = useCallback(async (newRoleName) => {
     const result = await createRoleMutation.mutateAsync({ name: newRoleName });
     const newRole = result?.data || result;
-    return { value: newRole.record_id || newRole.id, label: toTitleCase(newRole.name) };
+    return { value: newRole.recordId || newRole.id, label: toTitleCase(newRole.name) };
   }, [createRoleMutation]);
 
   // Handle creating new department
