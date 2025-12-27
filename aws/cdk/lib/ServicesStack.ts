@@ -150,9 +150,19 @@ export class ServicesStack extends cdk.Stack {
     // IAM Role for Lambda Functions
     // =========================================================================
 
+    // Lambda execution role with confused deputy prevention
+    // Trust policy restricts role assumption to Lambda functions in this account
+    // matching the barkbase-* naming pattern
     const lambdaRole = new iam.Role(this, 'LambdaExecutionRole', {
       roleName: `${config.stackPrefix}-lambda-role`,
-      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com').withConditions({
+        StringEquals: {
+          'aws:SourceAccount': this.account,
+        },
+        ArnLike: {
+          'aws:SourceArn': `arn:aws:lambda:${config.region}:${this.account}:function:${config.stackPrefix}-*`,
+        },
+      }),
       description: 'Execution role for BarkBase Lambda functions',
       managedPolicies: [
         iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaVPCAccessExecutionRole'),
