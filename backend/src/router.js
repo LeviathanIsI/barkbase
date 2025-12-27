@@ -16,6 +16,7 @@ const ownersRouter = require('./api/owners');
 const staffRouter = require('./api/staff');
 const vaccinationsRouter = require('./api/vaccinations');
 const workflowsRouter = require('./api/workflows');
+const rolesRouter = require('./api/roles');
 const { authMiddleware } = require('./lib/auth');
 const { tenantMiddleware } = require('./lib/tenants');
 
@@ -43,6 +44,7 @@ function createApp() {
   app.use('/api/v1', incidentsRouter);
   app.use('/api/v1', invitesRouter);
   app.use('/api/v1', workflowsRouter);
+  app.use('/api/v1/roles', rolesRouter);
   app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
   });
