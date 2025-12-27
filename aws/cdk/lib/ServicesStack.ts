@@ -160,8 +160,15 @@ export class ServicesStack extends cdk.Stack {
       ],
     });
 
-    // NOTE: No Secrets Manager access needed - DATABASE_URL is set via environment variables
-    // from .env files during deployment
+    // Grant Secrets Manager permissions for reading application secrets
+    // Secrets are stored in barkbase/{env}/secrets
+    lambdaRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['secretsmanager:GetSecretValue'],
+      resources: [
+        `arn:aws:secretsmanager:${config.region}:*:secret:barkbase/${config.env}/secrets-*`,
+      ],
+    }));
 
     // Grant SES permissions for sending emails
     lambdaRole.addToPolicy(new iam.PolicyStatement({
@@ -205,10 +212,8 @@ export class ServicesStack extends cdk.Stack {
 
     const envConfig = dotenv.parse(fs.readFileSync(envFilePath));
 
-    // Validate required environment variables
-    if (!envConfig.DATABASE_URL) {
-      throw new Error(`DATABASE_URL not found in ${envFilePath}`);
-    }
+    // Note: Sensitive secrets (DATABASE_URL, GOOGLE_CLIENT_SECRET, TOKEN_ENCRYPTION_KEY)
+    // are now loaded from AWS Secrets Manager at runtime
 
     const commonEnvironment: Record<string, string> = {
       NODE_ENV: config.env === 'prod' ? 'production' : 'development',
@@ -217,12 +222,11 @@ export class ServicesStack extends cdk.Stack {
       COGNITO_CLIENT_ID: userPoolClientId,
       COGNITO_JWKS_URL: jwksUrl,
       COGNITO_ISSUER_URL: `https://cognito-idp.${config.region}.amazonaws.com/${userPoolId}`,
-      DATABASE_URL: envConfig.DATABASE_URL,
+      // Secrets Manager configuration
+      SECRETS_NAME: `barkbase/${config.env}/secrets`,
       // Google OAuth configuration
       GOOGLE_CLIENT_ID: envConfig.GOOGLE_CLIENT_ID || '',
-      GOOGLE_CLIENT_SECRET: envConfig.GOOGLE_CLIENT_SECRET || '',
       GOOGLE_REDIRECT_URI: envConfig.GOOGLE_REDIRECT_URI || '',
-      TOKEN_ENCRYPTION_KEY: envConfig.TOKEN_ENCRYPTION_KEY || '',
       // Workflow execution engine queue URLs
       WORKFLOW_TRIGGER_QUEUE_URL: this.workflowTriggerQueue.queueUrl,
       WORKFLOW_STEP_QUEUE_URL: this.workflowStepQueue.queueUrl,

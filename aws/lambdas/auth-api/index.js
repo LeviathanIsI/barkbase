@@ -43,6 +43,7 @@ const {
   getAuthConfig,
   encryptToken,
   decryptToken,
+  getGoogleClientSecret,
 } = sharedLayer;
 
 // Cognito SDK for user creation and MFA
@@ -1755,10 +1756,10 @@ Submitted at: ${new Date().toISOString()}
 /**
  * Get Google OAuth configuration from environment
  */
-function getGoogleOAuthConfig() {
+async function getGoogleOAuthConfig() {
   return {
     clientId: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || await getGoogleClientSecret(),
     redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/api/v1/auth/oauth/google/callback',
   };
 }
@@ -1779,7 +1780,7 @@ async function handleGoogleOAuthStart(event) {
     });
   }
 
-  const config = getGoogleOAuthConfig();
+  const config = await getGoogleOAuthConfig();
 
   if (!config.clientId || !config.clientSecret) {
     console.error('[OAuth] Google OAuth not configured');
@@ -1870,7 +1871,7 @@ async function handleGoogleOAuthCallback(event) {
     return createRedirectResponse('/settings/profile?oauth_error=expired');
   }
 
-  const config = getGoogleOAuthConfig();
+  const config = await getGoogleOAuthConfig();
 
   // Exchange code for tokens
   let tokens;

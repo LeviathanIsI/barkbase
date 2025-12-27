@@ -26,6 +26,7 @@ const tierEnforcement = require('./tier-enforcement');
 const workflowEvents = require('./workflow-events');
 const accountResolver = require('./account-resolver');
 const cryptoUtils = require('./crypto-utils');
+const secrets = require('./secrets');
 
 
 /**
@@ -326,4 +327,13 @@ module.exports = {
   decryptToken: cryptoUtils.decryptToken,
   generateEncryptionKey: cryptoUtils.generateEncryptionKey,
   testEncryption: cryptoUtils.testEncryption,
+
+  // Secrets Manager exports
+  secrets,
+  fetchSecrets: secrets.fetchSecrets,
+  getSecret: secrets.getSecret,
+  getDatabaseUrl: secrets.getDatabaseUrl,
+  getGoogleClientSecret: secrets.getGoogleClientSecret,
+  getTokenEncryptionKey: secrets.getTokenEncryptionKey,
+  preloadSecrets: secrets.preloadSecrets,
 };

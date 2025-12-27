@@ -91,7 +91,20 @@ async function getDbCredentials() {
     return cachedCredentials;
   }
 
-  // Priority 3: Secrets Manager (legacy)
+  // Priority 3: Secrets Manager (new consolidated secrets)
+  try {
+    // Try to load secrets helper from shared layer
+    const { getDatabaseUrl } = require('/opt/nodejs/secrets');
+    const databaseUrl = await getDatabaseUrl();
+    cachedCredentials = parseDatabaseUrl(databaseUrl);
+    credentialsFetchTime = now;
+    console.log('[DB] Using DATABASE_URL from Secrets Manager');
+    return cachedCredentials;
+  } catch (secretsError) {
+    console.log('[DB] Secrets helper not available, trying legacy secret ARN');
+  }
+
+  // Priority 4: Secrets Manager (legacy DB_SECRET_ARN)
   const secretArn = process.env.DB_SECRET_ARN;
   if (secretArn) {
     try {
