@@ -65,13 +65,13 @@ const CreatableSelect = React.forwardRef(({
     const trimmedValue = inputValue.trim();
     if (!trimmedValue) return;
 
-    // Check if value already exists (case-insensitive)
+    // Check if label already exists (case-insensitive)
     const exists = options.some(
-      opt => opt.value.toLowerCase() === trimmedValue.toLowerCase()
+      opt => opt.label?.toLowerCase() === trimmedValue.toLowerCase()
     );
     if (exists) {
       const existingOption = options.find(
-        opt => opt.value.toLowerCase() === trimmedValue.toLowerCase()
+        opt => opt.label?.toLowerCase() === trimmedValue.toLowerCase()
       );
       handleChange(existingOption);
       return;
