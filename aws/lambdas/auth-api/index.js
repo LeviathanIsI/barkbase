@@ -274,13 +274,14 @@ async function handleGetMe(event) {
     await getPoolAsync();
     console.log('[AUTH-API] Fetching user from DB for cognito_sub:', user.id);
     // NEW SCHEMA: No role column on User - fetch from UserRole junction
+    // User profile data (first_name, last_name) now in UserSettings table
     // Uses (tenant_id, record_id) composite key
     const result = await query(
       `SELECT
          u.record_id,
          u.email,
-         u.first_name,
-         u.last_name,
+         us.first_name,
+         us.last_name,
          u.tenant_id,
          u.created_at,
          u.updated_at,
@@ -291,6 +292,7 @@ async function handleGetMe(event) {
            ARRAY[]::VARCHAR[]
          ) as roles
        FROM "User" u
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE u.cognito_sub = $1
        LIMIT 1`,
       [user.id]

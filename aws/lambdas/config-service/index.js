@@ -1447,12 +1447,13 @@ async function handleGetTenantConfig(user, event) {
 
     // Look up user and their tenant from database
     // NEW SCHEMA: Tenant has NO settings/theme columns - use TenantSettings table
+    // User profile data (first_name, last_name) now in UserSettings table
     const result = await query(
       `SELECT
          u.record_id as user_id,
          u.email,
-         u.first_name,
-         u.last_name,
+         us.first_name,
+         us.last_name,
          r.name as role,
          u.tenant_id,
          t.id as tenant_record_id,
@@ -1496,6 +1497,7 @@ async function handleGetTenantConfig(user, event) {
          (SELECT COUNT(*) FROM "Service" WHERE tenant_id = t.id) as service_count,
          (SELECT COUNT(*) FROM "Kennel" WHERE tenant_id = t.id) as kennel_count
        FROM "User" u
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        LEFT JOIN "Tenant" t ON u.tenant_id = t.id
        LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
        LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
@@ -2199,14 +2201,15 @@ async function handleGetMemberships(user) {
     }
 
     // Get all users for this tenant with their roles from UserRole junction table
+    // User profile data (first_name, last_name) now in UserSettings table
     console.log('[CONFIG-SERVICE] Querying users for tenant:', tenantId);
     const result = await query(
       `SELECT
          u.record_id,
          u.tenant_id,
          u.email,
-         u.first_name,
-         u.last_name,
+         us.first_name,
+         us.last_name,
          u.cognito_sub,
          u.created_at,
          u.updated_at,
@@ -2214,6 +2217,7 @@ async function handleGetMemberships(user) {
           JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
           WHERE ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id) as roles
        FROM "User" u
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE u.tenant_id = $1
        ORDER BY u.created_at DESC`,
       [tenantId]
@@ -10499,10 +10503,11 @@ async function handleListImports(user, queryParams = {}) {
         i.error_count as "errorCount",
         i.created_at as "createdAt",
         i.completed_at as "completedAt",
-        u.first_name || ' ' || u.last_name as "createdByName",
+        us.first_name || ' ' || us.last_name as "createdByName",
         u.email as "createdByEmail"
       FROM "Import" i
       LEFT JOIN "User" u ON i.tenant_id = u.tenant_id AND i.created_by::text = u.cognito_sub
+      LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
       ${whereClause}
       ORDER BY i.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -10538,10 +10543,11 @@ async function handleGetImportDetail(user, importId) {
     const result = await query(
       `SELECT
         i.*,
-        u.first_name || ' ' || u.last_name as "createdByName",
+        us.first_name || ' ' || us.last_name as "createdByName",
         u.email as "createdByEmail"
       FROM "Import" i
       LEFT JOIN "User" u ON i.tenant_id = u.tenant_id AND i.created_by::text = u.cognito_sub
+      LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
       WHERE i.id = $1 AND i.tenant_id = $2`,
       [importId, ctx.tenantId]
     );
@@ -14111,9 +14117,10 @@ async function handleGetSavedViews(user, objectType) {
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
     const result = await query(
-      `SELECT sv.*, u.first_name, u.last_name, u.email
+      `SELECT sv.*, us.first_name, us.last_name, u.email
        FROM "SavedView" sv
-       LEFT JOIN "User" u ON sv.owner_id = u.record_id
+       LEFT JOIN "User" u ON sv.owner_id = u.record_id AND sv.tenant_id = u.tenant_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
        WHERE sv.tenant_id = $1 AND sv.object_type = $2
        ORDER BY sv.is_admin_promoted DESC, sv.is_default DESC, sv.name`,
       [ctx.tenantId, objectType.toLowerCase()]
