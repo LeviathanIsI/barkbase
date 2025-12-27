@@ -14,32 +14,54 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    id: "account",
-    title: "Account Management",
+    id: "business",
+    title: "Business",
     items: [
-      { label: "Account Defaults", to: "/settings/account" },
+      { label: "Business Info", to: "/settings/account" },
       { label: "Users & Teams", to: "/settings/team" },
       { label: "Integrations", to: "/settings/integrations" },
-      { label: "Branding", to: "/settings/branding" },
       { label: "Domain & SSL", to: "/settings/domain" },
       { label: "Feature Toggles", to: "/settings/feature-toggles" },
     ],
   },
   {
-    id: "facility",
-    title: "Facility & Services",
+    id: "appearance",
+    title: "Appearance",
     items: [
-      { label: "Facility Setup", to: "/settings/facility" },
-      { label: "Services & Pricing", to: "/settings/services" },
-      { label: "Online Booking", to: "/settings/online-booking" },
+      { label: "Branding", to: "/settings/branding" },
+      { label: "Terminology", to: "/settings/terminology" },
     ],
   },
   {
-    id: "scheduling",
-    title: "Scheduling",
+    id: "operations",
+    title: "Operations",
     items: [
-      { label: "Calendar Settings", to: "/settings/calendar-settings" },
+      { label: "Facility Setup", to: "/settings/facility" },
+      { label: "Services & Pricing", to: "/settings/services" },
       { label: "Booking Rules", to: "/settings/booking-config" },
+      { label: "Online Booking", to: "/settings/online-booking" },
+      { label: "Calendar Settings", to: "/settings/calendar-settings" },
+    ],
+  },
+  {
+    id: "data",
+    title: "Data",
+    items: [
+      {
+        label: "Custom Fields",
+        isExpandable: true,
+        children: [
+          { label: "Pets", to: "/settings/objects/pets" },
+          { label: "Owners", to: "/settings/objects/owners" },
+          { label: "Bookings", to: "/settings/objects/bookings" },
+          { label: "Invoices", to: "/settings/objects/invoices" },
+          { label: "Payments", to: "/settings/objects/payments" },
+        ],
+      },
+      { label: "Forms", to: "/settings/forms" },
+      { label: "Documents", to: "/settings/documents" },
+      { label: "Files", to: "/settings/files" },
+      { label: "Import & Export", to: "/settings/import-export" },
     ],
   },
   {
@@ -58,34 +80,18 @@ const NAV_SECTIONS = [
     items: [
       { label: "Email Templates", to: "/settings/email" },
       { label: "SMS Settings", to: "/settings/sms" },
+    ],
+  },
+  {
+    id: "automation",
+    title: "Automation",
+    items: [
       { label: "Notification Triggers", to: "/settings/communication-notifications" },
     ],
   },
   {
-    id: "data",
-    title: "Data Management",
-    items: [
-      { label: "Properties", to: "/settings/properties" },
-      {
-        label: "Objects",
-        isExpandable: true,
-        children: [
-          { label: "Pets", to: "/settings/objects/pets" },
-          { label: "Owners", to: "/settings/objects/owners" },
-          { label: "Bookings", to: "/settings/objects/bookings" },
-          { label: "Invoices", to: "/settings/objects/invoices" },
-          { label: "Payments", to: "/settings/objects/payments" },
-        ],
-      },
-      { label: "Forms", to: "/settings/forms" },
-      { label: "Documents", to: "/settings/documents" },
-      { label: "Files", to: "/settings/files" },
-      { label: "Import & Export", to: "/settings/import-export" },
-    ],
-  },
-  {
     id: "compliance",
-    title: "Compliance",
+    title: "Compliance & Legal",
     items: [
       { label: "Audit Log", to: "/settings/audit-log" },
       { label: "Privacy Settings", to: "/settings/privacy" },
@@ -97,7 +103,7 @@ const NAV_SECTIONS = [
 const SettingsSidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [expandedItems, setExpandedItems] = useState({ Objects: true });
+  const [expandedItems, setExpandedItems] = useState({ "Custom Fields": true });
 
   const toggleExpanded = (itemLabel) => {
     setExpandedItems((prev) => ({
@@ -154,7 +160,7 @@ const SettingsSidebar = () => {
             {/* Section Items */}
             <div className="space-y-0.5">
               {section.items.map((item) => {
-                // Handle expandable items (like Objects)
+                // Handle expandable items (like Custom Fields)
                 if (item.isExpandable && item.children) {
                   const isExpanded = expandedItems[item.label];
                   const hasActiveChild = item.children.some(
