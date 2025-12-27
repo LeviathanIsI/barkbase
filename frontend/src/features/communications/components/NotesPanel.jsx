@@ -7,13 +7,13 @@ import Badge from '@/components/ui/Badge';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  useEntityNotes, 
-  useCreateNote, 
-  useUpdateNote, 
-  useDeleteNote, 
+import {
+  useEntityNotes,
+  useCreateNote,
+  useUpdateNote,
+  useDeleteNote,
   useToggleNotePin,
-  useNoteCategories 
+  useNoteCategories
 } from '../api';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
@@ -27,7 +27,7 @@ const visibilityColors = {
 const NoteItem = ({ note, onEdit, onDelete }) => {
   const { user } = useAuth();
   const togglePin = useToggleNotePin();
-  
+
   const isAuthor = note.author.recordId === user?.recordId;
   const canEdit = isAuthor || user?.role === 'ADMIN' || user?.role === 'OWNER';
 
@@ -44,7 +44,7 @@ const NoteItem = ({ note, onEdit, onDelete }) => {
             </Badge>
           )}
         </div>
-        
+
         <div className="flex items-center gap-1">
           <button
             onClick={() => togglePin.mutate(note.recordId)}
@@ -53,7 +53,7 @@ const NoteItem = ({ note, onEdit, onDelete }) => {
           >
             <Pin className="w-4 h-4" />
           </button>
-          
+
           {isAuthor && (
             <button
               onClick={() => onEdit(note)}
@@ -63,7 +63,7 @@ const NoteItem = ({ note, onEdit, onDelete }) => {
               <Edit2 className="w-4 h-4" />
             </button>
           )}
-          
+
           {canEdit && (
             <button
               onClick={() => onDelete(note)}
@@ -75,9 +75,9 @@ const NoteItem = ({ note, onEdit, onDelete }) => {
           )}
         </div>
       </div>
-      
+
       <p className="text-sm text-text whitespace-pre-wrap">{note.content}</p>
-      
+
       <div className="mt-3 flex items-center justify-between text-xs text-text-muted">
         <span>{note.author.name || note.author.email}</span>
         <span>{format(new Date(note.createdAt), 'MMM d, yyyy h:mm a')}</span>
@@ -90,14 +90,14 @@ const NoteForm = ({ entityType, entityId, note, onClose }) => {
   const [content, setContent] = useState(note?.content || '');
   const [category, setCategory] = useState(note?.category || '');
   const [visibility, setVisibility] = useState(note?.visibility || 'ALL');
-  
+
   const createNote = useCreateNote();
   const updateNote = useUpdateNote();
   const { data: categories } = useNoteCategories();
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       if (note) {
         await updateNote.mutateAsync({
@@ -131,7 +131,7 @@ const NoteForm = ({ entityType, entityId, note, onClose }) => {
         required
         placeholder="Add your note..."
       />
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">
@@ -151,25 +151,27 @@ const NoteForm = ({ entityType, entityId, note, onClose }) => {
             ))}
           </datalist>
         </div>
-        
+
         <Select
           label="Visibility"
           value={visibility}
           onChange={(e) => setVisibility(e.target.value)}
-        >
-          <option value="ALL">All Staff</option>
-          <option value="STAFF">Staff Only</option>
-          <option value="ADMIN">Admin Only</option>
-          <option value="PRIVATE">Private</option>
-        </Select>
+          options={[
+            { value: 'ALL', label: 'All Staff' },
+            { value: 'STAFF', label: 'Staff Only' },
+            { value: 'ADMIN', label: 'Admin Only' },
+            { value: 'PRIVATE', label: 'Private' },
+          ]}
+          menuPortalTarget={document.body}
+        />
       </div>
-      
+
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onClose}>
           Cancel
         </Button>
-        <Button 
-          type="submit" 
+        <Button
+          type="submit"
           loading={createNote.isPending || updateNote.isPending}
         >
           {note ? 'Update Note' : 'Add Note'}
@@ -183,11 +185,11 @@ export default function NotesPanel({ entityType, entityId }) {
   const [showForm, setShowForm] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [filterVisibility, setFilterVisibility] = useState('');
-  
+
   const { data: notes, isLoading } = useEntityNotes(entityType, entityId, {
     visibility: filterVisibility || undefined,
   });
-  
+
   const deleteNote = useDeleteNote();
 
   const handleDelete = async (note) => {
@@ -212,20 +214,22 @@ export default function NotesPanel({ entityType, entityId }) {
     <Card>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-text">Notes</h3>
-        
+
         <div className="flex items-center gap-2">
           <Select
             value={filterVisibility}
             onChange={(e) => setFilterVisibility(e.target.value)}
             className="w-32"
-          >
-            <option value="">All</option>
-            <option value="ALL">All Staff</option>
-            <option value="STAFF">Staff Only</option>
-            <option value="ADMIN">Admin Only</option>
-            <option value="PRIVATE">Private</option>
-          </Select>
-          
+            options={[
+              { value: '', label: 'All' },
+              { value: 'ALL', label: 'All Staff' },
+              { value: 'STAFF', label: 'Staff Only' },
+              { value: 'ADMIN', label: 'Admin Only' },
+              { value: 'PRIVATE', label: 'Private' },
+            ]}
+            menuPortalTarget={document.body}
+          />
+
           <Button
             size="sm"
             leftIcon={<Plus className="w-4 h-4" />}
@@ -238,7 +242,7 @@ export default function NotesPanel({ entityType, entityId }) {
           </Button>
         </div>
       </div>
-      
+
       {(showForm || editingNote) && (
         <div className="mb-4 p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
           <NoteForm
@@ -252,7 +256,7 @@ export default function NotesPanel({ entityType, entityId }) {
           />
         </div>
       )}
-      
+
       <div className="space-y-3">
         {notes?.length === 0 ? (
           <p className="text-center py-8 text-text-secondary">No notes yet</p>
@@ -273,4 +277,3 @@ export default function NotesPanel({ entityType, entityId }) {
     </Card>
   );
 }
-

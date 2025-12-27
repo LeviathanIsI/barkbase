@@ -102,13 +102,12 @@ export default function SegmentForm({ segment, onClose }) {
                 label="Segment Type"
                 value={segmentType}
                 onChange={(e) => setSegmentType(e.target.value)}
-              >
-                {automaticSegmentTypes.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.label} - {type.description}
-                  </option>
-                ))}
-              </Select>
+                options={automaticSegmentTypes.map((type) => ({
+                  value: type.value,
+                  label: `${type.label} - ${type.description}`,
+                }))}
+                menuPortalTarget={document.body}
+              />
               
               {segmentType === 'vip' && (
                 <Input

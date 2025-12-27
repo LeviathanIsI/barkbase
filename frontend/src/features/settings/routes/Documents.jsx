@@ -231,13 +231,12 @@ const Documents = () => {
             <Select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-            >
-              {CATEGORIES.map(cat => (
-                <option key={cat.value} value={cat.value}>
-                  {cat.label} ({categoryCounts[cat.value] || 0})
-                </option>
-              ))}
-            </Select>
+              options={CATEGORIES.map(cat => ({
+                value: cat.value,
+                label: `${cat.label} (${categoryCounts[cat.value] || 0})`,
+              }))}
+              menuPortalTarget={document.body}
+            />
           </div>
 
           {/* Sort */}
@@ -245,11 +244,13 @@ const Documents = () => {
             <Select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-            >
-              <option value="date">Newest First</option>
-              <option value="name">Name (A-Z)</option>
-              <option value="size">Largest First</option>
-            </Select>
+              options={[
+                { value: 'date', label: 'Newest First' },
+                { value: 'name', label: 'Name (A-Z)' },
+                { value: 'size', label: 'Largest First' },
+              ]}
+              menuPortalTarget={document.body}
+            />
           </div>
 
           <Button variant="ghost" onClick={() => { fetchDocuments(); fetchStats(); }} disabled={isLoading}>

@@ -326,13 +326,12 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
               <Select
                 value={formData.group}
                 onChange={(e) => handleGroupChange(e.target.value)}
-              >
-                {PROPERTY_GROUPS.map((group) => (
-                  <option key={group.value} value={group.value}>
-                    {group.label}
-                  </option>
-                ))}
-              </Select>
+                options={PROPERTY_GROUPS.map((group) => ({
+                  value: group.value,
+                  label: group.label,
+                }))}
+                menuPortalTarget={document.body}
+              />
             </FormField>
 
             <FormField label="Description">
@@ -500,25 +499,29 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
                   <Select
                     value={rollupConfig.associatedObject}
                     onChange={(e) => setRollupConfig({ ...rollupConfig, associatedObject: e.target.value })}
-                  >
-                    <option value="">Select object...</option>
-                    <option value="pets">Pets</option>
-                    <option value="owners">Owners</option>
-                    <option value="bookings">Bookings</option>
-                    <option value="invoices">Invoices</option>
-                  </Select>
+                    options={[
+                      { value: '', label: 'Select object...' },
+                      { value: 'pets', label: 'Pets' },
+                      { value: 'owners', label: 'Owners' },
+                      { value: 'bookings', label: 'Bookings' },
+                      { value: 'invoices', label: 'Invoices' },
+                    ]}
+                    menuPortalTarget={document.body}
+                  />
                 </FormField>
                 <FormField label="Rollup type">
                   <Select
                     value={rollupConfig.rollupType}
                     onChange={(e) => setRollupConfig({ ...rollupConfig, rollupType: e.target.value })}
-                  >
-                    <option value="count">Count</option>
-                    <option value="sum">Sum</option>
-                    <option value="average">Average</option>
-                    <option value="min">Minimum</option>
-                    <option value="max">Maximum</option>
-                  </Select>
+                    options={[
+                      { value: 'count', label: 'Count' },
+                      { value: 'sum', label: 'Sum' },
+                      { value: 'average', label: 'Average' },
+                      { value: 'min', label: 'Minimum' },
+                      { value: 'max', label: 'Maximum' },
+                    ]}
+                    menuPortalTarget={document.body}
+                  />
                 </FormField>
               </div>
             )}
@@ -530,13 +533,15 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
                   <Select
                     value={syncConfig.associatedObject}
                     onChange={(e) => setSyncConfig({ ...syncConfig, associatedObject: e.target.value })}
-                  >
-                    <option value="">Select object...</option>
-                    <option value="pets">Pets</option>
-                    <option value="owners">Owners</option>
-                    <option value="bookings">Bookings</option>
-                    <option value="invoices">Invoices</option>
-                  </Select>
+                    options={[
+                      { value: '', label: 'Select object...' },
+                      { value: 'pets', label: 'Pets' },
+                      { value: 'owners', label: 'Owners' },
+                      { value: 'bookings', label: 'Bookings' },
+                      { value: 'invoices', label: 'Invoices' },
+                    ]}
+                    menuPortalTarget={document.body}
+                  />
                 </FormField>
                 <div className="p-[var(--bb-space-3)] rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-accent-soft)] border border-[var(--bb-color-accent)]/30">
                   <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
@@ -553,11 +558,13 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
                   <Select
                     value={fileConfig.viewPermission}
                     onChange={(e) => setFileConfig({ ...fileConfig, viewPermission: e.target.value })}
-                  >
-                    <option value="all">All users</option>
-                    <option value="owners">Record owners only</option>
-                    <option value="admins">Admins only</option>
-                  </Select>
+                    options={[
+                      { value: 'all', label: 'All users' },
+                      { value: 'owners', label: 'Record owners only' },
+                      { value: 'admins', label: 'Admins only' },
+                    ]}
+                    menuPortalTarget={document.body}
+                  />
                 </FormField>
                 <div className="p-[var(--bb-space-3)] rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]">
                   <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">

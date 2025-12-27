@@ -236,13 +236,15 @@ const Services = () => {
             label="Category"
             value={formData.category}
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-          >
-            <option value="BOARDING">Boarding</option>
-            <option value="DAYCARE">Daycare</option>
-            <option value="GROOMING">Grooming</option>
-            <option value="TRAINING">Training</option>
-            <option value="OTHER">Other</option>
-          </Select>
+            options={[
+              { value: 'BOARDING', label: 'Boarding' },
+              { value: 'DAYCARE', label: 'Daycare' },
+              { value: 'GROOMING', label: 'Grooming' },
+              { value: 'TRAINING', label: 'Training' },
+              { value: 'OTHER', label: 'Other' },
+            ]}
+            menuPortalTarget={document.body}
+          />
 
           <label className="flex items-center gap-2">
             <input

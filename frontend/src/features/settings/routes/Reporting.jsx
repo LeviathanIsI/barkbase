@@ -121,11 +121,13 @@ const Reporting = () => {
             <Select
               value={settings.format}
               onChange={(e) => updateSetting('format', e.target.value)}
-            >
-              <option value="pdf">PDF Document</option>
-              <option value="excel">Excel Spreadsheet</option>
-              <option value="csv">CSV File</option>
-            </Select>
+              options={[
+                { value: 'pdf', label: 'PDF Document' },
+                { value: 'excel', label: 'Excel Spreadsheet' },
+                { value: 'csv', label: 'CSV File' },
+              ]}
+              menuPortalTarget={document.body}
+            />
           </div>
 
           <div className="space-y-2">

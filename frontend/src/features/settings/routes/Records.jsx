@@ -125,13 +125,15 @@ const Records = () => {
             <Select
               value={settings.recordRetention}
               onChange={(e) => updateSetting('recordRetention', e.target.value)}
-            >
-              <option value="one-year">1 Year</option>
-              <option value="three-years">3 Years</option>
-              <option value="five-years">5 Years</option>
-              <option value="seven-years">7 Years</option>
-              <option value="indefinite">Indefinite</option>
-            </Select>
+              options={[
+                { value: 'one-year', label: '1 Year' },
+                { value: 'three-years', label: '3 Years' },
+                { value: 'five-years', label: '5 Years' },
+                { value: 'seven-years', label: '7 Years' },
+                { value: 'indefinite', label: 'Indefinite' },
+              ]}
+              menuPortalTarget={document.body}
+            />
             <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
               Medical records may have legal retention requirements
             </p>
@@ -217,12 +219,14 @@ const Records = () => {
               <Select
                 value={settings.backupFrequency}
                 onChange={(e) => updateSetting('backupFrequency', e.target.value)}
-              >
-                <option value="hourly">Hourly</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </Select>
+                options={[
+                  { value: 'hourly', label: 'Hourly' },
+                  { value: 'daily', label: 'Daily' },
+                  { value: 'weekly', label: 'Weekly' },
+                  { value: 'monthly', label: 'Monthly' },
+                ]}
+                menuPortalTarget={document.body}
+              />
             </div>
           )}
 

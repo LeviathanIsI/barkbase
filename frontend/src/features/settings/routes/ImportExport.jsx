@@ -536,24 +536,28 @@ const ImportExport = () => {
                 value={entityTypeFilter}
                 onChange={(e) => setEntityTypeFilter(e.target.value)}
                 className="w-36"
-              >
-                <option value="">All Types</option>
-                <option value="owners">Owners</option>
-                <option value="pets">Pets</option>
-                <option value="bookings">Bookings</option>
-                <option value="vaccinations">Vaccinations</option>
-                <option value="services">Services</option>
-                <option value="staff">Staff</option>
-              </Select>
+                options={[
+                  { value: '', label: 'All Types' },
+                  { value: 'owners', label: 'Owners' },
+                  { value: 'pets', label: 'Pets' },
+                  { value: 'bookings', label: 'Bookings' },
+                  { value: 'vaccinations', label: 'Vaccinations' },
+                  { value: 'services', label: 'Services' },
+                  { value: 'staff', label: 'Staff' },
+                ]}
+                menuPortalTarget={document.body}
+              />
               <Select
                 value={hasErrorsFilter}
                 onChange={(e) => setHasErrorsFilter(e.target.value)}
                 className="w-36"
-              >
-                <option value="">All Status</option>
-                <option value="false">No Errors</option>
-                <option value="true">Has Errors</option>
-              </Select>
+                options={[
+                  { value: '', label: 'All Status' },
+                  { value: 'false', label: 'No Errors' },
+                  { value: 'true', label: 'Has Errors' },
+                ]}
+                menuPortalTarget={document.body}
+              />
               <Button variant="ghost" size="sm" onClick={() => refetchImports()} disabled={isLoadingImports}>
                 <RefreshCw className={cn("h-4 w-4", isLoadingImports && "animate-spin")} />
               </Button>

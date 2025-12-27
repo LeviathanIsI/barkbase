@@ -93,11 +93,13 @@ export default function CommunicationForm({ ownerId, onSuccess, onCancel }) {
           <Select
             label="Call Direction"
             {...register('metadata.callDirection')}
-          >
-            <option value="outbound">Outbound</option>
-            <option value="inbound">Inbound</option>
-          </Select>
-          
+            options={[
+              { value: 'outbound', label: 'Outbound' },
+              { value: 'inbound', label: 'Inbound' },
+            ]}
+            menuPortalTarget={document.body}
+          />
+
           <Input
             label="Duration (minutes)"
             type="number"

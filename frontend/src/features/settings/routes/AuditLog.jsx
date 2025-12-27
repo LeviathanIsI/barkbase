@@ -321,25 +321,17 @@ const AuditLog = () => {
                 value={filters.group}
                 onChange={handleFilterChange('group')}
                 aria-label="Filter audit log by category"
-              >
-                {GROUP_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
+                options={GROUP_OPTIONS}
+                menuPortalTarget={document.body}
+              />
               <Select
                 label="Timeframe"
                 value={filters.timeframe}
                 onChange={handleFilterChange('timeframe')}
                 aria-label="Filter audit log by timeframe"
-              >
-                {TIMEFRAME_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
+                options={TIMEFRAME_OPTIONS}
+                menuPortalTarget={document.body}
+              />
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-muted">
               <span>

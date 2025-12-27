@@ -399,19 +399,17 @@ const KennelDetailPanel = ({
             value={assignForm.bookingId}
             onChange={(e) => setAssignForm({ ...assignForm, bookingId: e.target.value })}
             required
-          >
-            <option value="">Select a booking...</option>
-            {availableBookings.map((b) => {
-              const id = b.recordId || b.bookingId || b.id;
-              const petName = b.pet?.name || b.petName || 'Unknown Pet';
-              const ownerName = b.owner?.name || b.ownerName || '';
-              return (
-                <option key={id} value={id}>
-                  {petName}{ownerName ? ` (${ownerName})` : ''}
-                </option>
-              );
-            })}
-          </Select>
+            options={[
+              { value: '', label: 'Select a booking...' },
+              ...availableBookings.map((b) => {
+                const id = b.recordId || b.bookingId || b.id;
+                const petName = b.pet?.name || b.petName || 'Unknown Pet';
+                const ownerName = b.owner?.name || b.ownerName || '';
+                return { value: id, label: `${petName}${ownerName ? ` (${ownerName})` : ''}` };
+              }),
+            ]}
+            menuPortalTarget={document.body}
+          />
           <div className="grid gap-3 grid-cols-2">
             <Input
               label="Start Date"
@@ -455,27 +453,29 @@ const KennelDetailPanel = ({
             value={moveForm.segmentId}
             onChange={(e) => setMoveForm({ ...moveForm, segmentId: e.target.value })}
             required
-          >
-            <option value="">Select a pet...</option>
-            {currentOccupants.map((seg) => (
-              <option key={seg.segmentId || seg.recordId} value={seg.segmentId || seg.recordId}>
-                {seg.petName || 'Unknown Pet'}
-              </option>
-            ))}
-          </Select>
+            options={[
+              { value: '', label: 'Select a pet...' },
+              ...currentOccupants.map((seg) => ({
+                value: seg.segmentId || seg.recordId,
+                label: seg.petName || 'Unknown Pet',
+              })),
+            ]}
+            menuPortalTarget={document.body}
+          />
           <Select
             label="Move to Kennel"
             value={moveForm.kennelId}
             onChange={(e) => setMoveForm({ ...moveForm, kennelId: e.target.value })}
             required
-          >
-            <option value="">Select target kennel...</option>
-            {availableKennels.map((k) => (
-              <option key={k.recordId} value={k.recordId}>
-                {k.name} ({k.occupied || 0}/{k.capacity || 1})
-              </option>
-            ))}
-          </Select>
+            options={[
+              { value: '', label: 'Select target kennel...' },
+              ...availableKennels.map((k) => ({
+                value: k.recordId,
+                label: `${k.name} (${k.occupied || 0}/${k.capacity || 1})`,
+              })),
+            ]}
+            menuPortalTarget={document.body}
+          />
           <div className="flex gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={() => setActiveView('details')} className="flex-1">
               Cancel

@@ -519,14 +519,15 @@ const CreateInvoiceDrawer = ({ isOpen, onClose, onSuccess }) => {
             value={form.ownerId}
             onChange={(e) => setForm(prev => ({ ...prev, ownerId: e.target.value }))}
             required
-          >
-            <option value="">Select a customer...</option>
-            {owners.map((owner) => (
-              <option key={owner.recordId || owner.id} value={owner.recordId || owner.id}>
-                {owner.firstName} {owner.lastName} {owner.email ? `(${owner.email})` : ''}
-              </option>
-            ))}
-          </Select>
+            options={[
+              { value: '', label: 'Select a customer...' },
+              ...owners.map((owner) => ({
+                value: owner.recordId || owner.id,
+                label: `${owner.firstName} ${owner.lastName}${owner.email ? ` (${owner.email})` : ''}`,
+              })),
+            ]}
+            menuPortalTarget={document.body}
+          />
         </div>
 
         {/* Due Date */}
