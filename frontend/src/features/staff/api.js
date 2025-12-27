@@ -173,63 +173,51 @@ export const useDeleteStaffMutation = () => {
 };
 
 // ============================================================================
-// STAFF ROLES
+// STAFF ROLES (from Role table)
 // ============================================================================
 
 /**
- * Fetch staff roles from TenantSettings
+ * Fetch staff roles from Role table
  */
-export const useStaffRoles = () => {
+export const useStaffRolesQuery = () => {
   const tenantKey = useTenantKey();
   const isTenantReady = useTenantReady();
 
   return useQuery({
-    queryKey: ['staffRoles', tenantKey],
+    queryKey: ['roles', tenantKey],
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/config/staff-roles');
-        return res.data?.staffRoles || [];
+        const res = await apiClient.get('/api/v1/roles');
+        const roles = res.data?.data || res.data?.roles || res.data || [];
+        return Array.isArray(roles) ? roles : [];
       } catch (e) {
-        console.warn('[staffRoles] Error:', e?.message);
+        console.warn('[roles] Error:', e?.message);
         return [];
       }
     },
-    staleTime: 10 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
     enabled: isTenantReady,
   });
 };
 
 /**
- * Add a new staff role to TenantSettings
+ * Create a new role in Role table
  */
-export const useAddStaffRole = () => {
+export const useCreateRole = () => {
   const tenantKey = useTenantKey();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (newRole) => {
-      const currentRoles = queryClient.getQueryData(['staffRoles', tenantKey]) || [];
-
-      const exists = currentRoles.some(
-        r => r.toLowerCase() === newRole.toLowerCase()
-      );
-      if (exists) {
-        throw new Error(`Role "${newRole}" already exists`);
-      }
-
-      const updatedRoles = [...currentRoles, newRole];
-      await apiClient.put('/api/v1/config/staff-roles', { staffRoles: updatedRoles });
-
-      return { value: newRole, label: newRole };
+    mutationFn: async (roleName) => {
+      const res = await apiClient.post('/api/v1/roles', { name: roleName });
+      const newRole = res.data?.data || res.data;
+      return { value: newRole.record_id || newRole.id, label: newRole.name };
     },
-    onSuccess: (_, newRole) => {
-      queryClient.setQueryData(['staffRoles', tenantKey], (oldRoles = []) => {
-        if (oldRoles.includes(newRole)) return oldRoles;
-        return [...oldRoles, newRole];
-      });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles', tenantKey] });
     },
     onError: (error) => {
-      console.error('[staffRoles] Add failed:', error?.message);
+      console.error('[roles] Create failed:', error?.message);
     },
   });
 };

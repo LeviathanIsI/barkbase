@@ -73,8 +73,8 @@ import CreatableSelect from '@/components/ui/CreatableSelect';
 import LoadingState from '@/components/ui/LoadingState';
 import { useStaffQuery } from '../../settings/api';
 import {
-  useStaffRoles as useStaffRolesApi,
-  useAddStaffRole,
+  useStaffRolesQuery,
+  useCreateRole,
   useDepartments,
   useAddDepartment,
 } from '../api';
@@ -2759,20 +2759,23 @@ const AddStaffWizard = ({ isOpen, onClose, onComplete }) => {
   });
 
   // Fetch roles and departments from API
-  const { data: staffRolesData, isLoading: rolesLoading } = useStaffRolesApi();
+  const { data: rolesData, isLoading: rolesLoading } = useStaffRolesQuery();
   const { data: departmentsData, isLoading: departmentsLoading } = useDepartments();
-  const addStaffRole = useAddStaffRole();
+  const createRole = useCreateRole();
   const addDepartment = useAddDepartment();
 
   // Convert to options format for CreatableSelect
-  const roleOptions = (staffRolesData || []).map(r => ({ value: r, label: r }));
+  const roleOptions = (rolesData || []).map(r => ({
+    value: r.record_id || r.id,
+    label: r.name
+  }));
   const departmentOptions = (departmentsData || []).map(d => ({ value: d, label: d }));
 
   // Handle creating new role
   const handleCreateRole = useCallback(async (newRoleName) => {
-    const result = await addStaffRole.mutateAsync(newRoleName);
+    const result = await createRole.mutateAsync(newRoleName);
     return result;
-  }, [addStaffRole]);
+  }, [createRole]);
 
   // Handle creating new department
   const handleCreateDepartment = useCallback(async (newDeptName) => {
