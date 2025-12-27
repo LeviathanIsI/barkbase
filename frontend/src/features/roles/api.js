@@ -57,15 +57,16 @@ export const useCreateRole = () => {
   return useMutation({
     mutationFn: roleApi.create,
     onSuccess: (response) => {
+      const newRole = response?.data || response;
       // Immediately update the cache with the new role for instant UI update
-      queryClient.setQueriesData({ queryKey: roleKeys.lists() }, (oldData) => {
-        if (!oldData?.data) return oldData;
-        const newRole = response?.data || response;
-        return {
-          ...oldData,
-          data: [...oldData.data, newRole],
-        };
-      });
+      // Use exact query key that useRoles({}) uses
+      const currentData = queryClient.getQueryData(roleKeys.list({}));
+      if (currentData?.data) {
+        queryClient.setQueryData(roleKeys.list({}), {
+          ...currentData,
+          data: [...currentData.data, newRole],
+        });
+      }
       // Also invalidate to ensure consistency with server
       queryClient.invalidateQueries({ queryKey: roleKeys.lists() });
       toast.success('Role created successfully');
