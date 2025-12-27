@@ -171,3 +171,127 @@ export const useDeleteStaffMutation = () => {
     },
   });
 };
+
+// ============================================================================
+// STAFF ROLES
+// ============================================================================
+
+/**
+ * Fetch staff roles from TenantSettings
+ */
+export const useStaffRoles = () => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['staffRoles', tenantKey],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get('/api/v1/config/staff-roles');
+        return res.data?.staffRoles || [];
+      } catch (e) {
+        console.warn('[staffRoles] Error:', e?.message);
+        return [];
+      }
+    },
+    staleTime: 10 * 60 * 1000,
+    enabled: isTenantReady,
+  });
+};
+
+/**
+ * Add a new staff role to TenantSettings
+ */
+export const useAddStaffRole = () => {
+  const tenantKey = useTenantKey();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (newRole) => {
+      const currentRoles = queryClient.getQueryData(['staffRoles', tenantKey]) || [];
+
+      const exists = currentRoles.some(
+        r => r.toLowerCase() === newRole.toLowerCase()
+      );
+      if (exists) {
+        throw new Error(`Role "${newRole}" already exists`);
+      }
+
+      const updatedRoles = [...currentRoles, newRole];
+      await apiClient.put('/api/v1/config/staff-roles', { staffRoles: updatedRoles });
+
+      return { value: newRole, label: newRole };
+    },
+    onSuccess: (_, newRole) => {
+      queryClient.setQueryData(['staffRoles', tenantKey], (oldRoles = []) => {
+        if (oldRoles.includes(newRole)) return oldRoles;
+        return [...oldRoles, newRole];
+      });
+    },
+    onError: (error) => {
+      console.error('[staffRoles] Add failed:', error?.message);
+    },
+  });
+};
+
+// ============================================================================
+// DEPARTMENTS
+// ============================================================================
+
+/**
+ * Fetch departments from TenantSettings
+ */
+export const useDepartments = () => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['departments', tenantKey],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get('/api/v1/config/departments');
+        return res.data?.departments || [];
+      } catch (e) {
+        console.warn('[departments] Error:', e?.message);
+        return [];
+      }
+    },
+    staleTime: 10 * 60 * 1000,
+    enabled: isTenantReady,
+  });
+};
+
+/**
+ * Add a new department to TenantSettings
+ */
+export const useAddDepartment = () => {
+  const tenantKey = useTenantKey();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (newDepartment) => {
+      const currentDepartments = queryClient.getQueryData(['departments', tenantKey]) || [];
+
+      const exists = currentDepartments.some(
+        d => d.toLowerCase() === newDepartment.toLowerCase()
+      );
+      if (exists) {
+        throw new Error(`Department "${newDepartment}" already exists`);
+      }
+
+      const updatedDepartments = [...currentDepartments, newDepartment];
+      await apiClient.put('/api/v1/config/departments', { departments: updatedDepartments });
+
+      return { value: newDepartment, label: newDepartment };
+    },
+    onSuccess: (_, newDepartment) => {
+      queryClient.setQueryData(['departments', tenantKey], (oldDepartments = []) => {
+        if (oldDepartments.includes(newDepartment)) return oldDepartments;
+        return [...oldDepartments, newDepartment];
+      });
+    },
+    onError: (error) => {
+      console.error('[departments] Add failed:', error?.message);
+    },
+  });
+};

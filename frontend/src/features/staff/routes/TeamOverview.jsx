@@ -3,7 +3,7 @@
  * Modeled after Deputy, WhenIWork, Homebase, BambooHR,  Teams
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format, addDays, startOfWeek } from 'date-fns';
 import {
@@ -68,9 +68,16 @@ import Badge from '@/components/ui/Badge';
 import SlidePanel from '@/components/ui/SlidePanel';
 import Modal from '@/components/ui/Modal';
 import StyledSelect from '@/components/ui/StyledSelect';
+import CreatableSelect from '@/components/ui/CreatableSelect';
 // Unified loader: replaced inline loading with LoadingState
 import LoadingState from '@/components/ui/LoadingState';
 import { useStaffQuery } from '../../settings/api';
+import {
+  useStaffRoles as useStaffRolesApi,
+  useAddStaffRole,
+  useDepartments,
+  useAddDepartment,
+} from '../api';
 import { cn } from '@/lib/cn';
 import { useStaffRoles, useStaffRoleOptions, useDefaultRole, getRoleColor } from '@/lib/useStaffRoles';
 
@@ -2745,10 +2752,33 @@ const AddStaffWizard = ({ isOpen, onClose, onComplete }) => {
     email: '',
     phone: '',
     role: '',
+    department: '',
     permissions: [],
     availability: {},
     wage: '',
   });
+
+  // Fetch roles and departments from API
+  const { data: staffRolesData, isLoading: rolesLoading } = useStaffRolesApi();
+  const { data: departmentsData, isLoading: departmentsLoading } = useDepartments();
+  const addStaffRole = useAddStaffRole();
+  const addDepartment = useAddDepartment();
+
+  // Convert to options format for CreatableSelect
+  const roleOptions = (staffRolesData || []).map(r => ({ value: r, label: r }));
+  const departmentOptions = (departmentsData || []).map(d => ({ value: d, label: d }));
+
+  // Handle creating new role
+  const handleCreateRole = useCallback(async (newRoleName) => {
+    const result = await addStaffRole.mutateAsync(newRoleName);
+    return result;
+  }, [addStaffRole]);
+
+  // Handle creating new department
+  const handleCreateDepartment = useCallback(async (newDeptName) => {
+    const result = await addDepartment.mutateAsync(newDeptName);
+    return result;
+  }, [addDepartment]);
 
   const steps = [
     { num: 1, title: 'Basic Info', icon: Users },
@@ -2846,39 +2876,27 @@ const AddStaffWizard = ({ isOpen, onClose, onComplete }) => {
 
         {step === 3 && (
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-text mb-1">Role *</label>
-              <StyledSelect
-                options={[
-                  { value: '', label: 'Select a role...' },
-                  { value: 'manager', label: 'Manager' },
-                  { value: 'attendant', label: 'Kennel Attendant' },
-                  { value: 'groomer', label: 'Groomer' },
-                  { value: 'trainer', label: 'Trainer' },
-                  { value: 'receptionist', label: 'Receptionist' },
-                ]}
-                value={formData.role}
-                onChange={(opt) => setFormData({ ...formData, role: opt?.value || '' })}
-                isClearable={false}
-                isSearchable={false}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text mb-1">Department</label>
-              <StyledSelect
-                options={[
-                  { value: '', label: 'Select department...' },
-                  { value: 'operations', label: 'Operations' },
-                  { value: 'grooming', label: 'Grooming' },
-                  { value: 'training', label: 'Training' },
-                  { value: 'admin', label: 'Administration' },
-                ]}
-                value=""
-                onChange={() => {}}
-                isClearable={false}
-                isSearchable={false}
-              />
-            </div>
+            <CreatableSelect
+              label="Role"
+              value={formData.role}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+              onCreate={handleCreateRole}
+              options={roleOptions}
+              placeholder="Select or add role..."
+              isLoading={rolesLoading}
+              menuPortalTarget={document.body}
+              required
+            />
+            <CreatableSelect
+              label="Department"
+              value={formData.department}
+              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+              onCreate={handleCreateDepartment}
+              options={departmentOptions}
+              placeholder="Select or add department..."
+              isLoading={departmentsLoading}
+              menuPortalTarget={document.body}
+            />
           </div>
         )}
 
