@@ -12,8 +12,7 @@ import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { FormActions, FormSection, FormGrid } from '@/components/ui/FormField';
-import { useCreateKennel, useUpdateKennel, useKennelTypes } from '../api';
-import StyledSelect from '@/components/ui/StyledSelect';
+import { useCreateKennel, useUpdateKennel } from '../api';
 import toast from 'react-hot-toast';
 
 const AMENITY_OPTIONS = [
@@ -31,10 +30,11 @@ const AMENITY_OPTIONS = [
   'Play Area Access'
 ];
 
+const KENNEL_TYPES = ['Standard', 'Suite', 'Cabin', 'VIP', 'Medical'];
+
 const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
   const createMutation = useCreateKennel();
   const updateMutation = useUpdateKennel(kennel?.id || kennel?.recordId);
-  const { data: kennelTypes = ['Standard', 'Suite', 'Cabin', 'VIP', 'Medical'], isLoading: typesLoading } = useKennelTypes();
   
   const [formData, setFormData] = useState({
     name: '',
@@ -143,17 +143,17 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
               placeholder={`${terminology.kennel} 1`}
               required
             />
-            <StyledSelect
+            <Select
               label="Type"
-              required
-              options={kennelTypes.map(t => ({ value: t, label: t }))}
               value={formData.type}
-              onChange={(opt) => setFormData(prev => ({ ...prev, type: opt?.value || '' }))}
-              placeholder="Select..."
-              isClearable={false}
-              isSearchable={false}
-              isLoading={typesLoading}
-            />
+              onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
+              required
+            >
+              <option value="">Select...</option>
+              {KENNEL_TYPES.map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </Select>
           </FormGrid>
 
           <FormGrid cols={2}>
