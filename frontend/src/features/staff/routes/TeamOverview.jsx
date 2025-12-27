@@ -2766,9 +2766,10 @@ const AddStaffWizard = ({ isOpen, onClose, onComplete }) => {
   // Convert to options format for CreatableSelect
   // useRoles returns axios response, data is in rolesResponse.data
   const rolesData = rolesResponse?.data || [];
+  const toTitleCase = (str) => str.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
   const roleOptions = (Array.isArray(rolesData) ? rolesData : []).map(r => ({
     value: r.record_id || r.id,
-    label: r.name
+    label: toTitleCase(r.name)
   }));
   const departmentOptions = (departmentsData || []).map(d => ({ value: d, label: d }));
 
@@ -2776,7 +2777,7 @@ const AddStaffWizard = ({ isOpen, onClose, onComplete }) => {
   const handleCreateRole = useCallback(async (newRoleName) => {
     const result = await createRoleMutation.mutateAsync({ name: newRoleName });
     const newRole = result?.data || result;
-    return { value: newRole.record_id || newRole.id, label: newRole.name };
+    return { value: newRole.record_id || newRole.id, label: toTitleCase(newRole.name) };
   }, [createRoleMutation]);
 
   // Handle creating new department
