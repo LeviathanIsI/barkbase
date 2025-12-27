@@ -240,6 +240,49 @@ export const useKennelTypes = () => {
   });
 };
 
+/**
+ * Add a new kennel type to TenantSettings
+ *
+ * Fetches current types, adds the new one, and updates the array.
+ * Returns the new option in { value, label } format for immediate use.
+ */
+export const useAddKennelType = () => {
+  const tenantKey = useTenantKey();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (newType) => {
+      // Get current types from cache or fetch
+      const currentTypes = queryClient.getQueryData(['kennelTypes', tenantKey]) || [];
+
+      // Check if type already exists (case-insensitive)
+      const exists = currentTypes.some(
+        t => t.toLowerCase() === newType.toLowerCase()
+      );
+      if (exists) {
+        throw new Error(`Type "${newType}" already exists`);
+      }
+
+      // Add new type and update via API
+      const updatedTypes = [...currentTypes, newType];
+      await apiClient.put('/api/v1/config/kennel-types', { kennelTypes: updatedTypes });
+
+      // Return the new option for immediate selection
+      return { value: newType, label: newType };
+    },
+    onSuccess: (_, newType) => {
+      // Update the cache with the new type
+      queryClient.setQueryData(['kennelTypes', tenantKey], (oldTypes = []) => {
+        if (oldTypes.includes(newType)) return oldTypes;
+        return [...oldTypes, newType];
+      });
+    },
+    onError: (error) => {
+      console.error('[kennelTypes] Add failed:', error?.message);
+    },
+  });
+};
+
 // TODO: Refactor to a dedicated Lambda for availability logic
 // export const useCheckKennelAvailability = (kennelId) => { ... };
 

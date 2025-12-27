@@ -4,15 +4,16 @@
  * Token-based styling for consistent theming.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import CreatableSelect from '@/components/ui/CreatableSelect';
 import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { FormActions, FormSection, FormGrid } from '@/components/ui/FormField';
-import { useCreateKennel, useUpdateKennel, useKennelTypes } from '../api';
+import { useCreateKennel, useUpdateKennel, useKennelTypes, useAddKennelType } from '../api';
 import toast from 'react-hot-toast';
 
 const AMENITY_OPTIONS = [
@@ -34,9 +35,16 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
   const createMutation = useCreateKennel();
   const updateMutation = useUpdateKennel(kennel?.id || kennel?.recordId);
   const { data: kennelTypes, isLoading: typesLoading } = useKennelTypes();
+  const addKennelType = useAddKennelType();
 
   // Convert kennel types array to options format for Select
   const typeOptions = (kennelTypes || []).map(t => ({ value: t, label: t }));
+
+  // Handle creating a new kennel type
+  const handleCreateType = useCallback(async (newTypeName) => {
+    const result = await addKennelType.mutateAsync(newTypeName);
+    return result; // Returns { value, label } for immediate selection
+  }, [addKennelType]);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -145,12 +153,13 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
               placeholder={`${terminology.kennel} 1`}
               required
             />
-            <Select
+            <CreatableSelect
               label="Type"
               value={formData.type}
               onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
+              onCreate={handleCreateType}
               options={typeOptions}
-              placeholder="Select type..."
+              placeholder="Select or add type..."
               isLoading={typesLoading}
               menuPortalTarget={document.body}
               required
