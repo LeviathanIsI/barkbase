@@ -12,7 +12,7 @@ import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { FormActions, FormSection, FormGrid } from '@/components/ui/FormField';
-import { useCreateKennel, useUpdateKennel } from '../api';
+import { useCreateKennel, useUpdateKennel, useKennelTypes } from '../api';
 import toast from 'react-hot-toast';
 
 const AMENITY_OPTIONS = [
@@ -30,11 +30,10 @@ const AMENITY_OPTIONS = [
   'Play Area Access'
 ];
 
-const KENNEL_TYPES = ['Standard', 'Suite', 'Cabin', 'VIP', 'Medical'];
-
 const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
   const createMutation = useCreateKennel();
   const updateMutation = useUpdateKennel(kennel?.id || kennel?.recordId);
+  const { data: kennelTypes = ['Standard', 'Suite', 'Cabin', 'VIP', 'Medical'] } = useKennelTypes();
   
   const [formData, setFormData] = useState({
     name: '',
