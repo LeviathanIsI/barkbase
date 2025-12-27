@@ -149,7 +149,7 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
               required
             >
               <option value="">Select...</option>
-              {kennelTypes.map(t => (
+              {(kennelTypes || ['Standard', 'Suite', 'Cabin', 'VIP', 'Medical']).map(t => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </Select>
