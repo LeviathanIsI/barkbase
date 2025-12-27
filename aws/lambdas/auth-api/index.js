@@ -288,8 +288,7 @@ async function handleGetMe(event) {
       `SELECT
          u.record_id,
          u.email,
-         us.first_name,
-         us.last_name,
+         us.full_name,
          u.tenant_id,
          u.created_at,
          u.updated_at,
@@ -325,9 +324,7 @@ async function handleGetMe(event) {
       id: user.id,
       recordId: dbUser?.record_id || null,
       email: user.email,
-      firstName: dbUser?.first_name,
-      lastName: dbUser?.last_name,
-      name: user.name || (dbUser ? `${dbUser.first_name || ''} ${dbUser.last_name || ''}`.trim() : null),
+      name: dbUser?.full_name || user.name,
       emailVerified: user.emailVerified,
       tenantId: user.tenantId || dbUser?.tenant_id,
       roles: userRoles,          // NEW: Array of roles
@@ -520,9 +517,7 @@ async function handleLogin(event) {
         id: payload.sub,
         recordId: dbUser?.id || null,
         email: payload.email,
-        firstName: dbUser?.first_name,
-        lastName: dbUser?.last_name,
-        name: payload.name || payload['cognito:username'],
+        name: dbUser?.full_name || payload.name || payload['cognito:username'],
         // AUTHORIZATION from DATABASE only (defense-in-depth)
         tenantId: dbUser?.tenant_id || null,
         roles: userRoles,          // NEW: Array of roles
@@ -1009,8 +1004,6 @@ async function handleRegister(event) {
       id: cognitoSub,
       recordId: user?.record_id,
       email: userEmail,
-      firstName: user?.first_name,
-      lastName: user?.last_name,
       name: displayName,
       tenantId: tenant?.id,
       roles: [assignedRole?.name || 'OWNER'],
