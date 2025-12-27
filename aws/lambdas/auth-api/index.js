@@ -5,11 +5,12 @@
  *
  * Handles authentication endpoints:
  * - POST /api/v1/auth/login - User login (validates Cognito tokens)
- * - POST /api/v1/auth/register - User registration
+ * - POST /api/v1/auth/register - User registration (supports invitationToken for joining existing tenant)
  * - POST /api/v1/auth/refresh - Token refresh
  * - GET /api/v1/auth/me - Get current user info
  * - POST /api/v1/auth/logout - User logout
  * - POST /api/v1/auth/change-password - Change password
+ * - GET /api/v1/auth/invite/:token - Validate invitation token (public)
  * - GET /api/v1/health - Health check
  *
  * MFA endpoints:
@@ -115,6 +116,12 @@ exports.handler = async (event, context) => {
       if (method === 'POST') {
         return handleLogin(event);
       }
+    }
+
+    // Invitation validation endpoint (public - no auth required)
+    const inviteMatch = path.match(/^\/(?:api\/v1\/)?auth\/invite\/([a-f0-9]{64})$/);
+    if (inviteMatch && method === 'GET') {
+      return handleValidateInvitation(inviteMatch[1]);
     }
 
     if (path === '/api/v1/auth/register' || path === '/auth/register') {
@@ -543,13 +550,14 @@ async function handleLogin(event) {
  */
 async function handleRegister(event) {
   const body = parseBody(event);
-  const { email, password, name, tenantName, tenantSlug, accessToken } = body;
+  const { email, password, name, tenantName, tenantSlug, accessToken, invitationToken } = body;
 
   // Support both flows:
   // 1. NEW: email + password (DB first, then Cognito)
   // 2. LEGACY: accessToken (Cognito already created by frontend)
   const isNewFlow = email && password && !accessToken;
   const isLegacyFlow = accessToken;
+  const isInviteFlow = !!invitationToken;
 
   if (!isNewFlow && !isLegacyFlow) {
     return createResponse(400, {
@@ -562,6 +570,72 @@ async function handleRegister(event) {
   let cognitoSub = null;
   let userEmail = email;
   let displayName = name || email?.split('@')[0] || '';
+
+  // ==========================================================================
+  // INVITATION FLOW: Validate invitation token before proceeding
+  // ==========================================================================
+  let invitation = null;
+  if (isInviteFlow) {
+    try {
+      await getPoolAsync();
+
+      // Look up and validate invitation
+      const inviteResult = await query(
+        `SELECT i.id, i.tenant_id, i.email, i.role, i.status, i.expires_at,
+                t.name as tenant_name, t.slug as tenant_slug, t.account_code
+         FROM "Invitation" i
+         JOIN "Tenant" t ON t.id = i.tenant_id
+         WHERE i.token = $1`,
+        [invitationToken]
+      );
+
+      if (inviteResult.rows.length === 0) {
+        return createResponse(400, {
+          error: 'Bad Request',
+          message: 'Invalid invitation token',
+          code: 'INVALID_INVITATION',
+        });
+      }
+
+      invitation = inviteResult.rows[0];
+
+      // Check if expired
+      if (new Date(invitation.expires_at) < new Date()) {
+        return createResponse(400, {
+          error: 'Bad Request',
+          message: 'This invitation has expired. Please request a new one.',
+          code: 'INVITATION_EXPIRED',
+        });
+      }
+
+      // Check if already used
+      if (invitation.status !== 'pending') {
+        return createResponse(400, {
+          error: 'Bad Request',
+          message: 'This invitation has already been used.',
+          code: 'INVITATION_USED',
+        });
+      }
+
+      // Verify email matches (case insensitive)
+      if (invitation.email.toLowerCase() !== email.toLowerCase()) {
+        return createResponse(400, {
+          error: 'Bad Request',
+          message: 'Email does not match the invitation. Please use the email address the invitation was sent to.',
+          code: 'EMAIL_MISMATCH',
+        });
+      }
+
+      console.log('[AuthBootstrap] Valid invitation for tenant:', invitation.tenant_name, 'role:', invitation.role);
+
+    } catch (error) {
+      console.error('[AuthBootstrap] Invitation validation error:', error.message);
+      return createResponse(500, {
+        error: 'Internal Server Error',
+        message: 'Failed to validate invitation',
+      });
+    }
+  }
 
   // ==========================================================================
   // LEGACY FLOW: Frontend already created Cognito user
@@ -590,116 +664,233 @@ async function handleRegister(event) {
   const firstName = nameParts[0] || '';
   const lastName = nameParts.slice(1).join(' ') || '';
 
-  console.log('[AuthBootstrap] Starting registration for email:', userEmail, 'flow:', isNewFlow ? 'NEW' : 'LEGACY');
+  console.log('[AuthBootstrap] Starting registration for email:', userEmail, 'flow:', isNewFlow ? 'NEW' : 'LEGACY', 'invite:', isInviteFlow);
 
   // ==========================================================================
   // STEP 1: Create DB records in a transaction
   // ==========================================================================
   let user = null;
   let tenant = null;
-  let ownerRole = null;
+  let assignedRole = null;
   let dbClient = null;
 
   try {
     dbClient = await getClient();
     await dbClient.query('BEGIN');
 
-    // Generate slug from tenant name or use provided slug
-    const finalTenantName = tenantName || `${firstName || userEmail?.split('@')[0]}'s Workspace`;
-    const finalSlug = tenantSlug ||
-      finalTenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') ||
-      `tenant-${Date.now().toString(36)}`;
+    if (isInviteFlow) {
+      // ========================================================================
+      // INVITATION FLOW: Join existing tenant
+      // ========================================================================
+      console.log('[AuthBootstrap] Invitation flow - joining existing tenant:', invitation.tenant_id);
 
-    console.log('[AuthBootstrap] Creating tenant:', { name: finalTenantName, slug: finalSlug });
+      // Use the tenant from the invitation
+      tenant = {
+        id: invitation.tenant_id,
+        name: invitation.tenant_name,
+        slug: invitation.tenant_slug,
+        account_code: invitation.account_code,
+        plan: 'FREE', // Will be fetched if needed
+      };
 
-    // Generate unique account_code for new ID system (BK-XXXXXX format)
-    const accountCode = await generateUniqueAccountCode();
-    console.log('[AuthBootstrap] Generated account_code:', accountCode);
+      // Check if user already exists in this tenant (from membership pre-creation)
+      const existingUser = await dbClient.query(
+        `SELECT u.record_id, u.cognito_sub, u.email, u.is_active
+         FROM "User" u
+         WHERE u.tenant_id = $1 AND LOWER(u.email) = LOWER($2)`,
+        [tenant.id, userEmail]
+      );
 
-    // Create tenant
-    const tenantResult = await dbClient.query(
-      `INSERT INTO "Tenant" (name, slug, plan, account_code, created_at, updated_at)
-       VALUES ($1, $2, 'FREE', $3, NOW(), NOW())
-       RETURNING id, name, slug, plan, account_code`,
-      [finalTenantName, finalSlug, accountCode]
-    );
-    tenant = tenantResult.rows[0];
-    console.log('[AuthBootstrap] Tenant created:', { id: tenant.id, slug: tenant.slug, accountCode: tenant.account_code });
+      let userRecordId;
 
-    // Create TenantSettings with defaults
-    await dbClient.query(
-      `INSERT INTO "TenantSettings" (tenant_id)
-       VALUES ($1)
-       ON CONFLICT (tenant_id) DO NOTHING`,
-      [tenant.id]
-    );
+      if (existingUser.rows.length > 0) {
+        // User record exists (created during invitation) - update it
+        userRecordId = existingUser.rows[0].record_id;
+        await dbClient.query(
+          `UPDATE "User"
+           SET cognito_sub = $1, is_active = TRUE, updated_at = NOW()
+           WHERE tenant_id = $2 AND record_id = $3`,
+          [cognitoSub || 'PENDING', tenant.id, userRecordId]
+        );
+        user = { record_id: userRecordId, email: userEmail, tenant_id: tenant.id };
+        console.log('[AuthBootstrap] Updated existing user record:', userRecordId);
+      } else {
+        // Create new user record
+        const userSeqResult = await dbClient.query(
+          `INSERT INTO "TenantSequence" (tenant_id, object_type_code, last_record_id)
+           VALUES ($1, 50, 1)
+           ON CONFLICT (tenant_id, object_type_code) DO UPDATE SET last_record_id = "TenantSequence".last_record_id + 1
+           RETURNING last_record_id`,
+          [tenant.id]
+        );
+        userRecordId = userSeqResult.rows[0].last_record_id;
 
-    // Create default roles for the tenant (object type code 52)
-    // Use dbClient for sequence to stay within transaction
-    const roleSeqResult = await dbClient.query(
-      `INSERT INTO "TenantSequence" (tenant_id, object_type_code, last_record_id)
-       VALUES ($1, 52, 6)
-       ON CONFLICT (tenant_id, object_type_code) DO UPDATE SET last_record_id = "TenantSequence".last_record_id + 6
-       RETURNING last_record_id`,
-      [tenant.id]
-    );
-    const roleBaseId = roleSeqResult.rows[0].last_record_id - 5; // Get first of 6 IDs
-    const roleResult = await dbClient.query(
-      `INSERT INTO "Role" (tenant_id, record_id, name, description, is_system, created_at, updated_at)
-       VALUES
-         ($1, $2, 'OWNER', 'Business owner with full facility access', true, NOW(), NOW()),
-         ($1, $3, 'MANAGER', 'Manages daily operations and staff', true, NOW(), NOW()),
-         ($1, $4, 'STAFF', 'Regular staff member', true, NOW(), NOW()),
-         ($1, $5, 'RECEPTIONIST', 'Front desk operations', true, NOW(), NOW()),
-         ($1, $6, 'GROOMER', 'Grooming staff', true, NOW(), NOW()),
-         ($1, $7, 'VIEWER', 'Read-only access', true, NOW(), NOW())
-       RETURNING record_id, name`,
-      [tenant.id, roleBaseId, roleBaseId + 1, roleBaseId + 2, roleBaseId + 3, roleBaseId + 4, roleBaseId + 5]
-    );
-    ownerRole = roleResult.rows.find(r => r.name === 'OWNER');
+        const userResult = await dbClient.query(
+          `INSERT INTO "User" (tenant_id, record_id, cognito_sub, email, is_active, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, TRUE, NOW(), NOW())
+           RETURNING record_id, email, tenant_id`,
+          [tenant.id, userRecordId, cognitoSub || 'PENDING', userEmail]
+        );
+        user = userResult.rows[0];
+        console.log('[AuthBootstrap] Created new user:', user.record_id);
+      }
 
-    // Create user - cognito_sub will be set after Cognito creation for new flow
-    const userSeqResult = await dbClient.query(
-      `INSERT INTO "TenantSequence" (tenant_id, object_type_code, last_record_id)
-       VALUES ($1, 50, 1)
-       ON CONFLICT (tenant_id, object_type_code) DO UPDATE SET last_record_id = "TenantSequence".last_record_id + 1
-       RETURNING last_record_id`,
-      [tenant.id]
-    );
-    const userRecordId = userSeqResult.rows[0].last_record_id;
-    // User profile data (first_name, last_name) now stored in UserSettings table
-    const userResult = await dbClient.query(
-      `INSERT INTO "User" (tenant_id, record_id, cognito_sub, email, is_active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, TRUE, NOW(), NOW())
-       RETURNING record_id, email, tenant_id`,
-      [tenant.id, userRecordId, cognitoSub || 'PENDING', userEmail]
-    );
-    user = userResult.rows[0];
-    console.log('[AuthBootstrap] User created:', { record_id: user.record_id, email: user.email });
+      // Create UserSettings if not exists
+      await dbClient.query(
+        `INSERT INTO "UserSettings" (tenant_id, user_record_id, first_name, last_name, full_name, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+         ON CONFLICT (tenant_id, user_record_id) DO UPDATE
+         SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name, full_name = EXCLUDED.full_name, updated_at = NOW()`,
+        [tenant.id, userRecordId, firstName, lastName, `${firstName} ${lastName}`.trim()]
+      );
 
-    // Create UserSettings with name data
-    await dbClient.query(
-      `INSERT INTO "UserSettings" (tenant_id, user_record_id, first_name, last_name, full_name, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-      [tenant.id, userRecordId, firstName, lastName, `${firstName} ${lastName}`.trim()]
-    );
-    console.log('[AuthBootstrap] UserSettings created with name:', { firstName, lastName });
+      // Find the role to assign from invitation
+      const roleResult = await dbClient.query(
+        `SELECT record_id, name FROM "Role" WHERE tenant_id = $1 AND name = $2`,
+        [tenant.id, invitation.role]
+      );
 
-    // Assign OWNER role
-    if (ownerRole) {
-      const userRoleSeqResult = await dbClient.query(
+      if (roleResult.rows.length > 0) {
+        assignedRole = roleResult.rows[0];
+
+        // Assign role via UserRole junction table
+        const userRoleSeqResult = await dbClient.query(
+          `INSERT INTO "TenantSequence" (tenant_id, object_type_code, last_record_id)
+           VALUES ($1, 53, 1)
+           ON CONFLICT (tenant_id, object_type_code) DO UPDATE SET last_record_id = "TenantSequence".last_record_id + 1
+           RETURNING last_record_id`,
+          [tenant.id]
+        );
+        const userRoleRecordId = userRoleSeqResult.rows[0].last_record_id;
+
+        await dbClient.query(
+          `INSERT INTO "UserRole" (tenant_id, record_id, user_id, role_id, assigned_at)
+           VALUES ($1, $2, $3, $4, NOW())
+           ON CONFLICT DO NOTHING`,
+          [tenant.id, userRoleRecordId, user.record_id, assignedRole.record_id]
+        );
+        console.log('[AuthBootstrap] Assigned role:', assignedRole.name);
+      }
+
+      // Mark invitation as accepted
+      await dbClient.query(
+        `UPDATE "Invitation"
+         SET status = 'accepted', accepted_at = NOW(), updated_at = NOW()
+         WHERE id = $1`,
+        [invitation.id]
+      );
+
+      // Update Membership status if exists
+      await dbClient.query(
+        `UPDATE "Membership"
+         SET status = 'active', accepted_at = NOW(), updated_at = NOW()
+         WHERE tenant_id = $1 AND user_record_id = $2`,
+        [tenant.id, user.record_id]
+      );
+
+      console.log('[AuthBootstrap] Invitation accepted, user joined tenant:', tenant.name);
+
+    } else {
+      // ========================================================================
+      // NEW TENANT FLOW: Create new tenant and become OWNER
+      // ========================================================================
+      // Generate slug from tenant name or use provided slug
+      const finalTenantName = tenantName || `${firstName || userEmail?.split('@')[0]}'s Workspace`;
+      const finalSlug = tenantSlug ||
+        finalTenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') ||
+        `tenant-${Date.now().toString(36)}`;
+
+      console.log('[AuthBootstrap] Creating tenant:', { name: finalTenantName, slug: finalSlug });
+
+      // Generate unique account_code for new ID system (BK-XXXXXX format)
+      const accountCode = await generateUniqueAccountCode();
+      console.log('[AuthBootstrap] Generated account_code:', accountCode);
+
+      // Create tenant
+      const tenantResult = await dbClient.query(
+        `INSERT INTO "Tenant" (name, slug, plan, account_code, created_at, updated_at)
+         VALUES ($1, $2, 'FREE', $3, NOW(), NOW())
+         RETURNING id, name, slug, plan, account_code`,
+        [finalTenantName, finalSlug, accountCode]
+      );
+      tenant = tenantResult.rows[0];
+      console.log('[AuthBootstrap] Tenant created:', { id: tenant.id, slug: tenant.slug, accountCode: tenant.account_code });
+
+      // Create TenantSettings with defaults
+      await dbClient.query(
+        `INSERT INTO "TenantSettings" (tenant_id)
+         VALUES ($1)
+         ON CONFLICT (tenant_id) DO NOTHING`,
+        [tenant.id]
+      );
+
+      // Create default roles for the tenant (object type code 52)
+      // Use dbClient for sequence to stay within transaction
+      const roleSeqResult = await dbClient.query(
         `INSERT INTO "TenantSequence" (tenant_id, object_type_code, last_record_id)
-         VALUES ($1, 53, 1)
+         VALUES ($1, 52, 6)
+         ON CONFLICT (tenant_id, object_type_code) DO UPDATE SET last_record_id = "TenantSequence".last_record_id + 6
+         RETURNING last_record_id`,
+        [tenant.id]
+      );
+      const roleBaseId = roleSeqResult.rows[0].last_record_id - 5; // Get first of 6 IDs
+      const roleResult = await dbClient.query(
+        `INSERT INTO "Role" (tenant_id, record_id, name, description, is_system, created_at, updated_at)
+         VALUES
+           ($1, $2, 'OWNER', 'Business owner with full facility access', true, NOW(), NOW()),
+           ($1, $3, 'MANAGER', 'Manages daily operations and staff', true, NOW(), NOW()),
+           ($1, $4, 'STAFF', 'Regular staff member', true, NOW(), NOW()),
+           ($1, $5, 'RECEPTIONIST', 'Front desk operations', true, NOW(), NOW()),
+           ($1, $6, 'GROOMER', 'Grooming staff', true, NOW(), NOW()),
+           ($1, $7, 'VIEWER', 'Read-only access', true, NOW(), NOW())
+         RETURNING record_id, name`,
+        [tenant.id, roleBaseId, roleBaseId + 1, roleBaseId + 2, roleBaseId + 3, roleBaseId + 4, roleBaseId + 5]
+      );
+      assignedRole = roleResult.rows.find(r => r.name === 'OWNER');
+
+      // Create user - cognito_sub will be set after Cognito creation for new flow
+      const userSeqResult = await dbClient.query(
+        `INSERT INTO "TenantSequence" (tenant_id, object_type_code, last_record_id)
+         VALUES ($1, 50, 1)
          ON CONFLICT (tenant_id, object_type_code) DO UPDATE SET last_record_id = "TenantSequence".last_record_id + 1
          RETURNING last_record_id`,
         [tenant.id]
       );
-      const userRoleRecordId = userRoleSeqResult.rows[0].last_record_id;
-      await dbClient.query(
-        `INSERT INTO "UserRole" (tenant_id, record_id, user_id, role_id, assigned_at)
-         VALUES ($1, $2, $3, $4, NOW())`,
-        [tenant.id, userRoleRecordId, user.record_id, ownerRole.record_id]
+      const userRecordId = userSeqResult.rows[0].last_record_id;
+      // User profile data (first_name, last_name) now stored in UserSettings table
+      const userResult = await dbClient.query(
+        `INSERT INTO "User" (tenant_id, record_id, cognito_sub, email, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, TRUE, NOW(), NOW())
+         RETURNING record_id, email, tenant_id`,
+        [tenant.id, userRecordId, cognitoSub || 'PENDING', userEmail]
       );
+      user = userResult.rows[0];
+      console.log('[AuthBootstrap] User created:', { record_id: user.record_id, email: user.email });
+
+      // Create UserSettings with name data
+      await dbClient.query(
+        `INSERT INTO "UserSettings" (tenant_id, user_record_id, first_name, last_name, full_name, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+        [tenant.id, userRecordId, firstName, lastName, `${firstName} ${lastName}`.trim()]
+      );
+      console.log('[AuthBootstrap] UserSettings created with name:', { firstName, lastName });
+
+      // Assign OWNER role
+      if (assignedRole) {
+        const userRoleSeqResult = await dbClient.query(
+          `INSERT INTO "TenantSequence" (tenant_id, object_type_code, last_record_id)
+           VALUES ($1, 53, 1)
+           ON CONFLICT (tenant_id, object_type_code) DO UPDATE SET last_record_id = "TenantSequence".last_record_id + 1
+           RETURNING last_record_id`,
+          [tenant.id]
+        );
+        const userRoleRecordId = userRoleSeqResult.rows[0].last_record_id;
+        await dbClient.query(
+          `INSERT INTO "UserRole" (tenant_id, record_id, user_id, role_id, assigned_at)
+           VALUES ($1, $2, $3, $4, NOW())`,
+          [tenant.id, userRoleRecordId, user.record_id, assignedRole.record_id]
+        );
+      }
     }
 
     await dbClient.query('COMMIT');
@@ -822,8 +1013,8 @@ async function handleRegister(event) {
       lastName: user?.last_name,
       name: displayName,
       tenantId: tenant?.id,
-      roles: ['OWNER'],
-      role: 'OWNER',
+      roles: [assignedRole?.name || 'OWNER'],
+      role: assignedRole?.name || 'OWNER',
     },
     tenant: {
       id: tenant.id,
@@ -846,6 +1037,83 @@ async function handleRegister(event) {
   }
 
   return createResponse(201, response);
+}
+
+/**
+ * Validate an invitation token (public endpoint)
+ * GET /api/v1/auth/invite/:token
+ *
+ * Returns invitation details if valid, or error if invalid/expired.
+ * Used by frontend to show "You've been invited to [Tenant Name]" before signup.
+ */
+async function handleValidateInvitation(token) {
+  console.log('[AUTH-API] Validating invitation token');
+
+  if (!token || token.length !== 64) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Invalid invitation token format',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Look up invitation with tenant details
+    const result = await query(
+      `SELECT i.id, i.email, i.role, i.status, i.expires_at, i.created_at,
+              t.id as tenant_id, t.name as tenant_name, t.slug as tenant_slug
+       FROM "Invitation" i
+       JOIN "Tenant" t ON t.id = i.tenant_id
+       WHERE i.token = $1`,
+      [token]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Invitation not found',
+      });
+    }
+
+    const invitation = result.rows[0];
+
+    // Check if expired
+    if (new Date(invitation.expires_at) < new Date()) {
+      return createResponse(410, {
+        error: 'Gone',
+        message: 'This invitation has expired. Please request a new one.',
+        code: 'INVITATION_EXPIRED',
+      });
+    }
+
+    // Check if already used
+    if (invitation.status !== 'pending') {
+      return createResponse(410, {
+        error: 'Gone',
+        message: `This invitation has already been ${invitation.status}.`,
+        code: 'INVITATION_USED',
+      });
+    }
+
+    return createResponse(200, {
+      valid: true,
+      invitation: {
+        email: invitation.email,
+        role: invitation.role,
+        tenantName: invitation.tenant_name,
+        tenantSlug: invitation.tenant_slug,
+        expiresAt: invitation.expires_at,
+      },
+    });
+
+  } catch (error) {
+    console.error('[AUTH-API] Failed to validate invitation:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to validate invitation',
+    });
+  }
 }
 
 /**

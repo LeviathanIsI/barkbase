@@ -2305,7 +2305,7 @@ async function handleCreateMembership(user, body) {
 
     // Get current user's tenant and verify permission - NEW SCHEMA: Role from UserRole junction
     const userResult = await query(
-      `SELECT u.tenant_id, r.name as role
+      `SELECT u.tenant_id, u.record_id as user_record_id, r.name as role
        FROM "User" u
        LEFT JOIN "UserRole" ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.record_id
        LEFT JOIN "Role" r ON r.tenant_id = ur.tenant_id AND r.record_id = ur.role_id
@@ -2320,7 +2320,7 @@ async function handleCreateMembership(user, body) {
       });
     }
 
-    const { tenant_id: tenantId, role: currentUserRole } = userResult.rows[0];
+    const { tenant_id: tenantId, user_record_id: inviterRecordId, role: currentUserRole } = userResult.rows[0];
 
     // Only OWNER or ADMIN can create memberships
     if (!['OWNER', 'ADMIN'].includes(currentUserRole)) {
@@ -2391,7 +2391,34 @@ async function handleCreateMembership(user, body) {
 
     const newMembership = membership.rows[0];
 
-    console.log('[CONFIG-SERVICE] handleCreateMembership - created:', newMembership.id);
+    // Generate secure invitation token (64 character hex string)
+    const crypto = require('crypto');
+    const invitationToken = crypto.randomBytes(32).toString('hex');
+
+    // Create invitation record with 7-day expiry
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const invitation = await query(
+      `INSERT INTO "Invitation" (tenant_id, email, token, role, status, expires_at, invited_by_user_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, 'pending', $5, $6, NOW(), NOW())
+       RETURNING id, token, expires_at`,
+      [tenantId, email.toLowerCase(), invitationToken, role, expiresAt, inviterRecordId]
+    );
+
+    const newInvitation = invitation.rows[0];
+
+    // Get tenant name for the invite link
+    const tenantResult = await query(
+      `SELECT name FROM "Tenant" WHERE id = $1`,
+      [tenantId]
+    );
+    const tenantName = tenantResult.rows[0]?.name || 'BarkBase';
+
+    // Construct invite URL (frontend handles the token)
+    const baseUrl = process.env.FRONTEND_URL || 'https://app.barkbase.com';
+    const inviteUrl = `${baseUrl}/invite?token=${invitationToken}`;
+
+    console.log('[CONFIG-SERVICE] handleCreateMembership - created membership:', newMembership.id);
+    console.log('[CONFIG-SERVICE] handleCreateMembership - created invitation:', newInvitation.id);
 
     return createResponse(201, {
       success: true,
@@ -2409,6 +2436,13 @@ async function handleCreateMembership(user, body) {
         firstName,
         lastName,
         name: firstName && lastName ? `${firstName} ${lastName}` : email,
+      },
+      invitation: {
+        id: newInvitation.id,
+        token: newInvitation.token,
+        inviteUrl,
+        expiresAt: newInvitation.expires_at,
+        tenantName,
       },
     });
 
