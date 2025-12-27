@@ -224,6 +224,30 @@ exports.handler = async (event, context) => {
     }
 
     // =========================================================================
+    // ROLES API - List and manage roles from Role table
+    // =========================================================================
+    if (path === '/api/v1/roles' || path === '/roles') {
+      if (method === 'GET') {
+        return handleGetRoles(user);
+      }
+      if (method === 'POST') {
+        return handleCreateRole(user, parseBody(event));
+      }
+    }
+
+    // Role by ID routes
+    const rolesMatch = path.match(/^\/api\/v1\/roles\/(\d+)$/);
+    if (rolesMatch) {
+      const roleId = rolesMatch[1];
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateRole(user, roleId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeleteRole(user, roleId);
+      }
+    }
+
+    // =========================================================================
     // BRANDING SETTINGS API
     // =========================================================================
     if (path === '/api/v1/config/branding' || path === '/config/branding' || path === '/api/v1/branding') {
@@ -15300,5 +15324,178 @@ async function handleUpdateKennelTypes(user, body) {
   } catch (error) {
     console.error('[KennelTypes] Failed to update:', error.message);
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update kennel types' });
+  }
+}
+
+// =============================================================================
+// ROLES HANDLERS
+// =============================================================================
+
+/**
+ * Get all roles for current tenant from Role table
+ */
+async function handleGetRoles(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    const result = await query(
+      `SELECT record_id, name, description, is_system, created_at, updated_at
+       FROM "Role"
+       WHERE tenant_id = $1
+       ORDER BY is_system DESC, name ASC`,
+      [ctx.tenantId]
+    );
+
+    return createResponse(200, result.rows);
+  } catch (error) {
+    console.error('[Roles] Failed to get:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load roles' });
+  }
+}
+
+/**
+ * Create a new role for current tenant
+ */
+async function handleCreateRole(user, body) {
+  const { name, description } = body || {};
+
+  if (!name || !name.trim()) {
+    return createResponse(400, { error: 'Bad Request', message: 'Role name is required' });
+  }
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    // Check for duplicate
+    const existing = await query(
+      `SELECT record_id FROM "Role" WHERE tenant_id = $1 AND LOWER(name) = LOWER($2)`,
+      [ctx.tenantId, name.trim()]
+    );
+
+    if (existing.rows.length > 0) {
+      return createResponse(409, { error: 'Conflict', message: `Role "${name}" already exists` });
+    }
+
+    const result = await query(
+      `INSERT INTO "Role" (tenant_id, name, description, is_system, created_at, updated_at)
+       VALUES ($1, $2, $3, false, NOW(), NOW())
+       RETURNING record_id, name, description, is_system, created_at, updated_at`,
+      [ctx.tenantId, name.trim(), description || null]
+    );
+
+    return createResponse(201, result.rows[0]);
+  } catch (error) {
+    console.error('[Roles] Failed to create:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create role' });
+  }
+}
+
+/**
+ * Update a role
+ */
+async function handleUpdateRole(user, roleId, body) {
+  const { name, description } = body || {};
+
+  if (!name || !name.trim()) {
+    return createResponse(400, { error: 'Bad Request', message: 'Role name is required' });
+  }
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    // Check if role exists and is not system
+    const roleCheck = await query(
+      `SELECT is_system FROM "Role" WHERE record_id = $1 AND tenant_id = $2`,
+      [roleId, ctx.tenantId]
+    );
+
+    if (roleCheck.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Role not found' });
+    }
+
+    if (roleCheck.rows[0].is_system) {
+      return createResponse(403, { error: 'Forbidden', message: 'Cannot modify system roles' });
+    }
+
+    // Check for duplicate name
+    const duplicate = await query(
+      `SELECT record_id FROM "Role" WHERE tenant_id = $1 AND LOWER(name) = LOWER($2) AND record_id != $3`,
+      [ctx.tenantId, name.trim(), roleId]
+    );
+
+    if (duplicate.rows.length > 0) {
+      return createResponse(409, { error: 'Conflict', message: `Role "${name}" already exists` });
+    }
+
+    const result = await query(
+      `UPDATE "Role" SET name = $1, description = $2, updated_at = NOW()
+       WHERE record_id = $3 AND tenant_id = $4
+       RETURNING record_id, name, description, is_system, created_at, updated_at`,
+      [name.trim(), description || null, roleId, ctx.tenantId]
+    );
+
+    return createResponse(200, result.rows[0]);
+  } catch (error) {
+    console.error('[Roles] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update role' });
+  }
+}
+
+/**
+ * Delete a role
+ */
+async function handleDeleteRole(user, roleId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    // Check if role exists and is not system
+    const roleCheck = await query(
+      `SELECT is_system FROM "Role" WHERE record_id = $1 AND tenant_id = $2`,
+      [roleId, ctx.tenantId]
+    );
+
+    if (roleCheck.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Role not found' });
+    }
+
+    if (roleCheck.rows[0].is_system) {
+      return createResponse(403, { error: 'Forbidden', message: 'Cannot delete system roles' });
+    }
+
+    // Check if role is in use
+    const inUse = await query(
+      `SELECT COUNT(*) FROM "UserRole" WHERE role_id = $1 AND tenant_id = $2`,
+      [roleId, ctx.tenantId]
+    );
+
+    if (parseInt(inUse.rows[0].count, 10) > 0) {
+      return createResponse(400, { error: 'Bad Request', message: 'Cannot delete role that is assigned to users' });
+    }
+
+    await query(
+      `DELETE FROM "Role" WHERE record_id = $1 AND tenant_id = $2`,
+      [roleId, ctx.tenantId]
+    );
+
+    return createResponse(204, null);
+  } catch (error) {
+    console.error('[Roles] Failed to delete:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete role' });
   }
 }
