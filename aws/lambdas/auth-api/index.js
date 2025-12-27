@@ -378,7 +378,7 @@ async function handleLogin(event) {
         `UPDATE "User"
          SET last_login_at = NOW(), updated_at = NOW()
          WHERE cognito_sub = $1
-         RETURNING record_id, email, first_name, last_name, tenant_id`,
+         RETURNING record_id, email, tenant_id`,
         [payload.sub]
       );
 
@@ -390,7 +390,7 @@ async function handleLogin(event) {
           `UPDATE "User"
            SET cognito_sub = $1, last_login_at = NOW(), updated_at = NOW()
            WHERE email = $2 AND (cognito_sub IS NULL OR cognito_sub = 'PENDING')
-           RETURNING record_id, email, first_name, last_name, tenant_id`,
+           RETURNING record_id, email, tenant_id`,
           [payload.sub, payload.email]
         );
         if (result.rows.length > 0) {
@@ -666,14 +666,23 @@ async function handleRegister(event) {
       [tenant.id]
     );
     const userRecordId = userSeqResult.rows[0].last_record_id;
+    // User profile data (first_name, last_name) now stored in UserSettings table
     const userResult = await dbClient.query(
-      `INSERT INTO "User" (tenant_id, record_id, cognito_sub, email, first_name, last_name, is_active, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, TRUE, NOW(), NOW())
-       RETURNING record_id, email, first_name, last_name, tenant_id`,
-      [tenant.id, userRecordId, cognitoSub || 'PENDING', userEmail, firstName, lastName]
+      `INSERT INTO "User" (tenant_id, record_id, cognito_sub, email, is_active, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, TRUE, NOW(), NOW())
+       RETURNING record_id, email, tenant_id`,
+      [tenant.id, userRecordId, cognitoSub || 'PENDING', userEmail]
     );
     user = userResult.rows[0];
     console.log('[AuthBootstrap] User created:', { record_id: user.record_id, email: user.email });
+
+    // Create UserSettings with name data
+    await dbClient.query(
+      `INSERT INTO "UserSettings" (tenant_id, user_record_id, first_name, last_name, full_name, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+      [tenant.id, userRecordId, firstName, lastName, `${firstName} ${lastName}`.trim()]
+    );
+    console.log('[AuthBootstrap] UserSettings created with name:', { firstName, lastName });
 
     // Assign OWNER role
     if (ownerRole) {
