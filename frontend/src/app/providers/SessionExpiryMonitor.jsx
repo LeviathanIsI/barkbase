@@ -1,58 +1,21 @@
-import { useEffect } from 'react';
-
-import { useAuthStore } from '@/stores/auth';
-import { useTenantStore } from '@/stores/tenant';
-import { isSessionExpired } from '@/lib/sessionManager';
-
 /**
  * SessionExpiryMonitor Component
- * Monitors session expiry and automatically logs out users at 11:59 PM
+ *
+ * NOTE: Token refresh is now handled proactively by AuthLoader using tokenRefreshManager.
+ * This component is kept for backwards compatibility but the main session management
+ * is done via proactive token refresh (refreshing 5 minutes before JWT expiry).
+ *
+ * The actual Cognito access token expiry is handled by:
+ * - tokenRefreshManager.js: Proactively refreshes tokens before they expire
+ * - AuthLoader.jsx: Initializes token refresh on app load
+ *
+ * Server-side session validation via validateSessionAge() in auth-handler.js
+ * will return SESSION_EXPIRED error code if needed.
  */
 const SessionExpiryMonitor = () => {
-  const { sessionStartTime, sessionExpiryTime, clearAuth, isAuthenticated } = useAuthStore();
-  const autoLogoutIntervalHours = useTenantStore((s) => s.tenant?.autoLogoutIntervalHours || 24);
-
-  useEffect(() => {
-    // Only run if user is authenticated
-    if (!isAuthenticated()) {
-      return;
-    }
-
-    // Check session expiry every minute
-    const checkInterval = setInterval(() => {
-      if (sessionStartTime && sessionExpiryTime) {
-        const intervalHours = autoLogoutIntervalHours;
-        
-        if (isSessionExpired(sessionStartTime, sessionExpiryTime, intervalHours)) {
-          clearAuth();
-          
-          // Clear any cached data
-          try {
-            sessionStorage.removeItem('barkbase_refresh_token');
-            sessionStorage.removeItem('barkbase_return_path');
-          } catch (e) {
-            // ignore
-          }
-          
-          // Redirect to login
-          window.location.href = '/login';
-        }
-      }
-    }, 60 * 1000); // Check every minute
-
-    // Also check immediately on mount
-    if (sessionStartTime && sessionExpiryTime) {
-      const intervalHours = autoLogoutIntervalHours;
-      if (isSessionExpired(sessionStartTime, sessionExpiryTime, intervalHours)) {
-        clearAuth();
-        window.location.href = '/login';
-      }
-    }
-
-    return () => clearInterval(checkInterval);
-  }, [sessionStartTime, sessionExpiryTime, clearAuth, isAuthenticated, autoLogoutIntervalHours]);
-
-  return null; // This component doesn't render anything
+  // Token refresh is now handled by AuthLoader + tokenRefreshManager
+  // This component is kept as a placeholder for any future session monitoring needs
+  return null;
 };
 
 export default SessionExpiryMonitor;

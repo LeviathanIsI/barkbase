@@ -86,6 +86,12 @@ export const useAuthStore = create(
         } catch {
           // ignore storage cleanup issues
         }
+        // Clear refresh token from sessionStorage
+        try {
+          sessionStorage.removeItem('barkbase_refresh_token');
+        } catch {
+          // ignore
+        }
       },
       logout: () => {
         set(initialState);
@@ -93,6 +99,12 @@ export const useAuthStore = create(
           getStorage().removeItem('barkbase-auth');
         } catch {
           // ignore storage cleanup issues
+        }
+        // Clear refresh token from sessionStorage
+        try {
+          sessionStorage.removeItem('barkbase_refresh_token');
+        } catch {
+          // ignore
         }
       },
       hasRole: (role) => {

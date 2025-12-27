@@ -8,9 +8,8 @@ import '@testing-library/jest-dom';
 const resetAuthStore = () => {
   useAuthStore.setState((state) => ({
     ...state,
+    user: null,
     accessToken: null,
-    refreshToken: null,
-    expiresAt: null,
     role: null,
   }));
 };
@@ -40,7 +39,6 @@ describe('ProtectedRoute', () => {
       ...state,
       user: { id: 'test-user' },
       accessToken: 'token',
-      expiresAt: Date.now() + 60_000,
     }));
 
     render(

@@ -1,22 +1,97 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
+import {
+  initTokenRefresh,
+  clearRefreshTimer,
+  setupVisibilityHandler,
+} from '@/lib/tokenRefreshManager';
+
+/**
+ * Get refresh token from sessionStorage.
+ */
+function getRefreshToken() {
+  try {
+    return sessionStorage.getItem('barkbase_refresh_token');
+  } catch {
+    return null;
+  }
+}
 
 const AuthLoader = () => {
-  const { accessToken, refreshToken, tenantId, expiresAt, updateTokens, clearAuth } = useAuthStore();
-  const { setTenant, setLoading } = useTenantStore();
-  const hasAttemptedRef = useRef(false);
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const updateTokens = useAuthStore((state) => state.updateTokens);
+  const clearAuth = useAuthStore((state) => state.clearAuth);
+  const setTenant = useTenantStore((state) => state.setTenant);
+  const setLoading = useTenantStore((state) => state.setLoading);
 
+  const hasAttemptedRef = useRef(false);
+  const visibilityCleanupRef = useRef(null);
+  const tokenRefreshInitializedRef = useRef(false);
+
+  // Callback to update access token in store
+  const handleTokenRefresh = useCallback((newAccessToken) => {
+    console.log('[AuthLoader] Token refreshed, updating store');
+    updateTokens({ accessToken: newAccessToken });
+  }, [updateTokens]);
+
+  // Callback when session expires and cannot be refreshed
+  const handleSessionExpired = useCallback(() => {
+    console.log('[AuthLoader] Session expired, clearing auth and redirecting');
+    clearAuth();
+    try {
+      sessionStorage.removeItem('barkbase_refresh_token');
+    } catch {}
+    // Redirect to login
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
+  }, [clearAuth]);
+
+  // Initialize proactive token refresh when we have an access token
   useEffect(() => {
-    // Only attempt refresh once on initial mount
+    if (accessToken && !tokenRefreshInitializedRef.current) {
+      tokenRefreshInitializedRef.current = true;
+      console.log('[AuthLoader] Initializing proactive token refresh');
+
+      // Set up token refresh timer
+      initTokenRefresh(accessToken, handleTokenRefresh, handleSessionExpired);
+
+      // Set up visibility handler to refresh when app comes back to foreground
+      visibilityCleanupRef.current = setupVisibilityHandler(
+        accessToken,
+        handleTokenRefresh,
+        handleSessionExpired
+      );
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (visibilityCleanupRef.current) {
+        visibilityCleanupRef.current();
+        visibilityCleanupRef.current = null;
+      }
+      clearRefreshTimer();
+    };
+  }, [accessToken, handleTokenRefresh, handleSessionExpired]);
+
+  // Reset the initialized flag when access token is cleared (logout)
+  useEffect(() => {
+    if (!accessToken) {
+      tokenRefreshInitializedRef.current = false;
+      clearRefreshTimer();
+    }
+  }, [accessToken]);
+
+  // Main initialization effect - runs once on mount
+  useEffect(() => {
     if (hasAttemptedRef.current) {
       return;
     }
     hasAttemptedRef.current = true;
 
     const attemptRefresh = async () => {
-      // Session expiry is now handled server-side via validateSessionAge() in auth-handler.js
-      // Frontend will receive SESSION_EXPIRED error code on API requests and redirect to login
       // Handle Cognito Hosted UI callback first (exchange code for tokens)
       try {
         const url = typeof window !== 'undefined' ? new URL(window.location.href) : null;
@@ -27,16 +102,20 @@ const AuthLoader = () => {
           if (session?.accessToken) {
             updateTokens({
               accessToken: session.accessToken,
-              refreshToken: session.refreshToken,
               tenantId: null, // Will be fetched from backend
-              tokens: { accessTokenExpiresIn: session.expiresIn },
             });
 
-            // Check if already loading
+            // Store refresh token in sessionStorage
+            if (session.refreshToken) {
+              try {
+                sessionStorage.setItem('barkbase_refresh_token', session.refreshToken);
+              } catch {}
+            }
+
+            // Fetch tenant from backend using JWT sub
             const { isLoading } = useTenantStore.getState();
             if (!isLoading) {
               setLoading(true);
-              // Fetch tenant from backend using JWT sub
               try {
                 const tenantResponse = await apiClient.get('/api/v1/config/tenant');
                 if (tenantResponse.data) {
@@ -50,71 +129,72 @@ const AuthLoader = () => {
               }
             }
           }
-          // handleCallback already cleans the URL
+          return; // handleCallback already cleans the URL
         }
       } catch (err) {
         console.error('[AuthLoader] OAuth callback handling failed:', err);
       }
 
       // If we have a valid access token but no tenantId, fetch from backend
-      if (accessToken && expiresAt && Date.now() < expiresAt) {
-        if (!tenantId) {
-          const { isLoading } = useTenantStore.getState();
-          if (!isLoading) {
-            setLoading(true);
-            try {
-              const { apiClient } = await import('@/lib/apiClient');
-              const tenantResponse = await apiClient.get('/api/v1/config/tenant');
-              if (tenantResponse.data) {
-                updateTokens({ tenantId: tenantResponse.data.recordId });
-                setTenant(tenantResponse.data);
-              }
-            } catch (tenantError) {
-              console.error('[AuthLoader] Failed to fetch tenant on init:', tenantError);
-            } finally {
-              setLoading(false);
+      if (accessToken && !tenantId) {
+        const { isLoading } = useTenantStore.getState();
+        if (!isLoading) {
+          setLoading(true);
+          try {
+            const { apiClient } = await import('@/lib/apiClient');
+            const tenantResponse = await apiClient.get('/api/v1/config/tenant');
+            if (tenantResponse.data) {
+              updateTokens({ tenantId: tenantResponse.data.recordId });
+              setTenant(tenantResponse.data);
             }
+          } catch (tenantError) {
+            console.error('[AuthLoader] Failed to fetch tenant on init:', tenantError);
+          } finally {
+            setLoading(false);
           }
         }
         return;
       }
 
-      // If there's a refresh token, try to get a new access token
-      if (refreshToken) {
+      // If there's a refresh token but no valid access token, try to get a new access token
+      const refreshToken = getRefreshToken();
+      if (refreshToken && !accessToken) {
         try {
-          // Frontend now uses Cognito refresh in the auth client
+          console.log('[AuthLoader] Attempting to refresh session with stored refresh token');
           const { auth, apiClient } = await import('@/lib/apiClient');
           const data = await auth.refreshSession({ refreshToken });
 
-          updateTokens({
-            accessToken: data.accessToken,
-            tenantId: null, // Will be fetched from backend
-            role: data.role,
-            expiresAt: Date.now() + (15 * 60 * 1000)
-          });
+          if (data?.accessToken) {
+            updateTokens({
+              accessToken: data.accessToken,
+              tenantId: null, // Will be fetched from backend
+              role: data.role,
+            });
 
-          // Check if already loading
-          const { isLoading } = useTenantStore.getState();
-          if (!isLoading) {
-            setLoading(true);
             // Fetch tenant from backend after refresh
-            try {
-              const tenantResponse = await apiClient.get('/api/v1/config/tenant');
-              if (tenantResponse.data) {
-                updateTokens({ tenantId: tenantResponse.data.recordId });
-                setTenant(tenantResponse.data);
+            const { isLoading } = useTenantStore.getState();
+            if (!isLoading) {
+              setLoading(true);
+              try {
+                const tenantResponse = await apiClient.get('/api/v1/config/tenant');
+                if (tenantResponse.data) {
+                  updateTokens({ tenantId: tenantResponse.data.recordId });
+                  setTenant(tenantResponse.data);
+                }
+              } catch (tenantError) {
+                console.error('[AuthLoader] Failed to fetch tenant after refresh:', tenantError);
+              } finally {
+                setLoading(false);
               }
-            } catch (tenantError) {
-              console.error('[AuthLoader] Failed to fetch tenant after refresh:', tenantError);
-            } finally {
-              setLoading(false);
             }
           }
-
         } catch (error) {
           console.error('[AuthLoader] Failed to refresh token:', error);
-          // If refresh fails, clear auth state
+          // If refresh fails, clear auth state and refresh token
           clearAuth();
+          try {
+            sessionStorage.removeItem('barkbase_refresh_token');
+          } catch {}
         }
       }
     };
