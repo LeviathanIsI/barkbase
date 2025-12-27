@@ -4442,7 +4442,7 @@ async function handleRefreshSegment(tenantId, segmentId) {
       }
 
       const idsResult = await query(idsQuery, queryParams);
-      const matchingIds = idsResult.rows.map(r => r.id);
+      const matchingIds = idsResult.rows.map(r => r.record_id);
       count = matchingIds.length;
 
       // Sync SegmentMember table for active segments
