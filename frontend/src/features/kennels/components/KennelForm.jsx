@@ -12,7 +12,8 @@ import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { FormActions, FormSection, FormGrid } from '@/components/ui/FormField';
-import { useCreateKennel, useUpdateKennel } from '../api';
+import { useCreateKennel, useUpdateKennel, useKennelTypes } from '../api';
+import StyledSelect from '@/components/ui/StyledSelect';
 import toast from 'react-hot-toast';
 
 const AMENITY_OPTIONS = [
@@ -33,10 +34,11 @@ const AMENITY_OPTIONS = [
 const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
   const createMutation = useCreateKennel();
   const updateMutation = useUpdateKennel(kennel?.id || kennel?.recordId);
+  const { data: kennelTypes = ['Standard', 'Suite', 'Cabin', 'VIP', 'Medical'], isLoading: typesLoading } = useKennelTypes();
   
   const [formData, setFormData] = useState({
     name: '',
-    type: 'KENNEL',
+    type: '',
     size: '',
     capacity: 1,
     location: '',
@@ -60,7 +62,7 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
       
       setFormData({
         name: kennel.name || '',
-        type: kennel.type || 'KENNEL',
+        type: kennel.type || '',
         size: kennel.size || '',
         capacity: kennel.capacity || 1,
         location: kennel.location || '',
@@ -141,18 +143,17 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
               placeholder={`${terminology.kennel} 1`}
               required
             />
-            <Select
+            <StyledSelect
               label="Type"
-              value={formData.type}
-              onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
               required
-            >
-              <option value="KENNEL">{terminology.kennel || 'Kennel'}</option>
-              <option value="SUITE">{terminology.suite || 'Suite'}</option>
-              <option value="CABIN">{terminology.cabin || 'Cabin'}</option>
-              <option value="DAYCARE">{terminology.daycare || 'Daycare'}</option>
-              <option value="MEDICAL">{terminology.medical || 'Medical'}</option>
-            </Select>
+              options={kennelTypes.map(t => ({ value: t, label: t }))}
+              value={formData.type}
+              onChange={(opt) => setFormData(prev => ({ ...prev, type: opt?.value || '' }))}
+              placeholder="Select..."
+              isClearable={false}
+              isSearchable={false}
+              isLoading={typesLoading}
+            />
           </FormGrid>
 
           <FormGrid cols={2}>

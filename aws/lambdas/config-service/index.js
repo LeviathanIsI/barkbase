@@ -212,6 +212,18 @@ exports.handler = async (event, context) => {
     }
 
     // =========================================================================
+    // KENNEL TYPES API
+    // =========================================================================
+    if (path === '/api/v1/config/kennel-types' || path === '/config/kennel-types') {
+      if (method === 'GET') {
+        return handleGetKennelTypes(user);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateKennelTypes(user, parseBody(event));
+      }
+    }
+
+    // =========================================================================
     // BRANDING SETTINGS API
     // =========================================================================
     if (path === '/api/v1/config/branding' || path === '/config/branding' || path === '/api/v1/branding') {
@@ -15225,3 +15237,68 @@ async function handleGetIntegration(user, provider) {
 }
 
 // Force rebuild 12/25/2025 18:28:24
+
+
+// =============================================================================
+// KENNEL TYPES HANDLERS
+// =============================================================================
+
+/**
+ * Get kennel types for current tenant
+ */
+async function handleGetKennelTypes(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    const result = await query(
+      `SELECT kennel_types FROM "TenantSettings" WHERE tenant_id = $1`,
+      [ctx.tenantId]
+    );
+
+    const defaultTypes = ['Standard', 'Suite', 'Cabin', 'VIP', 'Medical'];
+    const kennelTypes = result.rows[0]?.kennel_types || defaultTypes;
+
+    return createResponse(200, {
+      kennelTypes: Array.isArray(kennelTypes) ? kennelTypes : defaultTypes,
+    });
+  } catch (error) {
+    console.error('[KennelTypes] Failed to get:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load kennel types' });
+  }
+}
+
+/**
+ * Update kennel types for current tenant
+ */
+async function handleUpdateKennelTypes(user, body) {
+  const { kennelTypes } = body;
+
+  if (!Array.isArray(kennelTypes)) {
+    return createResponse(400, { error: 'Bad Request', message: 'kennelTypes must be an array' });
+  }
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    await query(
+      `UPDATE "TenantSettings" SET kennel_types = $2, updated_at = NOW() WHERE tenant_id = $1`,
+      [ctx.tenantId, JSON.stringify(kennelTypes)]
+    );
+
+    return createResponse(200, {
+      success: true,
+      kennelTypes,
+    });
+  } catch (error) {
+    console.error('[KennelTypes] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update kennel types' });
+  }
+}

@@ -624,7 +624,7 @@ async function getFacilities(event) {
     // Schema: id, tenant_id, name, size, location, max_occupancy, is_active, created_at, updated_at
     // Also calculate current occupancy by counting active bookings (CHECKED_IN or CONFIRMED with dates spanning today)
     const result = await query(
-      `SELECT k.record_id, k.tenant_id, k.name, k.size, k.location, k.max_occupancy,
+      `SELECT k.record_id, k.tenant_id, k.name, k.type, k.size, k.location, k.max_occupancy,
               k.is_active, k.created_at, k.updated_at,
               COALESCE(occ.occupied, 0) AS occupied
        FROM "Kennel" k

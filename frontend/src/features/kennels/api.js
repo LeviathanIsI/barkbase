@@ -222,5 +222,52 @@ export const useDeleteKennel = () => {
   });
 };
 
+/**
+ * Fetch kennel types for the current tenant
+ */
+export const useKennelTypes = () => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['kennelTypes', tenantKey],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get('/api/v1/config/kennel-types');
+        return res.data?.kennelTypes || ['Standard', 'Suite', 'Cabin', 'VIP', 'Medical'];
+      } catch (e) {
+        console.warn('[kennelTypes] Error fetching, returning defaults:', e?.message);
+        return ['Standard', 'Suite', 'Cabin', 'VIP', 'Medical'];
+      }
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes - types don't change often
+    enabled: isTenantReady,
+  });
+};
+
+/**
+ * Update kennel types mutation
+ */
+export const useUpdateKennelTypes = () => {
+  const tenantKey = useTenantKey();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (kennelTypes) => {
+      const res = await apiClient.put('/api/v1/config/kennel-types', { kennelTypes });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kennelTypes', tenantKey] });
+      toast.success('Kennel types updated');
+    },
+    onError: (error) => {
+      console.error('[kennelTypes] Update failed:', error?.message);
+      toast.error('Failed to update kennel types');
+    },
+  });
+};
+
 // TODO: Refactor to a dedicated Lambda for availability logic
 // export const useCheckKennelAvailability = (kennelId) => { ... };
+
