@@ -384,7 +384,7 @@ const OverviewTab = ({ staff, stats, onViewProfile, onAddStaff }) => {
       trend: stats.newThisMonth > 0 ? `+${stats.newThisMonth}` : null,
       trendType: stats.newThisMonth > 0 ? 'positive' : null,
     },
-    { icon: CheckCircle, label: 'Active', value: stats.activeMembers, subtitle: 'Active staff' },
+    { icon: CheckCircle, label: 'Active', value: stats.loggedIn || 0, subtitle: 'Logged in now' },
     { icon: Briefcase, label: 'Roles', value: stats.roles, subtitle: 'Defined roles' },
     { icon: Target, label: 'Avg Tasks', value: stats.avgTasksPerStaff || 0, subtitle: 'Per staff today' },
     { icon: Clock, label: 'Clocked In', value: stats.clockedIn || 0, subtitle: 'Working now' },
@@ -3074,6 +3074,7 @@ const TeamOverview = () => {
 
   // Real-time stats from APIs
   const [realStats, setRealStats] = useState({
+    loggedIn: 0,
     clockedIn: 0,
     scheduled: 0,
     avgTasksPerStaff: 0,
@@ -3150,7 +3151,16 @@ const TeamOverview = () => {
           }).length;
         }
 
-        setRealStats({ clockedIn, scheduled, avgTasksPerStaff, newThisMonth });
+        // Get logged in users (active sessions in last 30 min)
+        let loggedIn = 0;
+        try {
+          const sessionResponse = await apiClient.get('/api/v1/auth/sessions/active-count');
+          loggedIn = sessionResponse?.data?.activeCount || 0;
+        } catch (e) {
+          console.warn('[stats] Failed to fetch active sessions:', e?.message);
+        }
+
+        setRealStats({ loggedIn, clockedIn, scheduled, avgTasksPerStaff, newThisMonth });
       } catch (error) {
         console.warn('[stats] Failed to fetch real stats:', error?.message);
       }
@@ -3166,20 +3176,19 @@ const TeamOverview = () => {
     if (!staffData || isLoading) {
       return {
         staff: [],
-        stats: { totalStaff: 0, activeMembers: 0, roles: 0, avgTasksPerStaff: 0, clockedIn: 0, scheduled: 0, onPto: 0, newThisMonth: 0 },
+        stats: { totalStaff: 0, loggedIn: 0, roles: 0, avgTasksPerStaff: 0, clockedIn: 0, scheduled: 0, onPto: 0, newThisMonth: 0 },
         hasStaff: false,
       };
     }
 
     const staffArray = staffData || [];
-    const activeMembers = staffArray.filter(s => s.isActive !== false).length;
     const roles = [...new Set(staffArray.map(s => s.role || s.title).filter(Boolean))].length;
 
     return {
       staff: staffArray,
       stats: {
         totalStaff: staffArray.length,
-        activeMembers,
+        loggedIn: realStats.loggedIn,
         roles: roles || 0,
         avgTasksPerStaff: realStats.avgTasksPerStaff,
         clockedIn: realStats.clockedIn,

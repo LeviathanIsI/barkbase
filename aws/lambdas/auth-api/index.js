@@ -158,6 +158,12 @@ exports.handler = async (event, context) => {
       }
     }
 
+    if (path === '/api/v1/auth/sessions/active-count' || path === '/auth/sessions/active-count') {
+      if (method === 'GET') {
+        return handleActiveSessionCount(event);
+      }
+    }
+
     // OAuth endpoints for Gmail integration
     if (path === '/api/v1/auth/oauth/google/start' || path === '/auth/oauth/google/start') {
       if (method === 'GET') {
@@ -1426,6 +1432,51 @@ async function handleRevokeAllSessions(event) {
     return createResponse(500, {
       error: 'Server Error',
       message: 'Failed to sign out from all devices',
+    });
+  }
+}
+
+/**
+ * Get count of active sessions for the tenant
+ * GET /api/v1/auth/sessions/active-count
+ *
+ * Returns the number of users currently logged in (active sessions)
+ */
+async function handleActiveSessionCount(event) {
+  const authResult = await authenticateRequest(event);
+
+  if (!authResult.authenticated) {
+    return createResponse(401, {
+      error: 'Unauthorized',
+      message: authResult.error || 'Authentication required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Count unique users with active sessions in the last 30 minutes
+    // This represents "logged in" users more accurately than just is_active
+    const result = await query(
+      `SELECT COUNT(DISTINCT user_id) as count
+       FROM "UserSession"
+       WHERE tenant_id = $1
+         AND is_active = true
+         AND last_activity > NOW() - INTERVAL '30 minutes'`,
+      [authResult.user.tenantId]
+    );
+
+    const activeCount = parseInt(result.rows[0]?.count || 0, 10);
+
+    return createResponse(200, {
+      activeCount,
+    });
+
+  } catch (error) {
+    console.error('[AUTH-API] Failed to get active session count:', error.message);
+    return createResponse(500, {
+      error: 'Server Error',
+      message: 'Failed to get active session count',
     });
   }
 }
