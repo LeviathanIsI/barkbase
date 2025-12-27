@@ -73,11 +73,10 @@ import CreatableSelect from '@/components/ui/CreatableSelect';
 import LoadingState from '@/components/ui/LoadingState';
 import { useStaffQuery } from '../../settings/api';
 import {
-  useStaffRolesQuery,
-  useCreateRole,
   useDepartments,
   useAddDepartment,
 } from '../api';
+import { useRoles, useCreateRole } from '@/features/roles/api';
 import { cn } from '@/lib/cn';
 import { useStaffRoles, useStaffRoleOptions, useDefaultRole, getRoleColor } from '@/lib/useStaffRoles';
 
@@ -2759,13 +2758,15 @@ const AddStaffWizard = ({ isOpen, onClose, onComplete }) => {
   });
 
   // Fetch roles and departments from API
-  const { data: rolesData, isLoading: rolesLoading } = useStaffRolesQuery();
+  const { data: rolesResponse, isLoading: rolesLoading } = useRoles();
   const { data: departmentsData, isLoading: departmentsLoading } = useDepartments();
-  const createRole = useCreateRole();
+  const createRoleMutation = useCreateRole();
   const addDepartment = useAddDepartment();
 
   // Convert to options format for CreatableSelect
-  const roleOptions = (rolesData || []).map(r => ({
+  // useRoles returns axios response, data is in rolesResponse.data
+  const rolesData = rolesResponse?.data || [];
+  const roleOptions = (Array.isArray(rolesData) ? rolesData : []).map(r => ({
     value: r.record_id || r.id,
     label: r.name
   }));
@@ -2773,9 +2774,10 @@ const AddStaffWizard = ({ isOpen, onClose, onComplete }) => {
 
   // Handle creating new role
   const handleCreateRole = useCallback(async (newRoleName) => {
-    const result = await createRole.mutateAsync(newRoleName);
-    return result;
-  }, [createRole]);
+    const result = await createRoleMutation.mutateAsync({ name: newRoleName });
+    const newRole = result?.data || result;
+    return { value: newRole.record_id || newRole.id, label: newRole.name };
+  }, [createRoleMutation]);
 
   // Handle creating new department
   const handleCreateDepartment = useCallback(async (newDeptName) => {
