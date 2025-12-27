@@ -212,13 +212,14 @@ const getUserById = async (event, requestingUser) => {
   // SECURITY: Verify requesting user has access to target user via shared tenant
   // Using JOIN with Membership table to ensure tenant isolation
   const { rows } = await pool.query(
-    `SELECT DISTINCT u."recordId", u."email", u."name", u."phone", u."avatarUrl", u."createdAt"
+    `SELECT DISTINCT u.record_id AS "recordId", u.email, us.full_name AS "name", us.phone, u.avatar_url AS "avatarUrl", u.created_at AS "createdAt"
      FROM "User" u
-     INNER JOIN "Membership" m1 ON u."recordId" = m1."userId"
-     INNER JOIN "Membership" m2 ON m1."tenantId" = m2."tenantId"
-     WHERE u."recordId" = $1
-       AND m2."userId" = $2
-       AND m2."tenantId" = $3`,
+     LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
+     INNER JOIN "Membership" m1 ON u.record_id = m1.user_record_id
+     INNER JOIN "Membership" m2 ON m1.tenant_id = m2.tenant_id
+     WHERE u.record_id = $1
+       AND m2.user_record_id = $2
+       AND m2.tenant_id = $3`,
     [userId, requestingUser.sub, requestingUser.tenantId]
   );
 
@@ -263,21 +264,22 @@ const listUsers = async (event, requestingUser) => {
 
   // SECURITY: Only return users in requesting user's tenant
   const { rows } = await pool.query(
-    `SELECT DISTINCT u."recordId", u."email", u."name", u."createdAt", m."role"
+    `SELECT DISTINCT u.record_id AS "recordId", u.email, us.full_name AS "name", u.created_at AS "createdAt", m.role
      FROM "User" u
-     INNER JOIN "Membership" m ON u."recordId" = m."userId"
-     WHERE m."tenantId" = $1
-     ORDER BY u."createdAt" DESC
+     LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
+     INNER JOIN "Membership" m ON u.record_id = m.user_record_id
+     WHERE m.tenant_id = $1
+     ORDER BY u.created_at DESC
      LIMIT $2 OFFSET $3`,
     [requestingUser.tenantId, limit, offset]
   );
 
   // SECURITY: Count only users in requesting user's tenant
   const { rows: countRows } = await pool.query(
-    `SELECT COUNT(DISTINCT u."recordId") as count
+    `SELECT COUNT(DISTINCT u.record_id) as count
      FROM "User" u
-     INNER JOIN "Membership" m ON u."recordId" = m."userId"
-     WHERE m."tenantId" = $1`,
+     INNER JOIN "Membership" m ON u.record_id = m.user_record_id
+     WHERE m.tenant_id = $1`,
     [requestingUser.tenantId]
   );
   const totalCount = parseInt(countRows[0].count, 10);
@@ -302,7 +304,7 @@ const listUsers = async (event, requestingUser) => {
  */
 const createUser = async (event, requestingUser) => {
   const body = JSON.parse(event.body);
-  const { email, password, name, phone } = body;
+  const { email, password, name, phone, firstName, lastName } = body;
 
   if (!email || !password) {
     return errorResponse(400, ERROR_CODES.INVALID_INPUT, "Email and password are required");
@@ -323,25 +325,57 @@ const createUser = async (event, requestingUser) => {
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
   const pool = getPool();
+  const client = await pool.connect();
   try {
-    const { rows } = await pool.query(
-      'INSERT INTO "User" ("recordId", "email", "passwordHash", "name", "phone", "updatedAt") VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW()) RETURNING "recordId", "email", "name", "createdAt"',
-      [email.toLowerCase(), passwordHash, name, phone]
+    await client.query('BEGIN');
+
+    // Insert into User table
+    const { rows } = await client.query(
+      'INSERT INTO "User" (record_id, tenant_id, email, password_hash, updated_at) VALUES (gen_random_uuid(), $1, $2, $3, NOW()) RETURNING record_id, tenant_id, email, created_at',
+      [requestingUser.tenantId, email.toLowerCase(), passwordHash]
     );
 
-    console.log(`[USERS] User created: ${rows[0].recordId} by ${requestingUser.sub}`);
+    const user = rows[0];
+
+    // Parse name into first/last if provided, or use firstName/lastName directly
+    let first = firstName || '';
+    let last = lastName || '';
+    if (name && !firstName && !lastName) {
+      const nameParts = name.trim().split(/\s+/);
+      first = nameParts[0] || '';
+      last = nameParts.slice(1).join(' ') || '';
+    }
+
+    // Insert into UserSettings table
+    await client.query(
+      `INSERT INTO "UserSettings" (tenant_id, user_record_id, first_name, last_name, email, phone)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [user.tenant_id, user.record_id, first, last, email.toLowerCase(), phone]
+    );
+
+    await client.query('COMMIT');
+
+    console.log(`[USERS] User created: ${user.record_id} by ${requestingUser.sub}`);
 
     return {
       statusCode: 201,
       headers: HEADERS,
-      body: JSON.stringify(rows[0]),
+      body: JSON.stringify({
+        recordId: user.record_id,
+        email: user.email,
+        name: `${first} ${last}`.trim(),
+        createdAt: user.created_at
+      }),
     };
   } catch (error) {
+    await client.query('ROLLBACK');
     // Check for unique constraint violation (duplicate email)
     if (error.code === "23505") {
       return errorResponse(409, ERROR_CODES.DUPLICATE, "A user with this email already exists");
     }
     throw error; // Rethrow other errors to be caught by the main handler
+  } finally {
+    client.release();
   }
 };
 
@@ -356,41 +390,7 @@ const createUser = async (event, requestingUser) => {
 const updateUser = async (event, requestingUser) => {
   const userId = event.pathParameters.id;
   const body = JSON.parse(event.body);
-  const { name, phone, avatarUrl, timezone, language, preferences } = body;
-
-  // Dynamically build the update query
-  const fields = [];
-  const values = [];
-  let paramCount = 1;
-
-  if (name !== undefined) {
-    fields.push(`"name" = $${paramCount++}`);
-    values.push(name);
-  }
-  if (phone !== undefined) {
-    fields.push(`"phone" = $${paramCount++}`);
-    values.push(phone);
-  }
-  if (avatarUrl !== undefined) {
-    fields.push(`"avatarUrl" = $${paramCount++}`);
-    values.push(avatarUrl);
-  }
-  if (timezone !== undefined) {
-    fields.push(`"timezone" = $${paramCount++}`);
-    values.push(timezone);
-  }
-  if (language !== undefined) {
-    fields.push(`"language" = $${paramCount++}`);
-    values.push(language);
-  }
-  if (preferences !== undefined) {
-    fields.push(`"preferences" = $${paramCount++}`);
-    values.push(JSON.stringify(preferences));
-  }
-
-  if (fields.length === 0) {
-    return errorResponse(400, ERROR_CODES.INVALID_INPUT, "No valid fields provided for update");
-  }
+  const { name, firstName, lastName, phone, avatarUrl, timezone, language, preferences } = body;
 
   const pool = getPool();
 
@@ -398,11 +398,11 @@ const updateUser = async (event, requestingUser) => {
   const accessCheck = await pool.query(
     `SELECT COUNT(*) as count
      FROM "User" u
-     INNER JOIN "Membership" m1 ON u."recordId" = m1."userId"
-     INNER JOIN "Membership" m2 ON m1."tenantId" = m2."tenantId"
-     WHERE u."recordId" = $1
-       AND m2."userId" = $2
-       AND m2."tenantId" = $3`,
+     INNER JOIN "Membership" m1 ON u.record_id = m1.user_record_id
+     INNER JOIN "Membership" m2 ON m1.tenant_id = m2.tenant_id
+     WHERE u.record_id = $1
+       AND m2.user_record_id = $2
+       AND m2.tenant_id = $3`,
     [userId, requestingUser.sub, requestingUser.tenantId]
   );
 
@@ -411,11 +411,66 @@ const updateUser = async (event, requestingUser) => {
     return errorResponse(404, ERROR_CODES.NOT_FOUND, "User not found");
   }
 
-  const setClause = fields.join(", ");
-  const query = `UPDATE "User" SET ${setClause}, "updatedAt" = NOW() WHERE "recordId" = $${paramCount} RETURNING "recordId", "email", "name", "phone", "avatarUrl", "updatedAt"`;
-  values.push(userId);
+  // Update User table (only avatarUrl goes here now)
+  if (avatarUrl !== undefined) {
+    await pool.query(
+      `UPDATE "User" SET avatar_url = $1, updated_at = NOW() WHERE record_id = $2`,
+      [avatarUrl, userId]
+    );
+  }
 
-  const { rows } = await pool.query(query, values);
+  // Update UserSettings table
+  const settingsFields = [];
+  const settingsValues = [];
+  let paramCount = 1;
+
+  // Handle firstName/lastName or legacy name field
+  if (firstName !== undefined) {
+    settingsFields.push(`first_name = $${paramCount++}`);
+    settingsValues.push(firstName);
+  }
+  if (lastName !== undefined) {
+    settingsFields.push(`last_name = $${paramCount++}`);
+    settingsValues.push(lastName);
+  }
+  if (name !== undefined && firstName === undefined && lastName === undefined) {
+    // Parse legacy name into first/last
+    const nameParts = name.trim().split(/\s+/);
+    settingsFields.push(`first_name = $${paramCount++}`);
+    settingsValues.push(nameParts[0] || '');
+    settingsFields.push(`last_name = $${paramCount++}`);
+    settingsValues.push(nameParts.slice(1).join(' ') || '');
+  }
+  if (phone !== undefined) {
+    settingsFields.push(`phone = $${paramCount++}`);
+    settingsValues.push(phone);
+  }
+  if (timezone !== undefined) {
+    settingsFields.push(`timezone = $${paramCount++}`);
+    settingsValues.push(timezone);
+  }
+  if (language !== undefined) {
+    settingsFields.push(`language = $${paramCount++}`);
+    settingsValues.push(language);
+  }
+
+  if (settingsFields.length > 0) {
+    settingsValues.push(userId, requestingUser.tenantId);
+    await pool.query(
+      `UPDATE "UserSettings" SET ${settingsFields.join(', ')}, updated_at = NOW()
+       WHERE user_record_id = $${paramCount} AND tenant_id = $${paramCount + 1}`,
+      settingsValues
+    );
+  }
+
+  // Return updated user data
+  const { rows } = await pool.query(
+    `SELECT u.record_id AS "recordId", u.email, us.full_name AS "name", us.phone, u.avatar_url AS "avatarUrl", u.updated_at AS "updatedAt"
+     FROM "User" u
+     LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
+     WHERE u.record_id = $1`,
+    [userId]
+  );
 
   if (rows.length === 0) {
     return errorResponse(404, ERROR_CODES.NOT_FOUND, "User not found");
@@ -452,8 +507,8 @@ const deleteUser = async (event, requestingUser) => {
   const accessCheck = await pool.query(
     `SELECT COUNT(*) as count
      FROM "User" u
-     INNER JOIN "Membership" m ON u."recordId" = m."userId"
-     WHERE u."recordId" = $1 AND m."tenantId" = $2`,
+     INNER JOIN "Membership" m ON u.record_id = m.user_record_id
+     WHERE u.record_id = $1 AND m.tenant_id = $2`,
     [userId, requestingUser.tenantId]
   );
 
@@ -468,7 +523,7 @@ const deleteUser = async (event, requestingUser) => {
   }
 
   const { rowCount } = await pool.query(
-    'DELETE FROM "User" WHERE "recordId" = $1',
+    'DELETE FROM "User" WHERE record_id = $1',
     [userId]
   );
 

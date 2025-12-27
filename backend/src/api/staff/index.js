@@ -8,11 +8,12 @@ router.get('/', async (req, res) => {
   try {
     const pool = getPool();
     const { rows } = await pool.query(
-      `SELECT s.*, m."role", u."name", u."email"
+      `SELECT s.*, m.role, us.full_name AS "name", u.email
          FROM "Staff" s
-         LEFT JOIN "Membership" m ON s."membershipId" = m."recordId"
-         LEFT JOIN "User" u ON m."userId" = u."recordId"
-         WHERE s."tenantId" = $1`,
+         LEFT JOIN "Membership" m ON s.membership_id = m.record_id
+         LEFT JOIN "User" u ON m.user_record_id = u.record_id
+         LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
+         WHERE s.tenant_id = $1`,
       [req.tenantId],
     );
     return ok(res, rows);
@@ -52,11 +53,12 @@ router.get('/:staffId', async (req, res) => {
   try {
     const pool = getPool();
     const { rows } = await pool.query(
-      `SELECT s.*, m."role", u."name" as "userName", u."email" as "userEmail"
+      `SELECT s.*, m.role, us.full_name AS "userName", u.email AS "userEmail"
          FROM "Staff" s
-         LEFT JOIN "Membership" m ON s."membershipId" = m."recordId"
-         LEFT JOIN "User" u ON m."userId" = u."recordId"
-         WHERE s."recordId" = $1 AND s."tenantId" = $2`,
+         LEFT JOIN "Membership" m ON s.membership_id = m.record_id
+         LEFT JOIN "User" u ON m.user_record_id = u.record_id
+         LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
+         WHERE s.record_id = $1 AND s.tenant_id = $2`,
       [req.params.staffId, req.tenantId],
     );
     if (rows.length === 0) {

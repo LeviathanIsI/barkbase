@@ -654,7 +654,11 @@ async function deletePackage(event, tenantId) {
 async function getMemberships(event, tenantId) {
     const pool = getPool();
     const { rows } = await pool.query(
-        `SELECT m.*, u."name", u."email" FROM "Membership" m LEFT JOIN "User" u ON m."userId" = u."recordId" WHERE m."tenantId" = $1`,
+        `SELECT m.*, us.full_name AS "name", u.email
+         FROM "Membership" m
+         LEFT JOIN "User" u ON m.user_record_id = u.record_id
+         LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
+         WHERE m.tenant_id = $1`,
         [tenantId]
     );
     return ok(event, 200, rows);

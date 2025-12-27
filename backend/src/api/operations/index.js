@@ -868,12 +868,13 @@ async function listCheckIns(event, tenantId) {
                b."checkIn", b."checkOut", b."status" as "bookingStatus",
                p."name" as "petName", p."recordId" as "petId",
                o."firstName", o."lastName", o."recordId" as "ownerId",
-               u."name" as "checkedInByName"
+               us.full_name as "checkedInByName"
         FROM "CheckIn" ci
         JOIN "Booking" b ON ci."bookingId" = b."recordId"
         JOIN "Pet" p ON b."petId" = p."recordId"
         JOIN "Owner" o ON b."ownerId" = o."recordId"
-        LEFT JOIN "User" u ON ci."checkedInBy" = u."recordId"
+        LEFT JOIN "User" u ON ci."checkedInBy" = u.record_id
+        LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
         WHERE b."tenantId" = $1
     `;
 
@@ -909,12 +910,13 @@ async function getCheckIn(event, tenantId) {
                 b."checkIn", b."checkOut", b."status" as "bookingStatus",
                 p."name" as "petName", p."recordId" as "petId",
                 o."firstName", o."lastName", o."recordId" as "ownerId", o."email", o."phone",
-                u."name" as "checkedInByName"
+                us.full_name as "checkedInByName"
          FROM "CheckIn" ci
          JOIN "Booking" b ON ci."bookingId" = b."recordId"
          JOIN "Pet" p ON b."petId" = p."recordId"
          JOIN "Owner" o ON b."ownerId" = o."recordId"
-         LEFT JOIN "User" u ON ci."checkedInBy" = u."recordId"
+         LEFT JOIN "User" u ON ci."checkedInBy" = u.record_id
+         LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
          WHERE ci."recordId" = $1 AND b."tenantId" = $2`,
         [id, tenantId]
     );
@@ -1082,12 +1084,13 @@ async function listCheckOuts(event, tenantId) {
                b."checkIn", b."checkOut", b."status" as "bookingStatus", b."balanceDueInCents",
                p."name" as "petName", p."recordId" as "petId",
                o."firstName", o."lastName", o."recordId" as "ownerId", o."email", o."phone",
-               u."name" as "checkedOutByName"
+               us.full_name as "checkedOutByName"
         FROM "CheckOut" co
         JOIN "Booking" b ON co."bookingId" = b."recordId"
         JOIN "Pet" p ON b."petId" = p."recordId"
         JOIN "Owner" o ON b."ownerId" = o."recordId"
-        LEFT JOIN "User" u ON co."checkedOutBy" = u."recordId"
+        LEFT JOIN "User" u ON co."checkedOutBy" = u.record_id
+        LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
         WHERE b."tenantId" = $1
     `;
 
@@ -1124,12 +1127,13 @@ async function getCheckOutDetail(event, tenantId) {
                 b."totalPriceInCents", b."depositInCents", b."balanceDueInCents",
                 p."name" as "petName", p."recordId" as "petId",
                 o."firstName", o."lastName", o."recordId" as "ownerId", o."email", o."phone",
-                u."name" as "checkedOutByName"
+                us.full_name as "checkedOutByName"
          FROM "CheckOut" co
          JOIN "Booking" b ON co."bookingId" = b."recordId"
          JOIN "Pet" p ON b."petId" = p."recordId"
          JOIN "Owner" o ON b."ownerId" = o."recordId"
-         LEFT JOIN "User" u ON co."checkedOutBy" = u."recordId"
+         LEFT JOIN "User" u ON co."checkedOutBy" = u.record_id
+         LEFT JOIN "UserSettings" us ON us.user_record_id = u.record_id AND us.tenant_id = u.tenant_id
          WHERE co."recordId" = $1 AND b."tenantId" = $2`,
         [id, tenantId]
     );
