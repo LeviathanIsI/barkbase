@@ -313,19 +313,26 @@ async function getCurrentUserProfile(event, userId, tenantId) {
 
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT 
-      u."recordId",
-      u."email",
-      u."name",
-      u."phone",
-      u."avatarUrl",
-      u."createdAt",
-      u."updatedAt",
-      m."role" AS "membershipRole",
-      m."tenantId" AS "membershipTenantId"
+    `SELECT
+      u.record_id AS "recordId",
+      u.avatar_url AS "avatarUrl",
+      u.created_at AS "createdAt",
+      u.updated_at AS "updatedAt",
+      us.full_name AS "name",
+      us.email,
+      us.phone,
+      us.language,
+      us.timezone,
+      us.two_factor_enabled AS "twoFactorEnabled",
+      us.password_changed_at AS "passwordChangedAt",
+      us.connected_email AS "connectedEmail",
+      us.connected_email_connected_at AS "connectedEmailConnectedAt",
+      m.role AS "membershipRole",
+      m.tenant_id AS "membershipTenantId"
      FROM "User" u
-     LEFT JOIN "Membership" m ON m."userId" = u."recordId" AND m."tenantId" = $2
-     WHERE u."recordId" = $1`,
+     LEFT JOIN "UserSettings" us ON us.tenant_id = u.tenant_id AND us.user_record_id = u.record_id
+     LEFT JOIN "Membership" m ON m.user_record_id = u.record_id AND m.tenant_id = u.tenant_id
+     WHERE u.record_id = $1 AND u.tenant_id = $2`,
     [userId, tenantId]
   );
 
@@ -341,6 +348,12 @@ async function getCurrentUserProfile(event, userId, tenantId) {
     name: profile.name,
     phone: profile.phone,
     avatarUrl: profile.avatarUrl,
+    language: profile.language || 'en',
+    timezone: profile.timezone || '',
+    twoFactorEnabled: profile.twoFactorEnabled || false,
+    passwordChangedAt: profile.passwordChangedAt,
+    connectedEmail: profile.connectedEmail,
+    connectedEmailConnectedAt: profile.connectedEmailConnectedAt,
     createdAt: profile.createdAt,
     updatedAt: profile.updatedAt,
     role: profile.membershipRole,
@@ -353,34 +366,49 @@ async function updateCurrentUserProfile(event, userId, tenantId, data = {}) {
     return fail(event, 401, { error: 'Unauthorized' });
   }
 
-  const allowedFields = ['name', 'phone', 'avatarUrl'];
+  const pool = getPool();
+
+  // Map frontend field names to database column names
+  const fieldMap = {
+    name: 'full_name',
+    phone: 'phone',
+    language: 'language',
+    timezone: 'timezone',
+  };
+
   const updates = [];
   const values = [];
+  let paramCount = 1;
 
-  allowedFields.forEach((field) => {
-    if (data[field] !== undefined) {
-      updates.push(`"${field}" = $${updates.length + 1}`);
-      values.push(data[field]);
+  Object.entries(fieldMap).forEach(([frontendField, dbColumn]) => {
+    if (data[frontendField] !== undefined) {
+      updates.push(`${dbColumn} = $${paramCount++}`);
+      values.push(data[frontendField]);
     }
   });
 
-  if (updates.length === 0) {
-    return fail(event, 400, { error: 'No valid fields provided' });
+  // Handle avatarUrl separately - goes to User table
+  if (data.avatarUrl !== undefined) {
+    await pool.query(
+      `UPDATE "User" SET avatar_url = $1, updated_at = NOW() WHERE record_id = $2 AND tenant_id = $3`,
+      [data.avatarUrl, userId, tenantId]
+    );
   }
 
-  values.push(userId);
+  // Update UserSettings if there are fields to update
+  if (updates.length > 0) {
+    values.push(userId, tenantId);
+    const result = await pool.query(
+      `UPDATE "UserSettings"
+       SET ${updates.join(', ')}, updated_at = NOW()
+       WHERE user_record_id = $${paramCount} AND tenant_id = $${paramCount + 1}
+       RETURNING user_record_id`,
+      values
+    );
 
-  const pool = getPool();
-  const result = await pool.query(
-    `UPDATE "User"
-     SET ${updates.join(', ')}, "updatedAt" = NOW()
-     WHERE "recordId" = $${values.length}
-     RETURNING "recordId"`,
-    values
-  );
-
-  if (result.rowCount === 0) {
-    return fail(event, 404, { error: 'User not found' });
+    if (result.rowCount === 0) {
+      return fail(event, 404, { error: 'User settings not found' });
+    }
   }
 
   return await getCurrentUserProfile(event, userId, tenantId);
