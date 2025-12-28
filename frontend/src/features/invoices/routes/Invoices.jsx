@@ -1829,7 +1829,7 @@ const Invoices = () => {
                 Showing {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, filteredInvoices.length)} of {filteredInvoices.length}
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-20">
+                <div className="w-24">
                   <StyledSelect
                     options={[
                       { value: 25, label: '25' },
