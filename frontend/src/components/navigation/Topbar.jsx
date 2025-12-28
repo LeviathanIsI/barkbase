@@ -499,15 +499,6 @@ const HelpButton = () => {
 
   const helpItems = [
     {
-      icon: Keyboard,
-      label: 'Keyboard Shortcuts',
-      shortcut: 'Ctrl+?',
-      onClick: () => {
-        setIsOpen(false);
-        setShowKeyboardShortcuts(true);
-      },
-    },
-    {
       icon: BookOpen,
       label: 'Help Center',
       href: 'https://help.barkbase.com',
@@ -1301,8 +1292,8 @@ const Topbar = ({ onToggleSidebar }) => {
           <LocationSwitcher />
           <LiveIndicator />
         </div>
-        {/* Center: Search */}
-        <div className="flex-1 max-w-lg hidden sm:block"><GlobalSearch /></div>
+        {/* Center: Search + Shortcuts hint */}
+        <div className="flex-1 max-w-xl hidden sm:flex items-center gap-3"><div className="flex-1 max-w-lg"><GlobalSearch /></div><span className="hidden lg:flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)] whitespace-nowrap">Press <kbd className="rounded border px-1.5 py-0.5 text-[0.65rem] font-medium" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>?</kbd> for shortcuts</span></div>
         {/* Right: Actions + User */}
         <div className="flex items-center gap-2">
           <button type="button" className="sm:hidden flex items-center justify-center rounded-lg border p-2" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }} aria-label="Search"><Search className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" /></button>
