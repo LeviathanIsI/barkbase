@@ -562,7 +562,7 @@ const OverviewTab = ({ segment, segmentType, objectType, onExport, onTabChange, 
   const [isEditingFilters, setIsEditingFilters] = useState(false);
   const [editedFilters, setEditedFilters] = useState(null);
   const [showTeamDrawer, setShowTeamDrawer] = useState(false);
-  const pageSize = 100;
+  const [pageSize, setPageSize] = useState(100);
 
   const updateSegment = useUpdateSegment();
 
@@ -866,8 +866,11 @@ const OverviewTab = ({ segment, segmentType, objectType, onExport, onTabChange, 
                         { value: 50, label: '50 per page' },
                         { value: 25, label: '25 per page' },
                       ]}
-                      value={100}
-                      onChange={() => {}}
+                      value={pageSize}
+                      onChange={(opt) => {
+                        setPageSize(opt?.value || 100);
+                        setCurrentPage(0);
+                      }}
                       isClearable={false}
                       isSearchable={false}
                     />
