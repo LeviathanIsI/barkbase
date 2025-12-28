@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Modal from '@/components/ui/Modal';
+import SlidePanel from '@/components/ui/SlidePanel';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useCreatePackageMutation } from '../api';
@@ -31,7 +31,7 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
 
       toast.success('Package created successfully');
       onClose();
-      
+
       // Reset form
       setName('');
       setCredits(10);
@@ -43,11 +43,11 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
   };
 
   return (
-    <Modal
+    <SlidePanel
       open={open}
       onClose={onClose}
       title={`Purchase Package for ${ownerName}`}
-      className="max-w-md"
+      size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
@@ -107,7 +107,7 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
           </Button>
         </div>
       </form>
-    </Modal>
+    </SlidePanel>
   );
 };
 
