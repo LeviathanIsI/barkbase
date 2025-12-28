@@ -182,11 +182,11 @@ const Vaccinations = () => {
     });
   };
 
-  // Get ordered and visible columns
+  // Get ordered and visible columns (always include non-hideable columns like select/actions)
   const orderedColumns = useMemo(() => {
     return columnOrder
       .map(id => ALL_COLUMNS.find(c => c.id === id))
-      .filter(col => col && visibleColumns.includes(col.id));
+      .filter(col => col && (col.hideable === false || visibleColumns.includes(col.id)));
   }, [columnOrder, visibleColumns]);
 
   // Fetch ALL vaccinations (statusFilter='all' gets all records including archived/expired)
