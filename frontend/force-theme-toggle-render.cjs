@@ -35,13 +35,11 @@ const withThemeToggle = `          <ThemeToggleIconButton
 if (content.includes(onlineOfflinePattern)) {
   content = content.replace(onlineOfflinePattern, withThemeToggle);
 } else {
-  console.log('❌ Could not find Online/Offline span pattern');
   process.exit(1);
 }
 
 // Verify the import exists
 if (!content.includes('import { ThemeToggleIconButton }')) {
-  console.log('❌ ThemeToggleIconButton import not found!');
   process.exit(1);
 }
 
