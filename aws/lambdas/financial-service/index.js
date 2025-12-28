@@ -1378,7 +1378,7 @@ async function handleGetInvoicePdf(tenantId, invoiceId) {
  *   NOTE: No deleted_at, refunded_at, or refund_amount_cents columns!
  */
 async function handleGetPayments(tenantId, queryParams) {
-  const { status, limit = 50, offset = 0 } = queryParams;
+  const { status, packageType, limit = 50, offset = 0 } = queryParams;
 
   console.log('[Payments][list] tenantId:', tenantId);
 
@@ -3742,7 +3742,7 @@ async function handleStripeWebhook(event) {
  * Get packages for tenant/owner
  */
 async function handleGetPackages(tenantId, queryParams) {
-  const { status, limit = 50, offset = 0 } = queryParams;
+  const { status, packageType, limit = 50, offset = 0 } = queryParams;
 
   console.log('[Packages][list] tenantId:', tenantId, queryParams);
 
@@ -3757,15 +3757,20 @@ async function handleGetPackages(tenantId, queryParams) {
       whereClause += ` AND p.is_active = true`;
     }
 
-    // Get packages (PackageService junction table still uses UUID FKs, so we skip services for now)
+    // Get packages with all fields
     const result = await query(
       `SELECT
+         p.id,
          p.record_id,
          p.tenant_id,
          p.name,
          p.description,
          p.price_in_cents,
          p.discount_percent,
+         p.package_type,
+         p.billing_frequency,
+         p.start_date,
+         p.end_date,
          p.is_active,
          p.created_at,
          p.updated_at
@@ -3777,16 +3782,20 @@ async function handleGetPackages(tenantId, queryParams) {
     );
 
     const packages = result.rows.map(row => ({
-      id: row.record_id,
+      id: row.id,
       recordId: row.record_id,
       tenantId: row.tenant_id,
       name: row.name,
       description: row.description,
       priceInCents: row.price_in_cents,
-      price: row.price_in_cents / 100,
-      discountPercent: row.discount_percent,
+      price: row.price_in_cents ? row.price_in_cents / 100 : 0,
+      discountPercent: row.discount_percent || 0,
+      packageType: row.package_type || 'credit',
+      billingFrequency: row.billing_frequency,
+      startDate: row.start_date,
+      endDate: row.end_date,
       isActive: row.is_active,
-      services: [], // PackageService junction table still uses UUID FKs
+      services: [],
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
@@ -3872,15 +3881,12 @@ async function handleGetPackage(tenantId, packageId) {
  * Create/purchase a package
  */
 async function handleCreatePackage(tenantId, body) {
-  const { ownerId, name, description, totalCredits, priceInCents, expiresAt } = body;
+  const { name, description, priceInCents, discountPercent, packageType, billingFrequency, startDate, endDate, services } = body;
 
-  console.log('[Packages][create] tenantId:', tenantId);
+  console.log('[Packages][create] tenantId:', tenantId, 'body:', body);
 
-  if (!ownerId || !name || !totalCredits) {
-    return createResponse(400, {
-      error: 'Bad Request',
-      message: 'ownerId, name, and totalCredits are required',
-    });
+  if (!name) {
+    return createResponse(400, { error: 'Bad Request', message: 'name is required' });
   }
 
   try {
@@ -3889,32 +3895,40 @@ async function handleCreatePackage(tenantId, body) {
     const packageRecordId = await getNextRecordId(tenantId, 'Package');
     const result = await query(
       `INSERT INTO "Package" (
-         tenant_id, record_id, owner_id, name, description, total_credits, used_credits,
-         price_in_cents, purchased_at, expires_at, is_active
+         tenant_id, record_id, name, description, price_in_cents, discount_percent,
+         package_type, billing_frequency, start_date, end_date, is_active
        )
-       VALUES ($1, $2, $3, $4, $5, $6, 0, $7, NOW(), $8, true)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true)
        RETURNING *`,
-      [tenantId, packageRecordId, ownerId, name, description || null, totalCredits, priceInCents || 0, expiresAt || null]
+      [tenantId, packageRecordId, name, description || null, priceInCents || 0, discountPercent || 0,
+       packageType || 'credit', billingFrequency || null, startDate || null, endDate || null]
     );
 
     const pkg = result.rows[0];
-    console.log('[Packages][create] Created:', pkg.record_id);
+    console.log('[Packages][create] Created:', pkg.record_id, 'uuid:', pkg.id);
+
+    // Insert services if provided
+    if (services && services.length > 0 && pkg.id) {
+      for (const svc of services) {
+        await query(
+          `INSERT INTO "PackageService" (package_id, service_id, quantity) VALUES ($1, $2, $3)`,
+          [pkg.id, svc.serviceId, svc.quantity || 1]
+        );
+      }
+    }
 
     return createResponse(201, {
       success: true,
-      id: pkg.record_id,
+      id: pkg.id,
+      recordId: pkg.record_id,
       name: pkg.name,
-      totalCredits: pkg.total_credits,
-      remainingCredits: pkg.total_credits,
+      packageType: pkg.package_type,
       message: 'Package created successfully',
     });
 
   } catch (error) {
     console.error('[Packages] Create failed:', error.message);
-    return createResponse(500, {
-      error: 'Internal Server Error',
-      message: 'Failed to create package',
-    });
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create package' });
   }
 }
 
