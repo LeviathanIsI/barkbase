@@ -1276,13 +1276,12 @@ const Payments = () => {
     }
   };
 
-  // Send receipt handler - opens communication slideout
+  // Send receipt handler - opens receipt email slideout
   const handleSendReceipt = (payment) => {
     if (payment?.ownerId) {
-      openSlideout(SLIDEOUT_TYPES.COMMUNICATION_CREATE, {
+      openSlideout(SLIDEOUT_TYPES.SEND_RECEIPT, {
         ownerId: payment.ownerId,
-        title: 'Send Receipt',
-        description: `Send payment receipt to ${payment.ownerFirstName} ${payment.ownerLastName}`,
+        payment,
       });
     }
   };

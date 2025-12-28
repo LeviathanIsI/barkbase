@@ -19,6 +19,7 @@ export const SLIDEOUT_TYPES = {
   TASK_EDIT: 'taskEdit',
   COMMUNICATION_CREATE: 'communicationCreate',
   MESSAGE_CREATE: 'messageCreate',
+  SEND_RECEIPT: 'sendReceipt',
   NOTE_CREATE: 'noteCreate',
   ACTIVITY_LOG: 'activityLog',
   VACCINATION_EDIT: 'vaccinationEdit',
@@ -76,6 +77,11 @@ export const SLIDEOUT_CONFIG = {
     description: 'Start a conversation with a customer',
     width: 'max-w-xl',
   },
+  [SLIDEOUT_TYPES.SEND_RECEIPT]: {
+    title: 'Send Receipt',
+    description: 'Email payment receipt to customer',
+    width: 'max-w-xl',
+  },
   [SLIDEOUT_TYPES.NOTE_CREATE]: {
     title: 'Add Note',
     description: 'Add a note to this record',
@@ -105,6 +111,7 @@ const SLIDEOUT_LABELS = {
   [SLIDEOUT_TYPES.TASK_EDIT]: 'Task',
   [SLIDEOUT_TYPES.COMMUNICATION_CREATE]: 'Message',
   [SLIDEOUT_TYPES.MESSAGE_CREATE]: 'Conversation',
+  [SLIDEOUT_TYPES.SEND_RECEIPT]: 'Receipt',
   [SLIDEOUT_TYPES.NOTE_CREATE]: 'Note',
   [SLIDEOUT_TYPES.ACTIVITY_LOG]: 'Activity',
   [SLIDEOUT_TYPES.VACCINATION_EDIT]: 'Vaccination',

@@ -50,8 +50,8 @@ import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
 
 // API hooks
 import { useCreatePetMutation, useUpdatePetMutation, useUpdateVaccinationMutation } from '@/features/pets/api';
-import { useCreateOwnerMutation, useUpdateOwnerMutation, useOwnersQuery } from '@/features/owners/api';
-import { useCreateNote } from '@/features/communications/api';
+import { useCreateOwnerMutation, useUpdateOwnerMutation, useOwnersQuery, useOwner } from '@/features/owners/api';
+import { useCreateNote, useCreateCommunicationMutation } from '@/features/communications/api';
 import { useSendMessageMutation } from '@/features/messaging/api';
 import { format, addDays } from 'date-fns';
 
@@ -118,6 +118,12 @@ export function SlideoutHost() {
           ['messages'],
         ];
 
+      case SLIDEOUT_TYPES.SEND_RECEIPT:
+        return [
+          ['communications'],
+          state?.props?.ownerId ? ['owner', state.props.ownerId] : null,
+        ].filter(Boolean);
+
       case SLIDEOUT_TYPES.VACCINATION_EDIT:
         return [
           ['petVaccinations', { tenantId, petId: state?.props?.petId }],
@@ -154,6 +160,7 @@ export function SlideoutHost() {
       case SLIDEOUT_TYPES.TASK_EDIT: return 'Task updated successfully';
       case SLIDEOUT_TYPES.COMMUNICATION_CREATE: return 'Message sent successfully';
       case SLIDEOUT_TYPES.MESSAGE_CREATE: return 'Conversation started';
+      case SLIDEOUT_TYPES.SEND_RECEIPT: return 'Receipt sent successfully';
       case SLIDEOUT_TYPES.NOTE_CREATE: return 'Note added successfully';
       case SLIDEOUT_TYPES.ACTIVITY_LOG: return 'Activity logged successfully';
       case SLIDEOUT_TYPES.VACCINATION_EDIT: return 'Vaccination updated successfully';
@@ -261,6 +268,16 @@ export function SlideoutHost() {
       case SLIDEOUT_TYPES.MESSAGE_CREATE:
         return (
           <NewConversationForm
+            onSuccess={onFormSuccess}
+            onCancel={closeSlideout}
+          />
+        );
+
+      case SLIDEOUT_TYPES.SEND_RECEIPT:
+        return (
+          <SendReceiptForm
+            ownerId={props?.ownerId}
+            payment={props?.payment}
             onSuccess={onFormSuccess}
             onCancel={closeSlideout}
           />
@@ -929,6 +946,99 @@ function VaccinationEditForm({ vaccinations = [], initialIndex = 0, petId, petNa
         </Button>
         <Button type="submit" disabled={isLoading || !isDirty}>
           {isLoading ? 'Updating...' : hasMultiple ? 'Update & Continue' : 'Update Vaccination'}
+        </Button>
+      </FormActions>
+    </form>
+  );
+}
+
+// Send Receipt Form - Email only
+function SendReceiptForm({ ownerId, payment, onSuccess, onCancel }) {
+  const { data: owner } = useOwner(ownerId, { enabled: !!ownerId });
+  const createMutation = useCreateCommunicationMutation();
+  const [message, setMessage] = useState('');
+
+  // Pre-fill with receipt template
+  useEffect(() => {
+    if (payment && owner) {
+      const amount = ((payment.amountCents || payment.amount || 0) / 100).toFixed(2);
+      setMessage(
+        `Dear ${owner.firstName || 'Customer'},\n\n` +
+        `Thank you for your payment of $${amount}.\n\n` +
+        `Transaction ID: ${payment.recordId || payment.id}\n` +
+        `Date: ${payment.capturedAt || payment.createdAt ? format(new Date(payment.capturedAt || payment.createdAt), 'PPP') : 'N/A'}\n` +
+        `Method: ${(payment.method || 'Card').toUpperCase()}\n\n` +
+        `If you have any questions, please don't hesitate to contact us.\n\n` +
+        `Best regards`
+      );
+    }
+  }, [payment, owner]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!message.trim()) return;
+
+    try {
+      const result = await createMutation.mutateAsync({
+        ownerId,
+        channel: 'email',
+        direction: 'outbound',
+        subject: `Payment Receipt - $${((payment?.amountCents || payment?.amount || 0) / 100).toFixed(2)}`,
+        content: message,
+        recipient: owner?.email,
+        status: 'sent',
+        timestamp: new Date().toISOString(),
+      });
+      onSuccess?.(result);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to send receipt');
+    }
+  };
+
+  const isLoading = createMutation.isPending;
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Recipient Info */}
+      {owner && (
+        <div
+          className="p-4 rounded-lg border"
+          style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-elevated)' }}
+        >
+          <p className="text-xs uppercase tracking-wide mb-2" style={{ color: 'var(--bb-color-text-muted)' }}>
+            Sending to
+          </p>
+          <p className="font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            {owner.firstName} {owner.lastName}
+          </p>
+          <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+            {owner.email}
+          </p>
+        </div>
+      )}
+
+      <FormSection title="Receipt Email">
+        <div className="space-y-2">
+          <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Message <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+          </label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={10}
+            className={cn(inputClass, 'resize-y font-mono text-xs')}
+            style={inputStyles}
+            placeholder="Receipt message..."
+          />
+        </div>
+      </FormSection>
+
+      <FormActions>
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isLoading || !message.trim() || !owner?.email}>
+          {isLoading ? 'Sending...' : 'Send Receipt'}
         </Button>
       </FormActions>
     </form>
