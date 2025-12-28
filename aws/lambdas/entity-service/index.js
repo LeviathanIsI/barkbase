@@ -3983,7 +3983,7 @@ async function getNotes(event) {
     await getPoolAsync();
 
     const result = await query(
-      `SELECT n.id, n.entity_type, n.entity_id, n.content, n.note_type, n.is_pinned,
+      `SELECT n.record_id, n.entity_type, n.entity_id, n.content, n.note_type, n.is_pinned,
               n.created_at, n.updated_at, n.created_by,
               u.first_name as created_by_first_name, u.last_name as created_by_last_name
        FROM "Note" n
@@ -3994,7 +3994,7 @@ async function getNotes(event) {
     );
 
     const notes = result.rows.map(row => ({
-      id: row.id,
+      id: row.record_id,
       entityType: row.entity_type,
       entityId: row.entity_id,
       content: row.content,
@@ -4079,13 +4079,13 @@ async function createNote(event) {
     const result = await query(
       `INSERT INTO "Note" (tenant_id, entity_type, entity_id, content, note_type, is_pinned, created_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, entity_type, entity_id, content, note_type, is_pinned, created_at, updated_at, created_by`,
+       RETURNING record_id, entity_type, entity_id, content, note_type, is_pinned, created_at, updated_at, created_by`,
       [tenantId, entityType, entityId, body.content.trim(), normalizedNoteType, body.isPinned || false, userId]
     );
 
     const row = result.rows[0];
     const note = {
-      id: row.id,
+      id: row.record_id,
       entityType: row.entity_type,
       entityId: row.entity_id,
       content: row.content,
@@ -4172,8 +4172,8 @@ async function updateNote(event) {
 
     const result = await query(
       `UPDATE "Note" SET ${updates.join(', ')}
-       WHERE id = $${paramIndex++} AND tenant_id = $${paramIndex}
-       RETURNING id, entity_type, entity_id, content, note_type, is_pinned, created_at, updated_at, created_by`,
+       WHERE record_id = $${paramIndex++} AND tenant_id = $${paramIndex}
+       RETURNING record_id, entity_type, entity_id, content, note_type, is_pinned, created_at, updated_at, created_by`,
       [...values, noteId, tenantId]
     );
 
@@ -4183,7 +4183,7 @@ async function updateNote(event) {
 
     const row = result.rows[0];
     const note = {
-      id: row.id,
+      id: row.record_id,
       entityType: row.entity_type,
       entityId: row.entity_id,
       content: row.content,
@@ -4224,7 +4224,7 @@ async function deleteNote(event) {
     await getPoolAsync();
 
     const result = await query(
-      `DELETE FROM "Note" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      `DELETE FROM "Note" WHERE record_id = $1 AND tenant_id = $2 RETURNING record_id`,
       [noteId, tenantId]
     );
 
@@ -4232,7 +4232,7 @@ async function deleteNote(event) {
       return createResponse(404, { error: 'NotFound', message: 'Note not found' });
     }
 
-    return createResponse(200, { success: true, id: result.rows[0].id });
+    return createResponse(200, { success: true, id: result.rows[0].record_id });
   } catch (error) {
     console.error('[ENTITY-SERVICE] deleteNote error:', error);
     return createResponse(500, { error: 'InternalServerError', message: 'Failed to delete note' });
@@ -4266,8 +4266,8 @@ async function toggleNotePin(event) {
 
     const result = await query(
       `UPDATE "Note" SET is_pinned = NOT is_pinned, updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2
-       RETURNING id, entity_type, entity_id, content, note_type, is_pinned, created_at, updated_at, created_by`,
+       WHERE record_id = $1 AND tenant_id = $2
+       RETURNING record_id, entity_type, entity_id, content, note_type, is_pinned, created_at, updated_at, created_by`,
       [noteId, tenantId]
     );
 
@@ -4277,7 +4277,7 @@ async function toggleNotePin(event) {
 
     const row = result.rows[0];
     const note = {
-      id: row.id,
+      id: row.record_id,
       entityType: row.entity_type,
       entityId: row.entity_id,
       content: row.content,

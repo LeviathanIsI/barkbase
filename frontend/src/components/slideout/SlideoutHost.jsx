@@ -623,20 +623,30 @@ function NoteForm({ ownerId, petId, bookingId, paymentId, onSuccess, onCancel })
       entityId = paymentId;
     }
 
+    console.log('[NoteForm] Props received:', { ownerId, petId, bookingId, paymentId });
+    console.log('[NoteForm] Resolved entity:', { entityType, entityId });
+
     if (!entityType || !entityId) {
+      console.error('[NoteForm] Missing entity info - cannot proceed');
       toast.error('Missing entity information');
       return;
     }
 
+    const payload = {
+      entityType,
+      entityId,
+      type: 'general',
+      content,
+    };
+    console.log('[NoteForm] Sending payload:', payload);
+
     try {
-      const result = await createMutation.mutateAsync({
-        entityType,
-        entityId,
-        type: 'general',
-        content,
-      });
+      const result = await createMutation.mutateAsync(payload);
+      console.log('[NoteForm] Success:', result);
       onSuccess?.(result);
     } catch (error) {
+      console.error('[NoteForm] Error:', error);
+      console.error('[NoteForm] Error response:', error?.response?.data);
       toast.error(error?.message || 'Failed to add note');
     }
   };
