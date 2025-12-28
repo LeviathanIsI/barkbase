@@ -761,7 +761,7 @@ const Vaccinations = () => {
         {/* Pagination - fixed at bottom */}
         {sortedRecords.length > 0 && !isLoading && (
           <div
-            className="flex-shrink-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-3 border-t"
+            className="flex-shrink-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-3 px-4 border-t"
             style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-surface)' }}
           >
             <div className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)]">
