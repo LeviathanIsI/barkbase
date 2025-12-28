@@ -572,26 +572,36 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
 };
 
 const BillingStep = ({ bookingData }) => {
-  // Calculate nights between dates (parse as local time to avoid timezone shift)
-  const nights = useMemo(() => {
+  // Calculate days between dates (parse as local time to avoid timezone shift)
+  // Minimum 1 day for same-day services like daycare
+  const days = useMemo(() => {
     if (!bookingData.dateRange.start || !bookingData.dateRange.end) return 0;
     const start = new Date(bookingData.dateRange.start + 'T00:00:00');
     const end = new Date(bookingData.dateRange.end + 'T00:00:00');
     const diffTime = Math.abs(end - start);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
+    return Math.max(1, diffDays); // Minimum 1 day
   }, [bookingData.dateRange]);
+
+  // Helper to get price per unit from service (handles both cents and dollars)
+  const getServicePrice = (service) => {
+    // Check for price in cents first
+    const cents = service.priceInCents || service.priceCents || service.price_in_cents;
+    if (cents) return cents / 100;
+    // Fall back to price in dollars
+    if (service.price) return service.price;
+    return 0;
+  };
 
   // Calculate service total for all selected services
   const serviceTotal = useMemo(() => {
-    if (!bookingData.services.length || !nights || !bookingData.pets.length) return 0;
+    if (!bookingData.services.length || !days || !bookingData.pets.length) return 0;
     // Sum prices for all selected services
     return bookingData.services.reduce((total, service) => {
-      const priceCents = service.priceCents || service.priceInCents || 0;
-      const pricePerUnit = priceCents / 100;
-      return total + (nights * pricePerUnit * bookingData.pets.length);
+      const pricePerUnit = getServicePrice(service);
+      return total + (days * pricePerUnit * bookingData.pets.length);
     }, 0);
-  }, [bookingData.services, nights, bookingData.pets.length]);
+  }, [bookingData.services, days, bookingData.pets.length]);
 
   // Mock addon pricing (would come from services API in production)
   const addonsTotal = bookingData.additionalServices.length * 15;
@@ -619,7 +629,7 @@ const BillingStep = ({ bookingData }) => {
           </div>
           <div className="flex justify-between">
             <span className="text-text-secondary">Service(s):</span>
-            <span className="font-medium text-text-primary">{bookingData.services.map(s => s.name).join(', ')} ({nights} nights)</span>
+            <span className="font-medium text-text-primary">{bookingData.services.map(s => s.name).join(', ')} ({days} {days === 1 ? 'day' : 'days'})</span>
           </div>
         </div>
       </div>
@@ -629,12 +639,11 @@ const BillingStep = ({ bookingData }) => {
         <h4 className="font-medium text-text-primary">Price Breakdown</h4>
         <div className="space-y-1 text-sm">
           {bookingData.services.map(service => {
-            const priceCents = service.priceCents || service.priceInCents || 0;
-            const pricePerUnit = priceCents / 100;
-            const serviceSubtotal = nights * pricePerUnit * bookingData.pets.length;
+            const pricePerUnit = getServicePrice(service);
+            const serviceSubtotal = days * pricePerUnit * bookingData.pets.length;
             return (
               <div key={service.id} className="flex justify-between">
-                <span className="text-text-secondary">{service.name} ({nights} {nights === 1 ? 'night' : 'nights'} × {bookingData.pets.length} {bookingData.pets.length === 1 ? 'pet' : 'pets'})</span>
+                <span className="text-text-secondary">{service.name} ({days} {days === 1 ? 'day' : 'days'} × {bookingData.pets.length} {bookingData.pets.length === 1 ? 'pet' : 'pets'})</span>
                 <span className="font-medium text-text-primary">${serviceSubtotal.toFixed(2)}</span>
               </div>
             );
