@@ -59,6 +59,7 @@ import StyledSelect from '@/components/ui/StyledSelect';
 import LoadingState from '@/components/ui/LoadingState';
 import { usePaymentsQuery, usePaymentSummaryQuery, useCreatePaymentMutation } from '../api';
 import { useOwnersQuery } from '@/features/owners/api';
+import { useEntityNotes } from '@/features/communications/api';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 
@@ -248,6 +249,9 @@ const OutstandingRow = ({ item, onRetry }) => (
 
 // Transaction Detail Drawer
 const TransactionDrawer = ({ payment, isOpen, onClose, onSendReceipt, onAddNote }) => {
+  const paymentId = payment?.recordId || payment?.id;
+  const { data: notes = [], isLoading: notesLoading } = useEntityNotes('payment', paymentId, { enabled: !!paymentId && isOpen });
+
   if (!payment) return null;
 
   const status = STATUS_CONFIG[(payment.status || '').toUpperCase()] || STATUS_CONFIG.PENDING;
@@ -358,6 +362,28 @@ const TransactionDrawer = ({ payment, isOpen, onClose, onSendReceipt, onAddNote 
             <FileText className="h-4 w-4 mr-2" />
             Add Note
           </Button>
+        </div>
+
+        {/* Notes */}
+        <div className="border-t border-border pt-4">
+          <h4 className="text-sm font-medium text-text mb-3">Notes</h4>
+          {notesLoading ? (
+            <div className="text-sm text-muted">Loading notes...</div>
+          ) : notes.length === 0 ? (
+            <div className="text-sm text-muted">No notes yet</div>
+          ) : (
+            <div className="space-y-3">
+              {notes.map((note) => (
+                <div key={note.id} className="bg-surface-secondary rounded-lg p-3">
+                  <p className="text-sm text-text whitespace-pre-wrap">{note.content}</p>
+                  <div className="flex items-center justify-between mt-2 text-xs text-muted">
+                    <span>{note.createdByName || 'Staff'}</span>
+                    <span>{note.createdAt ? format(new Date(note.createdAt), 'MMM d, h:mm a') : ''}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </SlidePanel>
