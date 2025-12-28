@@ -1,15 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
 import AppShell from "@/components/layout/AppShell";
-import { lazy } from "react";
+import { lazy, useEffect } from "react";
 import { createBrowserRouter, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 import NotFound from "./NotFound";
 import ProtectedRoute from "./ProtectedRoute";
 import RouteError from "./RouteError";
 
 if (import.meta && import.meta.env && import.meta.env.DEV) {
   // eslint-disable-next-line no-console
-  console.info("[Router] configured");
 }
 
 function RoutePersistence() {
