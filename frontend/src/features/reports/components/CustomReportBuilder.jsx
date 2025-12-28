@@ -1535,7 +1535,7 @@ const CustomReportBuilder = () => {
         dateRange,
       };
 
-      await apiClient.post('/analytics/reports/saved', {
+      await apiClient.post('/api/v1/analytics/reports/saved', {
         name: reportName,
         description: '', // Could add a description field later
         dataSource,

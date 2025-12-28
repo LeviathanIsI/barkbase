@@ -243,7 +243,7 @@ const CustomReports = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await apiClient.get('/analytics/reports/saved');
+      const response = await apiClient.get('/api/v1/analytics/reports/saved');
       setReports(response.data?.data || []);
     } catch (err) {
       console.error('Failed to fetch reports:', err);
@@ -302,7 +302,7 @@ const CustomReports = () => {
     if (!confirm(`Are you sure you want to delete "${report.name}"?`)) return;
 
     try {
-      await apiClient.delete(`/analytics/reports/saved/${report.id || report.recordId}`);
+      await apiClient.delete(`/api/v1/analytics/reports/saved/${report.id || report.recordId}`);
       setReports(prev => prev.filter(r => r.id !== report.id && r.recordId !== report.recordId));
     } catch (err) {
       console.error('Failed to delete report:', err);
@@ -312,7 +312,7 @@ const CustomReports = () => {
 
   const handleDuplicate = async (report) => {
     try {
-      const response = await apiClient.post(`/analytics/reports/saved/${report.id || report.recordId}/duplicate`);
+      const response = await apiClient.post(`/api/v1/analytics/reports/saved/${report.id || report.recordId}/duplicate`);
       if (response.data?.data) {
         setReports(prev => [response.data.data, ...prev]);
       }
@@ -325,7 +325,7 @@ const CustomReports = () => {
   const handleToggleFavorite = async (report) => {
     try {
       const newValue = !report.isFavorite;
-      await apiClient.put(`/analytics/reports/saved/${report.id || report.recordId}`, {
+      await apiClient.put(`/api/v1/analytics/reports/saved/${report.id || report.recordId}`, {
         isFavorite: newValue,
       });
       setReports(prev =>
