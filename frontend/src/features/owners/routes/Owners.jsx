@@ -641,7 +641,7 @@ const Owners = () => {
             >
               <div className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)]">
                 <span>Rows per page:</span>
-                <div className="w-20">
+                <div className="w-24">
                   <StyledSelect
                     options={PAGE_SIZE_OPTIONS.map((size) => ({ value: size, label: String(size) }))}
                     value={pageSize}
