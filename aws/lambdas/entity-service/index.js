@@ -3987,7 +3987,7 @@ async function getNotes(event) {
               n.created_at, n.updated_at, n.created_by,
               us.first_name as created_by_first_name, us.last_name as created_by_last_name
        FROM "Note" n
-       LEFT JOIN "UserSettings" us ON n.created_by = us.user_id
+       LEFT JOIN "UserSettings" us ON us.user_record_id = n.created_by AND us.tenant_id = n.tenant_id
        WHERE n.tenant_id = $1 AND n.entity_type = $2 AND n.entity_id = $3
        ORDER BY n.is_pinned DESC, n.created_at DESC`,
       [tenantId, entityType, entityId]
