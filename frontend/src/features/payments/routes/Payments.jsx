@@ -161,8 +161,11 @@ const TransactionRow = ({ payment, isSelected, onSelect, onClick, onCustomerClic
         </Badge>
       </td>
       <td className="px-3 py-3">
-        <button className="text-sm font-medium text-primary hover:underline">
-          {(payment.recordId || payment.id || '').slice(0, 12)}...
+        <button className="text-sm font-medium text-primary hover:underline font-mono">
+          {(() => {
+            const id = payment.recordId || payment.id || '';
+            return id.length > 12 ? `${id.slice(0, 12)}...` : id;
+          })()}
         </button>
       </td>
       <td className="px-3 py-3">
