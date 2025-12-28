@@ -1846,7 +1846,7 @@ const AccessPanel = ({ segment }) => {
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="w-32">
+                            <div className="w-40">
                               <StyledSelect
                                 options={[
                                   { value: 'none', label: 'No access' },
@@ -1902,7 +1902,7 @@ const AccessPanel = ({ segment }) => {
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            <div className="w-32">
+                            <div className="w-40">
                               <StyledSelect
                                 options={[
                                   { value: 'none', label: 'No access' },
