@@ -188,7 +188,9 @@ export const useCreateNote = () => {
 
   return useMutation({
     mutationFn: async (data) => {
+      console.log('[useCreateNote] Sending to /api/v1/notes:', data);
       const res = await apiClient.post('/api/v1/notes', data);
+      console.log('[useCreateNote] Response:', res.data);
       return res.data;
     },
     onSuccess: (data) => {

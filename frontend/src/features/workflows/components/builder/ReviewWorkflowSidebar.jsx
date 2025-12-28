@@ -118,7 +118,8 @@ function validateSteps(steps) {
   steps.forEach((step) => {
     const config = step.config || step.actionConfig || step.action_config || {};
 
-    // Debug logging to identify validation issues);
+    // Debug logging to identify validation issues
+    console.log('[validateSteps] Step:', step.name, 'Type:', step.actionType, 'Config:', JSON.stringify(config));
 
     if (step.actionType === 'send_sms' || step.action_type === 'send_sms') {
       if (!config.message) {

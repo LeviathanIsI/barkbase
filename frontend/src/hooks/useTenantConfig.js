@@ -117,7 +117,7 @@ function normalizeTenantConfig(data) {
  * @example
  * const { data: config, isLoading, error } = useTenantConfig();
  * if (config) {
- *
+ *   console.log(config.tenantId, config.user.email);
  * }
  */
 export const useTenantConfig = (options = {}) => {

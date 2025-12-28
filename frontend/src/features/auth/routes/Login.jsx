@@ -20,17 +20,17 @@
  * =============================================================================
  */
 
-import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { useNavigate, Link } from 'react-router-dom';
+import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
+import { config } from '@/config/env';
+import { apiClient, auth } from '@/lib/apiClient';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
-import { auth, apiClient } from '@/lib/apiClient';
-import { config } from '@/config/env';
-import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
 import { Shield } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -84,7 +84,6 @@ const Login = () => {
 
       // Check if MFA is required
       if (result.mfaRequired) {
-        if (import.meta.env.DEV)
         setMfaChallenge({
           session: result.session,
           email: result.email,
@@ -95,8 +94,6 @@ const Login = () => {
       if (!result || !result.accessToken) {
         throw new Error('Authentication failed - no access token received');
       }
-
-      if (import.meta.env.DEV)
 
       // Call backend to create session record (uses raw fetch intentionally - auth endpoint before apiClient is configured)
       try {
@@ -115,7 +112,6 @@ const Login = () => {
           console.warn('[Login] Backend login call failed:', loginResponse.status);
         } else {
           const loginData = await loginResponse.json();
-          if (import.meta.env.DEV)
         }
       } catch (backendError) {
         console.warn('[Login] Failed to create backend session:', backendError.message);
@@ -174,8 +170,6 @@ const Login = () => {
             theme: tenantConfig.theme,
             featureFlags: tenantConfig.featureFlags,
           });
-
-          if (import.meta.env.DEV)
         }
       } catch (tenantError) {
         // Log but don't block login - TenantLoader will retry
@@ -252,7 +246,7 @@ const Login = () => {
         throw new Error('MFA verification failed');
       }
 
-      if (import.meta.env.DEV)
+      if (import.meta.env.DEV) console.log('[Login] MFA verification successful');
 
       // Show "Signing in..." state (keep MFA UI visible with loading indicator)
       setIsAuthenticating(true);

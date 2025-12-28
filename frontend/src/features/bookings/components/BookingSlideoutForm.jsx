@@ -140,6 +140,8 @@ const BookingSlideoutForm = ({
   // Uses petOwners from dedicated query for accurate owner data
   useEffect(() => {
     if (initialPet && !selectedOwner && !prefilledFromPet) {
+      console.log('[BookingSlideout] initialPet data:', initialPet);
+      console.log('[BookingSlideout] petOwners from query:', petOwners);
 
       // Use owners from the dedicated petOwners query (most reliable)
       // Fall back to initialPet.owners or other sources if query hasn't loaded yet

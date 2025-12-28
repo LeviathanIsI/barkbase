@@ -10,7 +10,7 @@
  * USAGE:
  * ------
  * import { config } from '@/config/env';
- *
+ * console.log(config.apiBaseUrl);
  *
  * =============================================================================
  */
