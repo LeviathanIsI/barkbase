@@ -780,22 +780,9 @@ const Vaccinations = () => {
         )}
       </div>
 
-      {/* Sort Controls + Select All Header - fixed, doesn't shrink */}
+      {/* Sort Controls Header - fixed, doesn't shrink */}
       <div className="flex-shrink-0 flex items-center justify-between py-3 px-0">
         <div className="flex items-center gap-4">
-          {/* Select All Checkbox */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={selectedRows.size === paginatedRecords.length && paginatedRecords.length > 0}
-              onChange={handleSelectAll}
-              className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
-            />
-            <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">
-              {selectedRows.size > 0 ? `${selectedRows.size} selected` : 'Select all'}
-            </span>
-          </label>
-
           {/* Sort By */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-[color:var(--bb-color-text-muted)]">Sort by:</span>
