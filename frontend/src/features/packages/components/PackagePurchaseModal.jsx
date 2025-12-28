@@ -466,7 +466,7 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
               label="Price"
               type="number"
               min="0"
-              value={(bundleCalculations.total / 100).toFixed(2)}
+              value={(bundleCalculations.subtotal / 100).toFixed(2)}
               onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
               helper={`Charged ${billingFrequency}`}
               required
