@@ -4,7 +4,7 @@ import {
   Shield, RefreshCw, Search, Trash2, ChevronDown, ChevronLeft, ChevronRight,
   Download, SlidersHorizontal, BookmarkPlus, Check, X, Mail, FileCheck,
   Calendar, Syringe, AlertTriangle, CheckCircle2, Clock, AlertCircle,
-  LayoutList, LayoutGrid, MoreHorizontal, Dog, Cat, User, Send, Loader2,
+  MoreHorizontal, Dog, Cat, User, Send, Loader2,
   Archive, Columns, GripVertical, ArrowUp, ArrowDown, ArrowUpDown,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -71,9 +71,6 @@ const Vaccinations = () => {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showViewsDropdown, setShowViewsDropdown] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Display state
-  const [viewMode, setViewMode] = useState('compact'); // 'compact' | 'expanded'
 
   // Table state
   const [selectedRows, setSelectedRows] = useState(new Set());
@@ -665,34 +662,6 @@ const Vaccinations = () => {
               </Button>
             </div>
 
-            {/* View Toggle */}
-            <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-              <Button
-                variant={viewMode === 'compact' ? 'primary' : 'ghost'}
-                size="icon-sm"
-                onClick={() => setViewMode('compact')}
-                className={cn(
-                  'rounded-none',
-                  viewMode !== 'compact' && 'bg-[color:var(--bb-color-bg-body)]'
-                )}
-                title="Compact view"
-              >
-                <LayoutList className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'expanded' ? 'primary' : 'ghost'}
-                size="icon-sm"
-                onClick={() => setViewMode('expanded')}
-                className={cn(
-                  'rounded-none',
-                  viewMode !== 'expanded' && 'bg-[color:var(--bb-color-bg-body)]'
-                )}
-                title="Expanded view"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-            </div>
-
             {/* Column Controls */}
             <div className="relative" ref={columnsRef}>
               <Button variant="outline" size="sm" onClick={() => setShowColumnsDropdown(!showColumnsDropdown)} className="gap-1.5 h-9">
@@ -820,7 +789,7 @@ const Vaccinations = () => {
       {/* Table Section - scrollable */}
       <div className="flex-1 flex flex-col min-h-0">
         {isLoading ? (
-          <ListSkeleton viewMode={viewMode} />
+          <ListSkeleton />
         ) : allRecords.length === 0 ? (
           <EmptyState type="no-data" />
         ) : sortedRecords.length === 0 ? (
@@ -1241,25 +1210,22 @@ const ViewsDropdown = ({ views, activeView, onSelectView }) => (
 );
 
 // List Skeleton Component
-const ListSkeleton = ({ viewMode }) => {
-  const isCompact = viewMode === 'compact';
+const ListSkeleton = () => {
   return (
-    <div className={cn('space-y-2', isCompact && 'space-y-1')}>
+    <div className="space-y-1">
       {Array.from({ length: 10 }).map((_, i) => (
         <div
           key={i}
-          className={cn('rounded-lg border flex items-center gap-4', isCompact ? 'p-2' : 'p-4')}
+          className="rounded-lg border flex items-center gap-4 p-2"
           style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
         >
           <Skeleton className="h-4 w-4 rounded" />
-          <Skeleton className={cn('rounded-full', isCompact ? 'h-8 w-8' : 'h-10 w-10')} />
+          <Skeleton className="rounded-full h-8 w-8" />
           <div className="flex-1 space-y-1.5">
             <Skeleton className="h-4 w-40" />
-            {!isCompact && <Skeleton className="h-3 w-28" />}
           </div>
           <div className="flex-1 space-y-1.5">
             <Skeleton className="h-4 w-32" />
-            {!isCompact && <Skeleton className="h-3 w-48" />}
           </div>
           <Skeleton className="h-8 w-24" />
         </div>
