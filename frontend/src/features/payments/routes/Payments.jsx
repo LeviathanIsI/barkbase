@@ -247,7 +247,7 @@ const OutstandingRow = ({ item, onRetry }) => (
 );
 
 // Transaction Detail Drawer
-const TransactionDrawer = ({ payment, isOpen, onClose }) => {
+const TransactionDrawer = ({ payment, isOpen, onClose, onSendReceipt, onAddNote }) => {
   if (!payment) return null;
 
   const status = STATUS_CONFIG[(payment.status || '').toUpperCase()] || STATUS_CONFIG.PENDING;
@@ -344,7 +344,7 @@ const TransactionDrawer = ({ payment, isOpen, onClose }) => {
 
         {/* Actions */}
         <div className="border-t border-border pt-4 space-y-2">
-          <Button variant="outline" className="w-full justify-center">
+          <Button variant="outline" className="w-full justify-center" onClick={() => onSendReceipt?.(payment)}>
             <Mail className="h-4 w-4 mr-2" />
             Send Receipt
           </Button>
@@ -354,7 +354,7 @@ const TransactionDrawer = ({ payment, isOpen, onClose }) => {
               Process Refund
             </Button>
           )}
-          <Button variant="ghost" className="w-full justify-center">
+          <Button variant="ghost" className="w-full justify-center" onClick={() => onAddNote?.(payment)}>
             <FileText className="h-4 w-4 mr-2" />
             Add Note
           </Button>
@@ -1276,6 +1276,28 @@ const Payments = () => {
     }
   };
 
+  // Send receipt handler - opens communication slideout
+  const handleSendReceipt = (payment) => {
+    if (payment?.ownerId) {
+      openSlideout(SLIDEOUT_TYPES.COMMUNICATION_CREATE, {
+        ownerId: payment.ownerId,
+        title: 'Send Receipt',
+        description: `Send payment receipt to ${payment.ownerFirstName} ${payment.ownerLastName}`,
+      });
+    }
+  };
+
+  // Add note handler - opens note slideout
+  const handleAddNote = (payment) => {
+    if (payment?.ownerId) {
+      openSlideout(SLIDEOUT_TYPES.NOTE_CREATE, {
+        ownerId: payment.ownerId,
+        title: 'Add Note',
+        description: `Add a note for payment ${payment.recordId || payment.id}`,
+      });
+    }
+  };
+
   // Processor status (mock)
   const processorStatus = {
     name: 'Stripe',
@@ -2034,6 +2056,8 @@ const Payments = () => {
         payment={selectedPayment}
         isOpen={showDrawer}
         onClose={() => setShowDrawer(false)}
+        onSendReceipt={handleSendReceipt}
+        onAddNote={handleAddNote}
       />
 
       {/* Manual Payment Drawer */}
