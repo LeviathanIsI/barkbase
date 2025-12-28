@@ -1683,6 +1683,8 @@ const AccessPanel = ({ segment }) => {
   const [accessType, setAccessType] = useState('specific');
   const [activeTab, setActiveTab] = useState('teams');
   const [searchTerm, setSearchTerm] = useState('');
+  const [teamAccess, setTeamAccess] = useState({});
+  const [userAccess, setUserAccess] = useState({});
 
   // Fetch team members from API
   const { data: members, isLoading: isLoadingMembers } = useTeamMembers();
@@ -1853,8 +1855,8 @@ const AccessPanel = ({ segment }) => {
                                   { value: 'view', label: 'View only' },
                                   { value: 'edit', label: 'View and Edit' },
                                 ]}
-                                value={team.access || 'none'}
-                                onChange={() => {}}
+                                value={teamAccess[team.name] || 'none'}
+                                onChange={(opt) => setTeamAccess(prev => ({ ...prev, [team.name]: opt?.value || 'none' }))}
                                 isClearable={false}
                                 isSearchable={false}
                               />
@@ -1909,8 +1911,8 @@ const AccessPanel = ({ segment }) => {
                                   { value: 'view', label: 'View only' },
                                   { value: 'edit', label: 'View and Edit' },
                                 ]}
-                                value="none"
-                                onChange={() => {}}
+                                value={userAccess[user.id || user.email] || 'none'}
+                                onChange={(opt) => setUserAccess(prev => ({ ...prev, [user.id || user.email]: opt?.value || 'none' }))}
                                 isClearable={false}
                                 isSearchable={false}
                               />
