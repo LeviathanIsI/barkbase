@@ -916,18 +916,6 @@ const VaccinationRow = ({ record, viewMode, isSelected, isReviewed, onSelect, on
           className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)] shrink-0"
         />
 
-        {/* Icon */}
-        <div className={cn(
-          'shrink-0 rounded-full flex items-center justify-center',
-          isCompact ? 'w-8 h-8' : 'w-10 h-10',
-          record.status === 'overdue' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' :
-          record.status === 'critical' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' :
-          record.status === 'expiring' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400' :
-          'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
-        )}>
-          <Syringe className={cn(isCompact ? 'h-4 w-4' : 'h-5 w-5')} />
-        </div>
-
         {/* Left: Pet Info + Expiry */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
