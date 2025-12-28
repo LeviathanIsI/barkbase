@@ -5,7 +5,7 @@ import {
   Download, SlidersHorizontal, BookmarkPlus, Check, X, Mail, FileCheck,
   Calendar, Syringe, AlertTriangle, CheckCircle2, Clock, AlertCircle,
   LayoutList, LayoutGrid, MoreHorizontal, Dog, Cat, User, Send, Loader2,
-  Archive,
+  Archive, Columns, GripVertical, ArrowUp, ArrowDown, ArrowUpDown,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -49,6 +49,17 @@ const VACCINE_TYPES = [
 ];
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
+
+// Column definitions
+const ALL_COLUMNS = [
+  { id: 'select', label: '', minWidth: 48, maxWidth: 48, align: 'center', sortable: false, hideable: false },
+  { id: 'pet', label: 'Pet', minWidth: 150, flex: 1, align: 'left', sortable: true, sortKey: 'petName' },
+  { id: 'owner', label: 'Owner', minWidth: 150, flex: 1, align: 'left', sortable: true, sortKey: 'ownerName' },
+  { id: 'vaccine', label: 'Vaccine', minWidth: 120, align: 'left', sortable: true, sortKey: 'type' },
+  { id: 'expiry', label: 'Expiry Date', minWidth: 140, align: 'left', sortable: true, sortKey: 'expiresAt' },
+  { id: 'status', label: 'Status', minWidth: 120, align: 'left', sortable: true, sortKey: 'daysRemaining' },
+  { id: 'actions', label: '', minWidth: 200, align: 'right', sortable: false, hideable: false },
+];
 
 const Vaccinations = () => {
   const queryClient = useQueryClient();
@@ -97,6 +108,37 @@ const Vaccinations = () => {
   // Refs for click outside
   const filterRef = useRef(null);
   const viewsRef = useRef(null);
+  const columnsRef = useRef(null);
+
+  // Column visibility state
+  const [showColumnsDropdown, setShowColumnsDropdown] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const saved = localStorage.getItem('vaccinations-visible-columns');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const allColumnIds = ALL_COLUMNS.map(c => c.id);
+      const newColumns = allColumnIds.filter(id => !parsed.includes(id));
+      return [...parsed, ...newColumns];
+    }
+    return ALL_COLUMNS.map(c => c.id);
+  });
+  const [columnOrder, setColumnOrder] = useState(() => {
+    const saved = localStorage.getItem('vaccinations-column-order');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const allColumnIds = ALL_COLUMNS.map(c => c.id);
+      const newColumns = allColumnIds.filter(id => !parsed.includes(id));
+      if (newColumns.length > 0) {
+        const actionsIndex = parsed.indexOf('actions');
+        if (actionsIndex !== -1) {
+          return [...parsed.slice(0, actionsIndex), ...newColumns, ...parsed.slice(actionsIndex)];
+        }
+        return [...parsed, ...newColumns];
+      }
+      return parsed;
+    }
+    return ALL_COLUMNS.map(c => c.id);
+  });
 
   // Saved views state
   const [savedViews] = useState(() => {
@@ -109,10 +151,43 @@ const Vaccinations = () => {
     const handleClickOutside = (e) => {
       if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilterPanel(false);
       if (viewsRef.current && !viewsRef.current.contains(e.target)) setShowViewsDropdown(false);
+      if (columnsRef.current && !columnsRef.current.contains(e.target)) setShowColumnsDropdown(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Save column preferences to localStorage
+  useEffect(() => {
+    localStorage.setItem('vaccinations-visible-columns', JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
+
+  useEffect(() => {
+    localStorage.setItem('vaccinations-column-order', JSON.stringify(columnOrder));
+  }, [columnOrder]);
+
+  // Column helpers
+  const toggleColumn = (columnId) => {
+    setVisibleColumns(prev =>
+      prev.includes(columnId) ? prev.filter(id => id !== columnId) : [...prev, columnId]
+    );
+  };
+
+  const moveColumn = (fromIndex, toIndex) => {
+    setColumnOrder(prev => {
+      const newOrder = [...prev];
+      const [moved] = newOrder.splice(fromIndex, 1);
+      newOrder.splice(toIndex, 0, moved);
+      return newOrder;
+    });
+  };
+
+  // Get ordered and visible columns
+  const orderedColumns = useMemo(() => {
+    return columnOrder
+      .map(id => ALL_COLUMNS.find(c => c.id === id))
+      .filter(col => col && visibleColumns.includes(col.id));
+  }, [columnOrder, visibleColumns]);
 
   // Fetch ALL vaccinations (statusFilter='all' gets all records including archived/expired)
   const { data, isLoading, refetch, isFetching } = useExpiringVaccinationsQuery(365, 'all');
@@ -297,6 +372,13 @@ const Vaccinations = () => {
       else next.add(id);
       return next;
     });
+  }, []);
+
+  const handleSort = useCallback((sortKey) => {
+    setSortConfig(prev => ({
+      key: sortKey,
+      direction: prev.key === sortKey && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
   }, []);
 
   const clearFilters = useCallback(() => {
@@ -611,6 +693,23 @@ const Vaccinations = () => {
               </Button>
             </div>
 
+            {/* Column Controls */}
+            <div className="relative" ref={columnsRef}>
+              <Button variant="outline" size="sm" onClick={() => setShowColumnsDropdown(!showColumnsDropdown)} className="gap-1.5 h-9">
+                <Columns className="h-4 w-4" />
+                <span className="hidden sm:inline">Columns</span>
+              </Button>
+              {showColumnsDropdown && (
+                <ColumnsDropdown
+                  columns={ALL_COLUMNS.filter(c => c.hideable !== false)}
+                  visibleColumns={visibleColumns}
+                  columnOrder={columnOrder}
+                  onToggle={toggleColumn}
+                  onReorder={moveColumn}
+                />
+              )}
+            </div>
+
             <Button variant="outline" size="sm" onClick={handleExportAll} className="gap-1.5 h-9">
               <Download className="h-4 w-4" />
               <span className="hidden sm:inline">Export All</span>
@@ -731,7 +830,7 @@ const Vaccinations = () => {
         </span>
       </div>
 
-      {/* List Section - scrollable */}
+      {/* Table Section - scrollable */}
       <div className="flex-1 flex flex-col min-h-0">
         {isLoading ? (
           <ListSkeleton viewMode={viewMode} />
@@ -740,21 +839,61 @@ const Vaccinations = () => {
         ) : sortedRecords.length === 0 ? (
           <EmptyState type="no-results" onClearFilters={clearFilters} />
         ) : (
-          <ScrollableTableContainer className={cn('space-y-2', viewMode === 'compact' && 'space-y-1')}>
-            {paginatedRecords.map((record, index) => (
-              <VaccinationRow
-                key={record.recordId ?? record.id ?? `vacc-${index}`}
-                record={record}
-                viewMode={viewMode}
-                isSelected={selectedRows.has(record.recordId ?? record.id)}
-                isReviewed={reviewedRecords.has(record.recordId ?? record.id)}
-                onSelect={() => handleSelectRow(record.recordId ?? record.id)}
-                onDelete={() => handleDeleteClick(record)}
-                onEdit={() => handleEditVaccination(record)}
-                onRenew={() => handleRenewClick(record)}
-                onClearReviewed={() => handleClearReviewed(record.recordId ?? record.id)}
-              />
-            ))}
+          <ScrollableTableContainer className="border rounded-t-lg" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <table className="w-full text-sm min-w-[900px]">
+              <thead className="sticky top-0 z-10">
+                <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', boxShadow: '0 1px 0 var(--bb-color-border-subtle)' }}>
+                  {orderedColumns.map((column) => {
+                    const thPadding = 'px-4 py-3';
+                    const alignClass = column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left';
+                    return (
+                      <th
+                        key={column.id}
+                        className={cn(
+                          thPadding,
+                          alignClass,
+                          'text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap',
+                          column.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)] transition-colors'
+                        )}
+                        style={{ minWidth: column.minWidth, maxWidth: column.maxWidth, backgroundColor: 'var(--bb-color-bg-elevated)' }}
+                        onClick={() => column.sortable && handleSort(column.sortKey)}
+                      >
+                        {column.id === 'select' ? (
+                          <input
+                            type="checkbox"
+                            checked={selectedRows.size === paginatedRecords.length && paginatedRecords.length > 0}
+                            onChange={handleSelectAll}
+                            aria-label="Select all vaccinations"
+                            className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
+                          />
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5">
+                            {column.label}
+                            {column.sortable && <SortIcon active={sortConfig.key === column.sortKey} direction={sortConfig.direction} />}
+                          </span>
+                        )}
+                      </th>
+                    );
+                  })}
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedRecords.map((record, index) => (
+                  <VaccinationTableRow
+                    key={record.recordId ?? record.id ?? `vacc-${index}`}
+                    record={record}
+                    columns={orderedColumns}
+                    isSelected={selectedRows.has(record.recordId ?? record.id)}
+                    isReviewed={reviewedRecords.has(record.recordId ?? record.id)}
+                    onSelect={() => handleSelectRow(record.recordId ?? record.id)}
+                    onDelete={() => handleDeleteClick(record)}
+                    onEdit={() => handleEditVaccination(record)}
+                    onRenew={() => handleRenewClick(record)}
+                    isEven={index % 2 === 0}
+                  />
+                ))}
+              </tbody>
+            </table>
           </ScrollableTableContainer>
         )}
 
@@ -1368,6 +1507,208 @@ const downloadCSV = (csv, filename) => {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(link.href);
+};
+
+// Sort Icon Component
+const SortIcon = ({ active, direction }) => {
+  if (!active) return <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />;
+  return direction === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />;
+};
+
+// Table Row Component
+const VaccinationTableRow = ({ record, columns, isSelected, isReviewed, onSelect, onDelete, onEdit, onRenew, isEven }) => {
+  const getStatusConfig = () => {
+    switch (record.status) {
+      case 'overdue':
+        return { variant: 'danger', label: 'Overdue', color: 'text-red-600 dark:text-red-400' };
+      case 'critical':
+        return { variant: 'warning', label: 'Critical', color: 'text-amber-600 dark:text-amber-400' };
+      case 'expiring':
+        return { variant: 'warning', label: 'Expiring', color: 'text-orange-600 dark:text-orange-400' };
+      default:
+        return { variant: 'success', label: 'Current', color: 'text-emerald-600 dark:text-emerald-400' };
+    }
+  };
+
+  const statusConfig = getStatusConfig();
+  const tdPadding = 'px-4 py-3';
+
+  const renderCell = (column) => {
+    switch (column.id) {
+      case 'select':
+        return (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={onSelect}
+            onClick={(e) => e.stopPropagation()}
+            className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
+          />
+        );
+      case 'pet':
+        return (
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-[color:var(--bb-color-text-primary)]">
+              {record.petName || 'Unknown'}
+            </span>
+            {isReviewed && (
+              <Badge variant="success" size="sm" className="gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Reviewed
+              </Badge>
+            )}
+          </div>
+        );
+      case 'owner':
+        return (
+          <span className="text-[color:var(--bb-color-text-secondary)]">
+            {record.ownerName || 'Unknown'}
+          </span>
+        );
+      case 'vaccine':
+        return <Badge variant="accent" size="sm">{record.type || 'Unknown'}</Badge>;
+      case 'expiry':
+        return (
+          <span className="text-[color:var(--bb-color-text-secondary)]">
+            {record.expiresAt ? new Date(record.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+          </span>
+        );
+      case 'status':
+        return (
+          <span className={cn('text-sm font-medium', statusConfig.color)}>
+            {statusConfig.label}
+            {record.daysRemaining !== null && (
+              <span className="ml-1 opacity-75 text-xs">
+                ({record.daysRemaining < 0 ? `${Math.abs(record.daysRemaining)}d overdue` : `${record.daysRemaining}d`})
+              </span>
+            )}
+          </span>
+        );
+      case 'actions':
+        return (
+          <div className="flex items-center justify-end gap-1">
+            {record.recordStatus !== 'archived' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => { e.stopPropagation(); onRenew?.(); }}
+                className="gap-1 text-[color:var(--bb-color-accent)]"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Renew
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
+              className="gap-1"
+            >
+              <Syringe className="h-3.5 w-3.5" />
+              Edit
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="gap-1 text-red-500 hover:text-red-600"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <tr
+      onClick={onEdit}
+      className={cn(
+        'cursor-pointer transition-colors',
+        isSelected && 'bg-[color:var(--bb-color-accent-soft)]',
+        !isSelected && isEven && 'bg-[color:var(--bb-color-bg-surface)]',
+        !isSelected && !isEven && 'bg-[color:var(--bb-color-bg-body)]',
+        'hover:bg-[color:var(--bb-color-bg-elevated)]'
+      )}
+    >
+      {columns.map((column) => {
+        const alignClass = column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left';
+        return (
+          <td
+            key={column.id}
+            className={cn(tdPadding, alignClass, 'whitespace-nowrap')}
+            style={{ minWidth: column.minWidth, maxWidth: column.maxWidth }}
+          >
+            {renderCell(column)}
+          </td>
+        );
+      })}
+    </tr>
+  );
+};
+
+// Columns Dropdown Component
+const ColumnsDropdown = ({ columns, visibleColumns, columnOrder, onToggle, onReorder }) => {
+  const [draggedId, setDraggedId] = useState(null);
+
+  const handleDragStart = (e, column) => {
+    setDraggedId(column.id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    if (draggedId === null) return;
+
+    const draggedIndex = columnOrder.indexOf(draggedId);
+    if (draggedIndex !== -1 && draggedIndex !== index) {
+      onReorder(draggedIndex, index);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+  };
+
+  const orderedColumns = columnOrder
+    .map(id => columns.find(c => c.id === id))
+    .filter(Boolean);
+
+  return (
+    <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
+      <div className="p-2">
+        <p className="px-2 py-1 text-xs font-semibold uppercase text-[color:var(--bb-color-text-muted)]">Toggle & Reorder</p>
+        {orderedColumns.map((column, index) => (
+          <div
+            key={column.id}
+            draggable
+            onDragStart={(e) => handleDragStart(e, column)}
+            onDragOver={(e) => handleDragOver(e, index)}
+            onDragEnd={handleDragEnd}
+            className={cn(
+              'flex items-center gap-2 px-2 py-1.5 text-sm cursor-move rounded transition-all duration-150',
+              draggedId === column.id
+                ? 'opacity-50 bg-[color:var(--bb-color-accent-soft)] ring-2 ring-[color:var(--bb-color-accent)]'
+                : 'hover:bg-[color:var(--bb-color-bg-elevated)]'
+            )}
+          >
+            <GripVertical className="h-4 w-4 text-[color:var(--bb-color-text-muted)] opacity-50" />
+            <input
+              type="checkbox"
+              checked={visibleColumns.includes(column.id)}
+              onChange={() => onToggle(column.id)}
+              onClick={(e) => e.stopPropagation()}
+              className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
+            />
+            <span className="flex-1 text-[color:var(--bb-color-text-primary)]">{column.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 };
 
 export default Vaccinations;
