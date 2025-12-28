@@ -308,6 +308,9 @@ export class ApiCoreStack extends cdk.Stack {
     // ENTITY SERVICE - Protected routes
     // NOTE: /api/v1/entity/{proxy+} is already created above via addRoutes()
     // -------------------------------------------------------------------------
+    // Notes routes - polymorphic notes for owners, pets, bookings, payments
+    createRoute('NotesBaseRoute', 'ANY /api/v1/notes', entityIntegration.ref, true);
+    createRoute('NotesProxyRoute', 'ANY /api/v1/notes/{proxy+}', entityIntegration.ref, true);
 
     // -------------------------------------------------------------------------
     // ANALYTICS SERVICE - Protected routes

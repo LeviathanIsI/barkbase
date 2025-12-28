@@ -264,6 +264,19 @@ const handlers = {
   'POST /api/v1/entity/activities': createActivity,
   'PUT /api/v1/entity/activities/{id}': updateActivity,
   'DELETE /api/v1/entity/activities/{id}': deleteActivity,
+
+  // Notes - polymorphic notes for owners, pets, bookings
+  // GET routes for each entity type (entityId normalized to {id})
+  'GET /api/v1/notes/owner/{id}': getNotes,
+  'GET /api/v1/notes/pet/{id}': getNotes,
+  'GET /api/v1/notes/booking/{id}': getNotes,
+  'GET /api/v1/notes/payment/{id}': getNotes,
+  'POST /api/v1/notes': createNote,
+  'PUT /api/v1/notes/{id}': updateNote,
+  'DELETE /api/v1/notes/{id}': deleteNote,
+  'POST /api/v1/notes/{id}/pin': toggleNotePin,
+  'GET /api/v1/notes/categories': getNoteCategories,
+  'PUT /api/v1/notes/categories': updateNoteCategories,
 };
 
 exports.handler = async (event, context) => {
@@ -3935,5 +3948,430 @@ async function deleteActivity(event) {
   } catch (error) {
     console.error('[ENTITY-SERVICE] deleteActivity error:', error);
     return createResponse(500, { error: 'InternalServerError', message: 'Failed to delete activity' });
+  }
+}
+
+// ============================================================================
+// Notes Handlers - Polymorphic notes for owners, pets, bookings, payments
+// ============================================================================
+
+/**
+ * GET /api/v1/notes/{entityType}/{entityId}
+ * Get all notes for a specific entity
+ */
+async function getNotes(event) {
+  const tenantId = resolveTenantId(event);
+  const pathParams = getPathParams(event);
+  const path = event.requestContext?.http?.path || event.path || '';
+
+  // Parse path: /api/v1/notes/{entityType}/{entityId}
+  const pathParts = path.split('/').filter(Boolean);
+  const entityType = pathParts[3]; // e.g., 'owner', 'pet', 'booking', 'payment'
+  const entityId = pathParts[4];
+
+  console.log('[Notes][list] tenantId:', tenantId, 'entityType:', entityType, 'entityId:', entityId);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!entityType || !entityId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Entity type and ID are required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT n.id, n.entity_type, n.entity_id, n.content, n.note_type, n.is_pinned,
+              n.created_at, n.updated_at, n.created_by,
+              u.first_name as created_by_first_name, u.last_name as created_by_last_name
+       FROM "Note" n
+       LEFT JOIN "User" u ON n.created_by = u.id
+       WHERE n.tenant_id = $1 AND n.entity_type = $2 AND n.entity_id = $3
+       ORDER BY n.is_pinned DESC, n.created_at DESC`,
+      [tenantId, entityType, entityId]
+    );
+
+    const notes = result.rows.map(row => ({
+      id: row.id,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      content: row.content,
+      noteType: row.note_type,
+      isPinned: row.is_pinned,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      createdBy: row.created_by,
+      createdByName: row.created_by_first_name && row.created_by_last_name
+        ? `${row.created_by_first_name} ${row.created_by_last_name}`.trim()
+        : null,
+    }));
+
+    return createResponse(200, notes);
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] getNotes error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to get notes' });
+  }
+}
+
+/**
+ * POST /api/v1/notes
+ * Create a new note
+ */
+async function createNote(event) {
+  const tenantId = resolveTenantId(event);
+  const userId = event.user?.sub || event.user?.userId || event.user?.id;
+  const body = parseBody(event);
+
+  console.log('[Notes][create] tenantId:', tenantId, 'userId:', userId, 'body:', body);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!userId) {
+    return createResponse(401, { error: 'Unauthorized', message: 'User authentication required' });
+  }
+
+  // Support both direct entityType/entityId and legacy ownerId/petId/bookingId
+  let entityType = body.entityType;
+  let entityId = body.entityId;
+
+  if (!entityType || !entityId) {
+    if (body.ownerId) {
+      entityType = 'owner';
+      entityId = body.ownerId;
+    } else if (body.petId) {
+      entityType = 'pet';
+      entityId = body.petId;
+    } else if (body.bookingId) {
+      entityType = 'booking';
+      entityId = body.bookingId;
+    } else if (body.paymentId) {
+      entityType = 'payment';
+      entityId = body.paymentId;
+    }
+  }
+
+  if (!entityType || !entityId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Entity type and ID are required' });
+  }
+
+  if (!body.content || !body.content.trim()) {
+    return createResponse(400, { error: 'BadRequest', message: 'Note content is required' });
+  }
+
+  const noteType = body.noteType || body.type || 'GENERAL';
+  const validNoteTypes = ['GENERAL', 'IMPORTANT', 'INFO', 'HIGHLIGHT'];
+  const normalizedNoteType = noteType.toUpperCase();
+
+  if (!validNoteTypes.includes(normalizedNoteType)) {
+    return createResponse(400, {
+      error: 'BadRequest',
+      message: `Invalid note type. Must be one of: ${validNoteTypes.join(', ')}`
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `INSERT INTO "Note" (tenant_id, entity_type, entity_id, content, note_type, is_pinned, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, entity_type, entity_id, content, note_type, is_pinned, created_at, updated_at, created_by`,
+      [tenantId, entityType, entityId, body.content.trim(), normalizedNoteType, body.isPinned || false, userId]
+    );
+
+    const row = result.rows[0];
+    const note = {
+      id: row.id,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      content: row.content,
+      noteType: row.note_type,
+      isPinned: row.is_pinned,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      createdBy: row.created_by,
+    };
+
+    console.log('[Notes][create] Created note:', note.id);
+    return createResponse(201, note);
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] createNote error:', error);
+
+    // Handle entity_type constraint violation
+    if (error.message?.includes('note_entity_type_check')) {
+      return createResponse(400, {
+        error: 'BadRequest',
+        message: `Invalid entity type: ${entityType}. Must be one of: owner, pet, booking`
+      });
+    }
+
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to create note' });
+  }
+}
+
+/**
+ * PUT /api/v1/notes/{id}
+ * Update a note
+ */
+async function updateNote(event) {
+  const tenantId = resolveTenantId(event);
+  const pathParams = getPathParams(event);
+  const noteId = pathParams.id || event.path?.split('/').pop();
+  const body = parseBody(event);
+
+  console.log('[Notes][update] tenantId:', tenantId, 'noteId:', noteId, 'body:', body);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!noteId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Note ID is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Build dynamic update
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (body.content !== undefined) {
+      updates.push(`content = $${paramIndex++}`);
+      values.push(body.content.trim());
+    }
+
+    if (body.noteType !== undefined || body.type !== undefined) {
+      const noteType = (body.noteType || body.type).toUpperCase();
+      const validNoteTypes = ['GENERAL', 'IMPORTANT', 'INFO', 'HIGHLIGHT'];
+      if (!validNoteTypes.includes(noteType)) {
+        return createResponse(400, {
+          error: 'BadRequest',
+          message: `Invalid note type. Must be one of: ${validNoteTypes.join(', ')}`
+        });
+      }
+      updates.push(`note_type = $${paramIndex++}`);
+      values.push(noteType);
+    }
+
+    if (body.isPinned !== undefined) {
+      updates.push(`is_pinned = $${paramIndex++}`);
+      values.push(body.isPinned);
+    }
+
+    if (updates.length === 0) {
+      return createResponse(400, { error: 'BadRequest', message: 'No fields to update' });
+    }
+
+    updates.push(`updated_at = NOW()`);
+
+    const result = await query(
+      `UPDATE "Note" SET ${updates.join(', ')}
+       WHERE id = $${paramIndex++} AND tenant_id = $${paramIndex}
+       RETURNING id, entity_type, entity_id, content, note_type, is_pinned, created_at, updated_at, created_by`,
+      [...values, noteId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'NotFound', message: 'Note not found' });
+    }
+
+    const row = result.rows[0];
+    const note = {
+      id: row.id,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      content: row.content,
+      noteType: row.note_type,
+      isPinned: row.is_pinned,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      createdBy: row.created_by,
+    };
+
+    return createResponse(200, note);
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] updateNote error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to update note' });
+  }
+}
+
+/**
+ * DELETE /api/v1/notes/{id}
+ * Delete a note
+ */
+async function deleteNote(event) {
+  const tenantId = resolveTenantId(event);
+  const pathParams = getPathParams(event);
+  const noteId = pathParams.id || event.path?.split('/').pop();
+
+  console.log('[Notes][delete] tenantId:', tenantId, 'noteId:', noteId);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!noteId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Note ID is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `DELETE FROM "Note" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      [noteId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'NotFound', message: 'Note not found' });
+    }
+
+    return createResponse(200, { success: true, id: result.rows[0].id });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] deleteNote error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to delete note' });
+  }
+}
+
+/**
+ * POST /api/v1/notes/{id}/pin
+ * Toggle pin status of a note
+ */
+async function toggleNotePin(event) {
+  const tenantId = resolveTenantId(event);
+  const path = event.requestContext?.http?.path || event.path || '';
+
+  // Parse noteId from path: /api/v1/notes/{id}/pin
+  const pathParts = path.split('/').filter(Boolean);
+  const noteId = pathParts[3]; // The ID before /pin
+
+  console.log('[Notes][togglePin] tenantId:', tenantId, 'noteId:', noteId);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!noteId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Note ID is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "Note" SET is_pinned = NOT is_pinned, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING id, entity_type, entity_id, content, note_type, is_pinned, created_at, updated_at, created_by`,
+      [noteId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'NotFound', message: 'Note not found' });
+    }
+
+    const row = result.rows[0];
+    const note = {
+      id: row.id,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      content: row.content,
+      noteType: row.note_type,
+      isPinned: row.is_pinned,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      createdBy: row.created_by,
+    };
+
+    return createResponse(200, note);
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] toggleNotePin error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to toggle note pin' });
+  }
+}
+
+/**
+ * GET /api/v1/notes/categories
+ * Get note categories for the tenant
+ */
+async function getNoteCategories(event) {
+  const tenantId = resolveTenantId(event);
+
+  console.log('[Notes][getCategories] tenantId:', tenantId);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get categories from tenant settings
+    const result = await query(
+      `SELECT settings FROM "Tenant" WHERE id = $1`,
+      [tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'NotFound', message: 'Tenant not found' });
+    }
+
+    const settings = result.rows[0].settings || {};
+    const categories = settings.noteCategories || ['General', 'Important', 'Follow-up', 'Medical', 'Billing'];
+
+    return createResponse(200, categories);
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] getNoteCategories error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to get note categories' });
+  }
+}
+
+/**
+ * PUT /api/v1/notes/categories
+ * Update note categories for the tenant
+ */
+async function updateNoteCategories(event) {
+  const tenantId = resolveTenantId(event);
+  const body = parseBody(event);
+
+  console.log('[Notes][updateCategories] tenantId:', tenantId, 'body:', body);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!body.categories || !Array.isArray(body.categories)) {
+    return createResponse(400, { error: 'BadRequest', message: 'Categories array is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Update tenant settings with new categories
+    const result = await query(
+      `UPDATE "Tenant"
+       SET settings = jsonb_set(COALESCE(settings, '{}'::jsonb), '{noteCategories}', $1::jsonb),
+           updated_at = NOW()
+       WHERE id = $2
+       RETURNING settings`,
+      [JSON.stringify(body.categories), tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'NotFound', message: 'Tenant not found' });
+    }
+
+    const settings = result.rows[0].settings || {};
+    const categories = settings.noteCategories || body.categories;
+
+    return createResponse(200, categories);
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] updateNoteCategories error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to update note categories' });
   }
 }
