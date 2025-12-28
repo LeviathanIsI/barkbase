@@ -1201,15 +1201,9 @@ const CustomReportBuilder = () => {
     const fetchFields = async () => {
       setFieldsLoading(true);
       try {
-        console.log('[REPORT-BUILDER] Fetching fields for dataSource:', dataSource);
         const response = await apiClient.get(`/api/v1/analytics/reports/fields?dataSource=${dataSource}`);
-        console.log('[REPORT-BUILDER] Raw API response:', response);
-        console.log('[REPORT-BUILDER] response.data:', response.data);
-        console.log('[REPORT-BUILDER] response.data?.data:', response.data?.data);
-        console.log('[REPORT-BUILDER] response.data?.data?.[dataSource]:', response.data?.data?.[dataSource]);
 
         const data = response.data?.data?.[dataSource] || { dimensions: [], measures: [] };
-        console.log('[REPORT-BUILDER] Extracted data:', data);
 
         // Map API response to expected format
         const mappedFields = {
@@ -1230,7 +1224,6 @@ const CustomReportBuilder = () => {
             options: m.options, // For enum fields
           })),
         };
-        console.log('[REPORT-BUILDER] Mapped fields:', mappedFields);
         setFieldsConfig(mappedFields);
       } catch (err) {
         console.error('[REPORT-BUILDER] Failed to fetch report fields:', err);

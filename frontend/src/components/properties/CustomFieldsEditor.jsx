@@ -11,7 +11,7 @@
  *   <CustomFieldsEditor
  *     entityType="pet"
  *     entityId={pet.id}
- *     onSave={(values) => console.log('Saved:', values)}
+ *     onSave={(values) =>}
  *   />
  *
  * =============================================================================

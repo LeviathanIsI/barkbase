@@ -84,7 +84,7 @@ const Login = () => {
 
       // Check if MFA is required
       if (result.mfaRequired) {
-        if (import.meta.env.DEV) console.log('[Login] MFA challenge required');
+        if (import.meta.env.DEV)
         setMfaChallenge({
           session: result.session,
           email: result.email,
@@ -96,7 +96,7 @@ const Login = () => {
         throw new Error('Authentication failed - no access token received');
       }
 
-      if (import.meta.env.DEV) console.log('[Login] Authentication successful');
+      if (import.meta.env.DEV)
 
       // Call backend to create session record (uses raw fetch intentionally - auth endpoint before apiClient is configured)
       try {
@@ -115,7 +115,7 @@ const Login = () => {
           console.warn('[Login] Backend login call failed:', loginResponse.status);
         } else {
           const loginData = await loginResponse.json();
-          if (import.meta.env.DEV) console.log('[Login] Backend session created:', loginData.session);
+          if (import.meta.env.DEV)
         }
       } catch (backendError) {
         console.warn('[Login] Failed to create backend session:', backendError.message);
@@ -142,7 +142,7 @@ const Login = () => {
 
       // Bootstrap: Fetch tenant config using the new access token
       // This hydrates both profile and tenant info from /api/v1/config/tenant
-      if (import.meta.env.DEV) console.log('[Login] Bootstrapping tenant config...');
+      if (import.meta.env.DEV)
       setTenantLoading(true);
       try {
         const tenantResponse = await apiClient.get(canonicalEndpoints.settings.tenant);
@@ -175,11 +175,7 @@ const Login = () => {
             featureFlags: tenantConfig.featureFlags,
           });
 
-          if (import.meta.env.DEV) console.log('[Login] Tenant config loaded:', {
-            tenantId: tenantConfig.tenantId,
-            slug: tenantConfig.slug,
-            hasOnboardingCompleted: tenantConfig.hasOnboardingCompleted,
-          });
+          if (import.meta.env.DEV)
         }
       } catch (tenantError) {
         // Log but don't block login - TenantLoader will retry
@@ -256,7 +252,7 @@ const Login = () => {
         throw new Error('MFA verification failed');
       }
 
-      if (import.meta.env.DEV) console.log('[Login] MFA verification successful');
+      if (import.meta.env.DEV)
 
       // Show "Signing in..." state (keep MFA UI visible with loading indicator)
       setIsAuthenticating(true);
