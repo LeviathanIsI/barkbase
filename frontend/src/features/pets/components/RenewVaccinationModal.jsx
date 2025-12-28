@@ -147,6 +147,13 @@ const RenewVaccinationModal = ({
             border: '1px solid var(--bb-color-border-subtle)',
           }}
         >
+          {/* Pet Name - prominent display */}
+          <div className="flex items-center gap-2 pb-2 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <span className="text-lg font-semibold text-[color:var(--bb-color-text-primary)]">
+              {petName}
+            </span>
+          </div>
+
           <div className="flex items-center gap-2">
             <Syringe className="h-5 w-5 text-[color:var(--bb-color-accent)]" />
             <span className="font-medium text-[color:var(--bb-color-text-primary)]">
