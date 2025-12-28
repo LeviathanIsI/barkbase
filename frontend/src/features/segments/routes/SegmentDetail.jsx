@@ -859,7 +859,7 @@ const OverviewTab = ({ segment, segmentType, objectType, onExport, onTabChange, 
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
-                  <div className="w-32">
+                  <div className="w-40">
                     <StyledSelect
                       options={[
                         { value: 100, label: '100 per page' },
