@@ -50,8 +50,9 @@ import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
 
 // API hooks
 import { useCreatePetMutation, useUpdatePetMutation, useUpdateVaccinationMutation } from '@/features/pets/api';
-import { useCreateOwnerMutation, useUpdateOwnerMutation } from '@/features/owners/api';
+import { useCreateOwnerMutation, useUpdateOwnerMutation, useOwnersQuery } from '@/features/owners/api';
 import { useCreateNote } from '@/features/communications/api';
+import { useSendMessageMutation } from '@/features/messaging/api';
 import { format, addDays } from 'date-fns';
 
 // Form components for complex flows
@@ -111,6 +112,12 @@ export function SlideoutHost() {
           ['activities'],
         ].filter(Boolean);
 
+      case SLIDEOUT_TYPES.MESSAGE_CREATE:
+        return [
+          ['messages', 'conversations'],
+          ['messages'],
+        ];
+
       case SLIDEOUT_TYPES.VACCINATION_EDIT:
         return [
           ['petVaccinations', { tenantId, petId: state?.props?.petId }],
@@ -146,6 +153,7 @@ export function SlideoutHost() {
       case SLIDEOUT_TYPES.TASK_CREATE: return 'Task created successfully';
       case SLIDEOUT_TYPES.TASK_EDIT: return 'Task updated successfully';
       case SLIDEOUT_TYPES.COMMUNICATION_CREATE: return 'Message sent successfully';
+      case SLIDEOUT_TYPES.MESSAGE_CREATE: return 'Conversation started';
       case SLIDEOUT_TYPES.NOTE_CREATE: return 'Note added successfully';
       case SLIDEOUT_TYPES.ACTIVITY_LOG: return 'Activity logged successfully';
       case SLIDEOUT_TYPES.VACCINATION_EDIT: return 'Vaccination updated successfully';
@@ -245,6 +253,14 @@ export function SlideoutHost() {
             ownerId={props?.ownerId}
             petId={props?.petId}
             bookingId={props?.bookingId}
+            onSuccess={onFormSuccess}
+            onCancel={closeSlideout}
+          />
+        );
+
+      case SLIDEOUT_TYPES.MESSAGE_CREATE:
+        return (
+          <NewConversationForm
             onSuccess={onFormSuccess}
             onCancel={closeSlideout}
           />
@@ -913,6 +929,106 @@ function VaccinationEditForm({ vaccinations = [], initialIndex = 0, petId, petNa
         </Button>
         <Button type="submit" disabled={isLoading || !isDirty}>
           {isLoading ? 'Updating...' : hasMultiple ? 'Update & Continue' : 'Update Vaccination'}
+        </Button>
+      </FormActions>
+    </form>
+  );
+}
+
+// New Conversation Form - Select owner and send first message
+function NewConversationForm({ onSuccess, onCancel }) {
+  const { data: owners, isLoading: ownersLoading } = useOwnersQuery();
+  const sendMutation = useSendMessageMutation();
+  const [selectedOwner, setSelectedOwner] = useState(null);
+  const [message, setMessage] = useState('');
+
+  const ownerOptions = (owners || []).map(owner => ({
+    value: owner.recordId,
+    label: `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || owner.email || 'Unknown',
+    owner,
+  }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedOwner || !message.trim()) return;
+
+    try {
+      const result = await sendMutation.mutateAsync({
+        recipientId: selectedOwner.value,
+        content: message.trim(),
+      });
+      onSuccess?.(result);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to start conversation');
+    }
+  };
+
+  const isLoading = sendMutation.isPending;
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <FormSection title="Select Customer">
+        <div className="space-y-2">
+          <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Customer <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+          </label>
+          <Select
+            options={ownerOptions}
+            value={selectedOwner}
+            onChange={setSelectedOwner}
+            placeholder="Search for a customer..."
+            isLoading={ownersLoading}
+            isClearable
+            isSearchable
+            styles={selectStyles}
+            menuPortalTarget={document.body}
+          />
+        </div>
+
+        {selectedOwner?.owner && (
+          <div
+            className="p-3 rounded-lg border mt-3"
+            style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-elevated)' }}
+          >
+            <p className="font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+              {selectedOwner.label}
+            </p>
+            {selectedOwner.owner.email && (
+              <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+                {selectedOwner.owner.email}
+              </p>
+            )}
+            {selectedOwner.owner.phone && (
+              <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+                {selectedOwner.owner.phone}
+              </p>
+            )}
+          </div>
+        )}
+      </FormSection>
+
+      <FormSection title="Message">
+        <div className="space-y-2">
+          <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Your Message <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+          </label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={5}
+            className={cn(inputClass, 'resize-y')}
+            style={inputStyles}
+            placeholder="Type your message here..."
+          />
+        </div>
+      </FormSection>
+
+      <FormActions>
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isLoading || !selectedOwner || !message.trim()}>
+          {isLoading ? 'Sending...' : 'Start Conversation'}
         </Button>
       </FormActions>
     </form>

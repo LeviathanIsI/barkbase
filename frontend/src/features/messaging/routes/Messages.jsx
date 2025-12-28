@@ -721,7 +721,7 @@ const Messages = () => {
   };
 
   const handleNewConversation = () => {
-    toast.info('New conversation modal coming soon');
+    openSlideout(SLIDEOUT_TYPES.MESSAGE_CREATE);
   };
 
   // DAFE: Open Owner slideout
