@@ -1288,11 +1288,10 @@ const Payments = () => {
 
   // Add note handler - opens note slideout
   const handleAddNote = (payment) => {
-    if (payment?.ownerId) {
+    const paymentId = payment?.recordId || payment?.id;
+    if (paymentId) {
       openSlideout(SLIDEOUT_TYPES.NOTE_CREATE, {
-        ownerId: payment.ownerId,
-        title: 'Add Note',
-        description: `Add a note for payment ${payment.recordId || payment.id}`,
+        paymentId,
       });
     }
   };

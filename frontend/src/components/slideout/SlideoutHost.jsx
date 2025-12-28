@@ -289,6 +289,7 @@ export function SlideoutHost() {
             ownerId={props?.ownerId}
             petId={props?.petId}
             bookingId={props?.bookingId}
+            paymentId={props?.paymentId}
             onSuccess={onFormSuccess}
             onCancel={closeSlideout}
           />
@@ -598,23 +599,41 @@ function OwnerForm({ owner, onSuccess, onCancel }) {
 }
 
 // Note Form
-function NoteForm({ ownerId, petId, bookingId, onSuccess, onCancel }) {
+function NoteForm({ ownerId, petId, bookingId, paymentId, onSuccess, onCancel }) {
   const createMutation = useCreateNote();
   const [content, setContent] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!content.trim()) return;
-    
+
+    // Determine entity type and ID
+    let entityType, entityId;
+    if (ownerId) {
+      entityType = 'owner';
+      entityId = ownerId;
+    } else if (petId) {
+      entityType = 'pet';
+      entityId = petId;
+    } else if (bookingId) {
+      entityType = 'booking';
+      entityId = bookingId;
+    } else if (paymentId) {
+      entityType = 'payment';
+      entityId = paymentId;
+    }
+
+    if (!entityType || !entityId) {
+      toast.error('Missing entity information');
+      return;
+    }
+
     try {
       const result = await createMutation.mutateAsync({
-        ownerId,
-        petId,
-        bookingId,
+        entityType,
+        entityId,
         type: 'general',
         content,
-        entityType: ownerId ? 'owner' : petId ? 'pet' : 'booking',
-        entityId: ownerId || petId || bookingId,
       });
       onSuccess?.(result);
     } catch (error) {
