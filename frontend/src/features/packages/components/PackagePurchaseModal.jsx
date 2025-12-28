@@ -141,6 +141,7 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
           ...submitData,
           services: selectedServices.map(s => ({ serviceId: s.id, quantity: s.quantity })),
           priceInCents: bundleCalculations.total,
+          discountPercent,
           billingFrequency,
           startDate: startDate ? new Date(startDate).toISOString() : null,
         };
@@ -151,6 +152,7 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
           ...submitData,
           services: selectedServices.map(s => ({ serviceId: s.id, quantity: s.quantity })),
           priceInCents: bundleCalculations.total,
+          discountPercent,
           startDate: startDate ? new Date(startDate).toISOString() : null,
           endDate: endDate ? new Date(endDate).toISOString() : null,
         };
@@ -463,14 +465,30 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
             </div>
 
             <Input
-              label="Price"
+              label="Discount Percentage"
               type="number"
               min="0"
-              value={(bundleCalculations.subtotal / 100).toFixed(2)}
-              onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
-              helper={`Charged ${billingFrequency}`}
-              required
+              max="50"
+              value={discountPercent}
+              onChange={(e) => setDiscountPercent(parseInt(e.target.value) || 0)}
             />
+
+            {selectedServices.length > 0 && (
+              <div className="bg-surface rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">Subtotal</span>
+                  <span>{formatCurrency(bundleCalculations.subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-success">
+                  <span>Discount ({discountPercent}%)</span>
+                  <span>-{formatCurrency(bundleCalculations.discount)}</span>
+                </div>
+                <div className="flex justify-between text-base font-semibold border-t border-border pt-2">
+                  <span>Total (charged {billingFrequency})</span>
+                  <span>{formatCurrency(bundleCalculations.total)}</span>
+                </div>
+              </div>
+            )}
 
             <Input
               label="Start Date"
@@ -556,14 +574,30 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
             </div>
 
             <Input
-              label="Total Package Price ($)"
+              label="Discount Percentage"
               type="number"
               min="0"
-              value={price}
-              onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
-              helper={`$${price.toFixed(2)}`}
-              required
+              max="50"
+              value={discountPercent}
+              onChange={(e) => setDiscountPercent(parseInt(e.target.value) || 0)}
             />
+
+            {selectedServices.length > 0 && (
+              <div className="bg-surface rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">Subtotal</span>
+                  <span>{formatCurrency(bundleCalculations.subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-success">
+                  <span>Discount ({discountPercent}%)</span>
+                  <span>-{formatCurrency(bundleCalculations.discount)}</span>
+                </div>
+                <div className="flex justify-between text-base font-semibold border-t border-border pt-2">
+                  <span>Total</span>
+                  <span>{formatCurrency(bundleCalculations.total)}</span>
+                </div>
+              </div>
+            )}
 
             {startDate && endDate && (
               <div className="bg-info/10 border border-info/20 rounded-lg p-3">
