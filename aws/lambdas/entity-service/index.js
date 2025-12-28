@@ -3985,9 +3985,9 @@ async function getNotes(event) {
     const result = await query(
       `SELECT n.record_id, n.entity_type, n.entity_id, n.content, n.note_type, n.is_pinned,
               n.created_at, n.updated_at, n.created_by,
-              u.first_name as created_by_first_name, u.last_name as created_by_last_name
+              us.first_name as created_by_first_name, us.last_name as created_by_last_name
        FROM "Note" n
-       LEFT JOIN "User" u ON n.created_by = u.record_id
+       LEFT JOIN "UserSettings" us ON n.created_by = us.user_id
        WHERE n.tenant_id = $1 AND n.entity_type = $2 AND n.entity_id = $3
        ORDER BY n.is_pinned DESC, n.created_at DESC`,
       [tenantId, entityType, entityId]
