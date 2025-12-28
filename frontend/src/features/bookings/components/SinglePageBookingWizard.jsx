@@ -1,10 +1,9 @@
 import { useState, useMemo } from 'react';
-import { 
-  Users, 
-  PawPrint, 
-  Calendar, 
-  MapPin, 
-  DollarSign, 
+import {
+  Users,
+  PawPrint,
+  Calendar,
+  DollarSign,
   CheckCircle,
   AlertCircle,
   ChevronRight,
@@ -17,8 +16,7 @@ import Badge from '@/components/ui/Badge';
 import { useOwnerSearchQuery } from '@/features/owners/api';
 import { usePetsQuery } from '@/features/pets/api';
 import { useServicesQuery } from '@/features/services/api';
-import { useRunTemplatesQuery } from '@/features/daycare/api-templates';
-import { useCreateBookingMutation, useBookingsQuery } from '../api';
+import { useCreateBookingMutation } from '../api';
 import { useDashboardStatsQuery, useUpcomingArrivalsQuery, useOccupancyQuery } from '@/features/dashboard/api';
 import toast from 'react-hot-toast';
 
@@ -32,7 +30,6 @@ const STEPS = [
   { id: 'owner', label: 'Owner', icon: Users },
   { id: 'pet', label: 'Pet(s)', icon: PawPrint },
   { id: 'service', label: 'Service', icon: Calendar },
-  { id: 'room', label: 'Run/Room', icon: MapPin },
   { id: 'billing', label: 'Billing', icon: DollarSign },
 ];
 
@@ -61,8 +58,7 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
       case 0: return bookingData.owner !== null;
       case 1: return bookingData.pets.length > 0;
       case 2: return bookingData.services.length > 0 && bookingData.dateRange.start && bookingData.dateRange.end;
-      case 3: return bookingData.runTemplate !== null;
-      case 4: return true; // Billing can be completed later
+      case 3: return true; // Billing can be completed later
       default: return false;
     }
   };
@@ -165,8 +161,7 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
           {currentStep === 0 && <OwnerStep {...{ bookingData, updateBookingData }} />}
           {currentStep === 1 && <PetStep {...{ bookingData, updateBookingData }} />}
           {currentStep === 2 && <ServiceStep {...{ bookingData, updateBookingData }} />}
-          {currentStep === 3 && <RoomStep {...{ bookingData, updateBookingData }} />}
-          {currentStep === 4 && <BillingStep {...{ bookingData, updateBookingData }} />}
+          {currentStep === 3 && <BillingStep {...{ bookingData, updateBookingData }} />}
         </Card>
 
         {/* Action Buttons - Always visible */}
@@ -212,7 +207,7 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
 
       {/* Persistent Capacity Panel - Always visible, stacked on most screens, side-by-side only on very wide screens */}
       <div className="2xl:w-72 flex-shrink-0">
-        <CapacityPanel dateRange={bookingData.dateRange} selectedRunTemplate={bookingData.runTemplate} />
+        <CapacityPanel dateRange={bookingData.dateRange} />
       </div>
     </div>
   );
@@ -576,104 +571,6 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
   );
 };
 
-const RoomStep = ({ bookingData, updateBookingData }) => {
-  const { data: runTemplates = [], isLoading } = useRunTemplatesQuery();
-  
-  // Check availability for selected dates
-  const { data: existingBookings = [] } = useBookingsQuery(
-    bookingData.dateRange.start && bookingData.dateRange.end
-      ? {
-          startDate: bookingData.dateRange.start,
-          endDate: bookingData.dateRange.end,
-        }
-      : {}
-  );
-
-  // Determine which run templates are available
-  const availableRunTemplates = useMemo(() => {
-    return runTemplates.map(template => {
-      // Check if template is already booked for the date range
-      // This is a simple check - in production, you'd want more sophisticated availability logic
-      const isBooked = existingBookings.some(booking => 
-        booking.runTemplateId === template.recordId &&
-        booking.status !== 'CANCELLED' &&
-        booking.status !== 'CHECKED_OUT'
-      );
-      
-      return {
-        ...template,
-        available: !isBooked,
-      };
-    });
-  }, [runTemplates, existingBookings]);
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Select Run/Room</h3>
-        <p className="text-sm text-gray-600 dark:text-text-secondary">Choose from available accommodations for the selected dates</p>
-      </div>
-
-      {!bookingData.dateRange.start || !bookingData.dateRange.end ? (
-        <div className="text-center py-8 text-sm text-gray-500 dark:text-text-secondary">
-          Please select dates first to see available runs
-        </div>
-      ) : isLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-gray-400 dark:text-text-tertiary" />
-        </div>
-      ) : availableRunTemplates.length === 0 ? (
-        <div className="text-center py-8 text-sm text-gray-500 dark:text-text-secondary">
-          No run templates available. Please configure run templates in Settings.
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {availableRunTemplates.map(template => {
-            const isSelected = bookingData.runTemplate?.recordId === template.recordId || bookingData.runTemplate?.id === template.id;
-            return (
-            <button
-              key={template.recordId || template.id}
-              onClick={() => template.available && updateBookingData('runTemplate', template)}
-              disabled={!template.available}
-              className={cn(
-                "p-4 rounded-lg border-2 transition-all",
-                isSelected && "border-primary-500 bg-primary-500/10 ring-2 ring-primary-500/30",
-                template.available && !isSelected && "border-gray-700 bg-gray-800 hover:border-gray-600 hover:bg-gray-700",
-                !template.available && "border-gray-700 bg-gray-900 cursor-not-allowed opacity-60"
-              )}
-            >
-              <div className="text-center">
-                {isSelected && (
-                  <CheckCircle className="h-5 w-5 text-primary-500 mx-auto mb-2" />
-                )}
-                <p className="font-bold text-lg text-gray-100">{template.name}</p>
-                <p className="text-sm text-gray-400">Capacity: {template.maxCapacity || 'N/A'}</p>
-                <p className="text-xs text-gray-500">{template.capacityType || 'total'}</p>
-                {!template.available && (
-                  <Badge variant="error" className="mt-2">Occupied</Badge>
-                )}
-              </div>
-            </button>
-          );
-          })}
-        </div>
-      )}
-
-      {/* Special Requirements */}
-      <div className="space-y-3">
-        <h4 className="font-medium text-gray-900 dark:text-text-primary">Special Requirements</h4>
-        <textarea
-          placeholder="Any special notes about room placement, neighboring pets to avoid, etc."
-          className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-lg bg-white dark:bg-surface-primary text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          rows={3}
-          onChange={(e) => updateBookingData('specialRequirements', e.target.value)}
-          value={bookingData.specialRequirements || ''}
-        />
-      </div>
-    </div>
-  );
-};
-
 const BillingStep = ({ bookingData }) => {
   // Calculate nights between dates (parse as local time to avoid timezone shift)
   const nights = useMemo(() => {
@@ -723,10 +620,6 @@ const BillingStep = ({ bookingData }) => {
           <div className="flex justify-between">
             <span className="text-text-secondary">Service(s):</span>
             <span className="font-medium text-text-primary">{bookingData.services.map(s => s.name).join(', ')} ({nights} nights)</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-text-secondary">Run/Room:</span>
-            <span className="font-medium text-text-primary">{bookingData.runTemplate?.name || 'Not selected'}</span>
           </div>
         </div>
       </div>
@@ -782,7 +675,7 @@ const BillingStep = ({ bookingData }) => {
 };
 
 // Persistent Capacity Panel - Always visible
-const CapacityPanel = ({ dateRange, selectedRunTemplate }) => {
+const CapacityPanel = ({ dateRange }) => {
   const { data: stats } = useDashboardStatsQuery();
   const { data: occupancy } = useOccupancyQuery();
   const { data: todayArrivals = [] } = useUpcomingArrivalsQuery(1); // Today only
@@ -857,11 +750,6 @@ const CapacityPanel = ({ dateRange, selectedRunTemplate }) => {
             <p className="text-gray-600 dark:text-text-secondary">
               {new Date(dateRange.start + 'T00:00:00').toLocaleDateString()} - {new Date(dateRange.end + 'T00:00:00').toLocaleDateString()}
             </p>
-            {selectedRunTemplate ? (
-              <p className="font-medium text-success-600">✓ {selectedRunTemplate.name} selected</p>
-            ) : (
-              <p className="text-gray-500 dark:text-text-secondary">No run selected</p>
-            )}
           </div>
         </div>
       )}
