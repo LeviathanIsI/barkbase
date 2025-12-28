@@ -49,7 +49,7 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
 
   // Credit package fields
   const [credits, setCredits] = useState(10);
-  const [priceCents, setPriceCents] = useState(10000);
+  const [price, setPrice] = useState(100); // Store in dollars
 
   // Bundle/Subscription/Time-based fields
   const [selectedServices, setSelectedServices] = useState([]);
@@ -78,10 +78,10 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
   // Credit package savings calculation
   const creditSavings = useMemo(() => {
     if (credits <= 0) return 0;
-    const pricePerCredit = Math.round(priceCents / credits);
+    const pricePerCredit = Math.round((price * 100) / credits);
     // Assume $100 per credit is the baseline
     return Math.round((10000 - pricePerCredit) / 100);
-  }, [credits, priceCents]);
+  }, [credits, price]);
 
   const handleServiceToggle = (service) => {
     setSelectedServices(prev => {
@@ -121,7 +121,7 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
         submitData = {
           ...submitData,
           creditsPurchased: credits,
-          priceCents,
+          priceInCents: Math.round(price * 100),
           expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
         };
         break;
@@ -130,7 +130,7 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
         submitData = {
           ...submitData,
           services: selectedServices.map(s => ({ serviceId: s.id, quantity: s.quantity })),
-          priceCents: bundleCalculations.total,
+          priceInCents: bundleCalculations.total,
           discountPercent,
           expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
         };
@@ -140,7 +140,7 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
         submitData = {
           ...submitData,
           services: selectedServices.map(s => ({ serviceId: s.id, quantity: s.quantity })),
-          priceCents: bundleCalculations.total,
+          priceInCents: bundleCalculations.total,
           billingFrequency,
           startDate: startDate ? new Date(startDate).toISOString() : null,
         };
@@ -150,7 +150,7 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
         submitData = {
           ...submitData,
           services: selectedServices.map(s => ({ serviceId: s.id, quantity: s.quantity })),
-          priceCents: bundleCalculations.total,
+          priceInCents: bundleCalculations.total,
           startDate: startDate ? new Date(startDate).toISOString() : null,
           endDate: endDate ? new Date(endDate).toISOString() : null,
         };
@@ -186,7 +186,7 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
     setPackageType('credit');
     setName('');
     setCredits(10);
-    setPriceCents(10000);
+    setPrice(100);
     setSelectedServices([]);
     setDiscountPercent(10);
     setBillingFrequency('monthly');
@@ -198,7 +198,7 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
   const isValid = () => {
     switch (packageType) {
       case 'credit':
-        return credits > 0 && priceCents > 0;
+        return credits > 0 && price > 0;
       case 'bundle':
         return selectedServices.length > 0;
       case 'subscription':
@@ -284,13 +284,13 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
             />
 
             <Input
-              label="Total Package Price (cents)"
+              label="Total Package Price ($)"
               type="number"
               min="0"
               step="100"
-              value={priceCents}
-              onChange={(e) => setPriceCents(parseInt(e.target.value) || 0)}
-              helper={`${formatCurrency(priceCents)} (${formatCurrency(Math.round(priceCents / credits))} per credit)`}
+              value={price}
+              onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+              helper={`$${price.toFixed(2)} ($${(price / credits).toFixed(2)} per credit)`}
               required
             />
 
@@ -463,11 +463,11 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
             </div>
 
             <Input
-              label="Price Per Period (cents)"
+              label="Price"
               type="number"
               min="0"
-              value={bundleCalculations.total || priceCents}
-              onChange={(e) => setPriceCents(parseInt(e.target.value) || 0)}
+              value={(bundleCalculations.total / 100).toFixed(2)}
+              onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
               helper={`Charged ${billingFrequency}`}
               required
             />
@@ -556,12 +556,12 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
             </div>
 
             <Input
-              label="Total Package Price (cents)"
+              label="Total Package Price ($)"
               type="number"
               min="0"
-              value={priceCents}
-              onChange={(e) => setPriceCents(parseInt(e.target.value) || 0)}
-              helper={formatCurrency(priceCents)}
+              value={price}
+              onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+              helper={`$${price.toFixed(2)}`}
               required
             />
 
