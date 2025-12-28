@@ -34,7 +34,6 @@ const withThemeToggle = `          <ThemeToggleIconButton
 
 if (content.includes(onlineOfflinePattern)) {
   content = content.replace(onlineOfflinePattern, withThemeToggle);
-  console.log('✅ Moved ThemeToggleIconButton before Online/Offline span with key prop');
 } else {
   console.log('❌ Could not find Online/Offline span pattern');
   process.exit(1);
@@ -48,9 +47,5 @@ if (!content.includes('import { ThemeToggleIconButton }')) {
 
 // Backup and write
 fs.copyFileSync(filePath, backupPath);
-console.log('✅ Backed up Header.jsx to:', backupPath);
 
 fs.writeFileSync(filePath, content, 'utf8');
-console.log('✅ Updated Header.jsx - ThemeToggleIconButton moved with key prop!');
-console.log('\n📍 New Location: Before the Online/Offline status indicator');
-console.log('🔑 Added key="theme-toggle-header" to force re-render');

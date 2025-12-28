@@ -313,9 +313,7 @@ const backupFile = path.join(__dirname, 'src/styles/design-tokens.css.backup.' +
 
 if (fs.existsSync(oldFile)) {
   fs.copyFileSync(oldFile, backupFile);
-  console.log('✅ Backed up old design tokens to:', backupFile);
 }
 
 // Write new file
 fs.writeFileSync(oldFile, designTokensCSS, 'utf8');
-console.log('✅ Updated design-tokens.css with dual-theme support!');

@@ -42,12 +42,12 @@
  * =============================================================================
  */
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
 import apiClient from '@/lib/apiClient';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 
 /**
  * Query key for tenant config
@@ -116,9 +116,7 @@ function normalizeTenantConfig(data) {
  *
  * @example
  * const { data: config, isLoading, error } = useTenantConfig();
- * if (config) {
- *   console.log(config.tenantId, config.user.email);
- * }
+ * * }
  */
 export const useTenantConfig = (options = {}) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());

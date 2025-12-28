@@ -30,9 +30,7 @@ const backupPath = path.join(__dirname, 'src/main.jsx.backup.' + Date.now());
 // Backup old file
 if (fs.existsSync(filePath)) {
   fs.copyFileSync(filePath, backupPath);
-  console.log('✅ Backed up old main.jsx to:', backupPath);
 }
 
 // Write new file
 fs.writeFileSync(filePath, mainJsx, 'utf8');
-console.log('✅ Updated main.jsx with ThemeProvider!');

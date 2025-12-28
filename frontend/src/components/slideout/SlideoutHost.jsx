@@ -3,12 +3,17 @@
  * Place this once in the app layout to enable global slideouts
  */
 
-import { useState, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useForm, Controller } from 'react-hook-form';
-import Select from 'react-select';
 import SlideoutPanel from '@/components/SlideoutPanel';
-import { useSlideout, SLIDEOUT_TYPES } from './SlideoutProvider';
+import Button from '@/components/ui/Button';
+import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
+import { cn } from '@/lib/cn';
+import { useTenantStore } from '@/stores/tenant';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import toast from 'react-hot-toast';
+import Select from 'react-select';
+import { SLIDEOUT_TYPES, useSlideout } from './SlideoutProvider';
 
 const selectStyles = {
   control: (base, state) => ({
@@ -42,24 +47,19 @@ const selectStyles = {
   indicatorSeparator: () => ({ display: 'none' }),
   dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
 };
-import { useTenantStore } from '@/stores/tenant';
-import toast from 'react-hot-toast';
-import Button from '@/components/ui/Button';
-import { cn } from '@/lib/cn';
-import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
 
 // API hooks
-import { useCreatePetMutation, useUpdatePetMutation, useUpdateVaccinationMutation } from '@/features/pets/api';
-import { useCreateOwnerMutation, useUpdateOwnerMutation, useOwnersQuery, useOwner } from '@/features/owners/api';
-import { useCreateNote, useCreateCommunicationMutation } from '@/features/communications/api';
+import { useCreateCommunicationMutation, useCreateNote } from '@/features/communications/api';
 import { useSendMessageMutation } from '@/features/messaging/api';
-import { format, addDays } from 'date-fns';
+import { useCreateOwnerMutation, useOwner, useOwnersQuery, useUpdateOwnerMutation } from '@/features/owners/api';
+import { useCreatePetMutation, useUpdatePetMutation, useUpdateVaccinationMutation } from '@/features/pets/api';
+import { addDays, format } from 'date-fns';
 
 // Form components for complex flows
-import BookingSlideoutForm from '@/features/bookings/components/BookingSlideoutForm';
-import TaskSlideoutForm from '@/features/tasks/components/TaskSlideoutForm';
-import CommunicationSlideoutForm from '@/features/communications/components/CommunicationSlideoutForm';
 import LogActivityForm from '@/features/activities/components/LogActivityForm';
+import BookingSlideoutForm from '@/features/bookings/components/BookingSlideoutForm';
+import CommunicationSlideoutForm from '@/features/communications/components/CommunicationSlideoutForm';
+import TaskSlideoutForm from '@/features/tasks/components/TaskSlideoutForm';
 
 /**
  * SlideoutHost component
@@ -623,9 +623,6 @@ function NoteForm({ ownerId, petId, bookingId, paymentId, onSuccess, onCancel })
       entityId = paymentId;
     }
 
-    console.log('[NoteForm] Props received:', { ownerId, petId, bookingId, paymentId });
-    console.log('[NoteForm] Resolved entity:', { entityType, entityId });
-
     if (!entityType || !entityId) {
       console.error('[NoteForm] Missing entity info - cannot proceed');
       toast.error('Missing entity information');
@@ -638,11 +635,9 @@ function NoteForm({ ownerId, petId, bookingId, paymentId, onSuccess, onCancel })
       type: 'general',
       content,
     };
-    console.log('[NoteForm] Sending payload:', payload);
 
     try {
       const result = await createMutation.mutateAsync(payload);
-      console.log('[NoteForm] Success:', result);
       onSuccess?.(result);
     } catch (error) {
       console.error('[NoteForm] Error:', error);

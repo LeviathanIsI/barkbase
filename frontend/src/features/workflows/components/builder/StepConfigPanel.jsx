@@ -6,19 +6,18 @@
  * committed to the store when the user clicks "Save". Clicking "Cancel"
  * or closing the panel discards unsaved changes.
  */
-import { useState, useEffect, useCallback } from 'react';
-import { X, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import Button from '@/components/ui/Button';
-import { useWorkflowBuilderStore } from '../../stores/builderStore';
+import { AlertCircle, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { STEP_TYPES } from '../../constants';
+import { useWorkflowBuilderStore } from '../../stores/builderStore';
 
 // Config components
-import TriggerConfig from './config/TriggerConfig';
 import ActionConfig from './config/ActionConfig';
-import WaitConfig from './config/WaitConfig';
 import DeterminatorConfig from './config/DeterminatorConfig';
 import GateConfig from './config/GateConfig';
+import TriggerConfig from './config/TriggerConfig';
+import WaitConfig from './config/WaitConfig';
 
 export default function StepConfigPanel() {
   const {
@@ -86,13 +85,10 @@ export default function StepConfigPanel() {
 
   // Handle save - saves and closes
   const handleSave = useCallback(() => {
-    console.log('[StepConfigPanel] handleSave called');
-    console.log('[StepConfigPanel] localStep:', JSON.stringify(localStep, null, 2));
     if (selectedStepId === 'trigger' && localEntryCondition) {
       setEntryCondition(localEntryCondition);
     } else if (localStep) {
       updateStep(localStep.id, localStep);
-      console.log('[StepConfigPanel] updateStep called with:', localStep.id, JSON.stringify(localStep.config));
     }
     setHasChanges(false);
     clearSelection(); // Close after saving

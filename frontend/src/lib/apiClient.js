@@ -20,8 +20,8 @@
  * =============================================================================
  */
 
-import { createAWSClient } from './aws-client';
 import camelcaseKeys from 'camelcase-keys';
+import { createAWSClient } from './aws-client';
 
 // Initialize the AWS client - configuration is read from @/config/env
 const awsClient = createAWSClient();
@@ -140,12 +140,10 @@ const ensureAuthorized = async (response) => {
 
 const logRequest = (method, url, tenantId) => {
   // Debug logging disabled - uncomment for troubleshooting
-  // console.log(`[FRONTEND API DEBUG] Calling: ${method} ${url} as tenant=${tenantId || 'unknown'}`);
 };
 
 const logResponse = (status, data) => {
   // Debug logging disabled - uncomment for troubleshooting
-  // console.log(`[FRONTEND API DEBUG] Result: ${status} | Data type: ${typeof data}`);
 };
 
 const parseResponse = async (res) => {

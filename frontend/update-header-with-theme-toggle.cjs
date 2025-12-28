@@ -16,7 +16,6 @@ if (!content.includes(importLine)) {
     modalImportLine,
     `${modalImportLine}\n${importLine}`
   );
-  console.log('✅ Added ThemeToggle import');
 } else {
   console.log('ℹ️  ThemeToggle import already exists');
 }
@@ -33,15 +32,11 @@ const bellWithThemeToggle = `          <ThemeToggleIconButton className="text-wh
 
 if (!content.includes('<ThemeToggleIconButton')) {
   content = content.replace(bellButtonPattern, bellWithThemeToggle);
-  console.log('✅ Added ThemeToggleIconButton to Header');
 } else {
   console.log('ℹ️  ThemeToggleIconButton already exists in Header');
 }
 
 // Backup and write
 fs.copyFileSync(filePath, backupPath);
-console.log('✅ Backed up Header.jsx to:', backupPath);
 
 fs.writeFileSync(filePath, content, 'utf8');
-console.log('✅ Updated Header.jsx with ThemeToggle!');
-console.log('\n📍 Location: Header right side, before the notification bell icon');

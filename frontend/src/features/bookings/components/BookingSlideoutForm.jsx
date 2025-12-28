@@ -3,16 +3,20 @@
  * Simplified version of the booking wizard for quick actions
  */
 
-import { useState, useMemo, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { format, addDays } from 'date-fns';
-import Select from 'react-select';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
-import { cn } from '@/lib/cn';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
-import { useOwnerSearchQuery, useOwnerQuery } from '@/features/owners/api';
+import { useKennels } from '@/features/kennels/api';
+import { useOwnerQuery, useOwnerSearchQuery } from '@/features/owners/api';
+import { usePetOwnersQuery, usePetQuery, usePetsQuery } from '@/features/pets/api';
+import { useServicesQuery } from '@/features/services/api';
+import { cn } from '@/lib/cn';
+import { addDays, format } from 'date-fns';
+import { Check, Home, PawPrint, Search, Users } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import toast from 'react-hot-toast';
+import Select from 'react-select';
+import { useCreateBookingMutation, useUpdateBookingMutation } from '../api';
 
 const selectStyles = {
   control: (base, state) => ({
@@ -46,12 +50,6 @@ const selectStyles = {
   indicatorSeparator: () => ({ display: 'none' }),
   dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
 };
-import { usePetsQuery, usePetQuery, usePetOwnersQuery } from '@/features/pets/api';
-import { useServicesQuery } from '@/features/services/api';
-import { useKennels } from '@/features/kennels/api';
-import { useCreateBookingMutation, useUpdateBookingMutation } from '../api';
-import { Calendar, Users, PawPrint, DollarSign, Search, Check, Home } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 const BookingSlideoutForm = ({
   mode = 'create',
@@ -140,8 +138,6 @@ const BookingSlideoutForm = ({
   // Uses petOwners from dedicated query for accurate owner data
   useEffect(() => {
     if (initialPet && !selectedOwner && !prefilledFromPet) {
-      console.log('[BookingSlideout] initialPet data:', initialPet);
-      console.log('[BookingSlideout] petOwners from query:', petOwners);
 
       // Use owners from the dedicated petOwners query (most reliable)
       // Fall back to initialPet.owners or other sources if query hasn't loaded yet

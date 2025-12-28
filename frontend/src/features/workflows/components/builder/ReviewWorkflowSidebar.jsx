@@ -2,24 +2,24 @@
  * ReviewWorkflowSidebar - Pre-activation checklist sidebar
  * Shows 4 collapsible steps to review before activating a workflow
  */
-import { useState, useEffect } from 'react';
-import {
-  X,
-  ChevronDown,
-  ChevronRight,
-  CheckCircle,
-  AlertCircle,
-  AlertTriangle,
-  Loader2,
-  Zap,
-  ListChecks,
-  Settings,
-  GitBranch
-} from 'lucide-react';
-import { cn } from '@/lib/cn';
 import Button from '@/components/ui/Button';
 import apiClient from '@/lib/apiClient';
-import { OBJECT_TYPE_CONFIG, ENTRY_CONDITION_TYPES } from '../../constants';
+import { cn } from '@/lib/cn';
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle,
+  ChevronDown,
+  ChevronRight,
+  GitBranch,
+  ListChecks,
+  Loader2,
+  Settings,
+  X,
+  Zap
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ENTRY_CONDITION_TYPES, OBJECT_TYPE_CONFIG } from '../../constants';
 
 /**
  * Collapsible section component
@@ -119,7 +119,6 @@ function validateSteps(steps) {
     const config = step.config || step.actionConfig || step.action_config || {};
 
     // Debug logging to identify validation issues
-    console.log('[validateSteps] Step:', step.name, 'Type:', step.actionType, 'Config:', JSON.stringify(config));
 
     if (step.actionType === 'send_sms' || step.action_type === 'send_sms') {
       if (!config.message) {

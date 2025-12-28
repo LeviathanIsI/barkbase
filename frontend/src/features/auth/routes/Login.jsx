@@ -246,8 +246,6 @@ const Login = () => {
         throw new Error('MFA verification failed');
       }
 
-      if (import.meta.env.DEV) console.log('[Login] MFA verification successful');
-
       // Show "Signing in..." state (keep MFA UI visible with loading indicator)
       setIsAuthenticating(true);
       setIsMfaSubmitting(false);

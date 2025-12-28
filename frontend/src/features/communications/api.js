@@ -1,8 +1,8 @@
-import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
+import { detailQueryDefaults, listQueryDefaults } from '@/lib/queryConfig';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
-import { listQueryDefaults, detailQueryDefaults } from '@/lib/queryConfig';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
@@ -188,9 +188,7 @@ export const useCreateNote = () => {
 
   return useMutation({
     mutationFn: async (data) => {
-      console.log('[useCreateNote] Sending to /api/v1/notes:', data);
       const res = await apiClient.post('/api/v1/notes', data);
-      console.log('[useCreateNote] Response:', res.data);
       return res.data;
     },
     onSuccess: (data) => {

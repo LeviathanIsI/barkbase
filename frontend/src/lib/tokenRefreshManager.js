@@ -102,7 +102,6 @@ export function clearRefreshTimer() {
  */
 async function performRefresh() {
   if (isRefreshing) {
-    console.log('[TokenRefresh] Refresh already in progress, skipping');
     return null;
   }
 
@@ -113,8 +112,6 @@ async function performRefresh() {
   }
 
   isRefreshing = true;
-  console.log('[TokenRefresh] 🔄 Starting token refresh with Cognito...');
-  console.log('[TokenRefresh] Refresh token (first 20 chars):', refreshToken.substring(0, 20) + '...');
 
   try {
     const result = await auth.refreshSession({ refreshToken });
@@ -122,9 +119,6 @@ async function performRefresh() {
     if (!result?.accessToken) {
       throw new Error('No access token in refresh response');
     }
-
-    console.log('[TokenRefresh] ✅ Cognito returned new access token');
-    console.log('[TokenRefresh] New token expires in:', result.expiresIn, 'seconds');
     return result.accessToken;
   } catch (error) {
     console.error('[TokenRefresh] ❌ Cognito refresh failed:', error);
@@ -137,7 +131,6 @@ async function performRefresh() {
     // Clear stored tokens and redirect to login
     try {
       sessionStorage.removeItem('barkbase_refresh_token');
-      console.log('[TokenRefresh] Cleared refresh token from sessionStorage');
     } catch {}
 
     return null;
@@ -157,31 +150,20 @@ export function scheduleTokenRefresh(accessToken, onRefreshSuccess, onRefreshFai
   clearRefreshTimer();
 
   if (!accessToken) {
-    console.log('[TokenRefresh] No access token, skipping refresh scheduling');
     return;
   }
 
   const timeUntilExpiry = getTimeUntilExpiry(accessToken);
   const expiresAt = getTokenExpiration(accessToken);
 
-  console.log('[TokenRefresh] Token info:', {
-    expiresAt: expiresAt ? new Date(expiresAt).toLocaleString() : 'unknown',
-    timeUntilExpiryMs: timeUntilExpiry,
-    timeUntilExpiryMin: Math.round(timeUntilExpiry / 1000 / 60),
-    hasRefreshToken: !!getRefreshToken(),
-  });
-
   if (timeUntilExpiry < 0) {
-    console.log('[TokenRefresh] Token already expired, attempting immediate refresh');
     // Token already expired, try to refresh immediately
     performRefresh().then((newToken) => {
       if (newToken) {
-        console.log('[TokenRefresh] Immediate refresh succeeded');
         onRefreshSuccess?.(newToken);
         // Schedule next refresh
         scheduleTokenRefresh(newToken, onRefreshSuccess, onRefreshFailure);
       } else {
-        console.log('[TokenRefresh] Immediate refresh failed');
         onRefreshFailure?.();
       }
     });
@@ -192,19 +174,15 @@ export function scheduleTokenRefresh(accessToken, onRefreshSuccess, onRefreshFai
   const refreshIn = Math.max(timeUntilExpiry - REFRESH_BUFFER_MS, MIN_REFRESH_INTERVAL_MS);
 
   const refreshTime = new Date(Date.now() + refreshIn);
-  console.log(`[TokenRefresh] ⏰ Timer SET: Token expires in ${Math.round(timeUntilExpiry / 1000 / 60)} min. Will refresh at ${refreshTime.toLocaleTimeString()} (in ${Math.round(refreshIn / 1000 / 60)} min)`);
 
   refreshTimerId = setTimeout(async () => {
-    console.log('[TokenRefresh] ⏰ Timer FIRED: Executing scheduled refresh');
     const newToken = await performRefresh();
 
     if (newToken) {
-      console.log('[TokenRefresh] ✅ Scheduled refresh succeeded');
       onRefreshSuccess?.(newToken);
       // Schedule next refresh for the new token
       scheduleTokenRefresh(newToken, onRefreshSuccess, onRefreshFailure);
     } else {
-      console.log('[TokenRefresh] ❌ Scheduled refresh failed');
       onRefreshFailure?.();
     }
   }, refreshIn);
@@ -224,7 +202,6 @@ export function initTokenRefresh(accessToken, updateAccessToken, onSessionExpire
       updateAccessToken?.(newToken);
     },
     () => {
-      console.log('[TokenRefresh] Session expired, redirecting to login');
       onSessionExpired?.();
     }
   );
@@ -239,7 +216,6 @@ export function setupVisibilityHandler(accessToken, updateAccessToken, onSession
 
   const handleVisibilityChange = () => {
     if (document.visibilityState === 'visible') {
-      console.log('[TokenRefresh] App became visible, checking token...');
 
       // Get current access token from store
       import('@/stores/auth').then(({ useAuthStore }) => {
@@ -249,7 +225,6 @@ export function setupVisibilityHandler(accessToken, updateAccessToken, onSession
 
           if (timeUntilExpiry < REFRESH_BUFFER_MS) {
             // Token expired or about to expire, refresh immediately
-            console.log('[TokenRefresh] Token expired or expiring soon, refreshing...');
             performRefresh().then((newToken) => {
               if (newToken) {
                 updateAccessToken?.(newToken);

@@ -11,33 +11,32 @@
  *   <CustomFieldsEditor
  *     entityType="pet"
  *     entityId={pet.id}
- *     onSave={(values) => console.log('Saved:', values)}
  *   />
  *
  * =============================================================================
  */
 
-import { useState, useEffect, useMemo } from 'react';
-import {
-  Type,
-  Hash,
-  Calendar,
-  Clock,
-  ChevronDown,
-  CheckSquare,
-  CheckCircle,
-  Link,
-  Mail,
-  Phone,
-  DollarSign,
-  AlignLeft,
-  Loader2,
-  Save,
-  AlertCircle,
-} from 'lucide-react';
 import Button from '@/components/ui/Button';
 import StyledSelect from '@/components/ui/StyledSelect';
 import { usePropertyValuesQuery, useUpsertPropertyValuesMutation } from '@/features/settings/api';
+import {
+  AlertCircle,
+  AlignLeft,
+  Calendar,
+  CheckCircle,
+  CheckSquare,
+  ChevronDown,
+  Clock,
+  DollarSign,
+  Hash,
+  Link,
+  Loader2,
+  Mail,
+  Phone,
+  Save,
+  Type,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 
 // Field type icons mapping
 const FIELD_ICONS = {

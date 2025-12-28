@@ -307,9 +307,7 @@ const backupFile = path.join(__dirname, 'tailwind.config.js.backup.' + Date.now(
 
 if (fs.existsSync(oldFile)) {
   fs.copyFileSync(oldFile, backupFile);
-  console.log('✅ Backed up old config to:', backupFile);
 }
 
 // Write new file
 fs.writeFileSync(oldFile, tailwindConfig, 'utf8');
-console.log('✅ Updated tailwind.config.js with dark SaaS theme!');

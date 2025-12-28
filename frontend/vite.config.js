@@ -1,10 +1,10 @@
 /* eslint-env node */
-import path from 'node:path';
-import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
 import Beasties from 'beasties';
 import fs from 'node:fs';
+import path from 'node:path';
+import { defineConfig, loadEnv } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 
 // Custom Vite plugin for critical CSS extraction using Beasties
 function criticalCssPlugin() {
@@ -34,7 +34,6 @@ function criticalCssPlugin() {
         const html = fs.readFileSync(htmlPath, 'utf-8');
         const inlined = await beasties.process(html);
         fs.writeFileSync(htmlPath, inlined);
-        console.log('✅ Critical CSS inlined successfully');
       } catch (err) {
         console.warn('⚠️ Critical CSS extraction failed:', err.message);
       }

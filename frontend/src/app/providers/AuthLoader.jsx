@@ -1,11 +1,11 @@
-import { useEffect, useRef, useCallback } from 'react';
-import { useAuthStore } from '@/stores/auth';
-import { useTenantStore } from '@/stores/tenant';
 import {
-  initTokenRefresh,
   clearRefreshTimer,
+  initTokenRefresh,
   setupVisibilityHandler,
 } from '@/lib/tokenRefreshManager';
+import { useAuthStore } from '@/stores/auth';
+import { useTenantStore } from '@/stores/tenant';
+import { useCallback, useEffect, useRef } from 'react';
 
 /**
  * Get refresh token from sessionStorage.
@@ -32,13 +32,11 @@ const AuthLoader = () => {
 
   // Callback to update access token in store
   const handleTokenRefresh = useCallback((newAccessToken) => {
-    console.log('[AuthLoader] Token refreshed, updating store');
     updateTokens({ accessToken: newAccessToken });
   }, [updateTokens]);
 
   // Callback when session expires and cannot be refreshed
   const handleSessionExpired = useCallback(() => {
-    console.log('[AuthLoader] Session expired, clearing auth and redirecting');
     clearAuth();
     try {
       sessionStorage.removeItem('barkbase_refresh_token');
@@ -53,12 +51,9 @@ const AuthLoader = () => {
   useEffect(() => {
     if (accessToken && !tokenRefreshInitializedRef.current) {
       tokenRefreshInitializedRef.current = true;
-      console.log('[AuthLoader] 🚀 Initializing proactive token refresh');
-      console.log('[AuthLoader] Access token (first 50 chars):', accessToken.substring(0, 50) + '...');
 
       // Check if refresh token exists
       const refreshToken = sessionStorage.getItem('barkbase_refresh_token');
-      console.log('[AuthLoader] Refresh token exists:', !!refreshToken);
 
       // Set up token refresh timer
       initTokenRefresh(accessToken, handleTokenRefresh, handleSessionExpired);
@@ -165,7 +160,6 @@ const AuthLoader = () => {
       const refreshToken = getRefreshToken();
       if (refreshToken && !accessToken) {
         try {
-          console.log('[AuthLoader] Attempting to refresh session with stored refresh token');
           const { auth, apiClient } = await import('@/lib/apiClient');
           const data = await auth.refreshSession({ refreshToken });
 

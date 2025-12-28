@@ -121,9 +121,7 @@ const backupPath = path.join(__dirname, 'src/components/ui/Button.jsx.backup.' +
 // Backup old file
 if (fs.existsSync(filePath)) {
   fs.copyFileSync(filePath, backupPath);
-  console.log('✅ Backed up old Button.jsx to:', backupPath);
 }
 
 // Write new file
 fs.writeFileSync(filePath, buttonComponent, 'utf8');
-console.log('✅ Updated Button.jsx with dark SaaS theme!');

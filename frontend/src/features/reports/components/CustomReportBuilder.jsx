@@ -3,16 +3,20 @@
  * 3-column layout: Data sources/Fields | Configure/Filters | Chart Preview
  */
 
-import { useState, useMemo, useCallback, useEffect, forwardRef } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import Button from '@/components/ui/Button';
+import { tooltipContentStyle } from '@/components/ui/charts/ChartTooltip';
+import { chartColorSequence } from '@/components/ui/charts/palette';
+import StyledSelect from '@/components/ui/StyledSelect';
+import { apiClient } from '@/lib/apiClient';
+import { cn } from '@/lib/cn';
 import {
-  DndContext,
   closestCenter,
+  DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
-  DragOverlay,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -21,76 +25,64 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useMutation } from '@tanstack/react-query';
 import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  AreaChart,
+  Activity,
+  AlignLeft,
+  AtSign,
+  BarChart2,
+  BarChart3,
+  Calendar,
+  CalendarDays,
+  CheckSquare,
+  ChevronRight,
+  Circle,
+  CreditCard,
+  Download,
+  Filter as FilterIcon,
+  FolderTree,
+  Gauge,
+  GitMerge,
+  Grid3X3,
+  Info,
+  Layers,
+  ListFilter,
+  PawPrint,
+  Phone,
+  PieChart as PieChartIcon,
+  Plus,
+  Redo2,
+  RefreshCw,
+  Search,
+  Table2,
+  TrendingUp,
+  Undo2,
+  UserCog,
+  Users,
+  Wrench,
+  X
+} from 'lucide-react';
+import { forwardRef, useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
   Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
   Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Scatter,
+  ScatterChart,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ScatterChart,
-  Scatter,
 } from 'recharts';
-import {
-  BarChart3,
-  LineChart as LineChartIcon,
-  PieChart as PieChartIcon,
-  TrendingUp,
-  Table2,
-  Filter as FilterIcon,
-  ArrowLeft,
-  Save,
-  Download,
-  X,
-  Plus,
-  Hash,
-  Type,
-  Calendar,
-  Search,
-  ChevronRight,
-  ChevronDown,
-  Users,
-  PawPrint,
-  CalendarDays,
-  Wrench,
-  CreditCard,
-  UserCog,
-  Trash2,
-  RefreshCw,
-  BarChart2,
-  Activity,
-  Circle,
-  Layers,
-  Grid3X3,
-  Map,
-  Gauge,
-  Info,
-  Undo2,
-  Redo2,
-  CheckSquare,
-  ListFilter,
-  Phone,
-  AtSign,
-  AlignLeft,
-  FolderTree,
-  GitMerge,
-} from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import Button from '@/components/ui/Button';
-import StyledSelect from '@/components/ui/StyledSelect';
-import { apiClient } from '@/lib/apiClient';
-import { chartColorSequence } from '@/components/ui/charts/palette';
-import { tooltipContentStyle } from '@/components/ui/charts/ChartTooltip';
-import { cn } from '@/lib/cn';
 
 // =============================================================================
 // DATA SOURCE CONFIGURATION
@@ -1201,15 +1193,9 @@ const CustomReportBuilder = () => {
     const fetchFields = async () => {
       setFieldsLoading(true);
       try {
-        console.log('[REPORT-BUILDER] Fetching fields for dataSource:', dataSource);
         const response = await apiClient.get(`/api/v1/analytics/reports/fields?dataSource=${dataSource}`);
-        console.log('[REPORT-BUILDER] Raw API response:', response);
-        console.log('[REPORT-BUILDER] response.data:', response.data);
-        console.log('[REPORT-BUILDER] response.data?.data:', response.data?.data);
-        console.log('[REPORT-BUILDER] response.data?.data?.[dataSource]:', response.data?.data?.[dataSource]);
 
         const data = response.data?.data?.[dataSource] || { dimensions: [], measures: [] };
-        console.log('[REPORT-BUILDER] Extracted data:', data);
 
         // Map API response to expected format
         const mappedFields = {
@@ -1230,7 +1216,6 @@ const CustomReportBuilder = () => {
             options: m.options, // For enum fields
           })),
         };
-        console.log('[REPORT-BUILDER] Mapped fields:', mappedFields);
         setFieldsConfig(mappedFields);
       } catch (err) {
         console.error('[REPORT-BUILDER] Failed to fetch report fields:', err);

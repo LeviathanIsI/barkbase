@@ -21,10 +21,10 @@
  * =============================================================================
  */
 
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuthStore } from '@/stores/auth';
 import { auth } from '@/lib/apiClient';
+import { useAuthStore } from '@/stores/auth';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const AuthCallback = () => {
   const navigate = useNavigate();
@@ -57,8 +57,6 @@ const AuthCallback = () => {
         if (!result || !result.accessToken) {
           throw new Error('Token exchange failed - no access token received');
         }
-
-        if (import.meta.env.DEV) console.log('[AuthCallback] Token exchange successful');
 
         // Decode the ID token to extract basic user info
         let userInfo = {};

@@ -5,11 +5,11 @@
  * for testing components in the BarkBase application.
  */
 
-import { render } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router-dom';
 import { SlideoutProvider } from '@/components/slideout';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render } from '@testing-library/react';
 import { Toaster } from 'react-hot-toast';
+import { MemoryRouter } from 'react-router-dom';
 
 /**
  * Create a fresh QueryClient for each test
@@ -28,7 +28,6 @@ export function createTestQueryClient() {
       },
     },
     logger: {
-      log: console.log,
       warn: console.warn,
       error: () => {}, // Suppress error logging in tests
     },
@@ -177,5 +176,6 @@ export async function clearTestStores() {
 
 // Re-export everything from testing-library
 export * from '@testing-library/react';
-export { renderWithProviders as render };
 export { default as userEvent } from '@testing-library/user-event';
+export { renderWithProviders as render };
+
