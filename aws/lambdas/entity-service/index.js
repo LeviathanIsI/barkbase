@@ -210,6 +210,7 @@ const handlers = {
   'GET /api/v1/entity/facilities/{id}': getFacility,
   'POST /api/v1/entity/facilities': createFacility,
   'PUT /api/v1/entity/facilities/{id}': updateFacility,
+  'PATCH /api/v1/entity/facilities/{id}': updateFacility,
   'DELETE /api/v1/entity/facilities/{id}': deleteFacility,
 
   // Pets
@@ -786,6 +787,10 @@ async function updateFacility(event) {
     if (body.isActive !== undefined || body.is_active !== undefined) {
       updates.push(`is_active = $${paramIndex++}`);
       values.push(body.isActive ?? body.is_active);
+    }
+    if (body.specialHandling !== undefined || body.special_handling !== undefined) {
+      updates.push(`special_handling = $${paramIndex++}`);
+      values.push(body.specialHandling ?? body.special_handling);
     }
 
     if (updates.length === 0) {

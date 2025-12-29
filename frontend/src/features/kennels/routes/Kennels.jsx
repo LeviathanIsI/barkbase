@@ -29,6 +29,7 @@ import {
   Map,
   User,
   Clock,
+  Flag,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -36,7 +37,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import StyledSelect from '@/components/ui/StyledSelect';
 import KennelForm from '../components/KennelForm';
 import KennelAssignDrawer from '../components/KennelAssignDrawer';
-import { useKennels, useDeleteKennel } from '../api';
+import { useKennels, useDeleteKennel, useToggleSpecialHandling } from '../api';
 import { useTerminology } from '@/lib/terminology';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
@@ -100,12 +101,17 @@ const StatCard = ({ icon: Icon, label, value, subValue, variant = 'primary' }) =
 };
 
 // Kennel Unit Box for the facility map
-const KennelUnit = ({ kennel, onClick, isSelected }) => {
+const KennelUnit = ({ kennel, onClick, isSelected, onToggleSpecialHandling }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const tooltipRef = useRef(null);
   const unitRef = useRef(null);
   const typeConfig = KENNEL_TYPES[kennel.type] || KENNEL_TYPES.KENNEL;
+
+  const handleFlagClick = (e) => {
+    e.stopPropagation();
+    onToggleSpecialHandling?.(kennel);
+  };
 
   const available = (kennel.capacity || 1) - (kennel.occupied || 0);
   const isFull = available <= 0;
@@ -182,6 +188,20 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
             : 'bg-gray-100 dark:bg-gray-800/50 opacity-60'
         )}
       >
+        {/* Special handling flag - top left */}
+        <button
+          type="button"
+          onClick={handleFlagClick}
+          className={cn(
+            'absolute top-2 left-2 p-0.5 rounded transition-colors',
+            'hover:bg-red-100 dark:hover:bg-red-900/30',
+            kennel.specialHandling ? 'text-red-500' : 'text-gray-300 dark:text-gray-600'
+          )}
+          title={kennel.specialHandling ? 'Special handling enabled' : 'Enable special handling'}
+        >
+          <Flag className="h-3.5 w-3.5" fill={kennel.specialHandling ? 'currentColor' : 'none'} />
+        </button>
+
         {/* Status indicator dot - positioned in corner with breathing room */}
         <div className={cn('absolute top-2 right-2 w-2.5 h-2.5 rounded-full', status.bg)} />
 
@@ -290,7 +310,7 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
 };
 
 // Building Floor Section
-const BuildingFloorSection = ({ title, kennels, onKennelClick, selectedKennelId }) => {
+const BuildingFloorSection = ({ title, kennels, onKennelClick, selectedKennelId, onToggleSpecialHandling }) => {
   const sectionStats = useMemo(() => {
     const total = kennels.length;
     const capacity = kennels.reduce((sum, k) => sum + (k.capacity || 1), 0);
@@ -340,6 +360,7 @@ const BuildingFloorSection = ({ title, kennels, onKennelClick, selectedKennelId 
             kennel={kennel}
             onClick={onKennelClick}
             isSelected={selectedKennelId === (kennel.id || kennel.recordId)}
+            onToggleSpecialHandling={onToggleSpecialHandling}
           />
         ))}
       </div>
@@ -612,6 +633,7 @@ const Kennels = () => {
 
   const { data: kennels = [], isLoading, error } = useKennels();
   const deleteMutation = useDeleteKennel();
+  const toggleSpecialHandlingMutation = useToggleSpecialHandling();
 
   // Filter kennels
   const filteredKennels = useMemo(() => {
@@ -676,6 +698,22 @@ const Kennels = () => {
   const handleKennelClick = (kennel) => {
     setSelectedKennel(kennel);
     setShowForm(true);
+  };
+
+  const handleToggleSpecialHandling = (kennel) => {
+    const newValue = !kennel.specialHandling;
+    toggleSpecialHandlingMutation.mutate(
+      { kennelId: kennel.id || kennel.recordId, specialHandling: newValue },
+      {
+        onSuccess: () => {
+          toast.success(
+            newValue
+              ? `Special handling enabled for ${kennel.name}`
+              : `Special handling disabled for ${kennel.name}`
+          );
+        },
+      }
+    );
   };
 
   const handleJumpToSection = (sectionKey) => {
@@ -924,6 +962,7 @@ const Kennels = () => {
                     kennels={group.kennels}
                     onKennelClick={handleKennelClick}
                     selectedKennelId={selectedKennel?.id || selectedKennel?.recordId}
+                    onToggleSpecialHandling={handleToggleSpecialHandling}
                   />
                 </div>
               ))}

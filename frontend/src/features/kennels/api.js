@@ -49,6 +49,8 @@ const normalizeKennel = (kennel) => {
     maxOccupancy: kennel.max_occupancy || kennel.capacity || 1,
     // Status mapping
     isActive: kennel.is_active !== undefined ? kennel.is_active : (kennel.isActive !== false),
+    // Special handling flag
+    specialHandling: kennel.special_handling ?? kennel.specialHandling ?? false,
     // Location/building mapping
     building: kennel.location || kennel.building || null,
     location: kennel.location || kennel.building || null,
@@ -218,6 +220,53 @@ export const useDeleteKennel = () => {
     onError: (error) => {
       console.error('[kennels] Delete failed:', error?.message);
       toast.error('Failed to delete kennel');
+    },
+  });
+};
+
+/**
+ * Toggle special handling flag on a kennel
+ * Uses optimistic updates for instant UI feedback
+ */
+export const useToggleSpecialHandling = () => {
+  const tenantKey = useTenantKey();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ kennelId, specialHandling }) => {
+      const res = await apiClient.patch(`${KENNELS_BASE}/${kennelId}`, {
+        specialHandling,
+      });
+      return res.data?.data || res.data;
+    },
+    onMutate: async ({ kennelId, specialHandling }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['kennels', tenantKey] });
+
+      // Snapshot previous value
+      const previousKennels = queryClient.getQueryData(['kennels', tenantKey]);
+
+      // Optimistically update
+      queryClient.setQueryData(['kennels', tenantKey], (old) => {
+        if (!old) return old;
+        return old.map((k) =>
+          (k.id === kennelId || k.recordId === kennelId)
+            ? { ...k, specialHandling }
+            : k
+        );
+      });
+
+      return { previousKennels };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousKennels) {
+        queryClient.setQueryData(['kennels', tenantKey], context.previousKennels);
+      }
+      toast.error('Failed to update special handling');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['kennels', tenantKey] });
     },
   });
 };
