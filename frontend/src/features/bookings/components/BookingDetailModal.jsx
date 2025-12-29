@@ -553,11 +553,13 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                       className="w-full flex items-center justify-center gap-1 text-xs"
                       onClick={() => {
                         setSelectedRunId(displayBooking.runId);
+                        setAdjustedStartTime(displayBooking.startTime || '');
+                        setAdjustedEndTime(displayBooking.endTime || '');
                         setAssignmentView('changeRun');
                       }}
                     >
                       <Home className="w-3.5 h-3.5 shrink-0" />
-                      <span>Change Run</span>
+                      <span>{displayBooking.runAssignmentId ? 'Change Run' : 'Assign Run'}</span>
                     </Button>
                     <Button
                       variant="outline"
@@ -599,19 +601,23 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </Button>
-                  <h3 className="font-semibold text-[var(--bb-color-text-primary)]">Change Run / Play Area</h3>
+                  <h3 className="font-semibold text-[var(--bb-color-text-primary)]">
+                    {displayBooking.runAssignmentId ? 'Change Run / Play Area' : 'Assign Run / Play Area'}
+                  </h3>
                 </div>
 
-                {/* Current assignment */}
-                <div className="p-3 rounded-lg bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]">
-                  <p className="text-xs text-[var(--bb-color-text-muted)] mb-1">Currently assigned to:</p>
-                  <p className="font-medium text-[var(--bb-color-text-primary)]">{displayBooking.runName || 'Not assigned'}</p>
-                </div>
+                {/* Current assignment - only show if already assigned */}
+                {displayBooking.runAssignmentId && (
+                  <div className="p-3 rounded-lg bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]">
+                    <p className="text-xs text-[var(--bb-color-text-muted)] mb-1">Currently assigned to:</p>
+                    <p className="font-medium text-[var(--bb-color-text-primary)]">{displayBooking.runName || 'Not assigned'}</p>
+                  </div>
+                )}
 
                 {/* Run options */}
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-[var(--bb-color-text-primary)]">Select new run:</p>
-                  <div className="max-h-64 overflow-y-auto space-y-2">
+                  <p className="text-sm font-medium text-[var(--bb-color-text-primary)]">Select run:</p>
+                  <div className="max-h-48 overflow-y-auto space-y-2">
                     {runTemplates.length === 0 ? (
                       <p className="text-sm text-[var(--bb-color-text-muted)] py-4 text-center">No runs available</p>
                     ) : (
@@ -636,6 +642,65 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                     )}
                   </div>
                 </div>
+
+                {/* Time selection - show when creating new assignment */}
+                {!displayBooking.runAssignmentId && (
+                  <div className="space-y-3 pt-2 border-t border-[var(--bb-color-border-subtle)]">
+                    <p className="text-sm font-medium text-[var(--bb-color-text-primary)]">Set schedule:</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs text-[var(--bb-color-text-muted)] mb-1">Start Time</label>
+                        <select
+                          value={adjustedStartTime}
+                          onChange={(e) => setAdjustedStartTime(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border text-sm"
+                          style={{
+                            backgroundColor: 'var(--bb-color-bg-body)',
+                            borderColor: 'var(--bb-color-border-subtle)',
+                            color: 'var(--bb-color-text-primary)',
+                          }}
+                        >
+                          <option value="">Select time</option>
+                          {Array.from({ length: 15 }, (_, i) => i + 6).map((hour) => (
+                            <>
+                              <option key={`${hour}:00`} value={`${hour.toString().padStart(2, '0')}:00`}>
+                                {formatTimeString(`${hour.toString().padStart(2, '0')}:00`)}
+                              </option>
+                              <option key={`${hour}:30`} value={`${hour.toString().padStart(2, '0')}:30`}>
+                                {formatTimeString(`${hour.toString().padStart(2, '0')}:30`)}
+                              </option>
+                            </>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-[var(--bb-color-text-muted)] mb-1">End Time</label>
+                        <select
+                          value={adjustedEndTime}
+                          onChange={(e) => setAdjustedEndTime(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border text-sm"
+                          style={{
+                            backgroundColor: 'var(--bb-color-bg-body)',
+                            borderColor: 'var(--bb-color-border-subtle)',
+                            color: 'var(--bb-color-text-primary)',
+                          }}
+                        >
+                          <option value="">Select time</option>
+                          {Array.from({ length: 15 }, (_, i) => i + 6).map((hour) => (
+                            <>
+                              <option key={`${hour}:00`} value={`${hour.toString().padStart(2, '0')}:00`}>
+                                {formatTimeString(`${hour.toString().padStart(2, '0')}:00`)}
+                              </option>
+                              <option key={`${hour}:30`} value={`${hour.toString().padStart(2, '0')}:30`}>
+                                {formatTimeString(`${hour.toString().padStart(2, '0')}:30`)}
+                              </option>
+                            </>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-3 border-t border-[var(--bb-color-border-subtle)]">
@@ -665,16 +730,18 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                             date: today,
                           });
                         } else {
-                          // Create new assignment
+                          // Create new assignment with times
                           await assignPetsToRunMutation.mutateAsync({
                             runId: selectedRunId,
                             petIds: petId ? [petId] : [],
                             bookingIds: bookingId ? [bookingId] : [],
                             date: today,
+                            startTime: adjustedStartTime || undefined,
+                            endTime: adjustedEndTime || undefined,
                           });
                         }
                         toast.success('Run assigned successfully');
-                        onClose(); // Close to refresh data
+                        setAssignmentView('main'); // Go back to main view instead of closing
                       } catch (error) {
                         toast.error(error?.message || 'Failed to assign run');
                       }
