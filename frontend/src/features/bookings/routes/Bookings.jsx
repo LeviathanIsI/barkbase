@@ -17,6 +17,7 @@ import NewBookingModal from '../components/NewBookingModal';
 import BookingDetailModal from '../components/BookingDetailModal';
 import { useBookingsQuery, useDeleteBookingMutation } from '../api';
 import { cn } from '@/lib/cn';
+import { useTimezoneUtils } from '@/lib/timezone';
 import toast from 'react-hot-toast';
 
 // View modes - Calendar and List (NO Run Board - that belongs on Schedule page)
@@ -50,6 +51,7 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const Bookings = () => {
   const [searchParams] = useSearchParams();
+  const tz = useTimezoneUtils();
 
   // View state
   const [viewMode, setViewMode] = useState(VIEW_MODES.CALENDAR);
@@ -147,10 +149,9 @@ const Bookings = () => {
 
   const isLoading = bookingsLoading;
 
-  // Process bookings with computed fields
+  // Process bookings with computed fields (uses timezone-aware date comparisons)
   const processedBookings = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayDate = tz.today();
 
     return apiBookings.map(booking => {
       const checkIn = booking.checkIn ? new Date(booking.checkIn) : null;
@@ -163,10 +164,10 @@ const Bookings = () => {
       // Primary status from database
       let displayStatus = baseStatus;
 
-      // Check various conditions and build status array
-      const checkInPassed = checkIn && checkIn < today;
-      const checkOutPassed = checkOut && checkOut < today;
-      const isCheckoutToday = checkOut && checkOut.toDateString() === today.toDateString();
+      // Check various conditions and build status array (timezone-aware)
+      const checkInPassed = checkIn && checkIn < todayDate;
+      const checkOutPassed = checkOut && checkOut < todayDate;
+      const isCheckoutToday = checkOut && tz.isToday(checkOut);
       const isCheckedIn = baseStatus === 'CHECKED_IN';
       const isConfirmed = baseStatus === 'CONFIRMED';
       const isPending = baseStatus === 'PENDING';
@@ -222,7 +223,7 @@ const Bookings = () => {
         runId,
       };
     });
-  }, [apiBookings]);
+  }, [apiBookings, tz]);
 
   // Filter bookings
   const filteredBookings = useMemo(() => {
@@ -247,36 +248,19 @@ const Bookings = () => {
 
   // Filter bookings for list view - only show bookings checking in or out TODAY
   const todaysBookings = useMemo(() => {
-    const today = new Date();
-    const isSameDay = (d1, d2) => {
-      if (!d1 || !d2) return false;
-      return d1.getFullYear() === d2.getFullYear() &&
-             d1.getMonth() === d2.getMonth() &&
-             d1.getDate() === d2.getDate();
-    };
     return filteredBookings.filter(booking => {
       if (!booking.checkInDate && !booking.checkOutDate) return false;
-      // Only include if check-in OR check-out is today
-      return isSameDay(booking.checkInDate, today) || isSameDay(booking.checkOutDate, today);
+      // Only include if check-in OR check-out is today (timezone-aware)
+      return tz.isToday(booking.checkInDate) || tz.isToday(booking.checkOutDate);
     });
-  }, [filteredBookings]);
+  }, [filteredBookings, tz]);
 
   // Sort bookings for list view - prioritize Check-ins first, Check-outs second, Confirmed, then others
   const sortedBookings = useMemo(() => {
-    const today = new Date();
-
-    // Compare dates using local time (not UTC)
-    const isSameDay = (d1, d2) => {
-      if (!d1 || !d2) return false;
-      return d1.getFullYear() === d2.getFullYear() &&
-             d1.getMonth() === d2.getMonth() &&
-             d1.getDate() === d2.getDate();
-    };
-
     // Priority: 0 = check-in today, 1 = check-out today, 2 = confirmed, 3 = checked in, 4 = other
     const getPriority = (booking) => {
-      const isCheckInToday = isSameDay(booking.checkInDate, today);
-      const isCheckOutToday = isSameDay(booking.checkOutDate, today);
+      const isCheckInToday = tz.isToday(booking.checkInDate);
+      const isCheckOutToday = tz.isToday(booking.checkOutDate);
 
       if (isCheckInToday) return 0;
       if (isCheckOutToday) return 1;
@@ -315,7 +299,7 @@ const Bookings = () => {
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [todaysBookings, sortConfig]);
+  }, [todaysBookings, sortConfig, tz]);
 
   // Paginate bookings for list view
   const paginatedBookings = useMemo(() => {
@@ -326,25 +310,17 @@ const Bookings = () => {
   const totalPages = Math.ceil(sortedBookings.length / pageSize);
 
   // Calculate booking data per date (for calendar views)
-  // Uses local time comparison to match getBookingsForDate in WeeklyCalendarView
+  // Uses timezone-aware comparison from user's configured timezone
   const bookingsByDate = useMemo(() => {
     const map = {};
-
-    // Helper to check if target date is within booking range (local time)
-    const isDateInRange = (targetDate, checkIn, checkOut) => {
-      const target = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-      const start = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
-      const end = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
-      return target >= start && target <= end;
-    };
 
     dateRange.forEach(date => {
       const dateStr = date.toISOString().split('T')[0];
 
-      // Get bookings that span this date using local time
+      // Get bookings that span this date using timezone-aware comparison
       const bookingsOnDate = filteredBookings.filter(b => {
         if (!b.checkInDate || !b.checkOutDate) return false;
-        return isDateInRange(date, b.checkInDate, b.checkOutDate);
+        return tz.isDateInRange(date, b.checkInDate, b.checkOutDate);
       });
 
       const count = bookingsOnDate.length;
@@ -356,7 +332,7 @@ const Bookings = () => {
     });
 
     return map;
-  }, [dateRange, filteredBookings]);
+  }, [dateRange, filteredBookings, tz]);
 
   // Calculate stats
   const stats = useMemo(() => ({
@@ -685,6 +661,7 @@ const Bookings = () => {
                 isLoading={isLoading}
                 onDayClick={handleDayClick}
                 onNewBooking={() => setShowNewBooking(true)}
+                tz={tz}
               />
             ) : (
               <WeeklyCalendarView
@@ -694,6 +671,7 @@ const Bookings = () => {
                 isLoading={isLoading}
                 onBookingClick={handleBookingClick}
                 onNewBooking={() => setShowNewBooking(true)}
+                tz={tz}
               />
             )}
           </div>
@@ -839,9 +817,8 @@ const MonthCalendarView = ({
   isLoading,
   onDayClick,
   onNewBooking,
+  tz, // Timezone utilities
 }) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
   const currentMonth = currentDate.getMonth();
 
   // Split dates into weeks (7 days per row)
@@ -885,7 +862,7 @@ const MonthCalendarView = ({
               {week.map((date, dayIdx) => {
                 const dateStr = date.toISOString().split('T')[0];
                 const dayData = bookingsByDate[dateStr] || { bookings: [], count: 0, percent: 0, colorLevel: 'gray' };
-                const isToday = date.toDateString() === today.toDateString();
+                const isTodayDate = tz.isToday(date);
                 const isCurrentMonth = date.getMonth() === currentMonth;
 
                 const colorClasses = {
@@ -904,7 +881,7 @@ const MonthCalendarView = ({
                     )}
                     style={{
                       borderColor: 'var(--bb-color-border-subtle)',
-                      backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : undefined,
+                      backgroundColor: isTodayDate ? 'var(--bb-color-accent-soft)' : undefined,
                     }}
                     onClick={() => onDayClick(date, dayData.bookings)}
                   >
@@ -913,9 +890,9 @@ const MonthCalendarView = ({
                       <span
                         className={cn(
                           'flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium',
-                          isToday && 'bg-[color:var(--bb-color-accent)] text-[color:var(--bb-color-text-on-accent)]',
-                          !isToday && isCurrentMonth && 'text-[color:var(--bb-color-text-primary)]',
-                          !isToday && !isCurrentMonth && 'text-[color:var(--bb-color-text-muted)]'
+                          isTodayDate && 'bg-[color:var(--bb-color-accent)] text-[color:var(--bb-color-text-on-accent)]',
+                          !isTodayDate && isCurrentMonth && 'text-[color:var(--bb-color-text-primary)]',
+                          !isTodayDate && !isCurrentMonth && 'text-[color:var(--bb-color-text-muted)]'
                         )}
                       >
                         {date.getDate()}
@@ -1107,38 +1084,20 @@ const WeeklyCalendarView = ({
   isLoading,
   onBookingClick,
   onNewBooking,
+  tz, // Timezone utilities
 }) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
   // Get bookings for a specific date, sorted by: Check-ins first, Check-outs second, then others
   const getBookingsForDate = (date) => {
-    // Compare dates using local time (not UTC) to avoid timezone issues
-    const isSameDay = (d1, d2) => {
-      if (!d1 || !d2) return false;
-      return d1.getFullYear() === d2.getFullYear() &&
-             d1.getMonth() === d2.getMonth() &&
-             d1.getDate() === d2.getDate();
-    };
-
-    // Check if targetDate is between checkIn and checkOut (inclusive) using local dates
-    const isDateInRange = (targetDate, checkIn, checkOut) => {
-      const target = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-      const start = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
-      const end = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
-      return target >= start && target <= end;
-    };
-
     return bookings
       .filter(b => {
         if (!b.checkInDate || !b.checkOutDate) return false;
-        return isDateInRange(date, b.checkInDate, b.checkOutDate);
+        return tz.isDateInRange(date, b.checkInDate, b.checkOutDate);
       })
       .sort((a, b) => {
         // Priority: 0 = check-in, 1 = check-out, 2 = in-between
         const getPriority = (booking) => {
-          if (isSameDay(booking.checkInDate, date)) return 0; // Check-in on this day
-          if (isSameDay(booking.checkOutDate, date)) return 1; // Check-out on this day
+          if (tz.isSameDay(booking.checkInDate, date)) return 0; // Check-in on this day
+          if (tz.isSameDay(booking.checkOutDate, date)) return 1; // Check-out on this day
           return 2; // In-between
         };
 
@@ -1185,7 +1144,7 @@ const WeeklyCalendarView = ({
           }}
         >
           {dateRange.map((date, idx) => {
-            const isToday = date.toDateString() === today.toDateString();
+            const isTodayDate = tz.isToday(date);
             const dateStr = date.toISOString().split('T')[0];
             const dayData = bookingsByDate[dateStr] || { count: 0 };
 
@@ -1194,31 +1153,31 @@ const WeeklyCalendarView = ({
                 key={idx}
                 className="p-3 text-center"
                 style={{
-                  backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-elevated)',
+                  backgroundColor: isTodayDate ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-elevated)',
                 }}
               >
                 <div className={cn(
                   'text-xs font-medium uppercase',
-                  isToday ? 'text-[color:var(--bb-color-text-primary)]' : 'text-[color:var(--bb-color-text-muted)]'
+                  isTodayDate ? 'text-[color:var(--bb-color-text-primary)]' : 'text-[color:var(--bb-color-text-muted)]'
                 )}>
                   {date.toLocaleDateString('en-US', { weekday: 'short' })}
                 </div>
                 <div className={cn(
                   'text-2xl font-bold',
-                  isToday ? 'text-[color:var(--bb-color-accent-text)]' : 'text-[color:var(--bb-color-text-primary)]'
+                  isTodayDate ? 'text-[color:var(--bb-color-accent-text)]' : 'text-[color:var(--bb-color-text-primary)]'
                 )}>
                   {date.getDate()}
                 </div>
                 <div className={cn(
                   'text-xs',
-                  isToday ? 'text-[color:var(--bb-color-text-primary)]' : 'text-[color:var(--bb-color-text-muted)]'
+                  isTodayDate ? 'text-[color:var(--bb-color-text-primary)]' : 'text-[color:var(--bb-color-text-muted)]'
                 )}>
                   {date.toLocaleDateString('en-US', { month: 'short' })}
                 </div>
                 {dayData.count > 0 && (
                   <div className={cn(
                     'mt-1 text-xs font-medium',
-                    isToday ? 'text-[color:var(--bb-color-accent-text)]' : 'text-[color:var(--bb-color-accent)]'
+                    isTodayDate ? 'text-[color:var(--bb-color-accent-text)]' : 'text-[color:var(--bb-color-accent)]'
                   )}>
                     {dayData.count} booking{dayData.count !== 1 ? 's' : ''}
                   </div>
@@ -1238,7 +1197,7 @@ const WeeklyCalendarView = ({
           }}
         >
           {dateRange.map((date, idx) => {
-            const isToday = date.toDateString() === today.toDateString();
+            const isTodayDate = tz.isToday(date);
             const dayBookings = getBookingsForDate(date);
 
             return (
@@ -1249,7 +1208,7 @@ const WeeklyCalendarView = ({
                 role="region"
                 aria-label={`Bookings for ${date.toLocaleDateString()}`}
                 style={{
-                  backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)',
+                  backgroundColor: isTodayDate ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)',
                   maxHeight: '500px'
                 }}
               >
@@ -1267,8 +1226,8 @@ const WeeklyCalendarView = ({
                 ) : (
                   dayBookings.map((booking) => {
                     const statusConfig = STATUS_CONFIG[booking.displayStatus] || STATUS_CONFIG.PENDING;
-                    const isCheckIn = booking.checkInDate?.toDateString() === date.toDateString();
-                    const isCheckOut = booking.checkOutDate?.toDateString() === date.toDateString();
+                    const isCheckIn = tz.isSameDay(booking.checkInDate, date);
+                    const isCheckOut = tz.isSameDay(booking.checkOutDate, date);
                     const hasBothActions = isCheckIn && isCheckOut;
 
                     // Get border colors for split border effect
