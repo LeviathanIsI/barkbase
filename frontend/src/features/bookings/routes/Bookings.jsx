@@ -1,24 +1,37 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import {
-  Calendar, Plus, ChevronLeft, ChevronRight, Search,
-  SlidersHorizontal, RefreshCw, X,
-  PawPrint, User, CheckCircle2, Mail, Info,
-  Edit, Trash2, Eye, ArrowUpDown, ArrowUp, ArrowDown,
-} from 'lucide-react';
-import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
 import { PageHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Calendar,
+  CheckCircle2,
+  ChevronLeft, ChevronRight,
+  Edit,
+  Eye,
+  Info,
+  Mail,
+  PawPrint,
+  Plus,
+  RefreshCw,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+  User,
+  X,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 // Unified loader: replaced inline loading with LoadingState
-import LoadingState from '@/components/ui/LoadingState';
 import StyledSelect from '@/components/ui/StyledSelect';
-import NewBookingModal from '../components/NewBookingModal';
-import BookingDetailModal from '../components/BookingDetailModal';
-import { useBookingsQuery, useDeleteBookingMutation } from '../api';
 import { cn } from '@/lib/cn';
 import { useTimezoneUtils } from '@/lib/timezone';
 import toast from 'react-hot-toast';
+import { useBookingsQuery } from '../api';
+import BookingDetailModal from '../components/BookingDetailModal';
+import NewBookingModal from '../components/NewBookingModal';
 
 // View modes - Calendar and List (NO Run Board - that belongs on Schedule page)
 const VIEW_MODES = {
@@ -464,19 +477,19 @@ const Bookings = () => {
   // Format date range display
   const dateRangeDisplay = useMemo(() => {
     if (periodMode === PERIOD_MODES.DAY) {
-      return currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      return tz.formatDate(currentDate, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
     } else if (periodMode === PERIOD_MODES.WEEK) {
       const weekDates = dateRange.filter(d => d);
       const start = weekDates[0];
       const end = weekDates[weekDates.length - 1];
       if (start && end) {
-        return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        return `${tz.formatDate(start, { month: 'short', day: 'numeric' })} – ${tz.formatDate(end, { month: 'short', day: 'numeric', year: 'numeric' })}`;
       }
       return '';
     } else {
-      return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      return tz.formatDate(currentDate, { month: 'long', year: 'numeric' });
     }
-  }, [currentDate, periodMode, dateRange]);
+  }, [currentDate, periodMode, dateRange, tz]);
 
   return (
     <>
@@ -765,23 +778,6 @@ const LegendSidebar = () => {
         </div>
       </div>
 
-      {/* Badges */}
-      <div className="mb-5">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] mb-3">
-          Badges
-        </h4>
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <Badge variant="success" size="sm">Check In</Badge>
-            <span className="text-[color:var(--bb-color-text-muted)]">Arrival day</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="warning" size="sm">Check Out</Badge>
-            <span className="text-[color:var(--bb-color-text-muted)]">Departure day</span>
-          </div>
-        </div>
-      </div>
-
       {/* Interactions */}
       <div>
         <h4 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] mb-3">
@@ -961,6 +957,7 @@ const MonthCalendarView = ({
 
 // Day Bookings Modal (when clicking a day in month view)
 const DayBookingsModal = ({ date, bookings, onClose, onBookingClick, onNewBooking }) => {
+  const tz = useTimezoneUtils();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div
@@ -972,7 +969,7 @@ const DayBookingsModal = ({ date, bookings, onClose, onBookingClick, onNewBookin
         <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
           <div>
             <h2 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)]">
-              {date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {tz.formatDate(date, { weekday: 'long', month: 'long', day: 'numeric' })}
             </h2>
             <p className="text-sm text-[color:var(--bb-color-text-muted)]">
               {bookings.length} booking{bookings.length !== 1 ? 's' : ''}
@@ -1025,8 +1022,8 @@ const DayBookingsModal = ({ date, bookings, onClose, onBookingClick, onNewBookin
                       <span>{booking.serviceName}</span>
                       <span>•</span>
                       <span>
-                        {booking.checkInDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} →{' '}
-                        {booking.checkOutDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        {booking.checkInDate ? tz.formatShortDate(booking.checkInDate) : ''} →{' '}
+                        {booking.checkOutDate ? tz.formatShortDate(booking.checkOutDate) : ''}
                       </span>
                     </div>
                   </div>
@@ -1040,7 +1037,7 @@ const DayBookingsModal = ({ date, bookings, onClose, onBookingClick, onNewBookin
         <div className="px-6 py-4 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
           <Button className="w-full" onClick={onNewBooking}>
             <Plus className="h-4 w-4 mr-2" />
-            New Booking for {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            New Booking for {tz.formatShortDate(date)}
           </Button>
         </div>
       </div>
@@ -1160,7 +1157,7 @@ const WeeklyCalendarView = ({
                   'text-xs font-medium uppercase',
                   isTodayDate ? 'text-[color:var(--bb-color-text-primary)]' : 'text-[color:var(--bb-color-text-muted)]'
                 )}>
-                  {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                  {tz.formatDate(date, { weekday: 'short' })}
                 </div>
                 <div className={cn(
                   'text-2xl font-bold',
@@ -1172,7 +1169,7 @@ const WeeklyCalendarView = ({
                   'text-xs',
                   isTodayDate ? 'text-[color:var(--bb-color-text-primary)]' : 'text-[color:var(--bb-color-text-muted)]'
                 )}>
-                  {date.toLocaleDateString('en-US', { month: 'short' })}
+                  {tz.formatDate(date, { month: 'short' })}
                 </div>
                 {dayData.count > 0 && (
                   <div className={cn(
@@ -1206,7 +1203,7 @@ const WeeklyCalendarView = ({
                 className="p-2 flex flex-col gap-1.5 overflow-y-auto"
                 tabIndex={0}
                 role="region"
-                aria-label={`Bookings for ${date.toLocaleDateString()}`}
+                aria-label={`Bookings for ${tz.formatShortDate(date)}`}
                 style={{
                   backgroundColor: isTodayDate ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)',
                   maxHeight: '500px'
@@ -1474,6 +1471,7 @@ const ListView = ({
 // Booking Row Component
 const BookingRow = ({ booking, isSelected, onSelect, onClick, isEven }) => {
   const [showActions, setShowActions] = useState(false);
+  const tz = useTimezoneUtils();
 
   const duration = booking.checkInDate && booking.checkOutDate
     ? Math.ceil((booking.checkOutDate - booking.checkInDate) / (1000 * 60 * 60 * 24))
@@ -1548,9 +1546,9 @@ const BookingRow = ({ booking, isSelected, onSelect, onClick, isEven }) => {
       </td>
       <td className="px-4 py-3">
         <div className="text-[color:var(--bb-color-text-primary)]">
-          {booking.checkInDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          {booking.checkInDate ? tz.formatShortDate(booking.checkInDate) : ''}
           {' → '}
-          {booking.checkOutDate?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          {booking.checkOutDate ? tz.formatShortDate(booking.checkOutDate) : ''}
         </div>
       </td>
       <td className="px-4 py-3">
