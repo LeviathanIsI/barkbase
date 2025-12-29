@@ -278,6 +278,10 @@ const handlers = {
   'POST /api/v1/notes/{id}/pin': toggleNotePin,
   'GET /api/v1/notes/categories': getNoteCategories,
   'PUT /api/v1/notes/categories': updateNoteCategories,
+
+  // Communications - owner timeline and stats
+  'GET /api/v1/communications/owner/{id}/stats': getCommunicationStats,
+  'GET /api/v1/communications/owner/{id}/timeline': getCommunicationTimeline,
 };
 
 exports.handler = async (event, context) => {
@@ -4378,5 +4382,137 @@ async function updateNoteCategories(event) {
   } catch (error) {
     console.error('[ENTITY-SERVICE] updateNoteCategories error:', error);
     return createResponse(500, { error: 'InternalServerError', message: 'Failed to update note categories' });
+  }
+}
+
+/**
+ * GET /api/v1/communications/owner/{id}/stats
+ * Get communication statistics for an owner
+ */
+async function getCommunicationStats(event) {
+  const tenantId = resolveTenantId(event);
+  const path = event.requestContext?.http?.path || event.path || '';
+
+  // Parse path: /api/v1/communications/owner/{ownerId}/stats
+  const pathParts = path.split('/').filter(Boolean);
+  const ownerId = pathParts[4]; // owner ID is at index 4
+
+  console.log('[Communications][stats] tenantId:', tenantId, 'ownerId:', ownerId);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!ownerId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Owner ID is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get counts by type from Communication table
+    const result = await query(
+      `SELECT
+         COUNT(*) as total,
+         COUNT(*) FILTER (WHERE type = 'EMAIL') as emails,
+         COUNT(*) FILTER (WHERE type = 'SMS') as sms,
+         COUNT(*) FILTER (WHERE type = 'PHONE') as phone,
+         COUNT(*) FILTER (WHERE type = 'NOTE') as notes
+       FROM "Communication"
+       WHERE tenant_id = $1 AND owner_id = $2`,
+      [tenantId, ownerId]
+    );
+
+    const row = result.rows[0] || {};
+
+    return createResponse(200, {
+      total: parseInt(row.total, 10) || 0,
+      emails: parseInt(row.emails, 10) || 0,
+      sms: parseInt(row.sms, 10) || 0,
+      phone: parseInt(row.phone, 10) || 0,
+      notes: parseInt(row.notes, 10) || 0,
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] getCommunicationStats error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to get communication stats' });
+  }
+}
+
+/**
+ * GET /api/v1/communications/owner/{id}/timeline
+ * Get paginated timeline of communications for an owner
+ */
+async function getCommunicationTimeline(event) {
+  const tenantId = resolveTenantId(event);
+  const path = event.requestContext?.http?.path || event.path || '';
+  const queryParams = getQueryParams(event);
+
+  // Parse path: /api/v1/communications/owner/{ownerId}/timeline
+  const pathParts = path.split('/').filter(Boolean);
+  const ownerId = pathParts[4]; // owner ID is at index 4
+
+  const offset = parseInt(queryParams.offset, 10) || 0;
+  const limit = Math.min(parseInt(queryParams.limit, 10) || 50, 100);
+
+  console.log('[Communications][timeline] tenantId:', tenantId, 'ownerId:', ownerId, 'offset:', offset, 'limit:', limit);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!ownerId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Owner ID is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get total count
+    const countResult = await query(
+      `SELECT COUNT(*) as total FROM "Communication" WHERE tenant_id = $1 AND owner_id = $2`,
+      [tenantId, ownerId]
+    );
+    const total = parseInt(countResult.rows[0]?.total, 10) || 0;
+
+    // Get paginated items
+    const result = await query(
+      `SELECT
+         record_id as id,
+         owner_id,
+         type,
+         direction,
+         content,
+         metadata,
+         timestamp,
+         created_at,
+         updated_at
+       FROM "Communication"
+       WHERE tenant_id = $1 AND owner_id = $2
+       ORDER BY timestamp DESC
+       LIMIT $3 OFFSET $4`,
+      [tenantId, ownerId, limit, offset]
+    );
+
+    const items = result.rows.map(row => ({
+      id: row.id,
+      ownerId: row.owner_id,
+      type: row.type,
+      direction: row.direction,
+      content: row.content,
+      metadata: row.metadata,
+      timestamp: row.timestamp,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return createResponse(200, {
+      items,
+      total,
+      offset,
+      limit,
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] getCommunicationTimeline error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to get communication timeline' });
   }
 }
