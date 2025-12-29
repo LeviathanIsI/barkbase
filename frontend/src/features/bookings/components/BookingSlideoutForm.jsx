@@ -178,7 +178,7 @@ const BookingSlideoutForm = ({
       return;
     }
     if (selectedPets.length === 0) {
-      toast.error('Please select at least one pet');
+      toast.error('Please select a pet');
       return;
     }
     if (!data.serviceId) {
@@ -339,7 +339,7 @@ const BookingSlideoutForm = ({
       </FormSection>
 
       {/* Step 2: Pet Selection */}
-      <FormSection title="2. Select Pet(s)">
+      <FormSection title="2. Select Pet">
         {/* When pre-filled from pet page, show the pre-selected pet */}
         {prefilledFromPet && initialPet ? (
           <div className="space-y-3">
@@ -362,54 +362,6 @@ const BookingSlideoutForm = ({
               </div>
               <Check className="w-4 h-4" style={{ color: 'var(--bb-color-accent)' }} />
             </div>
-            {/* Show additional owner pets if owner is selected and has more pets */}
-            {selectedOwner && ownerPets.length > 1 && (
-              <div className="space-y-2">
-                <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
-                  Add more pets to this booking:
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {ownerPets
-                    .filter(pet => (pet.recordId || pet.id) !== (initialPet.recordId || initialPet.id))
-                    .map(pet => {
-                      const petId = pet.recordId || pet.id;
-                      const isSelected = selectedPets.some(p => (p.recordId || p.id) === petId);
-                      return (
-                        <button
-                          key={petId}
-                          type="button"
-                          onClick={() => {
-                            if (isSelected) {
-                              setSelectedPets(prev => prev.filter(p => (p.recordId || p.id) !== petId));
-                            } else {
-                              setSelectedPets(prev => [...prev, pet]);
-                            }
-                          }}
-                          className={cn(
-                            "p-3 rounded-lg border text-left transition-colors flex items-center gap-3",
-                            isSelected && "ring-2 ring-[color:var(--bb-color-accent)]"
-                          )}
-                          style={{
-                            borderColor: isSelected ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
-                            backgroundColor: isSelected ? 'var(--bb-color-accent-soft)' : 'transparent',
-                          }}
-                        >
-                          <PawPrint className="w-5 h-5" style={{ color: isSelected ? 'var(--bb-color-accent)' : 'var(--bb-color-text-muted)' }} />
-                          <div>
-                            <p className="font-medium text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
-                              {pet.name}
-                            </p>
-                            <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
-                              {pet.breed || pet.species}
-                            </p>
-                          </div>
-                          {isSelected && <Check className="w-4 h-4 ml-auto" style={{ color: 'var(--bb-color-accent)' }} />}
-                        </button>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
           </div>
         ) : selectedOwner ? (
           ownerPets.length > 0 ? (
@@ -423,9 +375,9 @@ const BookingSlideoutForm = ({
                     type="button"
                     onClick={() => {
                       if (isSelected) {
-                        setSelectedPets(prev => prev.filter(p => (p.recordId || p.id) !== petId));
+                        setSelectedPets([]);
                       } else {
-                        setSelectedPets(prev => [...prev, pet]);
+                        setSelectedPets([pet]);
                       }
                     }}
                     className={cn(
