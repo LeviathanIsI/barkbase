@@ -2208,7 +2208,7 @@ async function handleCheckIn(tenantId, bookingId, body) {
            checked_in_by = $3,
            updated_at = NOW(),
            updated_by = $3
-       WHERE id = $1 AND tenant_id = $2
+       WHERE record_id = $1 AND tenant_id = $2
        RETURNING *`,
       [bookingId, tenantId, userId || null]
     );
@@ -2339,7 +2339,7 @@ async function handleCheckOut(tenantId, bookingId, body) {
            checked_out_by = $3,
            updated_at = NOW(),
            updated_by = $3
-       WHERE id = $1 AND tenant_id = $2
+       WHERE record_id = $1 AND tenant_id = $2
        RETURNING *`,
       [bookingId, tenantId, userId || null]
     );
