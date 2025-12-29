@@ -574,7 +574,7 @@ const MapLegend = () => (
   >
     <div className="flex items-center gap-2 mb-3">
       <Map className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-      <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Status Legend</h3>
+      <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Legend</h3>
     </div>
 
     <div className="space-y-2">
@@ -611,6 +611,13 @@ const MapLegend = () => (
         <div>
           <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Inactive</span>
           <p className="text-xs text-[color:var(--bb-color-text-muted)]">Not in service</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+        <Flag className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" />
+        <div>
+          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Special Handling</span>
+          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Requires extra care</p>
         </div>
       </div>
     </div>
