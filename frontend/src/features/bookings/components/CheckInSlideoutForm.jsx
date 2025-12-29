@@ -64,6 +64,24 @@ const selectStyles = {
   placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
   indicatorSeparator: () => ({ display: 'none' }),
   dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  multiValue: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-accent)',
+    borderRadius: '0.375rem',
+  }),
+  multiValueLabel: (base) => ({
+    ...base,
+    color: 'white',
+    padding: '2px 6px',
+  }),
+  multiValueRemove: (base) => ({
+    ...base,
+    color: 'white',
+    ':hover': {
+      backgroundColor: 'var(--bb-color-accent-dark, #2563eb)',
+      color: 'white',
+    },
+  }),
 };
 
 const appearanceOptions = [
