@@ -20,8 +20,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import { useKennels } from '@/features/kennels/api';
 import { useAssignKennelMutation, useDeleteBookingMutation, useBookingCheckInMutation, useBookingCheckOutMutation } from '@/features/bookings/api';
-import { useRunTemplatesQuery } from '@/features/daycare/api-templates';
-import { useUpdateRunAssignmentMutation, useRemovePetFromRunMutation } from '@/features/daycare/api';
+import { useRunsQuery, useUpdateRunAssignmentMutation, useRemovePetFromRunMutation } from '@/features/daycare/api';
 import { useAuthStore } from '@/stores/auth';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
@@ -29,7 +28,7 @@ import { cn } from '@/lib/cn';
 const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
   const { openSlideout } = useSlideout();
   const { data: kennels = [] } = useKennels();
-  const { data: runTemplates = [] } = useRunTemplatesQuery();
+  const { data: runTemplates = [] } = useRunsQuery();
   const assignKennelMutation = useAssignKennelMutation();
   const deleteBookingMutation = useDeleteBookingMutation();
   const checkInMutation = useBookingCheckInMutation();
