@@ -58,6 +58,7 @@ import { addDays, format } from 'date-fns';
 // Form components for complex flows
 import LogActivityForm from '@/features/activities/components/LogActivityForm';
 import BookingSlideoutForm from '@/features/bookings/components/BookingSlideoutForm';
+import CheckInSlideoutForm from '@/features/bookings/components/CheckInSlideoutForm';
 import CommunicationSlideoutForm from '@/features/communications/components/CommunicationSlideoutForm';
 import TaskSlideoutForm from '@/features/tasks/components/TaskSlideoutForm';
 
@@ -132,6 +133,15 @@ export function SlideoutHost() {
           state?.props?.petId ? ['pets', { tenantId }, state.props.petId] : null,
         ].filter(Boolean);
 
+      case SLIDEOUT_TYPES.BOOKING_CHECK_IN:
+        return [
+          ['bookings'],
+          ['calendar'],
+          ['dashboard'],
+          ['vaccinations', 'expiring'],
+          state?.props?.bookingId ? ['bookings', state.props.bookingId] : null,
+        ].filter(Boolean);
+
       default:
         return [];
     }
@@ -164,6 +174,7 @@ export function SlideoutHost() {
       case SLIDEOUT_TYPES.NOTE_CREATE: return 'Note added successfully';
       case SLIDEOUT_TYPES.ACTIVITY_LOG: return 'Activity logged successfully';
       case SLIDEOUT_TYPES.VACCINATION_EDIT: return 'Vaccination updated successfully';
+      case SLIDEOUT_TYPES.BOOKING_CHECK_IN: return 'Pet checked in successfully';
       default: return 'Saved successfully';
     }
   };
@@ -228,6 +239,16 @@ export function SlideoutHost() {
           <BookingSlideoutForm
             mode="edit"
             bookingId={props?.bookingId}
+            onSuccess={onFormSuccess}
+            onCancel={closeSlideout}
+          />
+        );
+
+      case SLIDEOUT_TYPES.BOOKING_CHECK_IN:
+        return (
+          <CheckInSlideoutForm
+            bookingId={props?.bookingId}
+            booking={props?.booking}
             onSuccess={onFormSuccess}
             onCancel={closeSlideout}
           />

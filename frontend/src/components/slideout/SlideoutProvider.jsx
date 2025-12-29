@@ -23,6 +23,7 @@ export const SLIDEOUT_TYPES = {
   NOTE_CREATE: 'noteCreate',
   ACTIVITY_LOG: 'activityLog',
   VACCINATION_EDIT: 'vaccinationEdit',
+  BOOKING_CHECK_IN: 'bookingCheckIn',
 };
 
 // Slideout configuration for each type
@@ -97,6 +98,11 @@ export const SLIDEOUT_CONFIG = {
     description: 'Update vaccination record',
     width: 'max-w-xl',
   },
+  [SLIDEOUT_TYPES.BOOKING_CHECK_IN]: {
+    title: 'Check In',
+    description: 'Confirm pet arrival and record check-in details',
+    width: 'max-w-2xl',
+  },
 };
 
 // Human-readable labels for back button
@@ -115,6 +121,7 @@ const SLIDEOUT_LABELS = {
   [SLIDEOUT_TYPES.NOTE_CREATE]: 'Note',
   [SLIDEOUT_TYPES.ACTIVITY_LOG]: 'Activity',
   [SLIDEOUT_TYPES.VACCINATION_EDIT]: 'Vaccination',
+  [SLIDEOUT_TYPES.BOOKING_CHECK_IN]: 'Check In',
 };
 
 // Context

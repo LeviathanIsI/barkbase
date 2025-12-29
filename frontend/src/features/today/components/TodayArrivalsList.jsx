@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
-import { AlertCircle, PawPrint, Sparkles, UserCheck, Phone, Mail, MessageSquare, Loader2, CheckCircle, Syringe, X } from 'lucide-react';
+import { AlertCircle, PawPrint, Sparkles, UserCheck, Phone, Mail, MessageSquare, CheckCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
 import TodayCard from './TodayCard';
 import TodaySection from './TodaySection';
 import { TodayListSkeleton } from './TodaySkeleton';
-import { useBookingCheckInMutation } from '@/features/bookings/api';
 import PetQuickActionsDrawer from '@/features/owners/components/PetQuickActionsDrawer';
+import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout/SlideoutProvider';
 import toast from 'react-hot-toast';
 
 const TodayArrivalsList = ({ arrivals, isLoading, hasError }) => {
@@ -97,12 +97,11 @@ const ListBody = ({ items, hasError, checkedInIds, onCheckInSuccess }) => {
 };
 
 const ArrivalRow = ({ booking, onCheckInSuccess }) => {
-  const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [showOwnerPopover, setShowOwnerPopover] = useState(false);
   const [showVaxDetails, setShowVaxDetails] = useState(false);
   const [selectedPetId, setSelectedPetId] = useState(null);
   const ownerRef = useRef(null);
-  const checkInMutation = useBookingCheckInMutation();
+  const { openSlideout } = useSlideout();
 
   const time = booking.arrivalTime || booking.departureTime || booking.startDate;
   const bookingId = booking.id || booking.recordId;
@@ -127,24 +126,21 @@ const ArrivalRow = ({ booking, onCheckInSuccess }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showOwnerPopover]);
 
-  const handleCheckIn = async (e) => {
+  const handleCheckIn = (e) => {
     e.stopPropagation();
     if (!bookingId) {
       toast.error('Invalid booking');
       return;
     }
 
-    setIsCheckingIn(true);
-    try {
-      await checkInMutation.mutateAsync({ bookingId });
-      toast.success(`${petName} checked in!`);
-      onCheckInSuccess?.(bookingId);
-    } catch (error) {
-      console.error('Check-in failed:', error);
-      toast.error(error?.message || 'Failed to check in');
-    } finally {
-      setIsCheckingIn(false);
-    }
+    // Open the check-in slideout modal
+    openSlideout(SLIDEOUT_TYPES.BOOKING_CHECK_IN, {
+      bookingId,
+      booking,
+      onSuccess: () => {
+        onCheckInSuccess?.(bookingId);
+      },
+    });
   };
 
   const handlePetClick = (e) => {
@@ -240,17 +236,10 @@ const ArrivalRow = ({ booking, onCheckInSuccess }) => {
           size="sm"
           variant="primary"
           onClick={handleCheckIn}
-          disabled={isCheckingIn}
           className="shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
         >
-          {isCheckingIn ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <>
-              <CheckCircle className="h-4 w-4 mr-1" />
-              Check In
-            </>
-          )}
+          <CheckCircle className="h-4 w-4 mr-1" />
+          Check In
         </Button>
       </div>
 
