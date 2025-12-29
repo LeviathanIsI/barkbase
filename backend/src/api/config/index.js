@@ -463,102 +463,15 @@ async function getRoles(event) {
 
 async function getAccountDefaults(event, tenantId) {
     const pool = getPool();
-
-    // Read from TenantSettings table (matching production Lambda behavior)
-    const { rows } = await pool.query(
-        `SELECT
-           t.name,
-           ts.timezone,
-           ts.currency,
-           ts.date_format,
-           ts.time_format,
-           ts.language,
-           ts.business_name,
-           ts.business_phone,
-           ts.business_email,
-           ts.business_address,
-           ts.default_check_in_time,
-           ts.default_check_out_time,
-           ts.business_hours
-         FROM "Tenant" t
-         LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
-         WHERE t.id = $1`,
-        [tenantId]
-    );
-
-    if (rows.length === 0) {
-        return ok(event, 200, { timezone: 'America/New_York' });
-    }
-
-    const row = rows[0];
-
-    // Build settings object from TenantSettings columns (matching production format)
-    const settings = {
-        timezone: row.timezone || 'America/New_York',
-        currency: row.currency || 'USD',
-        dateFormat: row.date_format || 'MM/DD/YYYY',
-        timeFormat: row.time_format || '12h',
-        language: row.language || 'en',
-        businessName: row.business_name || row.name,
-        businessPhone: row.business_phone,
-        businessEmail: row.business_email,
-        businessAddress: row.business_address,
-        defaultCheckInTime: row.default_check_in_time,
-        defaultCheckOutTime: row.default_check_out_time,
-        businessHours: row.business_hours,
-    };
-
-    return ok(event, 200, settings);
+    const { rows } = await pool.query(`SELECT "settings" FROM "Tenant" WHERE "recordId" = $1`, [tenantId]);
+    return ok(event, 200, rows[0]?.settings || {});
 }
 
 async function updateAccountDefaults(event, tenantId) {
     const pool = getPool();
-    const body = JSON.parse(event.body);
-
-    // Map frontend camelCase to database snake_case (matching production Lambda)
-    const fieldMap = {
-        timezone: 'timezone',
-        currency: 'currency',
-        dateFormat: 'date_format',
-        timeFormat: 'time_format',
-        language: 'language',
-        businessName: 'business_name',
-        businessPhone: 'business_phone',
-        businessEmail: 'business_email',
-        businessAddress: 'business_address',
-        defaultCheckInTime: 'default_check_in_time',
-        defaultCheckOutTime: 'default_check_out_time',
-        businessHours: 'business_hours',
-    };
-
-    const updates = [];
-    const values = [tenantId];
-    let paramIndex = 2;
-
-    for (const [key, dbField] of Object.entries(fieldMap)) {
-        if (body[key] !== undefined) {
-            updates.push(`${dbField} = $${paramIndex++}`);
-            values.push(key === 'businessHours' ? JSON.stringify(body[key]) : body[key]);
-        }
-    }
-
-    if (updates.length > 0) {
-        // Ensure TenantSettings row exists (upsert)
-        await pool.query(
-            `INSERT INTO "TenantSettings" (tenant_id, updated_at)
-             VALUES ($1, NOW())
-             ON CONFLICT (tenant_id) DO NOTHING`,
-            [tenantId]
-        );
-
-        // Update the settings
-        await pool.query(
-            `UPDATE "TenantSettings" SET ${updates.join(', ')}, updated_at = NOW() WHERE tenant_id = $1`,
-            values
-        );
-    }
-
-    return ok(event, 200, body);
+    const settings = JSON.parse(event.body);
+    await pool.query(`UPDATE "Tenant" SET "settings" = $1, "updatedAt" = NOW() WHERE "recordId" = $2`, [JSON.stringify(settings), tenantId]);
+    return ok(event, 200, settings);
 }
 
 // ========================================
