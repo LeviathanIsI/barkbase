@@ -66,11 +66,19 @@ const selectStyles = {
   dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
 };
 
-const conditionOptions = [
-  { value: 'excellent', label: 'Excellent' },
-  { value: 'good', label: 'Good' },
-  { value: 'fair', label: 'Fair' },
-  { value: 'needs_attention', label: 'Needs Attention' },
+const appearanceOptions = [
+  { value: 'clean', label: 'Clean' },
+  { value: 'dirty', label: 'Dirty' },
+  { value: 'matted', label: 'Matted Fur' },
+  { value: 'shedding', label: 'Shedding' },
+  { value: 'fleas', label: 'Fleas/Ticks' },
+  { value: 'skin_irritation', label: 'Skin Irritation' },
+  { value: 'mange', label: 'Mange' },
+  { value: 'eye_discharge', label: 'Eye Discharge' },
+  { value: 'ear_infection', label: 'Ear Infection' },
+  { value: 'limping', label: 'Limping' },
+  { value: 'underweight', label: 'Underweight' },
+  { value: 'overweight', label: 'Overweight' },
 ];
 
 /**
@@ -213,7 +221,7 @@ const CheckInSlideoutForm = ({
     defaultValues: {
       checkInTime: format(new Date(), 'HH:mm'),
       weight: booking?.pet?.weight || '',
-      conditionRating: { value: 'good', label: 'Good' },
+      appearance: [{ value: 'clean', label: 'Clean' }],
       vaccinationsVerified: false,
       belongings: '',
       notes: '',
@@ -281,7 +289,9 @@ const CheckInSlideoutForm = ({
         bookingId,
         payload: {
           weight: data.weight ? parseFloat(data.weight) : undefined,
-          conditionRating: data.conditionRating?.value || data.conditionRating,
+          appearance: Array.isArray(data.appearance)
+            ? data.appearance.map(a => a.value)
+            : [],
           vaccinationsVerified: data.vaccinationsVerified,
           belongings: data.belongings || undefined,
           notes: data.notes || undefined,
@@ -442,8 +452,8 @@ const CheckInSlideoutForm = ({
         </FormGrid>
       </FormSection>
 
-      {/* Pet Condition */}
-      <FormSection title="Pet Condition on Arrival">
+      {/* Pet Appearance */}
+      <FormSection title="Pet Appearance on Arrival">
         <FormGrid cols={2}>
           <FormField label="Weight (lbs)" helpText="Optional - record current weight">
             <input
@@ -455,17 +465,19 @@ const CheckInSlideoutForm = ({
               style={inputStyles}
             />
           </FormField>
-          <FormField label="Condition">
+          <FormField label="Appearance" helpText="Select all that apply">
             <Controller
-              name="conditionRating"
+              name="appearance"
               control={control}
               render={({ field }) => (
                 <Select
                   {...field}
-                  options={conditionOptions}
+                  isMulti
+                  options={appearanceOptions}
                   styles={selectStyles}
                   menuPortalTarget={document.body}
                   menuPosition="fixed"
+                  placeholder="Select appearance..."
                 />
               )}
             />
