@@ -326,21 +326,21 @@ const PetStep = ({ bookingData, updateBookingData }) => {
     }));
   }, [petsResult, ownerId]);
 
-  const togglePet = (pet) => {
+  const selectPet = (pet) => {
     const petId = pet.recordId || pet.id;
     const isSelected = bookingData.pets.some(p => (p.recordId || p.id) === petId);
     if (isSelected) {
-      updateBookingData('pets', bookingData.pets.filter(p => (p.recordId || p.id) !== petId));
+      updateBookingData('pets', []);
     } else {
-      updateBookingData('pets', [...bookingData.pets, pet]);
+      updateBookingData('pets', [pet]);
     }
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Select Pets</h3>
-        <p className="text-sm text-gray-600 dark:text-text-secondary">Choose which pets to include in this booking</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Select Pet</h3>
+        <p className="text-sm text-gray-600 dark:text-text-secondary">Choose which pet this booking is for</p>
       </div>
 
       {!bookingData.owner ? (
@@ -364,7 +364,7 @@ const PetStep = ({ bookingData, updateBookingData }) => {
           return (
             <button
               key={pet.id}
-              onClick={() => togglePet(pet)}
+              onClick={() => selectPet(pet)}
               className={cn(
                 "p-4 rounded-lg border-2 transition-all text-left",
                 isSelected
@@ -396,11 +396,11 @@ const PetStep = ({ bookingData, updateBookingData }) => {
         </div>
       )}
 
-      {/* Selected count */}
+      {/* Selected pet */}
       {bookingData.pets.length > 0 && (
         <div className="bg-primary-500/10 border border-primary-500/30 rounded-lg p-3">
           <p className="text-sm text-primary-400">
-            {bookingData.pets.length} pet(s) selected for this booking
+            {bookingData.pets[0].name} selected for this booking
           </p>
         </div>
       )}
