@@ -5,9 +5,12 @@
 
 import Button from '@/components/ui/Button';
 import { FormActions, FormField, FormGrid, FormSection } from '@/components/ui/FormField';
-import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout/SlideoutProvider';
 import { usePetVaccinationsQuery } from '@/features/pets/api';
+import { RenewVaccinationModal } from '@/features/pets/components';
 import { cn } from '@/lib/cn';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
+import apiClient from '@/lib/apiClient';
+import { useQueryClient } from '@tanstack/react-query';
 import { format, differenceInDays, isPast, isToday } from 'date-fns';
 import {
   AlertCircle,
@@ -126,9 +129,9 @@ const VaccinationBadge = ({ status }) => {
 /**
  * Vaccination list item component
  */
-const VaccinationItem = ({ vaccination, onUpdate }) => {
+const VaccinationItem = ({ vaccination, onRenew }) => {
   const status = getVaccinationStatus(vaccination);
-  const showUpdate = status === 'expired' || status === 'expiring';
+  const showRenew = status === 'expired' || status === 'expiring';
   const expiresAt = vaccination.expiresAt ? new Date(vaccination.expiresAt) : null;
 
   return (
@@ -163,9 +166,9 @@ const VaccinationItem = ({ vaccination, onUpdate }) => {
       </div>
       <div className="flex items-center gap-2">
         <VaccinationBadge status={status} />
-        {showUpdate && (
-          <Button type="button" variant="ghost" size="sm" onClick={() => onUpdate(vaccination)}>
-            Update
+        {showRenew && (
+          <Button type="button" variant="ghost" size="sm" onClick={() => onRenew(vaccination)}>
+            Renew
           </Button>
         )}
       </div>
@@ -179,8 +182,11 @@ const CheckInSlideoutForm = ({
   onSuccess,
   onCancel,
 }) => {
-  const { openSlideout } = useSlideout();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [renewModalOpen, setRenewModalOpen] = useState(false);
+  const [vaccinationToRenew, setVaccinationToRenew] = useState(null);
+  const [isRenewing, setIsRenewing] = useState(false);
 
   // Fetch booking details if not provided
   const { data: fetchedBooking, isLoading: bookingLoading } = useBookingDetailQuery(
@@ -213,17 +219,57 @@ const CheckInSlideoutForm = ({
     },
   });
 
-  // Handle vaccination update - open nested slideout
-  const handleUpdateVaccination = (vaccination) => {
-    openSlideout(SLIDEOUT_TYPES.VACCINATION_EDIT, {
-      petId,
-      petName,
-      vaccination,
-      returnTo: {
-        label: 'Check In',
-        onBack: () => openSlideout(SLIDEOUT_TYPES.BOOKING_CHECK_IN, { bookingId, booking }),
-      },
-    });
+  // Handle vaccination renew - open RenewVaccinationModal
+  const handleRenewVaccination = (vaccination) => {
+    setVaccinationToRenew(vaccination);
+    setRenewModalOpen(true);
+  };
+
+  // Handle renew modal close
+  const handleRenewCancel = () => {
+    setRenewModalOpen(false);
+    setVaccinationToRenew(null);
+  };
+
+  // Handle renew submission
+  const handleRenewSubmit = async (data) => {
+    if (!vaccinationToRenew || !petId) return;
+
+    const vaccinationId = vaccinationToRenew.recordId || vaccinationToRenew.id;
+    if (!vaccinationId) {
+      toast.error('Unable to identify vaccination record');
+      return;
+    }
+
+    setIsRenewing(true);
+    try {
+      await apiClient.post(
+        canonicalEndpoints.pets.vaccinationRenew(
+          String(petId),
+          String(vaccinationId)
+        ),
+        {
+          administeredAt: data.administeredAt,
+          expiresAt: data.expiresAt,
+          provider: data.provider || null,
+          lotNumber: data.lotNumber || null,
+          notes: data.notes || null,
+        }
+      );
+
+      toast.success(`${vaccinationToRenew.type} renewed successfully`);
+      setRenewModalOpen(false);
+      setVaccinationToRenew(null);
+
+      // Refresh the vaccinations data
+      queryClient.invalidateQueries({ queryKey: ['petVaccinations'] });
+      queryClient.invalidateQueries({ queryKey: ['vaccinations', 'expiring'] });
+    } catch (error) {
+      console.error('Failed to renew vaccination:', error);
+      toast.error(error?.message || 'Failed to renew vaccination');
+    } finally {
+      setIsRenewing(false);
+    }
   };
 
   // Submit handler
@@ -294,6 +340,7 @@ const CheckInSlideoutForm = ({
   const expiringCount = vaccinations.filter(v => getVaccinationStatus(v) === 'expiring').length;
 
   return (
+    <>
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Booking Summary */}
       <FormSection title="Booking Summary">
@@ -473,7 +520,7 @@ const CheckInSlideoutForm = ({
               <VaccinationItem
                 key={vax.id || vax.recordId || idx}
                 vaccination={vax}
-                onUpdate={handleUpdateVaccination}
+                onRenew={handleRenewVaccination}
               />
             ))}
           </div>
@@ -544,6 +591,16 @@ const CheckInSlideoutForm = ({
         </Button>
       </FormActions>
     </form>
+
+    {/* Renew Vaccination Modal */}
+    <RenewVaccinationModal
+      isOpen={renewModalOpen}
+      onClose={handleRenewCancel}
+      onSubmit={handleRenewSubmit}
+      vaccination={vaccinationToRenew}
+      isSubmitting={isRenewing}
+    />
+    </>
   );
 };
 
