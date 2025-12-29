@@ -166,7 +166,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     endAt: booking?.endAt || null,
     startTime: booking?.startTime || booking?.runStartTime || null, // TIME string like "08:00"
     endTime: booking?.endTime || booking?.runEndTime || null, // TIME string like "17:00"
-    serviceType: booking?.serviceType || 'Social',
+    runType: booking?.runType || null, // Run type from Run table (SOCIAL, INDIVIDUAL, TRAINING)
     runAssignmentId: booking?.runAssignmentId || null,
   };
 
@@ -524,22 +524,11 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                       </InspectorField>
                     </div>
 
-                    {/* Activity Type */}
+                    {/* Activity Type - from Run.run_type */}
                     <InspectorField label="Activity Type" layout="grid">
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          'w-2 h-2 rounded-full',
-                          displayBooking.serviceType?.toLowerCase().includes('social') && 'bg-emerald-500',
-                          displayBooking.serviceType?.toLowerCase().includes('individual') && 'bg-blue-500',
-                          displayBooking.serviceType?.toLowerCase().includes('training') && 'bg-amber-500',
-                          !displayBooking.serviceType?.toLowerCase().includes('social') &&
-                          !displayBooking.serviceType?.toLowerCase().includes('individual') &&
-                          !displayBooking.serviceType?.toLowerCase().includes('training') && 'bg-gray-400'
-                        )} />
-                        <span className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
-                          {displayBooking.serviceType || 'Social'}
-                        </span>
-                      </div>
+                      <span className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)] capitalize">
+                        {displayBooking.runType ? displayBooking.runType.toLowerCase() : '—'}
+                      </span>
                     </InspectorField>
                   </div>
                 </InspectorSection>

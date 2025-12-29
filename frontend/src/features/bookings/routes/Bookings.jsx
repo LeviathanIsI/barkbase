@@ -1311,10 +1311,8 @@ const WeeklyCalendarView = ({
                             <p className="text-xs text-[color:var(--bb-color-text-muted)] truncate mt-0.5">{booking.ownerName}</p>
                           </div>
                         </div>
-                        <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                        <div className="mt-1.5">
                           <span className="text-[10px] text-[color:var(--bb-color-text-muted)]">{booking.serviceName}</span>
-                          {isCheckIn && <Badge variant="success" size="xs">Check In</Badge>}
-                          {isCheckOut && <Badge variant="warning" size="xs">Check Out</Badge>}
                         </div>
                       </div>
                     );

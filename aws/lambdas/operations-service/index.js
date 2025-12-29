@@ -1165,6 +1165,7 @@ async function handleGetBookings(tenantId, queryParams) {
          ra.start_time as run_start_time,
          ra.end_time as run_end_time,
          r.name as run_name,
+         r.run_type,
          COALESCE(
            (SELECT json_agg(json_build_object(
              'id', p.record_id,
@@ -1185,7 +1186,7 @@ async function handleGetBookings(tenantId, queryParams) {
        LEFT JOIN "RunAssignment" ra ON ra.record_id = b.run_assignment_id AND ra.tenant_id = b.tenant_id
        LEFT JOIN "Run" r ON r.record_id = ra.run_id AND r.tenant_id = b.tenant_id
        WHERE ${whereClause}
-       GROUP BY b.record_id, b.tenant_id, b.owner_id, b.status, b.check_in, b.check_out, b.checked_in_at, b.checked_out_at, b.total_price_cents, b.deposit_cents, b.notes, b.special_instructions, b.kennel_id, b.service_id, b.created_at, b.updated_at, b.run_assignment_id, k.name, s.name, o.record_id, o.first_name, o.last_name, o.email, o.phone, ra.run_id, ra.start_time, ra.end_time, r.name
+       GROUP BY b.record_id, b.tenant_id, b.owner_id, b.status, b.check_in, b.check_out, b.checked_in_at, b.checked_out_at, b.total_price_cents, b.deposit_cents, b.notes, b.special_instructions, b.kennel_id, b.service_id, b.created_at, b.updated_at, b.run_assignment_id, k.name, s.name, o.record_id, o.first_name, o.last_name, o.email, o.phone, ra.run_id, ra.start_time, ra.end_time, r.name, r.run_type
        ORDER BY b.check_in DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...params, parseInt(limit), parseInt(offset)]
@@ -1230,6 +1231,7 @@ async function handleGetBookings(tenantId, queryParams) {
       runAssignmentId: row.run_assignment_id || null,
       runId: row.run_id || null,
       runName: row.run_name || null,
+      runType: row.run_type || null,
       runStartTime: row.run_start_time?.toString().slice(0, 5) || null,
       runEndTime: row.run_end_time?.toString().slice(0, 5) || null,
       createdAt: row.created_at,
