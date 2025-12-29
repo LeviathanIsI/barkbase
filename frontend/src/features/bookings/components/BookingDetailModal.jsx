@@ -652,7 +652,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                     disabled={!selectedRunId || selectedRunId === displayBooking.runId || updateAssignmentMutation.isPending || assignPetsToRunMutation.isPending}
                     onClick={async () => {
                       const assignmentId = displayBooking.runAssignmentId;
-                      const petId = displayBooking.petId || displayBooking.pets?.[0]?.id;
+                      const petId = displayBooking.pet?.id || displayBooking.pet?.recordId;
                       const bookingId = displayBooking.id || displayBooking.recordId;
                       const today = new Date().toISOString().split('T')[0];
 
