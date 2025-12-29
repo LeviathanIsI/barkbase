@@ -44,6 +44,7 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
     additionalServices: [],
     notes: '',
     specialRequirements: '',
+    specialHandling: false,
     ...initialData
   });
 
@@ -540,6 +541,15 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
               />
             </div>
           </div>
+          <label className="flex items-center gap-3 mt-3">
+            <input
+              type="checkbox"
+              className="h-4 w-4 text-red-500 rounded focus:ring-red-500"
+              checked={bookingData.specialHandling}
+              onChange={(e) => updateBookingData('specialHandling', e.target.checked)}
+            />
+            <span className="text-sm text-gray-700 dark:text-text-primary">Special Handling Required</span>
+          </label>
         </div>
       )}
 
