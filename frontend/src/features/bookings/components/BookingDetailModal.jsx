@@ -22,7 +22,7 @@ import { useKennels } from '@/features/kennels/api';
 import { useAssignKennelMutation, useDeleteBookingMutation, useBookingCheckInMutation, useBookingCheckOutMutation } from '@/features/bookings/api';
 import { useRunsQuery, useUpdateRunAssignmentMutation, useRemovePetFromRunMutation, useAssignPetsToRunMutation } from '@/features/daycare/api';
 import { useAuthStore } from '@/stores/auth';
-import { useTimezoneUtils } from '@/lib/timezone';
+import { useTimezoneUtils, useTimezone, convertTimeToTimezone } from '@/lib/timezone';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 
@@ -43,6 +43,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
 
   // Timezone utilities for proper date/time display
   const tz = useTimezoneUtils();
+  const userTimezone = useTimezone();
 
   // Local state
   const [activeTab, setActiveTab] = useState('assignment'); // 'assignment' | 'booking'
@@ -125,26 +126,19 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
   };
 
   // Format TIME string like "08:00" or "17:30" to human readable in user's timezone
-  // Combines with a date (if available) to properly convert timezone
-  const formatTimeString = (timeStr, dateStr = null) => {
+  // Converts from tenant's timezone to user's display timezone
+  const formatTimeString = (timeStr, dateStr = null, fromTimezone = null) => {
     if (!timeStr) return '—';
 
-    // If we have a date, combine and format with timezone
+    // Use provided timezone or fall back to displayBooking's tenantTimezone
+    const sourceTz = fromTimezone || displayBooking.tenantTimezone || 'America/New_York';
+
+    // If we have a date, use timezone conversion
     if (dateStr) {
-      try {
-        // Combine date + time to create a full datetime
-        // Parse as UTC first, then format in user's timezone
-        const dateTimeStr = `${dateStr}T${timeStr}:00`;
-        const date = new Date(dateTimeStr);
-        if (!isNaN(date.getTime())) {
-          return tz.formatTime(date);
-        }
-      } catch (e) {
-        // Fall through to simple formatting
-      }
+      return convertTimeToTimezone(timeStr, dateStr, sourceTz, userTimezone);
     }
 
-    // Fallback: simple parsing without timezone conversion
+    // Fallback: simple formatting without timezone conversion (for time picker display)
     const parts = timeStr.split(':');
     if (parts.length < 2) return timeStr;
     const hour = parseInt(parts[0], 10);
@@ -190,6 +184,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     runType: booking?.runType || null, // Run type from Run table (SOCIAL, INDIVIDUAL, TRAINING)
     runAssignmentId: booking?.runAssignmentId || null,
     runAssignedDate: booking?.runAssignedDate || null, // DATE for timezone conversion
+    tenantTimezone: booking?.tenantTimezone || 'America/New_York', // Tenant's canonical timezone
   };
 
   const balance = displayBooking.totalCents - displayBooking.amountPaidCents;

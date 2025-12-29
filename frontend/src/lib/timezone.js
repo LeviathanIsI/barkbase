@@ -201,6 +201,61 @@ export const isDateInRangeInTimezone = (targetDate, startDate, endDate, timezone
   return target >= start && target <= end;
 };
 
+/**
+ * Get timezone offset in minutes for a specific date
+ */
+const getTimezoneOffsetMinutes = (date, timezone) => {
+  const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
+  const tzDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
+  return (utcDate - tzDate) / 60000;
+};
+
+/**
+ * Convert a time string from one timezone to another
+ * @param {string} timeStr - Time in "HH:MM" format (e.g., "08:00")
+ * @param {string|Date} date - The date for DST calculation
+ * @param {string} fromTimezone - Source timezone (e.g., "America/New_York")
+ * @param {string} toTimezone - Target timezone (e.g., "America/Los_Angeles")
+ * @returns {string} Converted time in "h:mm A" format
+ */
+export const convertTimeToTimezone = (timeStr, date, fromTimezone, toTimezone) => {
+  if (!timeStr || !date) return '';
+
+  const [hours, minutes] = timeStr.split(':').map(Number);
+
+  // If timezones are the same, just format the time
+  if (fromTimezone === toTimezone) {
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+    return `${displayHours}:${String(minutes).padStart(2, '0')} ${period}`;
+  }
+
+  // Parse the date
+  const dateObj = new Date(date);
+
+  const targetFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: toTimezone,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  // Create a reference date with the time in UTC
+  const refDate = new Date(Date.UTC(
+    dateObj.getFullYear(),
+    dateObj.getMonth(),
+    dateObj.getDate(),
+    hours,
+    minutes
+  ));
+
+  // Adjust for source timezone offset (convert from source TZ to UTC, then display in target TZ)
+  const sourceOffset = getTimezoneOffsetMinutes(refDate, fromTimezone);
+  const adjustedDate = new Date(refDate.getTime() + sourceOffset * 60 * 1000);
+
+  return targetFormatter.format(adjustedDate);
+};
+
 export default {
   useTimezone,
   useTimezoneUtils,
@@ -209,4 +264,5 @@ export default {
   compareDatesInTimezone,
   isSameDayInTimezone,
   isDateInRangeInTimezone,
+  convertTimeToTimezone,
 };

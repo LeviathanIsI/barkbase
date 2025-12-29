@@ -1314,6 +1314,13 @@ async function handleGetBooking(tenantId, bookingId) {
 
     const booking = result.rows[0];
 
+    // Get tenant settings for timezone
+    const tenantSettingsResult = await query(
+      `SELECT timezone FROM "TenantSettings" WHERE tenant_id = $1`,
+      [tenantId]
+    );
+    const tenantTimezone = tenantSettingsResult.rows[0]?.timezone || 'America/New_York';
+
     // Get pets for this booking from BookingPet join table
     const petsResult = await query(
       `SELECT p.record_id, p.name, p.species, p.breed
@@ -1372,6 +1379,7 @@ async function handleGetBooking(tenantId, bookingId) {
       runStartTime: booking.run_start_time?.toString().slice(0, 5) || null,
       runEndTime: booking.run_end_time?.toString().slice(0, 5) || null,
       runAssignedDate: booking.run_assigned_date || null,
+      tenantTimezone,
       cancelledAt: booking.cancelled_at,
       cancellationReason: booking.cancellation_reason,
       createdAt: booking.created_at,
