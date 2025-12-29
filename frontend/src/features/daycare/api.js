@@ -147,6 +147,9 @@ export const useAssignPetsToRunMutation = () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.runs(tenantKey, { date: variables.date, type: 'today' })
       });
+      // Also invalidate bookings so modal can show updated run assignment
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
     },
   });
 };
@@ -208,6 +211,9 @@ export const useUpdateRunAssignmentMutation = () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.runs(tenantKey, { date, type: 'today' })
       });
+      // Also invalidate bookings so modal can show updated run assignment
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar'] });
     },
   });
 };

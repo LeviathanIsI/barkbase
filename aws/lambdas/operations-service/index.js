@@ -1273,15 +1273,19 @@ async function handleGetBooking(tenantId, bookingId) {
          b.kennel_name AS stored_kennel_name, b.room_number, b.total_price_in_cents,
          b.deposit_in_cents, b.notes, b.special_instructions, b.checked_in_at,
          b.checked_out_at, b.cancelled_at, b.cancellation_reason,
-         b.created_at, b.updated_at,
+         b.created_at, b.updated_at, b.run_assignment_id,
          k.name as kennel_name,
          s.name as service_name,
          o.first_name as owner_first_name, o.last_name as owner_last_name,
-         o.email as owner_email, o.phone as owner_phone
+         o.email as owner_email, o.phone as owner_phone,
+         ra.run_id, ra.assigned_date as run_assigned_date, ra.start_time as run_start_time, ra.end_time as run_end_time,
+         r.name as run_name
        FROM "Booking" b
        LEFT JOIN "Kennel" k ON k.tenant_id = b.tenant_id AND b.kennel_id = k.record_id
        LEFT JOIN "Service" s ON s.tenant_id = b.tenant_id AND b.service_id = s.record_id
        LEFT JOIN "Owner" o ON o.tenant_id = b.tenant_id AND b.owner_id = o.record_id
+       LEFT JOIN "RunAssignment" ra ON ra.record_id = b.run_assignment_id AND ra.tenant_id = b.tenant_id
+       LEFT JOIN "Run" r ON r.record_id = ra.run_id AND r.tenant_id = b.tenant_id
        WHERE b.record_id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId]
     );
@@ -1346,6 +1350,13 @@ async function handleGetBooking(tenantId, bookingId) {
         phone: booking.owner_phone,
       } : null,
       pets: pets,
+      // Run assignment data
+      runAssignmentId: booking.run_assignment_id || null,
+      runId: booking.run_id || null,
+      runName: booking.run_name || null,
+      runStartTime: booking.run_start_time?.toString().slice(0, 5) || null,
+      runEndTime: booking.run_end_time?.toString().slice(0, 5) || null,
+      runAssignedDate: booking.run_assigned_date || null,
       cancelledAt: booking.cancelled_at,
       cancellationReason: booking.cancellation_reason,
       createdAt: booking.created_at,
@@ -4621,9 +4632,20 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
           );
         }
 
+        const assignmentId = result.rows[0].record_id;
+
+        // Update Booking.run_assignment_id if bookingId was provided
+        if (bookingId) {
+          await query(
+            `UPDATE "Booking" SET run_assignment_id = $1 WHERE record_id = $2 AND tenant_id = $3`,
+            [assignmentId, bookingId, tenantId]
+          );
+        }
+
         created.push({
-          id: result.rows[0].record_id,
+          id: assignmentId,
           petId,
+          bookingId,
           assignedDate: date,
           startTime: startTimeVal,
           endTime: endTimeVal,

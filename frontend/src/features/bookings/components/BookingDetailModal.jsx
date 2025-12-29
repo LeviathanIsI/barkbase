@@ -159,13 +159,13 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     notes: booking?.notes || booking?.specialInstructions || null,
     totalCents: booking?.totalCents || 0,
     amountPaidCents: booking?.amountPaidCents || 0,
-    // Run assignment data (from Schedule page)
+    // Run assignment data (from backend or Schedule page)
     runName: booking?.runName || null,
     runId: booking?.runId || null,
     startAt: booking?.startAt || null,
     endAt: booking?.endAt || null,
-    startTime: booking?.startTime || null, // TIME string like "08:00"
-    endTime: booking?.endTime || null, // TIME string like "17:00"
+    startTime: booking?.startTime || booking?.runStartTime || null, // TIME string like "08:00"
+    endTime: booking?.endTime || booking?.runEndTime || null, // TIME string like "17:00"
     serviceType: booking?.serviceType || 'Social',
     runAssignmentId: booking?.runAssignmentId || null,
   };
