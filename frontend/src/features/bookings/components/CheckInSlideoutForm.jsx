@@ -594,11 +594,12 @@ const CheckInSlideoutForm = ({
 
     {/* Renew Vaccination Modal */}
     <RenewVaccinationModal
-      isOpen={renewModalOpen}
+      open={renewModalOpen}
       onClose={handleRenewCancel}
       onSubmit={handleRenewSubmit}
       vaccination={vaccinationToRenew}
-      isSubmitting={isRenewing}
+      petName={petName}
+      isLoading={isRenewing}
     />
     </>
   );
