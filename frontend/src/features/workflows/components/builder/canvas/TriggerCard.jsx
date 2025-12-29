@@ -4,6 +4,7 @@
  */
 import { Flag, RefreshCw, Hand, Clock, Filter, Zap } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useTimezoneUtils } from '@/lib/timezone';
 import {
   TRIGGER_EVENT_CATEGORIES,
   OBJECT_TYPE_CONFIG,
@@ -41,9 +42,12 @@ function getEventLabel(eventType) {
 
 // Format condition value for display - looks up labels from property options
 // Format a date string for display
-function formatDateString(dateStr) {
+function formatDateString(dateStr, tzFormatDate = null) {
   if (!dateStr) return '';
   const date = new Date(dateStr + 'T00:00:00');
+  if (tzFormatDate) {
+    return tzFormatDate(date, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -368,9 +372,12 @@ function getMonthName(monthValue) {
 }
 
 // Format date for display
-function formatDate(dateStr) {
+function formatDate(dateStr, tzFormatDate = null) {
   if (!dateStr) return '';
   const date = new Date(dateStr + 'T00:00:00');
+  if (tzFormatDate) {
+    return tzFormatDate(date, { month: 'long', day: 'numeric', year: 'numeric' });
+  }
   return date.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',

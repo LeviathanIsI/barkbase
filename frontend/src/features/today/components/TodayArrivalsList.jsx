@@ -8,6 +8,7 @@ import TodaySection from './TodaySection';
 import { TodayListSkeleton } from './TodaySkeleton';
 import PetQuickActionsDrawer from '@/features/owners/components/PetQuickActionsDrawer';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout/SlideoutProvider';
+import { useTimezoneUtils } from '@/lib/timezone';
 import toast from 'react-hot-toast';
 
 const TodayArrivalsList = ({ arrivals, isLoading, hasError }) => {
@@ -102,6 +103,7 @@ const ArrivalRow = ({ booking, onCheckInSuccess }) => {
   const [selectedPetId, setSelectedPetId] = useState(null);
   const ownerRef = useRef(null);
   const { openSlideout } = useSlideout();
+  const tz = useTimezoneUtils();
 
   const time = booking.arrivalTime || booking.departureTime || booking.startDate;
   const bookingId = booking.id || booking.recordId;
@@ -187,7 +189,7 @@ const ArrivalRow = ({ booking, onCheckInSuccess }) => {
               {petName}
             </button>
             <Badge variant="success" className="shrink-0 text-xs">
-              {formatTime(time)}
+              {time ? tz.formatTime(time) : 'TBD'}
             </Badge>
           </div>
 
@@ -324,16 +326,6 @@ const OwnerContactPopover = ({ ownerName, phone, email, onClose }) => {
       </div>
     </div>
   );
-};
-
-const formatTime = (dateString) => {
-  if (!dateString) return 'TBD';
-  const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
 };
 
 export default TodayArrivalsList;

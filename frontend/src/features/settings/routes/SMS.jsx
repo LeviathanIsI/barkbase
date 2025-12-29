@@ -6,6 +6,7 @@ import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import UpgradeBanner from '@/components/ui/UpgradeBanner';
 import { useTenantStore } from '@/stores/tenant';
+import { useTimezoneUtils } from '@/lib/timezone';
 import {
   Phone,
   CheckCircle,
@@ -121,6 +122,7 @@ const TemplateEditModal = ({ template, availableVariables, onClose, onSave }) =>
 };
 
 const SMS = () => {
+  const tz = useTimezoneUtils();
   const tenant = useTenantStore((state) => state.tenant);
   const plan = tenant?.plan || 'FREE';
 
@@ -405,7 +407,7 @@ const SMS = () => {
                     <span className="text-gray-500 dark:text-text-secondary">Verified</span>
                     <p className="mt-1 flex items-center gap-1">
                       <CheckCircle className="w-4 h-4 text-green-500" />
-                      {new Date(settings.connectionVerifiedAt).toLocaleDateString()}
+                      {tz.formatShortDate(settings.connectionVerifiedAt)}
                     </p>
                   </div>
                 )}

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
@@ -29,6 +30,7 @@ import { cn } from '@/lib/cn';
  * enterprise-grade CRM card for displaying owner and pet information
  */
 const UnifiedOwnerCard = ({ owner, getVaccinationStatus, viewMode = 'grid' }) => {
+  const tz = useTimezoneUtils();
   const [expanded, setExpanded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -114,7 +116,7 @@ const UnifiedOwnerCard = ({ owner, getVaccinationStatus, viewMode = 'grid' }) =>
           <DetailItem icon={DollarSign} value={`$${owner.totalSpent || 0}`} label="spent" />
           <DetailItem
             icon={Calendar}
-            value={owner.lastVisit ? new Date(owner.lastVisit).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Never'}
+            value={owner.lastVisit ? tz.formatShortDate(owner.lastVisit) : 'Never'}
             label="last visit"
           />
           <DetailItem icon={Bookmark} value={owner.totalBookings || 0} label="bookings" />

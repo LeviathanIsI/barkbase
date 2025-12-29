@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Plus, CheckCircle, Bell, Command, X, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
 import apiClient from '@/lib/apiClient';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
@@ -14,6 +15,7 @@ import { useUnreadNotificationsCount } from '@/features/notifications/api';
  */
 const QuickAccessBar = () => {
   const navigate = useNavigate();
+  const tz = useTimezoneUtils();
   const searchInputRef = useRef(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -326,7 +328,7 @@ const QuickAccessBar = () => {
                                 {booking.petName} - {booking.service}
                               </div>
                               <div className="text-xs text-gray-500">
-                                {new Date(booking.startDate).toLocaleDateString()} • {booking.status}
+                                {tz.formatShortDate(booking.startDate)} • {booking.status}
                               </div>
                             </div>
                           </button>

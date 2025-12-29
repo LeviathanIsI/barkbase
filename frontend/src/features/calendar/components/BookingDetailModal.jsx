@@ -20,12 +20,14 @@ import { formatCurrency } from '@/lib/utils';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import { useKennels } from '@/features/kennels/api';
 import { useAssignKennelMutation, useDeleteBookingMutation } from '@/features/bookings/api';
+import { useTimezoneUtils } from '@/lib/timezone';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 
 const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onCheckOut }) => {
   const { openSlideout } = useSlideout();
   const { data: kennels = [] } = useKennels();
+  const tz = useTimezoneUtils();
   const assignKennelMutation = useAssignKennelMutation();
   const deleteBookingMutation = useDeleteBookingMutation();
 
@@ -59,7 +61,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
     }
     // Fallback: Generate from pet name initial + date
     const petInitial = petName?.charAt(0)?.toUpperCase() || 'B';
-    const dateStr = checkIn ? new Date(checkIn).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' }).replace(/\//g, '') : 'XXXXXX';
+    const dateStr = checkIn ? tz.formatDate(new Date(checkIn), { month: '2-digit', day: '2-digit', year: '2-digit' }).replace(/\//g, '') : 'XXXXXX';
     return `${petInitial}-${dateStr}`;
   };
 
@@ -103,7 +105,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
 
   const formatDate = (date) => {
     if (!date) return '—';
-    return new Date(date).toLocaleDateString('en-US', {
+    return tz.formatDate(date, {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -113,10 +115,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
 
   const formatTime = (date) => {
     if (!date) return '';
-    return new Date(date).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
+    return tz.formatTime(date);
   };
 
   // Helper: Open create booking flow with pre-filled data

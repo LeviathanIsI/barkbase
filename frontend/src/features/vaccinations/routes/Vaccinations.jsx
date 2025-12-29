@@ -23,6 +23,7 @@ import apiClient from '@/lib/apiClient';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/cn';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 // Saved views
 const DEFAULT_VIEWS = [
@@ -63,6 +64,7 @@ const ALL_COLUMNS = [
 
 const Vaccinations = () => {
   const queryClient = useQueryClient();
+  const tz = useTimezoneUtils();
   const { openSlideout } = useSlideout();
 
   // View and filter state
@@ -424,13 +426,13 @@ const Vaccinations = () => {
 
   const handleBulkExport = () => {
     const selectedRecords = sortedRecords.filter(r => selectedRows.has(r.recordId ?? r.id));
-    const csv = generateCSV(selectedRecords);
+    const csv = generateCSV(selectedRecords, tz.formatShortDate);
     downloadCSV(csv, 'vaccination-records.csv');
     toast.success(`Exported ${selectedRows.size} record(s)`);
   };
 
   const handleExportAll = () => {
-    const csv = generateCSV(sortedRecords);
+    const csv = generateCSV(sortedRecords, tz.formatShortDate);
     downloadCSV(csv, 'all-vaccination-records.csv');
     toast.success(`Exported ${sortedRecords.length} record(s)`);
   };
@@ -959,6 +961,7 @@ const FilterTag = ({ label, onRemove }) => (
 
 // Vaccination Row Component
 const VaccinationRow = ({ record, viewMode, isSelected, isReviewed, onSelect, onDelete, onEdit, onRenew, onClearReviewed }) => {
+  const tz = useTimezoneUtils();
   const SpeciesIcon = record.petSpecies?.toLowerCase() === 'cat' ? Cat : Dog;
 
   const getStatusConfig = () => {
@@ -1031,7 +1034,7 @@ const VaccinationRow = ({ record, viewMode, isSelected, isReviewed, onSelect, on
             )}
             <span className={cn('text-sm', statusConfig.color)}>
               {record.status === 'overdue' ? 'Expired: ' : 'Expires: '}
-              {record.expiresAt ? new Date(record.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+              {record.expiresAt ? tz.formatDate(record.expiresAt, { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
               {record.daysRemaining !== null && (
                 <span className="ml-1 opacity-75">
                   ({record.daysRemaining < 0 ? `${Math.abs(record.daysRemaining)}d overdue` : `${record.daysRemaining}d left`})
@@ -1436,14 +1439,14 @@ const EmailOwnersModal = ({ open, onClose, records }) => {
 };
 
 // CSV Generation Helpers
-const generateCSV = (records) => {
+const generateCSV = (records, tzFormatDate = null) => {
   const headers = ['Pet Name', 'Species', 'Breed', 'Vaccine Type', 'Expiry Date', 'Days Remaining', 'Status', 'Owner Name', 'Owner Email', 'Owner Phone'];
   const rows = records.map(r => [
     r.petName || '',
     r.petSpecies || '',
     r.petBreed || '',
     r.type || '',
-    r.expiresAt ? new Date(r.expiresAt).toLocaleDateString() : '',
+    r.expiresAt ? (tzFormatDate ? tzFormatDate(r.expiresAt) : new Date(r.expiresAt).toLocaleDateString()) : '',
     r.daysRemaining ?? '',
     r.status || '',
     r.ownerName || '',
@@ -1470,6 +1473,7 @@ const SortIcon = ({ active, direction }) => {
 
 // Table Row Component
 const VaccinationTableRow = ({ record, columns, isSelected, isReviewed, onSelect, onDelete, onEdit, onRenew, isEven }) => {
+  const tz = useTimezoneUtils();
   const getStatusConfig = () => {
     switch (record.status) {
       case 'overdue':
@@ -1523,7 +1527,7 @@ const VaccinationTableRow = ({ record, columns, isSelected, isReviewed, onSelect
       case 'expiry':
         return (
           <span className="text-[color:var(--bb-color-text-secondary)]">
-            {record.expiresAt ? new Date(record.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+            {record.expiresAt ? tz.formatDate(record.expiresAt, { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
           </span>
         );
       case 'status':

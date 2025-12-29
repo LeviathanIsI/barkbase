@@ -21,10 +21,12 @@ import {
   Legend,
 } from 'recharts';
 import { cn } from '@/lib/cn';
+import { useTimezoneUtils } from '@/lib/timezone';
 import { useWorkflowAnalytics } from '../../hooks';
 import LoadingState from '@/components/ui/LoadingState';
 
 export default function PerformanceTab({ workflowId }) {
+  const tz = useTimezoneUtils();
   const { data, isLoading, error } = useWorkflowAnalytics(workflowId);
 
   if (isLoading) {
@@ -320,8 +322,11 @@ function formatDuration(ms) {
 }
 
 // Format date for tooltip
-function formatDate(dateStr) {
+function formatDate(dateStr, tzFormatDate = null) {
   if (!dateStr) return '';
+  if (tzFormatDate) {
+    return tzFormatDate(dateStr, { month: 'long', day: 'numeric', year: 'numeric' });
+  }
   return new Date(dateStr).toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
@@ -330,8 +335,11 @@ function formatDate(dateStr) {
 }
 
 // Format short date for X axis
-function formatShortDate(dateStr) {
+function formatShortDate(dateStr, tzFormatDate = null) {
   if (!dateStr) return '';
+  if (tzFormatDate) {
+    return tzFormatDate(dateStr, { month: 'short', day: 'numeric' });
+  }
   return new Date(dateStr).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',

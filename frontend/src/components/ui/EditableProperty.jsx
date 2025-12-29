@@ -7,6 +7,7 @@ import { useState, useRef, useEffect, createContext, useContext } from 'react';
 import { Check, X, Loader2, Pencil } from 'lucide-react';
 import Select from 'react-select';
 import { cn } from '@/lib/utils';
+import { useTimezoneUtils } from '@/lib/timezone';
 import Button from './Button';
 
 // Context to coordinate single active edit across all property lists on a page
@@ -64,12 +65,12 @@ const selectStyles = {
 };
 
 // Format date for display (handles invalid dates)
-const formatDateDisplay = (value) => {
+const formatDateDisplay = (value, tzFormatDate) => {
   if (!value || value === 'Invalid Date') return '—';
   try {
     const date = new Date(value);
     if (isNaN(date.getTime())) return '—';
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return tzFormatDate(date, { month: 'short', day: 'numeric', year: 'numeric' });
   } catch {
     return '—';
   }
@@ -131,6 +132,7 @@ export function EditableProperty({
   onStartEdit,
   onStopEdit,
 }) {
+  const tz = useTimezoneUtils();
   const { label, type = 'text', value, options = [], required = false, suffix = '' } = property;
 
   // Use controlled mode if onStartEdit is provided, otherwise internal state
@@ -240,7 +242,7 @@ export function EditableProperty({
     switch (type) {
       case 'date':
       case 'datetime':
-        return formatDateDisplay(value);
+        return formatDateDisplay(value, tz.formatDate);
       case 'boolean':
         return formatBooleanDisplay(value);
       case 'phone':

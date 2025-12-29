@@ -36,6 +36,7 @@ import {
   useMarkAllNotificationsRead,
 } from '@/features/notifications/api';
 import * as timeClockApi from '@/features/staff/api-timeclock';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const getInitials = (value) => {
   if (!value) return '';
@@ -43,7 +44,7 @@ const getInitials = (value) => {
 };
 
 // Format relative time
-const formatRelativeTime = (date) => {
+const formatRelativeTime = (date, tzFormatShortDate) => {
   if (!date) return '';
   const now = new Date();
   const then = new Date(date);
@@ -57,6 +58,7 @@ const formatRelativeTime = (date) => {
   if (diffMins < 60) return `${diffMins}m ago`;
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
+  if (tzFormatShortDate) return tzFormatShortDate(then);
   return then.toLocaleDateString();
 };
 
@@ -278,6 +280,7 @@ const LiveIndicator = () => {
 
 // Notifications Button with Popover
 const NotificationsButton = () => {
+  const tz = useTimezoneUtils();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
@@ -435,7 +438,7 @@ const NotificationsButton = () => {
                             </p>
                           )}
                           <p className="text-[0.65rem] text-[color:var(--bb-color-text-muted)] mt-1">
-                            {formatRelativeTime(notification.createdAt)}
+                            {formatRelativeTime(notification.createdAt, tz.formatShortDate)}
                           </p>
                         </div>
                       </div>
@@ -753,6 +756,7 @@ const HelpButton = () => {
 
 // Time Clock Button with Dropdown
 const TimeClockButton = () => {
+  const tz = useTimezoneUtils();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [currentDuration, setCurrentDuration] = useState({ hours: 0, mins: 0, secs: 0 });
@@ -910,7 +914,7 @@ const TimeClockButton = () => {
 
   const formatTime = (date) => {
     if (!date) return '';
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return tz.formatTime(date);
   };
 
   const isMutating = isLoading;

@@ -7,6 +7,7 @@ import Modal from '@/components/ui/Modal';
 import SlidePanel from '@/components/ui/SlidePanel';
 import StyledSelect from '@/components/ui/StyledSelect';
 import apiClient from '@/lib/apiClient';
+import { useTimezoneUtils } from '@/lib/timezone';
 import {
   FileText, Plus, Edit, Trash2, Eye, Copy, Shield,
   Clock, Calendar, Syringe, Heart, DoorOpen, UtensilsCrossed,
@@ -720,6 +721,7 @@ Your pet's safety is paramount. Please ensure all contact information is current
 };
 
 const TermsPolicies = () => {
+  const tz = useTimezoneUtils();
   const [policies, setPolicies] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -907,10 +909,10 @@ const TermsPolicies = () => {
     );
   };
 
-  const formatDate = (dateStr) => {
+  const formatDateDisplay = (dateStr) => {
     if (!dateStr) return 'Never';
     try {
-      return new Date(dateStr).toLocaleDateString('en-US', {
+      return tz.formatDate(new Date(dateStr), {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -993,7 +995,7 @@ const TermsPolicies = () => {
                     <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-text-secondary mt-0.5">
                       <span>{POLICY_TYPES[policy.type]?.label || 'Custom'}</span>
                       <span>•</span>
-                      <span>Updated {formatDate(policy.updatedAt || policy.createdAt)}</span>
+                      <span>Updated {formatDateDisplay(policy.updatedAt || policy.createdAt)}</span>
                       {policy.version && <><span>•</span><span>v{policy.version}</span></>}
                     </div>
                   </div>

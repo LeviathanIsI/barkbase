@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { AlertTriangle, AlertCircle, Info, Clock, CheckCircle, Filter, Plus, Eye, Trash2, Bell } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
 import StyledSelect from '@/components/ui/StyledSelect';
 import { getIncidents, deleteIncident, resolveIncident, notifyOwnerOfIncident } from '../api';
@@ -34,18 +35,19 @@ const INCIDENT_TYPES = [
   { value: 'other', label: 'Other' },
 ];
 
-function formatDate(dateString) {
-  if (!dateString) return '-';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
-
 export default function IncidentList({ onCreateNew, onViewIncident, onRefresh }) {
+  const tz = useTimezoneUtils();
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return tz.formatDate(dateString, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

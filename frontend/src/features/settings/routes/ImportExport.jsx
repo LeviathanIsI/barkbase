@@ -7,6 +7,7 @@ import Badge from '@/components/ui/Badge';
 import Select from '@/components/ui/Select';
 import SettingsPage from '../components/SettingsPage';
 import apiClient from '@/lib/apiClient';
+import { useTimezoneUtils } from '@/lib/timezone';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
 import { ImportWizard } from '../components/import';
@@ -79,6 +80,7 @@ const ENTITY_LABELS = {
 
 const ImportExport = () => {
   const navigate = useNavigate();
+  const tz = useTimezoneUtils();
   const tenant = useTenantStore((state) => state.tenant);
   const accessToken = useAuthStore((state) => state.accessToken);
 
@@ -601,7 +603,7 @@ const ImportExport = () => {
                       onClick={() => navigate(`/settings/imports/${imp.id}`)}
                     >
                       <td className="py-3 px-4" style={{ color: 'var(--bb-color-text-primary)' }}>
-                        {formatDate(imp.createdAt)}
+                        {formatDate(imp.createdAt, tz.formatDate)}
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
@@ -714,10 +716,15 @@ const ImportExport = () => {
 };
 
 // Helper functions
-function formatDate(dateString) {
+function formatDate(dateString, tzFormatDate) {
   if (!dateString) return 'Unknown date';
   try {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Unknown date';
+    if (tzFormatDate) {
+      return tzFormatDate(date, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/cn';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 import Button from '@/components/ui/Button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
@@ -33,6 +34,7 @@ import SettingsTab from '../components/details/SettingsTab';
 export default function WorkflowDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const tz = useTimezoneUtils();
   const [activeTab, setActiveTab] = useState('performance');
 
   // Queries
@@ -132,7 +134,7 @@ export default function WorkflowDetails() {
                     {objectConfig.label}
                   </span>
                   <span>
-                    Created {new Date(workflow.created_at).toLocaleDateString()}
+                    Created {tz.formatShortDate(workflow.created_at)}
                   </span>
                 </div>
               </div>

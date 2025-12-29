@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Calendar, Dog, User, Home } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 import SlidePanel from '@/components/ui/SlidePanel';
 
 // Reusable heads-up panel for rapid booking context and actions
@@ -7,6 +8,7 @@ const BookingHUD = ({
   date = new Date(),
   stats = {},
 }) => {
+  const tz = useTimezoneUtils();
   const [open, setOpen] = useState(true);
   const totals = {
     petsToday: stats.petsToday ?? 0,
@@ -30,7 +32,7 @@ const BookingHUD = ({
           <div>
             <p className="text-xs text-gray-500 dark:text-text-secondary">Today</p>
             <p className="text-sm font-semibold text-gray-900 dark:text-text-primary">
-              {date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+              {tz.formatDate(date, { weekday: 'short', month: 'short', day: 'numeric' })}
             </p>
           </div>
         </div>

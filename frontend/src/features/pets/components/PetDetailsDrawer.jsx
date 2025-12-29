@@ -26,9 +26,11 @@ import {
 } from '@/components/ui/inspector';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const PetDetailsDrawer = ({ pet, isOpen, onClose, onEdit }) => {
   const [activeTab, setActiveTab] = useState('overview');
+  const tz = useTimezoneUtils();
 
   if (!pet) return null;
 
@@ -258,8 +260,8 @@ const MedicalTab = ({ pet }) => {
                     {vax.name}
                   </p>
                   <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
-                    Given: {new Date(vax.date).toLocaleDateString()} • 
-                    Expires: {new Date(vax.expires).toLocaleDateString()}
+                    Given: {tz.formatShortDate(vax.date)} •
+                    Expires: {tz.formatShortDate(vax.expires)}
                   </p>
                 </div>
                 <Badge variant={vax.status === 'current' ? 'success' : 'danger'}>

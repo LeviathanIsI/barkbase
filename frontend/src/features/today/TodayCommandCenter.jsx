@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, AlertTriangle, Clock, ListTodo, Home, ExternalLink, AlertCircle, Dog, User, ChevronRight } from 'lucide-react';
 import { useUserProfileQuery } from '@/features/settings/api-user';
+import { useTimezoneUtils } from '@/lib/timezone';
 // Dashboard hooks available if needed:
 // import { useDashboardStatsQuery } from '@/features/dashboard/api';
 import { useTodaysTasksQuery, useOverdueTasksQuery, useCompleteTaskMutation, TASK_STATUS } from '@/features/tasks/api';
@@ -32,6 +33,7 @@ import toast from 'react-hot-toast';
  */
 const TodayCommandCenter = () => {
   const queryClient = useQueryClient();
+  const tz = useTimezoneUtils();
   const [showBatchCheckIn, setShowBatchCheckIn] = useState(false);
   const [showBatchCheckOut, setShowBatchCheckOut] = useState(false);
   const [showNewBooking, setShowNewBooking] = useState(false);
@@ -126,13 +128,13 @@ const TodayCommandCenter = () => {
   // Formatted date
   const formattedDate = useMemo(
     () =>
-      new Date().toLocaleDateString('en-US', {
+      tz.formatDate(new Date(), {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
       }),
-    [],
+    [tz],
   );
 
   // Pending tasks (not completed)
@@ -213,6 +215,7 @@ const TodayCommandCenter = () => {
                   emptyMessage="All tasks complete! 🎉"
                   onComplete={handleCompleteTask}
                   isCompleting={completeTaskMutation.isPending}
+                  tz={tz}
                 />
               </TodaySection>
             </TodayCard>
@@ -236,6 +239,7 @@ const TodayCommandCenter = () => {
                   onComplete={handleCompleteTask}
                   isCompleting={completeTaskMutation.isPending}
                   isOverdue
+                  tz={tz}
                 />
               </TodaySection>
             </TodayCard>
@@ -273,6 +277,7 @@ const TodayCommandCenter = () => {
         <InFacilitySlideoutContent
           pets={inFacility}
           onClose={() => setShowInFacility(false)}
+          tz={tz}
         />
       </SlideOutDrawer>
 
@@ -289,6 +294,7 @@ const TodayCommandCenter = () => {
           onCompleteTask={handleCompleteTask}
           isCompleting={completeTaskMutation.isPending}
           onClose={() => setShowNeedsAttention(false)}
+          tz={tz}
         />
       </SlideOutDrawer>
     </div>
@@ -299,7 +305,7 @@ const TodayCommandCenter = () => {
 // TASKS LIST COMPONENT
 // ============================================================================
 
-const TasksList = ({ tasks, isLoading, emptyMessage, onComplete, isCompleting, isOverdue }) => {
+const TasksList = ({ tasks, isLoading, emptyMessage, onComplete, isCompleting, isOverdue, tz }) => {
   if (isLoading) {
     return (
       <div className="space-y-2">
@@ -338,10 +344,10 @@ const TasksList = ({ tasks, isLoading, emptyMessage, onComplete, isCompleting, i
             {task.scheduledFor && (
               <p className="text-xs text-[color:var(--bb-color-text-muted)] flex items-center gap-1 mt-0.5">
                 <Clock className="h-3 w-3" />
-                {new Date(task.scheduledFor).toLocaleTimeString('en-US', { 
-                  hour: 'numeric', 
-                  minute: '2-digit', 
-                  hour12: true 
+                {tz ? tz.formatTime(task.scheduledFor) : new Date(task.scheduledFor).toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
                 })}
               </p>
             )}
@@ -371,7 +377,7 @@ const TasksList = ({ tasks, isLoading, emptyMessage, onComplete, isCompleting, i
 // IN FACILITY SLIDEOUT CONTENT
 // ============================================================================
 
-const InFacilitySlideoutContent = ({ pets, onClose }) => {
+const InFacilitySlideoutContent = ({ pets, onClose, tz }) => {
   const navigate = useNavigate();
 
   if (!pets.length) {
@@ -427,7 +433,7 @@ const InFacilitySlideoutContent = ({ pets, onClose }) => {
             </div>
             <div className="text-right shrink-0">
               <p className="text-xs text-[color:var(--bb-color-text-muted)]">
-                Departs {booking.endDate ? new Date(booking.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}
+                Departs {booking.endDate ? tz.formatShortDate(booking.endDate) : 'TBD'}
               </p>
             </div>
           </div>
@@ -441,7 +447,7 @@ const InFacilitySlideoutContent = ({ pets, onClose }) => {
 // NEEDS ATTENTION SLIDEOUT CONTENT
 // ============================================================================
 
-const NeedsAttentionSlideoutContent = ({ overdueTasks, vaccinationIssues, onCompleteTask, isCompleting, onClose }) => {
+const NeedsAttentionSlideoutContent = ({ overdueTasks, vaccinationIssues, onCompleteTask, isCompleting, onClose, tz }) => {
   const navigate = useNavigate();
   const totalItems = overdueTasks.length + vaccinationIssues.length;
 
@@ -478,7 +484,7 @@ const NeedsAttentionSlideoutContent = ({ overdueTasks, vaccinationIssues, onComp
                   {task.scheduledFor && (
                     <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
                       <Clock className="h-3 w-3" />
-                      Due {new Date(task.scheduledFor).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      Due {tz ? tz.formatShortDate(task.scheduledFor) : new Date(task.scheduledFor).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </p>
                   )}
                 </div>

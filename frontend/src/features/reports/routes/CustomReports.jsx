@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
+import { useTimezoneUtils } from '@/lib/timezone';
 import apiClient from '@/lib/apiClient';
 
 // =============================================================================
@@ -51,7 +52,7 @@ const ChartTypeIcon = ({ type, className }) => {
   }
 };
 
-const formatDate = (dateStr) => {
+const formatDate = (dateStr, tzFormatDate = null) => {
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now - date;
@@ -60,6 +61,9 @@ const formatDate = (dateStr) => {
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
   if (diffDays < 7) return `${diffDays} days ago`;
+  if (tzFormatDate) {
+    return tzFormatDate(date, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 

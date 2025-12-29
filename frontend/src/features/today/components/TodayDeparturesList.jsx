@@ -8,6 +8,7 @@ import TodaySection from './TodaySection';
 import { TodayListSkeleton } from './TodaySkeleton';
 import { useBookingCheckOutMutation } from '@/features/bookings/api';
 import PetQuickActionsDrawer from '@/features/owners/components/PetQuickActionsDrawer';
+import { useTimezoneUtils } from '@/lib/timezone';
 import toast from 'react-hot-toast';
 
 const TodayDeparturesList = ({ departures, isLoading, hasError }) => {
@@ -103,6 +104,7 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
   const [selectedPetId, setSelectedPetId] = useState(null);
   const ownerRef = useRef(null);
   const checkOutMutation = useBookingCheckOutMutation();
+  const tz = useTimezoneUtils();
 
   const time = booking.arrivalTime || booking.departureTime || booking.endDate;
   const bookingId = booking.id || booking.recordId;
@@ -197,7 +199,7 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
               {petName}
             </button>
             <Badge variant="warning" className="shrink-0 text-xs">
-              {formatTime(time)}
+              {time ? tz.formatTime(time) : 'TBD'}
             </Badge>
           </div>
 
@@ -267,7 +269,7 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
           petBreed={petBreed}
           ownerName={ownerName}
           serviceName={serviceName}
-          departureTime={formatTime(time)}
+          departureTime={time ? tz.formatTime(time) : 'TBD'}
           isLoading={isCheckingOut}
           onConfirm={handleConfirmCheckOut}
           onCancel={() => setShowCheckOutConfirm(false)}
@@ -457,16 +459,6 @@ const OwnerContactPopover = ({ ownerName, phone, email, onClose }) => {
       </div>
     </div>
   );
-};
-
-const formatTime = (dateString) => {
-  if (!dateString) return 'TBD';
-  const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
 };
 
 export default TodayDeparturesList;

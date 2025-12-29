@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTimezoneUtils } from '@/lib/timezone';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -37,6 +38,7 @@ const RenewVaccinationModal = ({
   petName = 'Pet',
   isLoading = false,
 }) => {
+  const tz = useTimezoneUtils();
   const {
     register,
     handleSubmit,
@@ -176,7 +178,7 @@ const RenewVaccinationModal = ({
               <span style={{ color: 'var(--bb-color-text-muted)' }}>Previous Administration:</span>
               <span style={{ color: 'var(--bb-color-text-primary)' }}>
                 {vaccination.administeredAt
-                  ? new Date(vaccination.administeredAt).toLocaleDateString()
+                  ? tz.formatShortDate(vaccination.administeredAt)
                   : 'N/A'}
               </span>
             </div>
@@ -184,7 +186,7 @@ const RenewVaccinationModal = ({
               <span style={{ color: 'var(--bb-color-text-muted)' }}>Previous Expiration:</span>
               <span style={{ color: 'var(--bb-color-text-primary)' }}>
                 {vaccination.expiresAt
-                  ? new Date(vaccination.expiresAt).toLocaleDateString()
+                  ? tz.formatShortDate(vaccination.expiresAt)
                   : 'N/A'}
               </span>
             </div>

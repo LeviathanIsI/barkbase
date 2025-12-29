@@ -2,18 +2,20 @@ import { useEffect, useRef } from 'react';
 import { Send } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTimezoneUtils } from '@/lib/timezone';
 
-const MessageThread = ({ 
-  conversation, 
-  messages, 
-  isLoading, 
-  currentUserId, 
-  messageText, 
-  onMessageChange, 
+const MessageThread = ({
+  conversation,
+  messages,
+  isLoading,
+  currentUserId,
+  messageText,
+  onMessageChange,
   onSendMessage,
-  isSending 
+  isSending
 }) => {
   const messagesEndRef = useRef(null);
+  const tz = useTimezoneUtils();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -60,7 +62,7 @@ const MessageThread = ({
                   >
                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                     <p className={`text-xs mt-1 ${isCurrentUser ? 'text-white/70' : 'text-muted'}`}>
-                      {new Date(msg.createdAt).toLocaleTimeString()}
+                      {tz.formatTime(msg.createdAt)}
                     </p>
                   </div>
                 </div>

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Search, Filter, MoreVertical, UserPlus, Users, CheckCircle, Clock, Calendar, AlertTriangle, TrendingUp, Target } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import StyledSelect from '@/components/ui/StyledSelect';
 
 const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
+  const tz = useTimezoneUtils();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
@@ -261,7 +263,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
 
                   {member.createdAt && (
                     <div className="mb-3 text-sm text-gray-600 dark:text-text-secondary">
-                      <span>📅 Joined {new Date(member.createdAt).toLocaleDateString()}</span>
+                      <span>📅 Joined {tz.formatShortDate(member.createdAt)}</span>
                     </div>
                   )}
 

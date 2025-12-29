@@ -1,6 +1,7 @@
 import { Users, Mail, Phone, PawPrint, Calendar, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { formatCurrency } from '@/lib/utils';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const OwnerCard = ({
   owner,
@@ -9,6 +10,7 @@ const OwnerCard = ({
   compact = false,
   className,
 }) => {
+  const tz = useTimezoneUtils();
   const pets = owner.pets || [];
   const totalBookings = owner.totalBookings || 0;
   const lifetimeValue = owner.lifetimeValue || 0;
@@ -86,7 +88,7 @@ const OwnerCard = ({
         {/* Last Booking */}
         {!compact && owner.lastBooking && (
           <div className="text-xs text-muted">
-            Last booking: {new Date(owner.lastBooking).toLocaleDateString()}
+            Last booking: {tz.formatShortDate(owner.lastBooking)}
           </div>
         )}
       </div>

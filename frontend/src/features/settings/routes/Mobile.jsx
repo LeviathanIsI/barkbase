@@ -8,8 +8,10 @@ import SettingsPage from '../components/SettingsPage';
 import { Smartphone, Download, QrCode, Bell, Shield, Wifi } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/apiClient';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const Mobile = () => {
+  const tz = useTimezoneUtils();
   const [settings, setSettings] = useState({
     mobileAppEnabled: true,
     offlineMode: true,
@@ -78,7 +80,7 @@ const Mobile = () => {
           <div className="text-center p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
             <Wifi className="w-8 h-8 mx-auto mb-2 text-orange-600" />
             <div className="text-sm font-medium">
-              {new Date(appStats.lastSyncTime).toLocaleTimeString()}
+              {tz.formatTime(appStats.lastSyncTime)}
             </div>
             <p className="text-sm text-gray-600 dark:text-text-secondary">Last Sync</p>
           </div>

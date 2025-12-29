@@ -2,9 +2,11 @@ import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useState, useMemo } from 'react';
+import { useTimezoneUtils } from '@/lib/timezone';
 import { useRunsQuery } from '@/features/daycare/api';
 
 const ScheduleCalendarView = () => {
+  const tz = useTimezoneUtils();
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const { data: runsData, isLoading } = useRunsQuery({ date: selectedDate });
@@ -51,7 +53,7 @@ const ScheduleCalendarView = () => {
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
-        <h3 className="text-lg font-semibold">{new Date(selectedDate).toLocaleDateString()}</h3>
+        <h3 className="text-lg font-semibold">{tz.formatDate(selectedDate, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</h3>
       </div>
 
       {/* Runs for selected day */}

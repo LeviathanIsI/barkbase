@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Users, AlertTriangle, CheckCircle, Plus, Zap } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 
 const ShiftCoveragePlanner = ({ onClose }) => {
+  const tz = useTimezoneUtils();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
 
@@ -98,7 +100,7 @@ const ShiftCoveragePlanner = ({ onClose }) => {
   const getWeekRange = () => {
     const start = weekDates[0];
     const end = weekDates[6];
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    return `${tz.formatShortDate(start)} - ${tz.formatDate(end, { month: 'short', day: 'numeric', year: 'numeric' })}`;
   };
 
   const getCoverageStats = () => {
@@ -212,7 +214,7 @@ const ShiftCoveragePlanner = ({ onClose }) => {
                 <tr className="border-b border-gray-200 dark:border-surface-border">
                   <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-text-primary w-20">Time</th>
                   {weekDates.map((date, index) => {
-                    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                    const dayName = tz.formatDate(date, { weekday: 'short' });
                     const dayNumber = date.getDate();
                     const isToday = date.toDateString() === new Date().toDateString();
 
@@ -290,7 +292,7 @@ const ShiftCoveragePlanner = ({ onClose }) => {
                   Coverage Details - {selectedTimeSlot.time}
                 </h3>
                 <p className="text-gray-600 dark:text-text-secondary mb-4">
-                  {new Date(selectedTimeSlot.date).toLocaleDateString('en-US', {
+                  {tz.formatDate(selectedTimeSlot.date, {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',

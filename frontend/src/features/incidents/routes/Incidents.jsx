@@ -5,6 +5,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, AlertTriangle, AlertCircle, Info, Clock, CheckCircle, Filter, Plus, Eye, Trash2, Bell, Search, X, TrendingUp, BarChart3, Zap, PawPrint, Loader2 } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import LoadingState from '@/components/ui/LoadingState';
@@ -42,17 +43,6 @@ const INCIDENT_TYPES = {
   BEHAVIOR: { label: 'Behavior', color: 'text-indigo-500' },
   OTHER: { label: 'Other', color: 'text-gray-500' },
 };
-
-function formatDate(dateString) {
-  if (!dateString) return '-';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
 
 // Stat Card Component
 const StatCard = ({ icon: Icon, label, value, variant = 'primary', tooltip }) => {
@@ -440,6 +430,17 @@ const QuickReport = ({ pets, onSubmit, isSubmitting }) => {
 
 // Incident Card Component
 const IncidentCard = ({ incident, onView, onDelete, onResolve, onNotify, onStatusChange, onSeverityChange, onPetClick, isUpdating }) => {
+  const tz = useTimezoneUtils();
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return tz.formatDate(dateString, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
   const severityConfig = SEVERITY_CONFIG[incident.severity] || SEVERITY_CONFIG.LOW;
   const SeverityIcon = incident.severity === 'HIGH' || incident.severity === 'CRITICAL' ? AlertTriangle : incident.severity === 'MEDIUM' ? AlertCircle : Info;
 

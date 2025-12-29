@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import { formatDistanceToNow, format } from 'date-fns';
+import { useTimezoneUtils } from '@/lib/timezone';
 import EntityToolbar from '@/components/EntityToolbar';
 import StyledSelect from '@/components/ui/StyledSelect';
 import Button from '@/components/ui/Button';
@@ -790,6 +791,7 @@ const SortIcon = ({ active, direction }) => {
 
 // Owner Row Component
 const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStatusChange }) => {
+  const tz = useTimezoneUtils();
   const cellPadding = 'px-4 lg:px-6 py-3';
   const navigate = useNavigate();
 
@@ -903,7 +905,7 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStat
             {owner.lastBooking ? (
               <span
                 className="text-[color:var(--bb-color-text-primary)]"
-                title={new Date(owner.lastBooking).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                title={tz.formatDate(owner.lastBooking, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               >
                 {formatDistanceToNow(new Date(owner.lastBooking), { addSuffix: true })}
               </span>
@@ -1188,6 +1190,7 @@ const StatusBadgeDropdown = ({ owner, onStatusChange }) => {
 
 // Bookings Hover Card Component - Shows recent bookings on hover
 const BookingsHoverCard = ({ ownerId, bookingsCount, navigate, children }) => {
+  const tz = useTimezoneUtils();
   const [isHovering, setIsHovering] = useState(false);
   const [bookings, setBookings] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -1292,7 +1295,7 @@ const BookingsHoverCard = ({ ownerId, bookingsCount, navigate, children }) => {
                         <span>{serviceName}</span>
                         <span>•</span>
                         <span>
-                          {checkInDate ? new Date(checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}
+                          {checkInDate ? tz.formatShortDate(checkInDate) : 'TBD'}
                         </span>
                       </div>
                     </div>

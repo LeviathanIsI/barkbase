@@ -23,6 +23,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTimezoneUtils } from '@/lib/timezone';
 import StyledSelect from '@/components/ui/StyledSelect';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -46,7 +47,8 @@ const VisualRunBoard = () => {
   const [viewMode, setViewMode] = useState('week'); // week, day, month
   const [filterByService, setFilterByService] = useState('all'); // all, boarding, daycare
   const [searchTerm, setSearchTerm] = useState('');
-  
+  const tz = useTimezoneUtils();
+
   const scrollContainerRef = useRef(null);
 
   // Generate week dates
@@ -294,7 +296,7 @@ const VisualRunBoard = () => {
           </div>
 
           <div className="text-sm text-gray-600 dark:text-text-secondary">
-            {weekDates[0].toLocaleDateString()} - {weekDates[6].toLocaleDateString()}
+            {tz.formatShortDate(weekDates[0])} - {tz.formatShortDate(weekDates[6])}
           </div>
         </div>
 
@@ -396,7 +398,7 @@ const VisualRunBoard = () => {
                     )}
                   >
                     <div className="text-xs text-gray-500 dark:text-text-secondary">
-                      {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                      {tz.formatDate(date, { weekday: 'short' })}
                     </div>
                     <div className={cn(
                       "text-lg font-medium",

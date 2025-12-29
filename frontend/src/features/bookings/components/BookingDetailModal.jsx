@@ -22,6 +22,7 @@ import { useKennels } from '@/features/kennels/api';
 import { useAssignKennelMutation, useDeleteBookingMutation, useBookingCheckInMutation, useBookingCheckOutMutation } from '@/features/bookings/api';
 import { useRunsQuery, useUpdateRunAssignmentMutation, useRemovePetFromRunMutation, useAssignPetsToRunMutation } from '@/features/daycare/api';
 import { useAuthStore } from '@/stores/auth';
+import { useTimezoneUtils } from '@/lib/timezone';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 
@@ -39,6 +40,9 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
 
   // Get current user for audit fields
   const userId = useAuthStore((state) => state.user?.id);
+
+  // Timezone utilities for proper date/time display
+  const tz = useTimezoneUtils();
 
   // Local state
   const [activeTab, setActiveTab] = useState('assignment'); // 'assignment' | 'booking'
@@ -104,24 +108,24 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     ? Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60 * 24))
     : 0;
 
+  // Format date using user's timezone
   const formatDate = (date) => {
     if (!date) return '—';
-    return new Date(date).toLocaleDateString('en-US', {
+    return tz.formatDate(date, {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
     });
   };
 
+  // Format time using user's timezone
   const formatTime = (date) => {
     if (!date) return '';
-    return new Date(date).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
+    return tz.formatTime(date);
   };
 
-  // Format TIME string like "08:00" or "17:30" to human readable
+  // Format TIME string like "08:00" or "17:30" to human readable in user's timezone
+  // Note: TIME strings are stored as local facility time, so we display as-is
   const formatTimeString = (timeStr) => {
     if (!timeStr) return '—';
     const parts = timeStr.split(':');
@@ -955,7 +959,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                     <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-[var(--bb-color-bg-elevated)]">
                       <Clock className="w-5 h-5 text-[var(--bb-color-text-muted)]" />
                       <span className="text-sm font-medium text-[var(--bb-color-text-muted)]">
-                        Scheduled for {checkInDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        Scheduled for {tz.formatDate(checkInDate, { month: 'short', day: 'numeric' })}
                       </span>
                     </div>
                   </div>

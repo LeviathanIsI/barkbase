@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Clock, Play, Pause, Square, Coffee, Calendar, CheckCircle, AlertCircle, User } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { cn } from '@/lib/cn';
@@ -17,23 +18,6 @@ import {
   approveTimeEntry,
 } from '../api-timeclock';
 
-function formatTime(dateString) {
-  if (!dateString) return '-';
-  return new Date(dateString).toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '-';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
 function formatDuration(minutes) {
   if (!minutes && minutes !== 0) return '-';
   const hours = Math.floor(minutes / 60);
@@ -43,6 +27,18 @@ function formatDuration(minutes) {
 }
 
 const TimeClockSystem = () => {
+  const tz = useTimezoneUtils();
+
+  const formatTime = (dateString) => {
+    if (!dateString) return '-';
+    return tz.formatTime(dateString);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return tz.formatDate(dateString, { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
   const [status, setStatus] = useState({
     isClockedIn: false,
     isOnBreak: false,

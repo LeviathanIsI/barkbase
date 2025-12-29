@@ -10,6 +10,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -698,6 +699,7 @@ const CapacityPanel = ({ dateRange }) => {
   const { data: stats } = useDashboardStatsQuery();
   const { data: occupancy } = useOccupancyQuery();
   const { data: todayArrivals = [] } = useUpcomingArrivalsQuery(1); // Today only
+  const tz = useTimezoneUtils();
 
   // Calculate capacity data
   const capacityData = useMemo(() => {
@@ -723,15 +725,14 @@ const CapacityPanel = ({ dateRange }) => {
   // Format arrivals for display
   const formattedArrivals = useMemo(() => {
     return todayArrivals.slice(0, 3).map(arrival => {
-      const checkIn = arrival.checkIn ? new Date(arrival.checkIn) : null;
-      const timeStr = checkIn ? checkIn.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'TBD';
+      const timeStr = arrival.checkIn ? tz.formatTime(arrival.checkIn) : 'TBD';
       return {
         time: timeStr,
         pet: arrival.pet?.name || arrival.petName || 'Unknown',
         owner: arrival.owner ? `${arrival.owner.firstName || ''} ${arrival.owner.lastName || ''}`.trim() : arrival.ownerName || 'Unknown'
       };
     });
-  }, [todayArrivals]);
+  }, [todayArrivals, tz]);
 
   return (
     <Card className="h-full p-6 bg-gray-50 dark:bg-surface-secondary">
@@ -767,7 +768,7 @@ const CapacityPanel = ({ dateRange }) => {
           <h4 className="text-sm font-medium text-gray-700 dark:text-text-primary mb-2">Selected Period</h4>
           <div className="space-y-1 text-sm">
             <p className="text-gray-600 dark:text-text-secondary">
-              {new Date(dateRange.start + 'T00:00:00').toLocaleDateString()} - {new Date(dateRange.end + 'T00:00:00').toLocaleDateString()}
+              {tz.formatShortDate(dateRange.start + 'T00:00:00')} - {tz.formatShortDate(dateRange.end + 'T00:00:00')}
             </p>
           </div>
         </div>

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Camera, CheckCircle, X, ChevronLeft, AlertCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import apiClient from '@/lib/apiClient';
+import { useTimezoneUtils } from '@/lib/timezone';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 
@@ -13,6 +14,7 @@ import { cn } from '@/lib/cn';
  */
 const MobileCheckIn = () => {
   const queryClient = useQueryClient();
+  const tz = useTimezoneUtils();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -316,10 +318,7 @@ const MobileCheckIn = () => {
                 <div className="flex justify-between">
                   <span>Arrival Time:</span>
                   <span className="font-medium">
-                    {new Date(currentBooking.startDate).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+                    {tz.formatTime(currentBooking.startDate)}
                   </span>
                 </div>
                 <div className="flex justify-between">

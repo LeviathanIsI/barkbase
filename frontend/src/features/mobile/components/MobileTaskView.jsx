@@ -22,6 +22,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { useTodaysTasksQuery, useCompleteTaskMutation } from '@/features/tasks/api';
@@ -34,6 +35,7 @@ import toast from 'react-hot-toast';
  */
 
 const MobileTaskView = () => {
+  const tz = useTimezoneUtils();
   const [selectedTask, setSelectedTask] = useState(null);
   const [filterStatus, setFilterStatus] = useState('due-now');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -50,8 +52,8 @@ const MobileTaskView = () => {
       priority: task.priority?.toLowerCase() || 'medium',
       pet: task.pet || { name: task.petName || 'Unknown', breed: task.breed, photo: null },
       owner: task.owner || { name: task.ownerName || 'Unknown', phone: task.ownerPhone },
-      time: task.dueTime || task.dueDate ? 
-        (task.dueTime || new Date(task.dueDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })) : 
+      time: task.dueTime || task.dueDate ?
+        (task.dueTime || tz.formatTime(task.dueDate)) :
         'TBD',
       status: task.status?.toLowerCase() || 'pending',
       room: task.room || task.location || 'N/A',
@@ -64,7 +66,7 @@ const MobileTaskView = () => {
       items: task.items || [],
       rawData: task
     }));
-  }, [apiTasks]);
+  }, [apiTasks, tz]);
 
   const getTaskIcon = (type) => {
     switch (type) {

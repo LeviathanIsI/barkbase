@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Key, Plus, Eye, RotateCcw, Trash2, Copy, Download, AlertTriangle } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 
 const APIKeys = () => {
+  const tz = useTimezoneUtils();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showNewKeyModal, setShowNewKeyModal] = useState(false);
   const [newKeyData, setNewKeyData] = useState(null);
@@ -33,7 +35,7 @@ const APIKeys = () => {
       name: formData.name,
       key: `sk_live_${Math.random().toString(36).substring(2, 15)}`,
       permissions: formData.permissions === 'readwrite' ? 'Read + Write' : 'Read Only',
-      createdAt: new Date().toLocaleDateString(),
+      createdAt: tz.formatShortDate(new Date()),
       lastUsed: 'Never',
       status: 'active'
     };

@@ -28,10 +28,16 @@ function formatTime(time) {
 
 /**
  * Format date for display
+ * @param {string} dateStr - Date string in YYYY-MM-DD format
+ * @param {Function} tzFormatDate - Optional timezone formatter from useTimezoneUtils
  */
-function formatDate(dateStr) {
+function formatDate(dateStr, tzFormatDate = null) {
   if (!dateStr) return '';
   const date = new Date(dateStr + 'T00:00:00');
+  if (tzFormatDate) {
+    return tzFormatDate(date, { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  // Fallback if no timezone formatter provided
   return date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',

@@ -5,6 +5,7 @@ import Badge from '@/components/ui/Badge';
 import Switch from '@/components/ui/Switch';
 import SettingsPage from '../components/SettingsPage';
 import apiClient from '@/lib/apiClient';
+import { useTimezoneUtils } from '@/lib/timezone';
 import { 
   FileText, 
   Upload, 
@@ -341,12 +342,13 @@ const Files = () => {
 
 // Template Card Component
 const TemplateCard = ({ template, onEdit, onPreview, onDuplicate, onDelete, onToggleStatus }) => {
+  const tz = useTimezoneUtils();
   const typeInfo = TEMPLATE_TYPES.find(t => t.value === template.type) || TEMPLATE_TYPES[5];
   const TypeIcon = typeInfo.icon;
 
-  const formatDate = (dateString) => {
+  const formatDateDisplay = (dateString) => {
     if (!dateString) return 'Unknown';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return tz.formatDate(new Date(dateString), {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -376,7 +378,7 @@ const TemplateCard = ({ template, onEdit, onPreview, onDuplicate, onDelete, onTo
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
           <span className="flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            Updated {formatDate(template.lastUpdated)}
+            Updated {formatDateDisplay(template.lastUpdated)}
           </span>
           <span className="flex items-center gap-1">
             <Send className="w-3 h-3" />
@@ -412,6 +414,7 @@ const TemplateCard = ({ template, onEdit, onPreview, onDuplicate, onDelete, onTo
 
 // Custom File Card Component
 const CustomFileCard = ({ file, onDelete }) => {
+  const tz = useTimezoneUtils();
   const formatFileSize = (bytes) => {
     if (!bytes) return '0 B';
     if (bytes < 1024) return `${bytes} B`;
@@ -419,9 +422,9 @@ const CustomFileCard = ({ file, onDelete }) => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const formatDate = (dateString) => {
+  const formatDateDisplay = (dateString) => {
     if (!dateString) return 'Unknown';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return tz.formatDate(new Date(dateString), {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -439,7 +442,7 @@ const CustomFileCard = ({ file, onDelete }) => {
         <div className="flex items-center gap-3 text-xs text-muted mt-1">
           {file.description && <span>{file.description}</span>}
           <span>{formatFileSize(file.size)}</span>
-          <span>Uploaded {formatDate(file.uploadedAt)}</span>
+          <span>Uploaded {formatDateDisplay(file.uploadedAt)}</span>
           <span>Sent {file.usageCount || 0} times</span>
         </div>
       </div>

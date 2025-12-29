@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useCreatePackageMutation } from '../api';
 import { formatCurrency } from '@/lib/utils';
+import { useTimezoneUtils } from '@/lib/timezone';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 import {
@@ -43,6 +44,8 @@ const AVAILABLE_SERVICES = [
 ];
 
 const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
+  const tz = useTimezoneUtils();
+
   // Form state
   const [packageType, setPackageType] = useState('credit');
   const [name, setName] = useState('');
@@ -602,7 +605,7 @@ const PackagePurchaseModal = ({ open, onClose, ownerId, ownerName }) => {
             {startDate && endDate && (
               <div className="bg-info/10 border border-info/20 rounded-lg p-3">
                 <p className="text-sm text-info">
-                  Package valid from {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
+                  Package valid from {tz.formatShortDate(startDate)} to {tz.formatShortDate(endDate)}
                 </p>
               </div>
             )}

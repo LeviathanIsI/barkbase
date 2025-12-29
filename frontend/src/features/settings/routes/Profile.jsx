@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
+import { useTimezoneUtils } from '@/lib/timezone';
 import {
   User, Mail, Phone, Save, AlertTriangle,
   Camera, Shield, Monitor,
@@ -48,8 +49,8 @@ const parseUserAgent = (ua) => {
   return os ? `${browser} on ${os}` : browser;
 };
 
-// Helper function to format last active timestamp
-const formatLastActive = (timestamp) => {
+// Helper function to format last active timestamp (takes timezone formatter)
+const formatLastActive = (timestamp, formatShortDate) => {
   if (!timestamp) return 'Unknown';
 
   const date = new Date(timestamp);
@@ -64,10 +65,11 @@ const formatLastActive = (timestamp) => {
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
 
-  return date.toLocaleDateString();
+  return formatShortDate(date);
 };
 
 const Profile = () => {
+  const tz = useTimezoneUtils();
   const { data: profile, isLoading, error } = useUserProfileQuery();
   const updateProfile = useUpdateUserProfileMutation();
   const user = useAuthStore((state) => state.user);
@@ -457,7 +459,7 @@ const Profile = () => {
                 <h2 className="text-lg font-semibold text-text truncate">{profile?.name || user?.name || 'Your Profile'}</h2>
                 <p className="text-sm text-muted truncate">{profile?.email || user?.email}</p>
                 <p className="text-xs text-muted mt-1">
-                  Member since {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}
+                  Member since {profile?.createdAt ? tz.formatShortDate(profile.createdAt) : 'N/A'}
                 </p>
                 <p className="text-xs text-primary mt-1 flex items-center gap-1">
                   <Camera className="w-3 h-3" />
@@ -600,7 +602,7 @@ const Profile = () => {
                   <p className="text-sm font-medium text-text">Password</p>
                   <p className="text-xs text-muted">
                     Last changed: {profile?.passwordChangedAt
-                      ? new Date(profile.passwordChangedAt).toLocaleDateString('en-US', {
+                      ? tz.formatDate(profile.passwordChangedAt, {
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric',
@@ -640,7 +642,7 @@ const Profile = () => {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-text truncate">{connectedEmail.email}</p>
                     <p className="text-xs text-muted">
-                      Connected on {new Date(connectedEmail.connectedAt).toLocaleDateString('en-US', {
+                      Connected on {tz.formatDate(connectedEmail.connectedAt, {
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric',
@@ -715,7 +717,7 @@ const Profile = () => {
                           {parseUserAgent(currentSession.userAgent)}
                           <Badge variant="success" size="sm" className="ml-2">Current</Badge>
                         </p>
-                        <p className="text-xs text-muted">{formatLastActive(currentSession.lastActive)}</p>
+                        <p className="text-xs text-muted">{formatLastActive(currentSession.lastActive, tz.formatShortDate)}</p>
                       </div>
                     </div>
                   </div>

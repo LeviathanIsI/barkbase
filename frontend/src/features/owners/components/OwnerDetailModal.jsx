@@ -3,6 +3,7 @@ import Modal, { ModalBody, ModalFooter } from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { formatCurrency } from '@/lib/utils';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const OwnerDetailModal = ({
   open,
@@ -12,6 +13,8 @@ const OwnerDetailModal = ({
   onDelete,
   isDeleting = false,
 }) => {
+  const tz = useTimezoneUtils();
+
   if (!owner) return null;
 
   const totalBookings = owner.totalBookings || 0;
@@ -48,7 +51,7 @@ const OwnerDetailModal = ({
                 {owner.name}
               </h2>
               <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
-                Member since {new Date(owner.createdAt).toLocaleDateString()}
+                Member since {tz.formatShortDate(owner.createdAt)}
               </p>
             </div>
           </div>
@@ -140,7 +143,7 @@ const OwnerDetailModal = ({
                 <div className="flex items-center justify-between">
                   <span className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">Last Booking</span>
                   <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
-                    {new Date(owner.lastBooking).toLocaleDateString()}
+                    {tz.formatShortDate(owner.lastBooking)}
                   </span>
                 </div>
               )}
@@ -198,7 +201,7 @@ const OwnerDetailModal = ({
                     <Calendar className="h-4 w-4 text-[var(--bb-color-text-muted)]" />
                     <div>
                       <p className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
-                        {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
+                        {tz.formatShortDate(booking.checkIn)} - {tz.formatShortDate(booking.checkOut)}
                       </p>
                       <p className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)]">{booking.status}</p>
                     </div>

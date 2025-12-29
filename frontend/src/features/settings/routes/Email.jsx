@@ -7,6 +7,7 @@ import Badge from '@/components/ui/Badge';
 import Switch from '@/components/ui/Switch';
 import StyledSelect from '@/components/ui/StyledSelect';
 import { useTenantStore } from '@/stores/tenant';
+import { useTimezoneUtils } from '@/lib/timezone';
 import {
   useEmailSettingsQuery,
   useUpdateEmailSettingsMutation,
@@ -28,6 +29,7 @@ import {
 import toast from 'react-hot-toast';
 
 const Email = () => {
+  const tz = useTimezoneUtils();
   const tenant = useTenantStore((state) => state.tenant);
 
   // API hooks
@@ -119,7 +121,7 @@ const Email = () => {
       owner_name: 'John Smith',
       pet_name: 'Max',
       business_name: tenant?.name || 'Your Business',
-      date: new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
+      date: tz.formatDate(new Date(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
       time: '9:00 AM',
       service: 'Daycare',
       total: '$45.00',

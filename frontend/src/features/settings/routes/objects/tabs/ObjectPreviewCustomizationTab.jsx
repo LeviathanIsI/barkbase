@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { OBJECT_TYPES } from '../objectConfig';
+import { useTimezoneUtils } from '@/lib/timezone';
 import {
   usePreviewLayouts,
   useUpdatePreviewLayout,
@@ -18,6 +19,7 @@ import {
 } from '@/features/settings/api/objectSettingsApi';
 
 const ObjectPreviewCustomizationTab = ({ objectType }) => {
+  const tz = useTimezoneUtils();
   const config = OBJECT_TYPES[objectType];
   const [openMenuId, setOpenMenuId] = useState(null);
   const [viewSearchQuery, setViewSearchQuery] = useState('');
@@ -389,7 +391,7 @@ const ObjectPreviewCustomizationTab = ({ objectType }) => {
                   <td className="px-4 py-3">
                     <span className="text-sm text-text">
                       {layout.updated_at
-                        ? new Date(layout.updated_at).toLocaleDateString('en-US', {
+                        ? tz.formatDate(new Date(layout.updated_at), {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric',

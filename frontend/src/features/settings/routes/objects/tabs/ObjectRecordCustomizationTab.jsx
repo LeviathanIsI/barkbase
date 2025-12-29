@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { OBJECT_TYPES } from '../objectConfig';
+import { useTimezoneUtils } from '@/lib/timezone';
 import {
   useRecordLayouts,
   useCreateRecordLayout,
@@ -18,6 +19,7 @@ import {
 } from '@/features/settings/api/objectSettingsApi';
 
 const ObjectRecordCustomizationTab = ({ objectType }) => {
+  const tz = useTimezoneUtils();
   const config = OBJECT_TYPES[objectType];
   const [selectedLayoutId, setSelectedLayoutId] = useState(null);
   const [showAddCardModal, setShowAddCardModal] = useState(null);
@@ -317,7 +319,7 @@ const ObjectRecordCustomizationTab = ({ objectType }) => {
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-sm text-text">
-                      {layout.updatedAt ? new Date(layout.updatedAt).toLocaleDateString() : '-'}
+                      {layout.updatedAt ? tz.formatShortDate(layout.updatedAt) : '-'}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">

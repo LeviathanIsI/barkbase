@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Download, Filter, Search, Receipt, FileText, Building, Loader2, Info } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
 import StyledSelect from '@/components/ui/StyledSelect';
 import Badge from '@/components/ui/Badge';
@@ -19,6 +20,7 @@ import { useTenantBillingInvoicesQuery } from '@/features/settings/api';
  * (the kennel billing their pet owner customers).
  */
 export default function InvoicesTab() {
+  const tz = useTimezoneUtils();
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterTime, setFilterTime] = useState('all');
 
@@ -172,7 +174,7 @@ export default function InvoicesTab() {
               const amountCents = invoice.amountCents || invoice.amount_due || 0;
               const status = (invoice.status || 'DRAFT').toUpperCase();
               const date = invoice.createdAt || invoice.created
-                ? new Date(invoice.createdAt || invoice.created * 1000).toLocaleDateString()
+                ? tz.formatShortDate(invoice.createdAt || new Date(invoice.created * 1000))
                 : 'N/A';
               const description = invoice.description || `BarkBase subscription`;
 

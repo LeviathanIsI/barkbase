@@ -6,6 +6,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import SettingsPage from '../components/SettingsPage';
 import apiClient from '@/lib/apiClient';
+import { useTimezoneUtils } from '@/lib/timezone';
 import { 
   FileText, 
   Image, 
@@ -327,17 +328,18 @@ const Documents = () => {
 
 // Document row component
 const DocumentRow = ({ document, onView, onDownload, onDelete }) => {
+  const tz = useTimezoneUtils();
   const categoryInfo = CATEGORIES.find(c => c.value === document.category) || CATEGORIES[5];
   const CategoryIcon = categoryInfo.icon;
-  
+
   const getFileIcon = () => {
     if (document.fileType === 'image' || document.mimeType?.startsWith('image/')) return Image;
     if (document.fileType === 'pdf' || document.mimeType?.includes('pdf')) return FileText;
     return File;
   };
-  
+
   const FileIcon = getFileIcon();
-  
+
   const formatFileSize = (bytes) => {
     if (!bytes) return '0 B';
     if (bytes < 1024) return `${bytes} B`;
@@ -345,9 +347,9 @@ const DocumentRow = ({ document, onView, onDownload, onDelete }) => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const formatDate = (dateString) => {
+  const formatDateDisplay = (dateString) => {
     if (!dateString) return 'Unknown';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return tz.formatDate(new Date(dateString), {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -391,7 +393,7 @@ const DocumentRow = ({ document, onView, onDownload, onDelete }) => {
           )}
           <span className="flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            {formatDate(document.uploadedAt)}
+            {formatDateDisplay(document.uploadedAt)}
           </span>
           <span>{formatFileSize(document.size)}</span>
         </div>

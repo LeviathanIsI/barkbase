@@ -18,6 +18,7 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
 import Switch from '@/components/ui/Switch';
+import { useTimezoneUtils } from '@/lib/timezone';
 import {
   useProperties,
   useCreateProperty,
@@ -82,6 +83,7 @@ const CONDITION_OPERATORS = [
 ];
 
 const PropertiesOverview = () => {
+  const tz = useTimezoneUtils();
   const [selectedEntity, setSelectedEntity] = useState('pet');
   const [activeTab, setActiveTab] = useState('properties');
   const [searchQuery, setSearchQuery] = useState('');
@@ -649,7 +651,7 @@ const PropertiesOverview = () => {
                         <code className="text-xs text-muted bg-surface px-1.5 py-0.5 rounded">{prop.propertyName}</code>
                       </div>
                       <p className="text-xs text-muted mt-1">
-                        Archived {prop.archivedAt ? new Date(prop.archivedAt).toLocaleDateString() : 'recently'}
+                        Archived {prop.archivedAt ? tz.formatShortDate(prop.archivedAt) : 'recently'}
                       </p>
                     </div>
                     <div className="flex gap-2">

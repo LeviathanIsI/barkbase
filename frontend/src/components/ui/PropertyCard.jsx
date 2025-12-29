@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Mail, Phone, ExternalLink, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTimezoneUtils } from '@/lib/timezone';
 import toast from 'react-hot-toast';
 
 /**
@@ -92,6 +93,7 @@ export function PropertyCard({
  * @param {Array} properties - Array of { label, value, type?, href?, copyable? }
  */
 export function PropertyList({ properties, className }) {
+  const tz = useTimezoneUtils();
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     toast.success('Copied to clipboard');
@@ -188,9 +190,7 @@ export function PropertyList({ properties, className }) {
 
     // Date type
     if (type === 'date' && value) {
-      const formatted = value instanceof Date
-        ? value.toLocaleDateString()
-        : new Date(value).toLocaleDateString();
+      const formatted = tz.formatShortDate(value);
       return (
         <span
           className="text-sm"

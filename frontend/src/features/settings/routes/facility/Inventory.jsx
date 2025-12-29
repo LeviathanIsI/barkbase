@@ -6,8 +6,10 @@ import Badge from '@/components/ui/Badge';
 import StyledSelect from '@/components/ui/StyledSelect';
 import SettingsPage from '../../components/SettingsPage';
 import { Plus, Package, Pill, AlertTriangle, Calendar } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const Inventory = () => {
+  const tz = useTimezoneUtils();
   const [foodItems, setFoodItems] = useState([
     { recordId: 1, name: 'Premium Dry Food - Adult', currentStock: 25, minStock: 10, unit: 'bags', expiresAt: '2025-12-15' },
     { recordId: 2, name: 'Puppy Formula', currentStock: 8, minStock: 5, unit: 'bags', expiresAt: '2025-11-30' },
@@ -75,7 +77,7 @@ const Inventory = () => {
                   <td className="px-4 py-3 text-sm text-muted">{item.unit}</td>
                   {showExpiry && (
                     <td className="px-4 py-3 text-sm">
-                      {item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : 'N/A'}
+                      {item.expiresAt ? tz.formatShortDate(item.expiresAt) : 'N/A'}
                     </td>
                   )}
                   <td className="px-4 py-3">

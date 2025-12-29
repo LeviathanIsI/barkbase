@@ -27,8 +27,10 @@ import {
   useVerifyDomainMutation,
   useDomainStatusQuery,
 } from '../api';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const Domain = () => {
+  const tz = useTimezoneUtils();
   const { data, isLoading, error } = useDomainSettingsQuery();
   const { data: statusData, refetch: refetchStatus } = useDomainStatusQuery();
   const updateMutation = useUpdateDomainSettingsMutation();
@@ -114,9 +116,9 @@ const Domain = () => {
   const customDomainAvailable = data?.customDomainAvailable;
   const tenantPlan = data?.tenantPlan || 'free';
 
-  const formatDate = (dateString) => {
+  const formatDateDisplay = (dateString) => {
     if (!dateString) return null;
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return tz.formatDate(new Date(dateString), {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -135,7 +137,7 @@ const Domain = () => {
     if (diffMins < 60) return `${diffMins} min ago`;
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    return formatDate(dateString);
+    return formatDateDisplay(dateString);
   };
 
   return (

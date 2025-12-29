@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/cn';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 import Button from '@/components/ui/Button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
@@ -667,16 +668,22 @@ function LogRow({ log }) {
 }
 
 // Helper functions
-function formatDate(dateString) {
+function formatDate(dateString, tzFormatDate = null) {
   if (!dateString) return '-';
+  if (tzFormatDate) {
+    return tzFormatDate(dateString, { month: 'short', day: 'numeric' });
+  }
   return new Date(dateString).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
   });
 }
 
-function formatDateTime(dateString) {
+function formatDateTime(dateString, tzFormatDate = null) {
   if (!dateString) return '-';
+  if (tzFormatDate) {
+    return tzFormatDate(dateString, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
   return new Date(dateString).toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',

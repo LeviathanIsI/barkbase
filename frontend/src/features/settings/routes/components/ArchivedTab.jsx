@@ -1,4 +1,5 @@
 import { RotateCcw, Trash2 } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
 import { usePropertiesQuery } from '../../api';
 
@@ -10,6 +11,7 @@ const ACCESS_LEVEL_LABELS = {
 };
 
 const ArchivedTab = ({ objectType, onRestore, onDelete }) => {
+  const tz = useTimezoneUtils();
   const { data: properties = [], isLoading } = usePropertiesQuery(objectType, {
     queryParams: { onlyArchived: true }
   });
@@ -97,7 +99,7 @@ const ArchivedTab = ({ objectType, onRestore, onDelete }) => {
                   {property.group || 'General'}
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-500 dark:text-text-secondary">
-                  {property.archivedAt ? new Date(property.archivedAt).toLocaleDateString() : '-'}
+                  {property.archivedAt ? tz.formatShortDate(property.archivedAt) : '-'}
                 </td>
                 <td className="px-3 py-4">
                   <div className="flex items-center justify-end gap-2">

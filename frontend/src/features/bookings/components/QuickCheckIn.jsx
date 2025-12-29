@@ -9,8 +9,10 @@ import StyledSelect from '@/components/ui/StyledSelect';
 import { useQuickCheckInMutation } from '../api';
 import { useBookingStore } from '@/stores/booking';
 import { useKennelAvailability } from '@/features/kennels/api';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const QuickCheckIn = () => {
+  const tz = useTimezoneUtils();
   const { register, handleSubmit, reset, formState, control } = useForm({
     defaultValues: {
       bookingId: '',
@@ -27,6 +29,13 @@ const QuickCheckIn = () => {
     () => bookings.filter((booking) => booking.status !== 'CHECKED_IN'),
     [bookings],
   );
+
+  const bookingOptions = useMemo(() => {
+    return pendingBookings.map(booking => ({
+      value: booking.recordId,
+      label: `${booking.pet?.name ?? booking.pets?.[0]?.name ?? booking.petName} - ${tz.formatShortDate(booking.dateRange?.start)}`
+    }));
+  }, [pendingBookings, tz]);
 
   const kennelOptions = kennelQuery.data ?? [];
 
@@ -63,10 +72,7 @@ const QuickCheckIn = () => {
           render={({ field }) => (
             <StyledSelect
               label="Select Booking"
-              options={pendingBookings.map(booking => ({
-                value: booking.recordId,
-                label: `${booking.pet?.name ?? booking.pets?.[0]?.name ?? booking.petName} - ${new Date(booking.dateRange.start).toLocaleDateString()}`
-              }))}
+              options={bookingOptions}
               value={field.value}
               onChange={(opt) => field.onChange(opt?.value || '')}
               placeholder="Choose a booking"

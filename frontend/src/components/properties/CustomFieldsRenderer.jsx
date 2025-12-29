@@ -35,6 +35,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { usePropertyValuesQuery } from '@/features/settings/api';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 // Field type icons mapping
 const FIELD_ICONS = {
@@ -55,7 +56,7 @@ const FIELD_ICONS = {
 /**
  * Format a value for display based on field type
  */
-const formatValue = (value, fieldType, options = []) => {
+const formatValue = (value, fieldType, options = [], tz = null) => {
   if (value === null || value === undefined || value === '') {
     return <span className="text-gray-400 dark:text-text-tertiary italic">Not set</span>;
   }
@@ -86,24 +87,24 @@ const formatValue = (value, fieldType, options = []) => {
 
     case 'date':
       try {
-        return new Date(value).toLocaleDateString('en-US', {
+        return tz?.formatDate(value, {
           year: 'numeric',
           month: 'short',
           day: 'numeric',
-        });
+        }) || value;
       } catch {
         return value;
       }
 
     case 'datetime':
       try {
-        return new Date(value).toLocaleString('en-US', {
+        return tz?.formatDate(value, {
           year: 'numeric',
           month: 'short',
           day: 'numeric',
           hour: 'numeric',
           minute: '2-digit',
-        });
+        }) || value;
       } catch {
         return value;
       }
@@ -192,7 +193,7 @@ const formatValue = (value, fieldType, options = []) => {
 /**
  * Single field display component
  */
-const FieldDisplay = ({ property, value }) => {
+const FieldDisplay = ({ property, value, tz }) => {
   const Icon = FIELD_ICONS[property.fieldType] || Type;
 
   return (
@@ -202,7 +203,7 @@ const FieldDisplay = ({ property, value }) => {
         {property.label}
       </dt>
       <dd className="text-sm text-gray-900 dark:text-text-primary">
-        {formatValue(value, property.fieldType, property.options)}
+        {formatValue(value, property.fieldType, property.options, tz)}
       </dd>
     </div>
   );
@@ -222,6 +223,8 @@ const CustomFieldsRenderer = ({
   showHeader = true,
   compact = false,
 }) => {
+  const tz = useTimezoneUtils();
+
   // Fetch property values
   const { data, isLoading, error } = usePropertyValuesQuery(entityType, entityId);
 
@@ -317,6 +320,7 @@ const CustomFieldsRenderer = ({
                 key={property.id}
                 property={property}
                 value={values[property.name]}
+                tz={tz}
               />
             ))}
           </dl>

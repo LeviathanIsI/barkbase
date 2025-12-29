@@ -1,7 +1,10 @@
 import { Search, Users } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const ConversationList = ({ conversations, selectedConversation, onSelectConversation, isLoading }) => {
+  const tz = useTimezoneUtils();
+
   if (isLoading) {
     return (
       <div className="p-4">
@@ -46,7 +49,7 @@ const ConversationList = ({ conversations, selectedConversation, onSelectConvers
             </div>
             <p className="text-sm text-muted truncate">{conv.lastMessage?.content}</p>
             <p className="text-xs text-muted mt-1">
-              {new Date(conv.lastMessage?.createdAt).toLocaleTimeString()}
+              {tz.formatTime(conv.lastMessage?.createdAt)}
             </p>
           </button>
         ))}

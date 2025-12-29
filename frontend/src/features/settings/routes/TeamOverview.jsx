@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { useTimezoneUtils } from '@/lib/timezone';
 import {
   Users, UserPlus, Upload, Clock, TrendingUp, AlertTriangle, CheckCircle,
   Mail, Loader2, Search, Copy, Check, Link
@@ -21,6 +22,7 @@ import { apiClient } from '@/lib/apiClient';
  * InviteSuccessView - Shows the invite link after successful invitation
  */
 const InviteSuccessView = ({ inviteResult, onClose, onInviteAnother }) => {
+  const tz = useTimezoneUtils();
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -35,7 +37,7 @@ const InviteSuccessView = ({ inviteResult, onClose, onInviteAnother }) => {
   };
 
   const expiresDate = inviteResult.expiresAt
-    ? new Date(inviteResult.expiresAt).toLocaleDateString()
+    ? tz.formatShortDate(inviteResult.expiresAt)
     : '7 days';
 
   return (
@@ -99,6 +101,7 @@ const InviteSuccessView = ({ inviteResult, onClose, onInviteAnother }) => {
 };
 
 const TeamOverview = () => {
+  const tz = useTimezoneUtils();
   const queryClient = useQueryClient();
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -188,7 +191,7 @@ const TeamOverview = () => {
     lastName: member.lastName,
     role: member.role,
     status: member.status || 'active',
-    lastActive: member.joinedAt ? `Joined ${new Date(member.joinedAt).toLocaleDateString()}` : 'Pending',
+    lastActive: member.joinedAt ? `Joined ${tz.formatShortDate(member.joinedAt)}` : 'Pending',
     isOnline: false,
     joinedAt: member.joinedAt,
     invitedAt: member.invitedAt,

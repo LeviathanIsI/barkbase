@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { MoreVertical, Edit, Eye, Trash2 } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
 const TeamMemberCard = ({ member, isSelected, onSelect, onEdit, onDelete }) => {
+  const tz = useTimezoneUtils();
   const [showMenu, setShowMenu] = useState(false);
 
   const getRoleBadge = (role) => {
@@ -88,7 +90,7 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit, onDelete }) => {
       {/* Footer */}
       <div className="flex items-center justify-between mt-3 pt-2 border-t border-border">
         <span className="text-[10px] text-muted">
-          {member.joinedAt ? `Joined ${new Date(member.joinedAt).toLocaleDateString()}` : 'Pending'}
+          {member.joinedAt ? `Joined ${tz.formatShortDate(member.joinedAt)}` : 'Pending'}
         </span>
         <div className="flex gap-1">
           <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => onEdit(member)}>

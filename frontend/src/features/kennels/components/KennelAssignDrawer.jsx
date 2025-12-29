@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useBookingsQuery, useAssignKennelMutation } from '@/features/bookings/api';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
+import { useTimezoneUtils } from '@/lib/timezone';
 import { format, addMonths, subDays } from 'date-fns';
 
 const selectStyles = {
@@ -328,6 +329,7 @@ const KennelAssignDrawer = ({ isOpen, onClose, kennel }) => {
 
 // Individual booking card
 const BookingCard = ({ booking, isAssignedHere, currentKennel, isLoading, onAction, actionLabel, disabled }) => {
+  const tz = useTimezoneUtils();
   const petName = booking.pet?.name || booking.petName || 'Unknown Pet';
   const petBreed = booking.pet?.breed || booking.petBreed || '';
   const ownerName = booking.owner?.name || booking.ownerName ||
@@ -339,8 +341,7 @@ const BookingCard = ({ booking, isAssignedHere, currentKennel, isLoading, onActi
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return tz.formatShortDate(dateStr);
   };
 
   const statusLabel = {

@@ -4,6 +4,7 @@ import { CheckCircle, Clock, Camera, User, AlertTriangle, ChevronRight, Check, X
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import apiClient from '@/lib/apiClient';
+import { useTimezoneUtils } from '@/lib/timezone';
 import toast from 'react-hot-toast';
 
 /**
@@ -13,6 +14,7 @@ import toast from 'react-hot-toast';
  */
 const BatchCheckIn = () => {
   const queryClient = useQueryClient();
+  const tz = useTimezoneUtils();
   const [selectedBookings, setSelectedBookings] = useState([]);
   const [step, setStep] = useState('select'); // select, verify, confirm
   const [searchTerm, setSearchTerm] = useState('');
@@ -183,8 +185,7 @@ const BatchCheckIn = () => {
   // Format arrival time
   const formatTime = (dateString) => {
     if (!dateString) return 'Time TBD';
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return tz.formatTime(dateString);
   };
 
   if (isLoading) {

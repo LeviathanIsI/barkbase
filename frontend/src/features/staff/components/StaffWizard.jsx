@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { X, Check, ChevronRight, ChevronLeft, Clock, Users, Calendar, CheckCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import StyledSelect from '@/components/ui/StyledSelect';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const StaffWizard = ({ isOpen, onClose, onComplete }) => {
+  const tz = useTimezoneUtils();
   const [currentStep, setCurrentStep] = useState(1);
   const [staffData, setStaffData] = useState({
     firstName: '',
@@ -240,7 +242,7 @@ const StaffWizard = ({ isOpen, onClose, onComplete }) => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-text-secondary">Start Date:</span>
-                      <span className="font-medium">{new Date(staffData.startDate).toLocaleDateString()}</span>
+                      <span className="font-medium">{tz.formatShortDate(staffData.startDate)}</span>
                     </div>
                   </div>
                 </div>

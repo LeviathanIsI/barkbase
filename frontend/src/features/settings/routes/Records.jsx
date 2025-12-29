@@ -8,8 +8,10 @@ import SettingsPage from '../components/SettingsPage';
 import { FileText, Lock, Download, Archive, Clock, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/apiClient';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const Records = () => {
+  const tz = useTimezoneUtils();
   const [settings, setSettings] = useState({
     autoArchive: true,
     archiveAfterDays: 365,
@@ -75,7 +77,7 @@ const Records = () => {
           <div className="text-center p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
             <Clock className="w-8 h-8 mx-auto mb-2 text-orange-600" />
             <div className="text-sm font-medium">
-              {new Date(recordStats.lastBackup).toLocaleDateString()}
+              {tz.formatShortDate(recordStats.lastBackup)}
             </div>
             <p className="text-sm text-gray-600 dark:text-text-secondary">Last Backup</p>
           </div>

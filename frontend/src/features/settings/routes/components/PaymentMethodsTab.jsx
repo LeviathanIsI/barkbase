@@ -4,8 +4,10 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { usePaymentMethodsQuery, useBillingContactQuery } from '@/features/settings/api';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 export default function PaymentMethodsTab() {
+  const tz = useTimezoneUtils();
   const [showAddCardModal, setShowAddCardModal] = useState(false);
   const { data: paymentData, isLoading } = usePaymentMethodsQuery();
   const { data: billingContactData } = useBillingContactQuery();
@@ -85,7 +87,7 @@ export default function PaymentMethodsTab() {
                       {formatCardNumber(method.last4)}
                     </div>
                     <div className="text-sm text-gray-600 dark:text-text-secondary">
-                      {method.processor || method.type} {method.lastUsedAt ? `• Last used ${new Date(method.lastUsedAt).toLocaleDateString()}` : ''}
+                      {method.processor || method.type} {method.lastUsedAt ? `• Last used ${tz.formatShortDate(method.lastUsedAt)}` : ''}
                     </div>
                   </div>
                 </div>

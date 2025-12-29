@@ -5,8 +5,10 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import SettingsPage from '../../components/SettingsPage';
 import { Calendar, Clock, Users, Wrench, Plus, Edit, Trash2 } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const Schedules = () => {
+  const tz = useTimezoneUtils();
   const [trainingSchedules, setTrainingSchedules] = useState([
     { recordId: 1, title: 'New Employee Orientation', frequency: 'As needed', duration: '4 hours', nextDue: '2025-10-20', assignedTo: 'All new hires' },
     { recordId: 2, title: 'Pet First Aid Certification', frequency: 'Annual', duration: '6 hours', nextDue: '2025-11-15', assignedTo: 'All staff' },
@@ -77,7 +79,7 @@ const Schedules = () => {
                     <td className="px-4 py-3 font-medium text-text">{training.title}</td>
                     <td className="px-4 py-3 text-sm text-muted">{training.frequency}</td>
                     <td className="px-4 py-3 text-sm text-muted">{training.duration}</td>
-                    <td className="px-4 py-3 text-sm">{new Date(training.nextDue).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-sm">{tz.formatShortDate(training.nextDue)}</td>
                     <td className="px-4 py-3 text-sm text-muted">{training.assignedTo}</td>
                     <td className="px-4 py-3">{getStatusBadge(training.nextDue)}</td>
                     <td className="px-4 py-3">
@@ -132,8 +134,8 @@ const Schedules = () => {
                   <tr key={task.recordId} className="hover:bg-surface/30">
                     <td className="px-4 py-3 font-medium text-text">{task.task}</td>
                     <td className="px-4 py-3 text-sm text-muted">{task.frequency}</td>
-                    <td className="px-4 py-3 text-sm">{new Date(task.lastCompleted).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-sm">{new Date(task.nextDue).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-sm">{tz.formatShortDate(task.lastCompleted)}</td>
+                    <td className="px-4 py-3 text-sm">{tz.formatShortDate(task.nextDue)}</td>
                     <td className="px-4 py-3 text-sm text-muted">{task.assignedTo}</td>
                     <td className="px-4 py-3">{getStatusBadge(task.nextDue)}</td>
                     <td className="px-4 py-3">

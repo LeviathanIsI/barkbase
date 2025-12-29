@@ -1,8 +1,10 @@
 import Button from '@/components/ui/Button';
 import { DetailsGrid, InfoRow, TagList, KeyValue, StatusPill } from '@/components/primitives';
 import { PawPrint } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 export default function PetDetails({ data, avatar, actionButtons = [] }) {
+  const tz = useTimezoneUtils();
   if (!data) return null;
 
   const owners = data.owners || [];
@@ -51,11 +53,11 @@ export default function PetDetails({ data, avatar, actionButtons = [] }) {
           <InfoRow label="Primary Owner" value={owners[0]?.name || owners[0]?.email} />
           <InfoRow
             label="Last Vet Visit"
-            value={data.lastVetVisit ? new Date(data.lastVetVisit).toLocaleDateString() : null}
+            value={data.lastVetVisit ? tz.formatShortDate(data.lastVetVisit) : null}
           />
           <InfoRow
             label="Created"
-            value={data.createdAt ? new Date(data.createdAt).toLocaleString() : null}
+            value={data.createdAt ? tz.formatDate(data.createdAt, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : null}
           />
         </div>
 

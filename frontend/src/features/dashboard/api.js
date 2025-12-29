@@ -5,6 +5,7 @@ import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
 import { dashboardQueryDefaults, listQueryDefaults } from '@/lib/queryConfig';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 /**
  * Get tenant key for query cache scoping
@@ -299,7 +300,8 @@ export const useDashboardStats = (options = {}) => {
 
 export const useDashboardOccupancy = (options = {}) => {
   const occupancyQuery = useOccupancyQuery(options);
-  
+  const tz = useTimezoneUtils();
+
   const transformedData = occupancyQuery.data ? (() => {
     const days = [];
     const today = new Date();
@@ -307,14 +309,14 @@ export const useDashboardOccupancy = (options = {}) => {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       days.push({
-        dayLabel: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        dayLabel: tz.formatDate(date, { weekday: 'short' }),
         occupancy: i === 0 ? (occupancyQuery.data.current || 0) : Math.floor(Math.random() * (occupancyQuery.data.total || 10)),
         date: date.toISOString().split('T')[0]
       });
     }
     return days;
   })() : [];
-  
+
   return {
     ...occupancyQuery,
     data: transformedData

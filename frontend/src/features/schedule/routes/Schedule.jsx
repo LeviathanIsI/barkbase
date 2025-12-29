@@ -10,6 +10,7 @@ import {
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/Card';
+import { useTimezoneUtils } from '@/lib/timezone';
 // Unified loader: replaced inline loading with LoadingState
 import LoadingState from '@/components/ui/LoadingState';
 import SlidePanel from '@/components/ui/SlidePanel';
@@ -1244,6 +1245,7 @@ const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick, flipTooltip = fal
 // Pet Time Bar - Shows at START of assignment with activity dot
 const PetTimeBar = ({ pet, hour, onBookingClick, trackOffset = 0, flipTooltip = false }) => {
   const [showTooltip, setShowTooltip] = useState(false);
+  const tz = useTimezoneUtils();
 
   // Calculate width percentage based on how much of this hour the assignment covers
   const calculateWidthPercent = () => {
@@ -1311,8 +1313,7 @@ const PetTimeBar = ({ pet, hour, onBookingClick, trackOffset = 0, flipTooltip = 
 
   const formatTime = (timeStr) => {
     if (!timeStr) return '';
-    const d = new Date(timeStr);
-    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return tz.formatTime(timeStr);
   };
 
   // Calculate height based on duration in this hour slot

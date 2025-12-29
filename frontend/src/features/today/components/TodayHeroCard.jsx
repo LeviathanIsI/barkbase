@@ -3,6 +3,7 @@ import Button from '@/components/ui/Button';
 import TodayCard from './TodayCard';
 import { UpdateChip } from '@/components/PageLoader';
 import { cn } from '@/lib/utils';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const TodayHeroCard = ({
   kennelName,
@@ -13,11 +14,11 @@ const TodayHeroCard = ({
   lastRefreshed,
   onNewBooking,
 }) => {
+  const tz = useTimezoneUtils();
 
   const formatLastRefreshed = () => {
     if (!lastRefreshed) return null;
-    const date = new Date(lastRefreshed);
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    return tz.formatTime(lastRefreshed);
   };
 
   return (

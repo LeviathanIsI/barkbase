@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Monitor, Smartphone, MapPin, Clock, LogOut, AlertTriangle } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -40,26 +41,27 @@ const parseUserAgent = (ua) => {
   };
 };
 
-// Helper function to format last active timestamp
-const formatLastActive = (timestamp) => {
+// Helper function to format last active timestamp (takes timezone formatter)
+const formatLastActive = (timestamp, formatShortDate) => {
   if (!timestamp) return 'Unknown';
-  
+
   const date = new Date(timestamp);
   const now = new Date();
   const diffMs = now - date;
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
-  
+
   if (diffMins < 1) return 'Just now';
   if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
   if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
   if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-  
-  return date.toLocaleDateString();
+
+  return formatShortDate(date);
 };
 
 const ActiveSessions = () => {
+  const tz = useTimezoneUtils();
   const [sessionTimeout, setSessionTimeout] = useState('60');
   const { data: sessions = [], isLoading } = useAuthSessionsQuery();
   const revokeSession = useRevokeSessionMutation();
@@ -145,10 +147,10 @@ const ActiveSessions = () => {
                           )}
                           <div className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            <span>Last active: {formatLastActive(session.lastActive)}</span>
+                            <span>Last active: {formatLastActive(session.lastActive, tz.formatShortDate)}</span>
                           </div>
                           <div className="text-xs text-gray-500 dark:text-text-secondary">
-                            Signed in: {new Date(session.createdAt).toLocaleString()}
+                            Signed in: {tz.formatDate(session.createdAt, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
                           </div>
                         </div>
                       </div>

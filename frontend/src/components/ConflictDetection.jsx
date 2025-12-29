@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle, RefreshCw, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTimezoneUtils } from '@/lib/timezone';
 import { on, off } from '@/lib/socket';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
@@ -11,6 +12,7 @@ import { cn } from '@/lib/cn';
  * Phase 3: Real-time features
  */
 const ConflictDetection = () => {
+  const tz = useTimezoneUtils();
   const [conflicts, setConflicts] = useState([]);
   const queryClient = useQueryClient();
 
@@ -137,7 +139,7 @@ const ConflictDetection = () => {
                       Time:
                     </span>
                     <p className="font-medium text-gray-900 dark:text-text-primary">
-                      {new Date(conflict.timestamp).toLocaleTimeString()}
+                      {tz.formatTime(conflict.timestamp)}
                     </p>
                   </div>
                 </div>

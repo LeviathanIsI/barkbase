@@ -12,6 +12,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Clock, Moon, Sun, Scissors, Award, Phone as PhoneIcon, Mail, Globe, Building2, Home, DollarSign, Shield, CreditCard, Bell, FileText, AlertTriangle } from 'lucide-react';
 import HolidayManager from '../components/HolidayManager';
 import { Switch } from '@/components/ui/Switch';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const Business = () => {
   const tenant = useTenantStore((state) => state.tenant);
@@ -999,11 +1000,12 @@ function LegalTab() {
 export default Business;
 
 function TimeSelect({ value, onChange }) {
+  const tz = useTimezoneUtils();
   const times = [];
   const toLabel = (h, m) => {
     const date = new Date();
     date.setHours(h); date.setMinutes(m);
-    const label = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const label = tz.formatTime(date);
     const hh = String(h).padStart(2,'0');
     const mm = String(m).padStart(2,'0');
     return { label, value: `${hh}:${mm}` };

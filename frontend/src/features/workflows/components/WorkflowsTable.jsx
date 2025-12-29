@@ -5,6 +5,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
+import { useTimezoneUtils } from '@/lib/timezone';
 import {
   MoreHorizontal,
   Edit3,
@@ -37,11 +38,10 @@ const OBJECT_TYPE_ICONS = {
   invoice: FileText,
 };
 
-// Format date for display
-function formatDate(dateString) {
+// Format date for display (uses timezone formatter)
+function formatDate(dateString, tzFormatDate) {
   if (!dateString) return '-';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
+  return tzFormatDate(dateString, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -161,6 +161,7 @@ function WorkflowRow({
   onClone,
   onDelete,
 }) {
+  const tz = useTimezoneUtils();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const buttonRef = useRef(null);
@@ -247,7 +248,7 @@ function WorkflowRow({
       {/* Created On */}
       <td className="px-4 py-3">
         <span className="text-sm text-[var(--bb-color-text-secondary)]">
-          {formatDate(createdAt)}
+          {formatDate(createdAt, tz.formatDate)}
         </span>
       </td>
 

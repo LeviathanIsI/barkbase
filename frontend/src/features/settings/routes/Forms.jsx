@@ -6,6 +6,7 @@ import Badge from '@/components/ui/Badge';
 import Input from '@/components/ui/Input';
 import SettingsPage from '../components/SettingsPage';
 import apiClient from '@/lib/apiClient';
+import { useTimezoneUtils } from '@/lib/timezone';
 import { 
   FileText, 
   Plus, 
@@ -22,6 +23,7 @@ import {
 import { cn } from '@/lib/cn';
 
 const Forms = () => {
+  const tz = useTimezoneUtils();
   // Forms state
   const [forms, setForms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -173,9 +175,9 @@ const Forms = () => {
     }
   };
 
-  const formatDate = (dateString) => {
+  const formatDateDisplay = (dateString) => {
     if (!dateString) return 'Unknown';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return tz.formatDate(new Date(dateString), {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -254,7 +256,7 @@ const Forms = () => {
                         {form.submissionCount || 0} submissions
                       </span>
                       <span>•</span>
-                      <span>Modified {formatDate(form.updatedAt)}</span>
+                      <span>Modified {formatDateDisplay(form.updatedAt)}</span>
                     </div>
                   </div>
                 </div>

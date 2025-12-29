@@ -6,8 +6,10 @@ import Badge from '@/components/ui/Badge';
 import StyledSelect from '@/components/ui/StyledSelect';
 import SettingsPage from '../components/SettingsPage';
 import { Shield, AlertTriangle, CheckCircle, RefreshCw, Database } from 'lucide-react';
+import { useTimezoneUtils } from '@/lib/timezone';
 
 const DataQuality = () => {
+  const tz = useTimezoneUtils();
   const [settings, setSettings] = useState({
     autoCleanup: true,
     duplicateDetection: true,
@@ -59,7 +61,7 @@ const DataQuality = () => {
           
           <div className="text-center p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
             <div className="text-sm font-medium">
-              {new Date(qualityStatus.lastCheck).toLocaleDateString()}
+              {tz.formatShortDate(qualityStatus.lastCheck)}
             </div>
             <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">Last Check</p>
           </div>

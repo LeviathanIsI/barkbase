@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { OBJECT_TYPES } from '../objectConfig';
+import { useTimezoneUtils } from '@/lib/timezone';
 import {
   useIndexSettings,
   useUpdateIndexSettings,
@@ -22,6 +23,7 @@ import {
 } from '@/features/settings/api/objectSettingsApi';
 
 const ObjectIndexCustomizationTab = ({ objectType }) => {
+  const tz = useTimezoneUtils();
   const config = OBJECT_TYPES[objectType];
   const menuRef = useRef(null);
 
@@ -393,7 +395,7 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
                   <td className="px-4 py-2.5">
                     <span className="text-sm text-text">
                       {view.updated_at
-                        ? new Date(view.updated_at).toLocaleDateString('en-US', {
+                        ? tz.formatDate(new Date(view.updated_at), {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric',
