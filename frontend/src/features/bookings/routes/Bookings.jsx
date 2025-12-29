@@ -326,18 +326,25 @@ const Bookings = () => {
   const totalPages = Math.ceil(sortedBookings.length / pageSize);
 
   // Calculate booking data per date (for calendar views)
+  // Uses local time comparison to match getBookingsForDate in WeeklyCalendarView
   const bookingsByDate = useMemo(() => {
     const map = {};
+
+    // Helper to check if target date is within booking range (local time)
+    const isDateInRange = (targetDate, checkIn, checkOut) => {
+      const target = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+      const start = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
+      const end = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
+      return target >= start && target <= end;
+    };
 
     dateRange.forEach(date => {
       const dateStr = date.toISOString().split('T')[0];
 
-      // Get bookings that span this date
+      // Get bookings that span this date using local time
       const bookingsOnDate = filteredBookings.filter(b => {
         if (!b.checkInDate || !b.checkOutDate) return false;
-        const checkInStr = b.checkInDate.toISOString().split('T')[0];
-        const checkOutStr = b.checkOutDate.toISOString().split('T')[0];
-        return dateStr >= checkInStr && dateStr <= checkOutStr;
+        return isDateInRange(date, b.checkInDate, b.checkOutDate);
       });
 
       const count = bookingsOnDate.length;
