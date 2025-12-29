@@ -4408,16 +4408,16 @@ async function getCommunicationStats(event) {
   try {
     await getPoolAsync();
 
-    // Get counts by type from Communication table
+    // Get counts by activity_type from Activity table where entity_type = 'owner'
     const result = await query(
       `SELECT
          COUNT(*) as total,
-         COUNT(*) FILTER (WHERE type = 'EMAIL') as emails,
-         COUNT(*) FILTER (WHERE type = 'SMS') as sms,
-         COUNT(*) FILTER (WHERE type = 'PHONE') as phone,
-         COUNT(*) FILTER (WHERE type = 'NOTE') as notes
-       FROM "Communication"
-       WHERE tenant_id = $1 AND owner_id = $2`,
+         COUNT(*) FILTER (WHERE activity_type = 'EMAIL') as emails,
+         COUNT(*) FILTER (WHERE activity_type = 'SMS') as sms,
+         COUNT(*) FILTER (WHERE activity_type = 'PHONE' OR activity_type = 'CALL') as phone,
+         COUNT(*) FILTER (WHERE activity_type = 'NOTE') as notes
+       FROM "Activity"
+       WHERE tenant_id = $1 AND entity_type = 'owner' AND entity_id = $2`,
       [tenantId, ownerId]
     );
 
@@ -4438,7 +4438,7 @@ async function getCommunicationStats(event) {
 
 /**
  * GET /api/v1/communications/owner/{id}/timeline
- * Get paginated timeline of communications for an owner
+ * Get paginated timeline of activities for an owner
  */
 async function getCommunicationTimeline(event) {
   const tenantId = resolveTenantId(event);
@@ -4462,40 +4462,50 @@ async function getCommunicationTimeline(event) {
   try {
     await getPoolAsync();
 
-    // Get total count
+    // Get total count from Activity table
     const countResult = await query(
-      `SELECT COUNT(*) as total FROM "Communication" WHERE tenant_id = $1 AND owner_id = $2`,
+      `SELECT COUNT(*) as total FROM "Activity" WHERE tenant_id = $1 AND entity_type = 'owner' AND entity_id = $2`,
       [tenantId, ownerId]
     );
     const total = parseInt(countResult.rows[0]?.total, 10) || 0;
 
-    // Get paginated items
+    // Get paginated items from Activity table
     const result = await query(
       `SELECT
          record_id as id,
-         owner_id,
-         type,
-         direction,
+         entity_id,
+         entity_type,
+         activity_type,
+         subject,
          content,
-         metadata,
-         timestamp,
+         call_direction,
+         call_outcome,
+         call_duration_seconds,
+         recipient,
+         is_pinned,
+         created_by,
          created_at,
          updated_at
-       FROM "Communication"
-       WHERE tenant_id = $1 AND owner_id = $2
-       ORDER BY timestamp DESC
+       FROM "Activity"
+       WHERE tenant_id = $1 AND entity_type = 'owner' AND entity_id = $2
+       ORDER BY created_at DESC
        LIMIT $3 OFFSET $4`,
       [tenantId, ownerId, limit, offset]
     );
 
     const items = result.rows.map(row => ({
       id: row.id,
-      ownerId: row.owner_id,
-      type: row.type,
-      direction: row.direction,
+      entityId: row.entity_id,
+      entityType: row.entity_type,
+      type: row.activity_type,
+      subject: row.subject,
       content: row.content,
-      metadata: row.metadata,
-      timestamp: row.timestamp,
+      direction: row.call_direction,
+      outcome: row.call_outcome,
+      durationSeconds: row.call_duration_seconds,
+      recipient: row.recipient,
+      isPinned: row.is_pinned,
+      createdBy: row.created_by,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
