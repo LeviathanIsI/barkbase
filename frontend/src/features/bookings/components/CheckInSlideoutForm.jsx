@@ -199,10 +199,11 @@ const CheckInSlideoutForm = ({
   const petId = booking?.petId || booking?.pet?.id || booking?.pet?.recordId;
   const petName = booking?.petName || booking?.pet?.name || 'Pet';
 
-  // Fetch vaccinations
-  const { data: vaccinations = [], isLoading: vaccLoading } = usePetVaccinationsQuery(petId, {
+  // Fetch vaccinations (filter out archived ones)
+  const { data: rawVaccinations = [], isLoading: vaccLoading } = usePetVaccinationsQuery(petId, {
     enabled: !!petId,
   });
+  const vaccinations = rawVaccinations.filter(v => !v.archived && v.status !== 'archived');
 
   // Mutation
   const checkInMutation = useBookingCheckInMutation();
