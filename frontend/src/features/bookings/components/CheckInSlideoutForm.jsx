@@ -76,9 +76,9 @@ const selectStyles = {
   }),
   multiValueRemove: (base) => ({
     ...base,
-    color: 'white',
+    color: 'rgba(255, 255, 255, 0.7)',
     ':hover': {
-      backgroundColor: 'var(--bb-color-accent-dark, #2563eb)',
+      backgroundColor: 'rgba(0, 0, 0, 0.2)',
       color: 'white',
     },
   }),
