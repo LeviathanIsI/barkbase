@@ -25,7 +25,8 @@ export const useTimezone = () => {
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  return settings?.timezone || DEFAULT_TIMEZONE;
+  // Lambda returns timezone in regionalSettings.timeZone
+  return settings?.regionalSettings?.timeZone || settings?.timezone || DEFAULT_TIMEZONE;
 };
 
 /**
