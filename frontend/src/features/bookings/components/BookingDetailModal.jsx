@@ -125,9 +125,26 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
   };
 
   // Format TIME string like "08:00" or "17:30" to human readable in user's timezone
-  // Note: TIME strings are stored as local facility time, so we display as-is
-  const formatTimeString = (timeStr) => {
+  // Combines with a date (if available) to properly convert timezone
+  const formatTimeString = (timeStr, dateStr = null) => {
     if (!timeStr) return '—';
+
+    // If we have a date, combine and format with timezone
+    if (dateStr) {
+      try {
+        // Combine date + time to create a full datetime
+        // Parse as UTC first, then format in user's timezone
+        const dateTimeStr = `${dateStr}T${timeStr}:00`;
+        const date = new Date(dateTimeStr);
+        if (!isNaN(date.getTime())) {
+          return tz.formatTime(date);
+        }
+      } catch (e) {
+        // Fall through to simple formatting
+      }
+    }
+
+    // Fallback: simple parsing without timezone conversion
     const parts = timeStr.split(':');
     if (parts.length < 2) return timeStr;
     const hour = parseInt(parts[0], 10);
@@ -172,6 +189,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     endTime: booking?.endTime || booking?.runEndTime || null, // TIME string like "17:00"
     runType: booking?.runType || null, // Run type from Run table (SOCIAL, INDIVIDUAL, TRAINING)
     runAssignmentId: booking?.runAssignmentId || null,
+    runAssignedDate: booking?.runAssignedDate || null, // DATE for timezone conversion
   };
 
   const balance = displayBooking.totalCents - displayBooking.amountPaidCents;
@@ -511,7 +529,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                       <InspectorField label="Start Time" layout="stacked" icon={Clock}>
                         <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
                           {displayBooking.startTime
-                            ? formatTimeString(displayBooking.startTime)
+                            ? formatTimeString(displayBooking.startTime, displayBooking.runAssignedDate || displayBooking.checkIn)
                             : displayBooking.startAt
                               ? formatTime(displayBooking.startAt)
                               : '—'}
@@ -520,7 +538,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                       <InspectorField label="End Time" layout="stacked" icon={Timer}>
                         <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
                           {displayBooking.endTime
-                            ? formatTimeString(displayBooking.endTime)
+                            ? formatTimeString(displayBooking.endTime, displayBooking.runAssignedDate || displayBooking.checkIn)
                             : displayBooking.endAt
                               ? formatTime(displayBooking.endAt)
                               : '—'}
