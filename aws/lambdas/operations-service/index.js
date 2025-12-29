@@ -2195,22 +2195,44 @@ async function sendBookingCancellationEmail(tenantId, bookingId) {
  * Schema column: checked_in_at (not check_in_time)
  */
 async function handleCheckIn(tenantId, bookingId, body) {
-  const { sendConfirmation = true, userId } = body || {};
+  const {
+    sendConfirmation = true,
+    userId,
+    weight,
+    appearance,
+    vaccinationsVerified,
+    belongings,
+    notes,
+  } = body || {};
 
   try {
     await getPoolAsync();
 
-    // Build the update query with optional user tracking fields
+    // Build the update query with check-in details
     const result = await query(
       `UPDATE "Booking"
        SET status = 'CHECKED_IN',
            checked_in_at = NOW(),
            checked_in_by = $3,
+           checkin_weight = $4,
+           checkin_appearance = $5,
+           checkin_vaccinations_verified = $6,
+           checkin_belongings = $7,
+           checkin_notes = $8,
            updated_at = NOW(),
            updated_by = $3
        WHERE record_id = $1 AND tenant_id = $2
        RETURNING *`,
-      [bookingId, tenantId, userId || null]
+      [
+        bookingId,
+        tenantId,
+        userId || null,
+        weight || null,
+        appearance || null,
+        vaccinationsVerified || false,
+        belongings || null,
+        notes || null,
+      ]
     );
 
     if (result.rows.length === 0) {
