@@ -49,7 +49,7 @@ export const useCustomerTimeline = (ownerId) => {
     queryKey: ['timeline', ownerId],
     queryFn: async ({ pageParam = 0 }) => {
       try {
-        const res = await apiClient.get(`/api/v1/communications/owner/${ownerId}/timeline`, {
+        const res = await apiClient.get(`/api/v1/entity/communications/owner/${ownerId}/timeline`, {
           params: { offset: pageParam, limit: 50 },
         });
         return res.data || { items: [], total: 0, offset: pageParam, limit: 50 };
@@ -74,7 +74,7 @@ export const useCommunicationStats = (ownerId) => {
     queryKey: ['communication-stats', ownerId],
     queryFn: async () => {
       try {
-        const res = await apiClient.get(`/api/v1/communications/owner/${ownerId}/stats`);
+        const res = await apiClient.get(`/api/v1/entity/communications/owner/${ownerId}/stats`);
         return res.data || { total: 0, emails: 0, sms: 0, phone: 0, notes: 0 };
       } catch (e) {
         console.warn('[communication-stats] Error:', e?.message || e);

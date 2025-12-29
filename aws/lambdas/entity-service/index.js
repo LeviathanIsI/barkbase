@@ -280,8 +280,8 @@ const handlers = {
   'PUT /api/v1/notes/categories': updateNoteCategories,
 
   // Communications - owner timeline and stats
-  'GET /api/v1/communications/owner/{id}/stats': getCommunicationStats,
-  'GET /api/v1/communications/owner/{id}/timeline': getCommunicationTimeline,
+  'GET /api/v1/entity/communications/owner/{id}/stats': getCommunicationStats,
+  'GET /api/v1/entity/communications/owner/{id}/timeline': getCommunicationTimeline,
 };
 
 exports.handler = async (event, context) => {
@@ -4393,9 +4393,9 @@ async function getCommunicationStats(event) {
   const tenantId = resolveTenantId(event);
   const path = event.requestContext?.http?.path || event.path || '';
 
-  // Parse path: /api/v1/communications/owner/{ownerId}/stats
+  // Parse path: /api/v1/entity/communications/owner/{ownerId}/stats
   const pathParts = path.split('/').filter(Boolean);
-  const ownerId = pathParts[4]; // owner ID is at index 4
+  const ownerId = pathParts[5]; // owner ID is at index 5
 
   console.log('[Communications][stats] tenantId:', tenantId, 'ownerId:', ownerId);
 
@@ -4447,9 +4447,9 @@ async function getCommunicationTimeline(event) {
   const path = event.requestContext?.http?.path || event.path || '';
   const queryParams = getQueryParams(event);
 
-  // Parse path: /api/v1/communications/owner/{ownerId}/timeline
+  // Parse path: /api/v1/entity/communications/owner/{ownerId}/timeline
   const pathParts = path.split('/').filter(Boolean);
-  const ownerId = pathParts[4]; // owner ID is at index 4
+  const ownerId = pathParts[5]; // owner ID is at index 5
 
   const offset = parseInt(queryParams.offset, 10) || 0;
   const limit = Math.min(parseInt(queryParams.limit, 10) || 50, 100);
