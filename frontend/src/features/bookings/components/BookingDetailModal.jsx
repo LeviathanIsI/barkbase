@@ -20,7 +20,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import { useKennels } from '@/features/kennels/api';
 import { useAssignKennelMutation, useDeleteBookingMutation, useBookingCheckInMutation, useBookingCheckOutMutation } from '@/features/bookings/api';
-import { useRunsQuery, useUpdateRunAssignmentMutation, useRemovePetFromRunMutation } from '@/features/daycare/api';
+import { useRunsQuery, useUpdateRunAssignmentMutation, useRemovePetFromRunMutation, useAssignPetsToRunMutation } from '@/features/daycare/api';
 import { useAuthStore } from '@/stores/auth';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
@@ -35,6 +35,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
   const checkOutMutation = useBookingCheckOutMutation();
   const updateAssignmentMutation = useUpdateRunAssignmentMutation();
   const removeFromRunMutation = useRemovePetFromRunMutation();
+  const assignPetsToRunMutation = useAssignPetsToRunMutation();
 
   // Get current user for audit fields
   const userId = useAuthStore((state) => state.user?.id);
@@ -648,27 +649,38 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                   <Button
                     variant="primary"
                     className="flex-1"
-                    disabled={!selectedRunId || selectedRunId === displayBooking.runId || updateAssignmentMutation.isPending}
+                    disabled={!selectedRunId || selectedRunId === displayBooking.runId || updateAssignmentMutation.isPending || assignPetsToRunMutation.isPending}
                     onClick={async () => {
                       const assignmentId = displayBooking.runAssignmentId;
-                      if (!assignmentId) {
-                        toast.error('No assignment ID found');
-                        return;
-                      }
+                      const petId = displayBooking.petId || displayBooking.pets?.[0]?.id;
+                      const bookingId = displayBooking.id || displayBooking.recordId;
+                      const today = new Date().toISOString().split('T')[0];
+
                       try {
-                        await updateAssignmentMutation.mutateAsync({
-                          assignmentId,
-                          runId: selectedRunId,
-                          date: new Date().toISOString().split('T')[0],
-                        });
-                        toast.success('Run changed successfully');
+                        if (assignmentId) {
+                          // Update existing assignment
+                          await updateAssignmentMutation.mutateAsync({
+                            assignmentId,
+                            runId: selectedRunId,
+                            date: today,
+                          });
+                        } else {
+                          // Create new assignment
+                          await assignPetsToRunMutation.mutateAsync({
+                            runId: selectedRunId,
+                            petIds: petId ? [petId] : [],
+                            bookingIds: bookingId ? [bookingId] : [],
+                            date: today,
+                          });
+                        }
+                        toast.success('Run assigned successfully');
                         onClose(); // Close to refresh data
                       } catch (error) {
-                        toast.error(error?.message || 'Failed to change run');
+                        toast.error(error?.message || 'Failed to assign run');
                       }
                     }}
                   >
-                    {updateAssignmentMutation.isPending ? 'Saving...' : 'Save Changes'}
+                    {(updateAssignmentMutation.isPending || assignPetsToRunMutation.isPending) ? 'Saving...' : 'Save Changes'}
                   </Button>
                 </div>
               </div>
