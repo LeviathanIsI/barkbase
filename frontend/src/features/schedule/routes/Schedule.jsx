@@ -1,32 +1,41 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { addDays, startOfWeek, format } from 'date-fns';
-import {
-  Plus, Home, Users, Settings, ChevronRight,
-  Clock, PawPrint, UserCheck, UserX, CheckCircle,
-  TrendingUp, Brain, Search, LogIn, LogOut,
-  AlertTriangle, BarChart3, Zap, Info, Phone, User,
-} from 'lucide-react';
-import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
 import { PageHeader } from '@/components/ui/Card';
 import { useTimezoneUtils } from '@/lib/timezone';
+import { addDays, format, startOfWeek } from 'date-fns';
+import {
+  AlertTriangle, BarChart3,
+  Brain,
+  CheckCircle,
+  ChevronRight,
+  Clock,
+  Home,
+  PawPrint,
+  Phone,
+  Plus,
+  Search,
+  TrendingUp,
+  User,
+  UserCheck, UserX
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 // Unified loader: replaced inline loading with LoadingState
 import LoadingState from '@/components/ui/LoadingState';
 import SlidePanel from '@/components/ui/SlidePanel';
 import StyledSelect from '@/components/ui/StyledSelect';
-import NewBookingModal from '@/features/bookings/components/NewBookingModal';
+import { useBookingCheckInMutation, useBookingCheckOutMutation, useBookingsQuery } from '@/features/bookings/api';
 import BookingDetailModal from '@/features/bookings/components/BookingDetailModal';
-import KennelLayoutView from '@/features/calendar/components/KennelLayoutView';
+import NewBookingModal from '@/features/bookings/components/NewBookingModal';
 import CheckInOutDashboard from '@/features/calendar/components/CheckInOutDashboard';
 import FilterOptionsPanel from '@/features/calendar/components/FilterOptionsPanel';
-import { useBookingsQuery, useBookingCheckInMutation, useBookingCheckOutMutation } from '@/features/bookings/api';
+import KennelLayoutView from '@/features/calendar/components/KennelLayoutView';
+import { useAssignPetsToRunMutation, useRunAssignmentsQuery } from '@/features/daycare/api';
 import { useRunTemplatesQuery } from '@/features/daycare/api-templates';
-import { useRunAssignmentsQuery, useAssignPetsToRunMutation } from '@/features/daycare/api';
-import { useTodayStats } from '../hooks/useTodayStats';
-import { useAuthStore } from '@/stores/auth';
 import { cn } from '@/lib/cn';
+import { useAuthStore } from '@/stores/auth';
 import toast from 'react-hot-toast';
+import { useTodayStats } from '../hooks/useTodayStats';
 
 const Schedule = () => {
   const [currentDate, _setCurrentDate] = useState(new Date());
@@ -769,7 +778,7 @@ const DailyHourlyGrid = ({
       });
 
     // Only show actual RunAssignment data - no booking fallback
-    // Bookings are for kennel reservations, RunAssignments are for run/play area scheduling
+    // Bookings are for kennel bookings, RunAssignments are for run/play area scheduling
     return runAssignments;
   };
 

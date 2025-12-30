@@ -2,21 +2,28 @@
  * Features Page - Detailed product features
  */
 
-import React from 'react';
-import { Link } from 'react-router-dom';
-import {
-  Calendar, Users, DollarSign, BarChart3, Bell, Shield,
-  Cloud, Zap, Clock, Check, ArrowRight
-} from 'lucide-react';
-import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
+import {
+  ArrowRight,
+  BarChart3, Bell,
+  Calendar,
+  Check,
+  Clock,
+  Cloud,
+  DollarSign,
+  Shield,
+  Users,
+  Zap
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
 import PublicPageLayout from '../components/PublicPageLayout';
 
 const features = [
   {
     icon: Calendar,
     title: 'Booking & Scheduling',
-    description: 'Manage reservations for boarding, daycare, grooming, and training.',
+    description: 'Manage bookings for boarding, daycare, grooming, and training.',
     benefits: [
       'Visual calendar with drag-and-drop',
       'Kennel/run assignment view',

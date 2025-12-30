@@ -8000,7 +8000,7 @@ We provide professional pet care services including:
 
 2. RESERVATION & BOOKING
 • Reservations are recommended and may be required during peak seasons
-• A valid credit card is required to hold reservations
+• A valid credit card is required to hold bookings
 • Same-day bookings are subject to availability
 
 3. CHECK-IN & CHECK-OUT

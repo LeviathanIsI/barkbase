@@ -1,16 +1,27 @@
-import { useState, useEffect } from 'react';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import Switch from '@/components/ui/Switch';
+import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
 import StyledSelect from '@/components/ui/StyledSelect';
+import Switch from '@/components/ui/Switch';
 import apiClient from '@/lib/apiClient';
 import {
-  Database, Download, Trash2, Search, Shield, Eye, EyeOff,
-  Mail, MessageSquare, Bell, AlertTriangle, Clock, Users,
-  FileText, Save, Info, CheckCircle, XCircle, Loader2
+  AlertTriangle,
+  Bell,
+  CheckCircle,
+  Clock,
+  Database, Download,
+  FileText,
+  Info,
+  Loader2,
+  Mail, MessageSquare,
+  Save,
+  Search, Shield,
+  Trash2,
+  Users,
+  XCircle
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 // Retention period options
 const RETENTION_OPTIONS = {
@@ -227,7 +238,7 @@ const Privacy = () => {
   const retentionItems = [
     { key: 'customerRecords', label: 'Customer/Owner Records', desc: 'Contact info, account details', icon: Users },
     { key: 'petRecords', label: 'Pet Records', desc: 'Pet profiles, medical notes', icon: Database },
-    { key: 'bookingHistory', label: 'Booking History', desc: 'Past reservations and stays', icon: Clock },
+    { key: 'bookingHistory', label: 'Booking History', desc: 'Past bookings and stays', icon: Clock },
     { key: 'paymentRecords', label: 'Payment & Invoice Records', desc: 'Transactions, receipts', icon: FileText, recommended: '7yr' },
     { key: 'signedWaivers', label: 'Signed Waivers & Agreements', desc: 'Liability waivers, service agreements', icon: Shield, recommended: '7yr' },
     { key: 'communicationLogs', label: 'Communication Logs', desc: 'Email and SMS history', icon: Mail },

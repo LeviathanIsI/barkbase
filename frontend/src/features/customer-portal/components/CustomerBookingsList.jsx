@@ -1,24 +1,23 @@
-import { useState } from 'react';
-import { format } from 'date-fns';
-import {
-  Calendar,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  MoreHorizontal,
-  Eye,
-  Trash2,
-  Loader2,
-  PawPrint,
-  Home,
-} from 'lucide-react';
+import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
 import { cn } from '@/lib/cn';
-import { useCustomerBookingsQuery, useCancelCustomerBookingMutation } from '../api';
+import { format } from 'date-fns';
+import {
+  AlertCircle,
+  Calendar,
+  CheckCircle,
+  Clock,
+  Eye,
+  Home,
+  Loader2,
+  PawPrint,
+  Trash2,
+  XCircle
+} from 'lucide-react';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { useCancelCustomerBookingMutation, useCustomerBookingsQuery } from '../api';
 
 const STATUS_CONFIG = {
   PENDING: {
@@ -113,7 +112,7 @@ const CustomerBookingsList = ({ onViewBooking, onNewBooking }) => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">My Bookings</h2>
-          <p className="text-gray-500 dark:text-text-secondary">View and manage your reservations</p>
+          <p className="text-gray-500 dark:text-text-secondary">View and manage your bookings</p>
         </div>
         <Button onClick={onNewBooking}>
           <Calendar className="w-4 h-4 mr-2" />

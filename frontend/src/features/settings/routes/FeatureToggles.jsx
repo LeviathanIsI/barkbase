@@ -3,31 +3,28 @@
  * Enable or disable features for your organization
  */
 
-import { useState, useEffect } from 'react';
-import {
-  Settings,
-  Calendar,
-  Mail,
-  CreditCard,
-  Activity,
-  Zap,
-  Scissors,
-  Dog,
-  MessageSquare,
-  BarChart3,
-  Bot,
-  Bell,
-  Package,
-  Users,
-  FileText,
-  Save,
-} from 'lucide-react';
-import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { useTenantStore } from '@/stores/tenant';
-import { useAuthStore } from '@/stores/auth';
-import toast from 'react-hot-toast';
+import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
+import { useAuthStore } from '@/stores/auth';
+import { useTenantStore } from '@/stores/tenant';
+import {
+  BarChart3,
+  Bell,
+  Bot,
+  Calendar,
+  CreditCard,
+  Dog,
+  FileText,
+  MessageSquare,
+  Package,
+  Save,
+  Scissors,
+  Settings,
+  Users
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 
 const FeatureToggles = () => {
   const tenant = useTenantStore((s) => s.tenant);
@@ -89,7 +86,7 @@ const FeatureToggles = () => {
         {
           key: 'boarding',
           label: 'Boarding',
-          description: 'Enable overnight boarding services and reservations',
+          description: 'Enable overnight boarding services and bookings',
           icon: Dog,
         },
         {

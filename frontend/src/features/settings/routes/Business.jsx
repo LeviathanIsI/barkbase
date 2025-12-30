@@ -1,18 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
-import toast from 'react-hot-toast';
-import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import StyledSelect from '@/components/ui/StyledSelect';
-import apiClient from '@/lib/apiClient';
-import { useTenantStore } from '@/stores/tenant';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Clock, Moon, Sun, Scissors, Award, Phone as PhoneIcon, Mail, Globe, Building2, Home, DollarSign, Shield, CreditCard, Bell, FileText, AlertTriangle } from 'lucide-react';
-import HolidayManager from '../components/HolidayManager';
 import { Switch } from '@/components/ui/Switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import apiClient from '@/lib/apiClient';
 import { useTimezoneUtils } from '@/lib/timezone';
+import { useTenantStore } from '@/stores/tenant';
+import { Award, Clock, CreditCard, DollarSign, FileText, Moon, Scissors, Sun } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
+import { useLocation, useNavigate } from 'react-router-dom';
+import HolidayManager from '../components/HolidayManager';
 
 const Business = () => {
   const tenant = useTenantStore((state) => state.tenant);
@@ -585,7 +585,7 @@ function VaccinationsTab({ onDirtyChange, isSaving, onSave }) {
             <Switch defaultChecked />
             <div>
               <div className="font-medium">Block bookings for pets with expired vaccinations</div>
-              <div className="text-sm text-muted-foreground">Prevent new reservations if required vaccinations are expired</div>
+              <div className="text-sm text-muted-foreground">Prevent new bookings if required vaccinations are expired</div>
             </div>
           </label>
           <label className="flex items-center gap-3">

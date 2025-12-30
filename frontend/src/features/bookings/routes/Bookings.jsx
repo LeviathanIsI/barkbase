@@ -512,7 +512,7 @@ const Bookings = () => {
           title="Bookings"
         />
         <p className="mt-1 text-sm text-[color:var(--bb-color-text-muted)]">
-          Manage reservations and view booking schedules over time
+          Manage bookings and view booking schedules over time
         </p>
 
         {/* New Booking Button */}

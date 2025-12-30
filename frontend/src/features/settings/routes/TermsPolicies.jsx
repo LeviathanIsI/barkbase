@@ -1,18 +1,32 @@
-import { useState, useEffect } from 'react';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import Switch from '@/components/ui/Switch';
+import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
 import SlidePanel from '@/components/ui/SlidePanel';
 import StyledSelect from '@/components/ui/StyledSelect';
+import Switch from '@/components/ui/Switch';
 import apiClient from '@/lib/apiClient';
 import { useTimezoneUtils } from '@/lib/timezone';
 import {
-  FileText, Plus, Edit, Trash2, Eye, Copy, Shield,
-  Clock, Calendar, Syringe, Heart, DoorOpen, UtensilsCrossed,
-  AlertTriangle, CheckCircle, FileCheck, Save, Loader2
+  AlertTriangle,
+  Calendar,
+  CheckCircle,
+  Copy,
+  DoorOpen,
+  Edit,
+  Eye,
+  FileCheck,
+  FileText,
+  Heart,
+  Loader2,
+  Plus,
+  Save,
+  Shield,
+  Syringe,
+  Trash2,
+  UtensilsCrossed
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 // Policy type definitions with icons and colors
 const POLICY_TYPES = {
@@ -134,7 +148,7 @@ We provide professional pet care services including:
 
 2. RESERVATION & BOOKING
 • Reservations are recommended and may be required during peak seasons
-• A valid credit card is required to hold reservations
+• A valid credit card is required to hold bookings
 • Same-day bookings are subject to availability
 
 3. CHECK-IN & CHECK-OUT
@@ -224,7 +238,7 @@ During designated holidays and peak seasons:
 • Holidays include: New Year's, Memorial Day, July 4th, Labor Day, Thanksgiving, Christmas
 
 5. EXTENDED STAYS
-For reservations of 7 or more consecutive nights:
+For bookings of 7 or more consecutive nights:
 • 50% deposit required at booking
 • Special cancellation terms may apply
 • Contact us for details

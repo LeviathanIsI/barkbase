@@ -2,45 +2,42 @@
  * Kennels Page
  * Visual facility map view with spatial kennel layout
  */
-import { useState, useMemo, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
-import {
-  Plus,
-  Search,
-  Building,
-  Settings,
-  Home,
-  AlertTriangle,
-  ChevronRight,
-  Calendar,
-  Eye,
-  Edit,
-  Trash2,
-  X,
-  Activity,
-  PawPrint,
-  DoorOpen,
-  Stethoscope,
-  Sun,
-  BarChart3,
-  Layers,
-  TrendingUp,
-  Map,
-  User,
-  Clock,
-  Flag,
-} from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
 import StyledSelect from '@/components/ui/StyledSelect';
-import KennelForm from '../components/KennelForm';
-import KennelAssignDrawer from '../components/KennelAssignDrawer';
-import { useKennels, useDeleteKennel, useToggleSpecialHandling } from '../api';
-import { useTerminology } from '@/lib/terminology';
-import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
+import { useTerminology } from '@/lib/terminology';
+import {
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  Building,
+  Calendar,
+  ChevronRight,
+  Clock,
+  DoorOpen,
+  Flag,
+  Home,
+  Layers,
+  Map,
+  PawPrint,
+  Plus,
+  Search,
+  Settings,
+  Stethoscope,
+  Sun,
+  TrendingUp,
+  User,
+  X
+} from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import toast from 'react-hot-toast';
+import { Link, useNavigate } from 'react-router-dom';
+import { useDeleteKennel, useKennels, useToggleSpecialHandling } from '../api';
+import KennelAssignDrawer from '../components/KennelAssignDrawer';
+import KennelForm from '../components/KennelForm';
 
 // Kennel type configurations
 const KENNEL_TYPES = {
@@ -116,8 +113,8 @@ const KennelUnit = ({ kennel, onClick, isSelected, onToggleSpecialHandling }) =>
   const available = (kennel.capacity || 1) - (kennel.occupied || 0);
   const isFull = available <= 0;
   const isPartial = available > 0 && (kennel.occupied || 0) > 0;
-  // Check for future reservations (hasReservation flag or non-empty reservations array from backend)
-  const hasReservation = kennel.hasReservation || (kennel.reservations && kennel.reservations.length > 0);
+  // Check for future bookings (hasReservation flag or non-empty bookings array from backend)
+  const hasReservation = kennel.hasReservation || (kennel.bookings && kennel.bookings.length > 0);
 
   // Determine status color
   const getStatusColor = () => {
