@@ -10,6 +10,48 @@ import TenantLoader from "./TenantLoader";
 import TokenRefresher from "./TokenRefresher";
 import { SlideoutProvider, SlideoutHost } from "@/components/slideout";
 import { realtimeUrl } from "@/config/env";
+import { Skeleton } from "@/components/ui/skeleton";
+
+/**
+ * HydrationGate - Waits for Zustand stores to rehydrate from localStorage
+ * before rendering children. This prevents API calls from firing before
+ * auth/tenant data is available.
+ */
+const HydrationGate = ({ children, fallback }) => {
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    // Check if already hydrated
+    if (useAuthStore.persist.hasHydrated() && useTenantStore.persist.hasHydrated()) {
+      setIsHydrated(true);
+      return;
+    }
+
+    // Wait for both stores to finish hydrating
+    const checkHydration = () => {
+      if (useAuthStore.persist.hasHydrated() && useTenantStore.persist.hasHydrated()) {
+        setIsHydrated(true);
+      }
+    };
+
+    const unsubAuth = useAuthStore.persist.onFinishHydration(checkHydration);
+    const unsubTenant = useTenantStore.persist.onFinishHydration(checkHydration);
+
+    // Also check immediately in case hydration finished between render and effect
+    checkHydration();
+
+    return () => {
+      unsubAuth();
+      unsubTenant();
+    };
+  }, []);
+
+  if (!isHydrated) {
+    return fallback || <Skeleton className="h-screen w-full" />;
+  }
+
+  return children;
+};
 
 const RealtimeProvider = ({ children }) => {
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -45,16 +87,18 @@ const RealtimeProvider = ({ children }) => {
 const AppProviders = ({ children, fallback = null }) => (
   <ThemeProvider>
     <QueryProvider>
-      <SlideoutProvider>
-        <RealtimeProvider>
-          <AuthLoader />
-          <TenantLoader />
-          <TokenRefresher />
-          <Suspense fallback={fallback}>{children}</Suspense>
-          <SlideoutHost />
-          <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
-        </RealtimeProvider>
-      </SlideoutProvider>
+      <HydrationGate fallback={fallback}>
+        <SlideoutProvider>
+          <RealtimeProvider>
+            <AuthLoader />
+            <TenantLoader />
+            <TokenRefresher />
+            <Suspense fallback={fallback}>{children}</Suspense>
+            <SlideoutHost />
+            <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+          </RealtimeProvider>
+        </SlideoutProvider>
+      </HydrationGate>
     </QueryProvider>
   </ThemeProvider>
 );
