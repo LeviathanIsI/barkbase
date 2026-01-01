@@ -121,12 +121,6 @@ const Login = () => {
       // Decode ID token to get user info
       const userInfo = result.idToken ? decodeIdToken(result.idToken) : { email };
 
-      // Store tokens in auth store (initial, without tenantId yet)
-      setAuth({
-        user: userInfo,
-        accessToken: result.accessToken,
-      });
-
       // Store refresh token in sessionStorage for token refresh
       if (result.refreshToken) {
         try {
@@ -136,46 +130,55 @@ const Login = () => {
         }
       }
 
-      // Bootstrap: Fetch tenant config using the new access token
-      // This hydrates both profile and tenant info from /api/v1/config/tenant
-      if (import.meta.env.DEV)
+      // Bootstrap: Fetch tenant config using direct fetch (not apiClient)
+      // This allows us to set accessToken AND tenantId at the same time,
+      // preventing a race condition where components see accessToken without tenantId
       setTenantLoading(true);
+      let tenantConfig = null;
       try {
-        const tenantResponse = await apiClient.get(canonicalEndpoints.settings.tenant);
-        if (tenantResponse.data) {
-          const tenantConfig = tenantResponse.data;
-
-          // Update auth store with tenantId and role from config
-          updateTokens({
-            tenantId: tenantConfig.tenantId || tenantConfig.recordId,
-            role: tenantConfig.user?.role,
-          });
-
-          // Update user with name from database (overrides JWT-decoded Cognito username)
-          if (tenantConfig.user?.name) {
-            setAuth({
-              user: { ...userInfo, name: tenantConfig.user.name },
-              accessToken: result.accessToken,
-            });
-          }
-
-          // Update tenant store with full tenant data
-          setTenant({
-            recordId: tenantConfig.tenantId || tenantConfig.recordId,
-            accountCode: tenantConfig.accountCode,
-            slug: tenantConfig.slug,
-            name: tenantConfig.name,
-            plan: tenantConfig.plan,
-            settings: tenantConfig.settings,
-            theme: tenantConfig.theme,
-            featureFlags: tenantConfig.featureFlags,
-          });
+        const tenantResponse = await fetch(`${import.meta.env.VITE_API_URL}${canonicalEndpoints.settings.tenant}`, { // eslint-disable-line no-restricted-syntax
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${result.accessToken}`,
+          },
+        });
+        if (tenantResponse.ok) {
+          tenantConfig = await tenantResponse.json();
+        } else {
+          console.warn('[Login] Failed to fetch tenant config:', tenantResponse.status);
         }
       } catch (tenantError) {
-        // Log but don't block login - TenantLoader will retry
         console.warn('[Login] Failed to bootstrap tenant config:', tenantError.message);
       } finally {
         setTenantLoading(false);
+      }
+
+      // Set auth store with BOTH accessToken and tenantId at the same time
+      // This prevents TenantGate from blocking while tenant loads
+      const finalUserInfo = tenantConfig?.user?.name
+        ? { ...userInfo, name: tenantConfig.user.name }
+        : userInfo;
+
+      setAuth({
+        user: finalUserInfo,
+        accessToken: result.accessToken,
+        tenantId: tenantConfig?.tenantId || tenantConfig?.recordId || null,
+        role: tenantConfig?.user?.role || null,
+      });
+
+      // Update tenant store with full tenant data
+      if (tenantConfig) {
+        setTenant({
+          recordId: tenantConfig.tenantId || tenantConfig.recordId,
+          accountCode: tenantConfig.accountCode,
+          slug: tenantConfig.slug,
+          name: tenantConfig.name,
+          plan: tenantConfig.plan,
+          settings: tenantConfig.settings,
+          theme: tenantConfig.theme,
+          featureFlags: tenantConfig.featureFlags,
+        });
       }
 
       // Redirect to the app
@@ -273,12 +276,6 @@ const Login = () => {
       // Decode ID token to get user info
       const userInfo = result.idToken ? decodeIdToken(result.idToken) : { email: mfaChallenge.email };
 
-      // Store tokens in auth store
-      setAuth({
-        user: userInfo,
-        accessToken: result.accessToken,
-      });
-
       // Store refresh token
       if (result.refreshToken) {
         try {
@@ -288,40 +285,53 @@ const Login = () => {
         }
       }
 
-      // Bootstrap tenant config
+      // Bootstrap tenant config using direct fetch (not apiClient)
+      // This allows us to set accessToken AND tenantId at the same time
       setTenantLoading(true);
+      let tenantConfig = null;
       try {
-        const tenantResponse = await apiClient.get(canonicalEndpoints.settings.tenant);
-        if (tenantResponse.data) {
-          const tenantConfig = tenantResponse.data;
-          updateTokens({
-            tenantId: tenantConfig.tenantId || tenantConfig.recordId,
-            role: tenantConfig.user?.role,
-          });
-
-          // Update user with name from database (overrides JWT-decoded Cognito username)
-          if (tenantConfig.user?.name) {
-            setAuth({
-              user: { ...userInfo, name: tenantConfig.user.name },
-              accessToken: result.accessToken,
-            });
-          }
-
-          setTenant({
-            recordId: tenantConfig.tenantId || tenantConfig.recordId,
-            accountCode: tenantConfig.accountCode,
-            slug: tenantConfig.slug,
-            name: tenantConfig.name,
-            plan: tenantConfig.plan,
-            settings: tenantConfig.settings,
-            theme: tenantConfig.theme,
-            featureFlags: tenantConfig.featureFlags,
-          });
+        const tenantResponse = await fetch(`${import.meta.env.VITE_API_URL}${canonicalEndpoints.settings.tenant}`, { // eslint-disable-line no-restricted-syntax
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${result.accessToken}`,
+          },
+        });
+        if (tenantResponse.ok) {
+          tenantConfig = await tenantResponse.json();
+        } else {
+          console.warn('[Login] Failed to fetch tenant config:', tenantResponse.status);
         }
       } catch (tenantError) {
         console.warn('[Login] Failed to bootstrap tenant config:', tenantError.message);
       } finally {
         setTenantLoading(false);
+      }
+
+      // Set auth store with BOTH accessToken and tenantId at the same time
+      const finalUserInfo = tenantConfig?.user?.name
+        ? { ...userInfo, name: tenantConfig.user.name }
+        : userInfo;
+
+      setAuth({
+        user: finalUserInfo,
+        accessToken: result.accessToken,
+        tenantId: tenantConfig?.tenantId || tenantConfig?.recordId || null,
+        role: tenantConfig?.user?.role || null,
+      });
+
+      // Update tenant store with full tenant data
+      if (tenantConfig) {
+        setTenant({
+          recordId: tenantConfig.tenantId || tenantConfig.recordId,
+          accountCode: tenantConfig.accountCode,
+          slug: tenantConfig.slug,
+          name: tenantConfig.name,
+          plan: tenantConfig.plan,
+          settings: tenantConfig.settings,
+          theme: tenantConfig.theme,
+          featureFlags: tenantConfig.featureFlags,
+        });
       }
 
       // Redirect to the app

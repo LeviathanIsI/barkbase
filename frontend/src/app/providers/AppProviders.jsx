@@ -53,6 +53,36 @@ const HydrationGate = ({ children, fallback }) => {
   return children;
 };
 
+/**
+ * TenantGate - Blocks rendering of authenticated content until tenant is loaded.
+ * This prevents API calls from firing without X-Tenant-Id header.
+ *
+ * Renders children immediately if:
+ * - User is not authenticated (public routes don't need tenant)
+ * - User is authenticated AND tenantId is present
+ *
+ * Shows loading state if:
+ * - User is authenticated but tenantId is not yet loaded
+ */
+const TenantGate = ({ children, fallback }) => {
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const tenantId = useAuthStore((s) => s.tenantId);
+  const isLoading = useTenantStore((s) => s.isLoading);
+
+  // Not authenticated - render children (login page, etc.)
+  if (!accessToken) {
+    return children;
+  }
+
+  // Authenticated and tenant is loaded - render children
+  if (tenantId) {
+    return children;
+  }
+
+  // Authenticated but tenant not loaded yet - show loading
+  return fallback || <Skeleton className="h-screen w-full" />;
+};
+
 const RealtimeProvider = ({ children }) => {
   const accessToken = useAuthStore((s) => s.accessToken);
   const userIdentifier = useAuthStore(
@@ -93,7 +123,9 @@ const AppProviders = ({ children, fallback = null }) => (
             <AuthLoader />
             <TenantLoader />
             <TokenRefresher />
-            <Suspense fallback={fallback}>{children}</Suspense>
+            <TenantGate fallback={fallback}>
+              <Suspense fallback={fallback}>{children}</Suspense>
+            </TenantGate>
             <SlideoutHost />
             <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
           </RealtimeProvider>
