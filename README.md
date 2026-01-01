@@ -177,4 +177,8 @@ The production build outputs to `frontend/dist/` and can be deployed to S3/Cloud
 
 ## License
 
-Proprietary. All rights reserved.
+**Proprietary Software** - All Rights Reserved
+
+This software is proprietary and confidential. You may NOT copy, modify, distribute, or use this code without express written permission from the copyright holder.
+
+See [LICENSE](LICENSE) for full terms.
