@@ -236,6 +236,56 @@ exports.handler = async (event, context) => {
     }
 
     // =========================================================================
+    // RBAC ROLES API - Role management from Role table
+    // =========================================================================
+    // Initialize system roles
+    if (path === '/api/v1/roles/initialize' || path === '/roles/initialize') {
+      if (method === 'POST') {
+        return handleInitializeSystemRoles(user);
+      }
+    }
+
+    // Role-specific routes (must come before /api/v1/roles to avoid matching)
+    const roleIdMatch = path.match(/^\/api\/v1\/roles\/([^\/]+)$/);
+    const roleCloneMatch = path.match(/^\/api\/v1\/roles\/([^\/]+)\/clone$/);
+    const rolePermsMatch = path.match(/^\/api\/v1\/roles\/([^\/]+)\/permissions$/);
+
+    if (roleCloneMatch) {
+      if (method === 'POST') {
+        return handleCloneRole(user, roleCloneMatch[1], parseBody(event));
+      }
+    }
+
+    if (rolePermsMatch) {
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateRolePermissions(user, rolePermsMatch[1], parseBody(event));
+      }
+    }
+
+    if (roleIdMatch && !roleCloneMatch && !rolePermsMatch) {
+      const roleId = roleIdMatch[1];
+      if (method === 'GET') {
+        return handleGetRole(user, roleId);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateRole(user, roleId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeleteRole(user, roleId);
+      }
+    }
+
+    // List/create roles
+    if (path === '/api/v1/roles' || path === '/roles') {
+      if (method === 'GET') {
+        return handleListRoles(user, event);
+      }
+      if (method === 'POST') {
+        return handleCreateRole(user, parseBody(event));
+      }
+    }
+
+    // =========================================================================
     // BRANDING SETTINGS API
     // =========================================================================
     if (path === '/api/v1/config/branding' || path === '/config/branding' || path === '/api/v1/branding') {
@@ -15376,5 +15426,425 @@ async function handleUpdateStaffRoles(user, body) {
   } catch (error) {
     console.error('[StaffRoles] Failed to update:', error.message);
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update staff roles' });
+  }
+}
+
+// =============================================================================
+// RBAC ROLES HANDLERS
+// =============================================================================
+
+/**
+ * List all roles for current tenant
+ */
+async function handleListRoles(user, event) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    const includeInactive = event.queryStringParameters?.includeInactive === 'true';
+
+    const result = await query(
+      `SELECT record_id, name, description, is_system, created_at, updated_at
+       FROM "Role"
+       WHERE tenant_id = $1
+       ORDER BY is_system DESC, name ASC`,
+      [ctx.tenantId]
+    );
+
+    return createResponse(200, result.rows);
+  } catch (error) {
+    console.error('[Roles] Failed to list:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to list roles' });
+  }
+}
+
+/**
+ * Get a single role by ID
+ */
+async function handleGetRole(user, roleId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    const result = await query(
+      `SELECT r.record_id, r.name, r.description, r.is_system, r.created_at, r.updated_at,
+              COALESCE(
+                (SELECT json_agg(rp.permission_key)
+                 FROM "RolePermission" rp
+                 WHERE rp.role_id = r.record_id AND rp.tenant_id = r.tenant_id),
+                '[]'::json
+              ) as permissions
+       FROM "Role" r
+       WHERE r.record_id = $1 AND r.tenant_id = $2`,
+      [roleId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Role not found' });
+    }
+
+    return createResponse(200, result.rows[0]);
+  } catch (error) {
+    console.error('[Roles] Failed to get:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get role' });
+  }
+}
+
+/**
+ * Create a new role
+ */
+async function handleCreateRole(user, body) {
+  const { name, description } = body || {};
+
+  if (!name || !name.trim()) {
+    return createResponse(400, { error: 'Bad Request', message: 'Role name is required' });
+  }
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    // Check for duplicate name
+    const existing = await query(
+      `SELECT record_id FROM "Role" WHERE tenant_id = $1 AND LOWER(name) = LOWER($2)`,
+      [ctx.tenantId, name.trim()]
+    );
+
+    if (existing.rows.length > 0) {
+      return createResponse(409, { error: 'Conflict', message: `Role "${name}" already exists` });
+    }
+
+    // Get next record_id
+    const recordId = await getNextRecordId(ctx.tenantId, 'Role');
+
+    const result = await query(
+      `INSERT INTO "Role" (tenant_id, record_id, name, description, is_system, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, false, NOW(), NOW())
+       RETURNING record_id, name, description, is_system, created_at, updated_at`,
+      [ctx.tenantId, recordId, name.trim(), description || null]
+    );
+
+    return createResponse(201, result.rows[0]);
+  } catch (error) {
+    console.error('[Roles] Failed to create:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create role' });
+  }
+}
+
+/**
+ * Update a role
+ */
+async function handleUpdateRole(user, roleId, body) {
+  const { name, description } = body || {};
+
+  if (!name || !name.trim()) {
+    return createResponse(400, { error: 'Bad Request', message: 'Role name is required' });
+  }
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    // Check if role exists and is not a system role
+    const roleCheck = await query(
+      `SELECT is_system FROM "Role" WHERE record_id = $1 AND tenant_id = $2`,
+      [roleId, ctx.tenantId]
+    );
+
+    if (roleCheck.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Role not found' });
+    }
+
+    if (roleCheck.rows[0].is_system) {
+      return createResponse(403, { error: 'Forbidden', message: 'Cannot modify system roles' });
+    }
+
+    // Check for duplicate name (excluding current role)
+    const duplicate = await query(
+      `SELECT record_id FROM "Role" WHERE tenant_id = $1 AND LOWER(name) = LOWER($2) AND record_id != $3`,
+      [ctx.tenantId, name.trim(), roleId]
+    );
+
+    if (duplicate.rows.length > 0) {
+      return createResponse(409, { error: 'Conflict', message: `Role "${name}" already exists` });
+    }
+
+    const result = await query(
+      `UPDATE "Role" SET name = $1, description = $2, updated_at = NOW()
+       WHERE record_id = $3 AND tenant_id = $4
+       RETURNING record_id, name, description, is_system, created_at, updated_at`,
+      [name.trim(), description || null, roleId, ctx.tenantId]
+    );
+
+    return createResponse(200, result.rows[0]);
+  } catch (error) {
+    console.error('[Roles] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update role' });
+  }
+}
+
+/**
+ * Delete a role
+ */
+async function handleDeleteRole(user, roleId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    // Check if role exists and is not a system role
+    const roleCheck = await query(
+      `SELECT is_system FROM "Role" WHERE record_id = $1 AND tenant_id = $2`,
+      [roleId, ctx.tenantId]
+    );
+
+    if (roleCheck.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Role not found' });
+    }
+
+    if (roleCheck.rows[0].is_system) {
+      return createResponse(403, { error: 'Forbidden', message: 'Cannot delete system roles' });
+    }
+
+    // Check if role is in use
+    const inUse = await query(
+      `SELECT COUNT(*) FROM "UserRole" WHERE role_id = $1 AND tenant_id = $2`,
+      [roleId, ctx.tenantId]
+    );
+
+    if (parseInt(inUse.rows[0].count, 10) > 0) {
+      return createResponse(400, { error: 'Bad Request', message: 'Cannot delete role that is assigned to users' });
+    }
+
+    await query(
+      `DELETE FROM "Role" WHERE record_id = $1 AND tenant_id = $2`,
+      [roleId, ctx.tenantId]
+    );
+
+    return createResponse(204, null);
+  } catch (error) {
+    console.error('[Roles] Failed to delete:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete role' });
+  }
+}
+
+/**
+ * Update role permissions
+ */
+async function handleUpdateRolePermissions(user, roleId, body) {
+  const { permissions } = body || {};
+
+  if (!Array.isArray(permissions)) {
+    return createResponse(400, { error: 'Bad Request', message: 'Permissions must be an array' });
+  }
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    // Check if role exists
+    const roleCheck = await query(
+      `SELECT is_system FROM "Role" WHERE record_id = $1 AND tenant_id = $2`,
+      [roleId, ctx.tenantId]
+    );
+
+    if (roleCheck.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Role not found' });
+    }
+
+    // Delete existing permissions
+    await query(
+      `DELETE FROM "RolePermission" WHERE role_id = $1 AND tenant_id = $2`,
+      [roleId, ctx.tenantId]
+    );
+
+    // Insert new permissions
+    for (const permKey of permissions) {
+      const permRecordId = await getNextRecordId(ctx.tenantId, 'RolePermission');
+      await query(
+        `INSERT INTO "RolePermission" (tenant_id, record_id, role_id, permission_key)
+         VALUES ($1, $2, $3, $4)`,
+        [ctx.tenantId, permRecordId, roleId, permKey]
+      );
+    }
+
+    // Return updated role with permissions
+    const result = await query(
+      `SELECT r.record_id, r.name, r.description, r.is_system, r.created_at, r.updated_at,
+              COALESCE(
+                (SELECT json_agg(rp.permission_key)
+                 FROM "RolePermission" rp
+                 WHERE rp.role_id = r.record_id AND rp.tenant_id = r.tenant_id),
+                '[]'::json
+              ) as permissions
+       FROM "Role" r
+       WHERE r.record_id = $1 AND r.tenant_id = $2`,
+      [roleId, ctx.tenantId]
+    );
+
+    return createResponse(200, result.rows[0]);
+  } catch (error) {
+    console.error('[Roles] Failed to update permissions:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update permissions' });
+  }
+}
+
+/**
+ * Clone a role
+ */
+async function handleCloneRole(user, roleId, body) {
+  const { name } = body || {};
+
+  if (!name || !name.trim()) {
+    return createResponse(400, { error: 'Bad Request', message: 'New role name is required' });
+  }
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    // Get source role
+    const sourceRole = await query(
+      `SELECT name, description FROM "Role" WHERE record_id = $1 AND tenant_id = $2`,
+      [roleId, ctx.tenantId]
+    );
+
+    if (sourceRole.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Source role not found' });
+    }
+
+    // Check if new name already exists
+    const existing = await query(
+      `SELECT record_id FROM "Role" WHERE tenant_id = $1 AND LOWER(name) = LOWER($2)`,
+      [ctx.tenantId, name.trim()]
+    );
+
+    if (existing.rows.length > 0) {
+      return createResponse(409, { error: 'Conflict', message: `Role "${name}" already exists` });
+    }
+
+    // Create new role
+    const newRoleRecordId = await getNextRecordId(ctx.tenantId, 'Role');
+    const newRoleResult = await query(
+      `INSERT INTO "Role" (tenant_id, record_id, name, description, is_system, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, false, NOW(), NOW())
+       RETURNING record_id, name, description, is_system, created_at, updated_at`,
+      [ctx.tenantId, newRoleRecordId, name.trim(), sourceRole.rows[0].description]
+    );
+
+    // Copy permissions from source role
+    const sourcePerms = await query(
+      `SELECT permission_key FROM "RolePermission" WHERE role_id = $1 AND tenant_id = $2`,
+      [roleId, ctx.tenantId]
+    );
+
+    for (const perm of sourcePerms.rows) {
+      const permRecordId = await getNextRecordId(ctx.tenantId, 'RolePermission');
+      await query(
+        `INSERT INTO "RolePermission" (tenant_id, record_id, role_id, permission_key)
+         VALUES ($1, $2, $3, $4)`,
+        [ctx.tenantId, permRecordId, newRoleRecordId, perm.permission_key]
+      );
+    }
+
+    // Return new role with permissions
+    const result = await query(
+      `SELECT r.record_id, r.name, r.description, r.is_system, r.created_at, r.updated_at,
+              COALESCE(
+                (SELECT json_agg(rp.permission_key)
+                 FROM "RolePermission" rp
+                 WHERE rp.role_id = r.record_id AND rp.tenant_id = r.tenant_id),
+                '[]'::json
+              ) as permissions
+       FROM "Role" r
+       WHERE r.record_id = $1 AND r.tenant_id = $2`,
+      [newRoleRecordId, ctx.tenantId]
+    );
+
+    return createResponse(201, result.rows[0]);
+  } catch (error) {
+    console.error('[Roles] Failed to clone:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to clone role' });
+  }
+}
+
+/**
+ * Initialize default system roles for a tenant
+ */
+async function handleInitializeSystemRoles(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    // Default system roles
+    const defaultRoles = [
+      { name: 'Administrator', description: 'Full system access', permissions: ['*'] },
+      { name: 'Manager', description: 'Manage staff and operations', permissions: ['staff:*', 'pets:*', 'owners:*', 'bookings:*', 'reports:read'] },
+      { name: 'Staff', description: 'Day-to-day operations', permissions: ['pets:read', 'pets:update', 'owners:read', 'bookings:read', 'bookings:update'] },
+      { name: 'Viewer', description: 'Read-only access', permissions: ['pets:read', 'owners:read', 'bookings:read'] },
+    ];
+
+    const createdRoles = [];
+
+    for (const role of defaultRoles) {
+      // Check if role already exists
+      const existing = await query(
+        `SELECT record_id FROM "Role" WHERE tenant_id = $1 AND LOWER(name) = LOWER($2)`,
+        [ctx.tenantId, role.name]
+      );
+
+      if (existing.rows.length > 0) {
+        continue; // Skip if already exists
+      }
+
+      // Create role
+      const roleRecordId = await getNextRecordId(ctx.tenantId, 'Role');
+      const roleResult = await query(
+        `INSERT INTO "Role" (tenant_id, record_id, name, description, is_system, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, true, NOW(), NOW())
+         RETURNING record_id, name, description, is_system, created_at, updated_at`,
+        [ctx.tenantId, roleRecordId, role.name, role.description]
+      );
+
+      // Add permissions
+      for (const permKey of role.permissions) {
+        const permRecordId = await getNextRecordId(ctx.tenantId, 'RolePermission');
+        await query(
+          `INSERT INTO "RolePermission" (tenant_id, record_id, role_id, permission_key)
+           VALUES ($1, $2, $3, $4)`,
+          [ctx.tenantId, permRecordId, roleRecordId, permKey]
+        );
+      }
+
+      createdRoles.push(roleResult.rows[0]);
+    }
+
+    return createResponse(201, { created: createdRoles, message: `Initialized ${createdRoles.length} system roles` });
+  } catch (error) {
+    console.error('[Roles] Failed to initialize:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to initialize system roles' });
   }
 }
