@@ -1447,7 +1447,7 @@ const ListView = ({
           <span className="text-sm text-[color:var(--bb-color-text-muted)]">
             {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sortedBookings.length)} of {sortedBookings.length}
           </span>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => onPageChange(1)} disabled={currentPage === 1} className="px-2 h-8" aria-label="First page">
               <ChevronLeft className="h-4 w-4" /><ChevronLeft className="h-4 w-4 -ml-2" />
             </Button>
@@ -1569,7 +1569,7 @@ const BookingRow = ({ booking, isSelected, onSelect, onClick, isEven }) => {
         </div>
       </td>
       <td className="px-4 py-3 last:pr-6 lg:last:pr-12">
-        <div className={cn('flex items-center gap-1 transition-opacity', showActions ? 'opacity-100' : 'opacity-0')}>
+        <div className={cn('flex items-center gap-2 transition-opacity', showActions ? 'opacity-100' : 'opacity-0')}>
           <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); onClick(); }} title="View">
             <Eye className="h-4 w-4" />
           </Button>

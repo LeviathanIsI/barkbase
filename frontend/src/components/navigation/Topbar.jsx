@@ -247,7 +247,7 @@ const LiveIndicator = () => {
 
   return (
     <div
-      className="relative hidden sm:flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.7rem] font-medium cursor-default"
+      className="relative hidden sm:flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium cursor-default"
       style={{
         backgroundColor: 'var(--bb-color-bg-elevated)',
         borderColor: 'var(--bb-color-border-subtle)',

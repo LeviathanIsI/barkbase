@@ -657,7 +657,7 @@ const Owners = () => {
                 <span className="text-sm text-[color:var(--bb-color-text-muted)] whitespace-nowrap">
                   {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sortedOwners.length)} of {sortedOwners.length}
                 </span>
-                <div className="flex items-center gap-1 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="min-w-11 px-2 hidden sm:inline-flex" aria-label="First page">
                     <ChevronLeft className="h-4 w-4" /><ChevronLeft className="h-4 w-4 -ml-2" />
                   </Button>
@@ -1154,7 +1154,7 @@ const StatusBadgeDropdown = ({ owner, onStatusChange }) => {
 
       {isOpen && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 w-36 rounded-lg border shadow-lg py-1 animate-in fade-in-0 zoom-in-95 duration-150"
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 w-36 rounded-lg border shadow-lg py-1 space-y-1 animate-in fade-in-0 zoom-in-95 duration-150"
           style={{
             backgroundColor: 'var(--bb-color-bg-surface)',
             borderColor: 'var(--bb-color-border-subtle)',

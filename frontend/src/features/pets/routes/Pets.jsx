@@ -1009,7 +1009,7 @@ const Pets = () => {
                 <span className="text-sm text-[color:var(--bb-color-text-muted)]">
                   {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sortedPets.length)} of {sortedPets.length}
                 </span>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 h-8" aria-label="First page">
                     <ChevronLeft className="h-4 w-4" /><ChevronLeft className="h-4 w-4 -ml-2" />
                   </Button>
@@ -1259,7 +1259,7 @@ const StatusBadgeDropdown = ({ pet, onStatusChange }) => {
 
       {isOpen && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 w-36 rounded-lg border shadow-lg py-1"
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 w-36 rounded-lg border shadow-lg py-1 space-y-1"
           style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
         >
           <Button
