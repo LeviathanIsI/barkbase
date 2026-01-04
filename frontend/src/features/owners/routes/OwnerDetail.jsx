@@ -52,7 +52,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { useOwnerQuery, useOwnerPetsQuery, useDeleteOwnerMutation, useUpdateOwnerMutation, useAddPetToOwnerMutation, useRemovePetFromOwnerMutation } from '../api';
 import { usePetsQuery, useCreatePetMutation } from '@/features/pets/api';
 import { useBookingCheckInMutation, useBookingCheckOutMutation, useUpdateBookingMutation } from '@/features/bookings/api';
-import { useCreateInvoiceMutation, useSendInvoiceEmailMutation } from '@/features/invoices/api';
+import { useSendInvoiceEmailMutation } from '@/features/invoices/api';
 import { useAssociationsForObjectPairQuery } from '@/features/settings/api/associations';
 import toast from 'react-hot-toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -487,7 +487,7 @@ const OwnerDetail = () => {
                 </TabsContent>
 
                 <TabsContent value="billing" className="mt-0">
-                  <BillingTab payments={payments} invoices={invoices} ownerId={ownerId} navigate={navigate} onRefresh={() => ownerQuery.refetch()} />
+                  <BillingTab payments={payments} invoices={invoices} ownerId={ownerId} ownerName={fullName} navigate={navigate} openSlideout={openSlideout} onRefresh={() => ownerQuery.refetch()} />
                 </TabsContent>
               </div>
             </Tabs>
@@ -503,7 +503,7 @@ const OwnerDetail = () => {
               title="Pets"
               type="pet"
               count={pets.length}
-              onAdd={() => setAddPetModalOpen(true)}
+              onAdd={() => openSlideout(SLIDEOUT_TYPES.PET_CREATE, { ownerId })}
               emptyMessage="No pets yet"
             >
               {pets.slice(0, 5).map((pet) => (
@@ -545,7 +545,7 @@ const OwnerDetail = () => {
               title="Invoices"
               type="invoice"
               count={invoices?.length || 0}
-              onAdd={() => navigate(`/invoices?action=new&ownerId=${ownerId}`)}
+              onAdd={() => openSlideout(SLIDEOUT_TYPES.INVOICE_CREATE, { ownerId, ownerName: fullName })}
               viewAllLink={`/invoices?ownerId=${ownerId}`}
               showAdd={true}
               emptyMessage="No invoices yet"
@@ -624,10 +624,19 @@ const OwnerDetail = () => {
                   variant="outline"
                   size="sm"
                   className="w-full justify-start"
-                  onClick={() => setAddPetModalOpen(true)}
+                  onClick={() => openSlideout(SLIDEOUT_TYPES.PET_CREATE, { ownerId })}
                 >
                   <PawPrint className="w-4 h-4 mr-2" />
                   Add Pet
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => openSlideout(SLIDEOUT_TYPES.INVOICE_CREATE, { ownerId, ownerName: fullName })}
+                >
+                  <Receipt className="w-4 h-4 mr-2" />
+                  Create Invoice
                 </Button>
               </div>
             </Card>
@@ -1103,7 +1112,7 @@ function BookingsTab({ bookings, ownerId, navigate, openSlideout, onRefresh }) {
   );
 }
 
-function BillingTab({ payments, invoices, ownerId, navigate, onRefresh }) {
+function BillingTab({ payments, invoices, ownerId, ownerName, navigate, onRefresh, openSlideout }) {
   const sendInvoiceEmailMutation = useSendInvoiceEmailMutation();
 
   return (
@@ -1114,7 +1123,7 @@ function BillingTab({ payments, invoices, ownerId, navigate, onRefresh }) {
           <h3 className="text-lg font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
             Invoices ({invoices?.length || 0})
           </h3>
-          <Button size="sm" onClick={() => navigate(`/invoices?action=new&ownerId=${ownerId}`)}>
+          <Button size="sm" onClick={() => openSlideout(SLIDEOUT_TYPES.INVOICE_CREATE, { ownerId, ownerName })}>
             <Plus className="h-4 w-4 mr-2" />
             Create Invoice
           </Button>

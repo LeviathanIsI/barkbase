@@ -24,6 +24,7 @@ export const SLIDEOUT_TYPES = {
   ACTIVITY_LOG: 'activityLog',
   VACCINATION_EDIT: 'vaccinationEdit',
   BOOKING_CHECK_IN: 'bookingCheckIn',
+  INVOICE_CREATE: 'invoiceCreate',
 };
 
 // Slideout configuration for each type
@@ -103,6 +104,11 @@ export const SLIDEOUT_CONFIG = {
     description: 'Confirm pet arrival and record check-in details',
     width: 'max-w-2xl',
   },
+  [SLIDEOUT_TYPES.INVOICE_CREATE]: {
+    title: 'Create Invoice',
+    description: 'Create a new invoice for this customer',
+    width: 'max-w-2xl',
+  },
 };
 
 // Human-readable labels for back button
@@ -122,6 +128,7 @@ const SLIDEOUT_LABELS = {
   [SLIDEOUT_TYPES.ACTIVITY_LOG]: 'Activity',
   [SLIDEOUT_TYPES.VACCINATION_EDIT]: 'Vaccination',
   [SLIDEOUT_TYPES.BOOKING_CHECK_IN]: 'Check In',
+  [SLIDEOUT_TYPES.INVOICE_CREATE]: 'Invoice',
 };
 
 // Context

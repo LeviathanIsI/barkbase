@@ -53,6 +53,7 @@ import { useCreateCommunicationMutation, useCreateNote } from '@/features/commun
 import { useSendMessageMutation } from '@/features/messaging/api';
 import { useCreateOwnerMutation, useOwner, useOwnersQuery, useUpdateOwnerMutation } from '@/features/owners/api';
 import { useCreatePetMutation, useUpdatePetMutation, useUpdateVaccinationMutation } from '@/features/pets/api';
+import { useCreateInvoiceMutation } from '@/features/invoices/api';
 import { addDays, format } from 'date-fns';
 
 // Form components for complex flows
@@ -142,6 +143,13 @@ export function SlideoutHost() {
           state?.props?.bookingId ? ['bookings', state.props.bookingId] : null,
         ].filter(Boolean);
 
+      case SLIDEOUT_TYPES.INVOICE_CREATE:
+        return [
+          [tenantId, 'invoices'],
+          ['invoices'],
+          state?.props?.ownerId ? ['owner', state.props.ownerId] : null,
+        ].filter(Boolean);
+
       default:
         return [];
     }
@@ -175,6 +183,7 @@ export function SlideoutHost() {
       case SLIDEOUT_TYPES.ACTIVITY_LOG: return 'Activity logged successfully';
       case SLIDEOUT_TYPES.VACCINATION_EDIT: return 'Vaccination updated successfully';
       case SLIDEOUT_TYPES.BOOKING_CHECK_IN: return 'Pet checked in successfully';
+      case SLIDEOUT_TYPES.INVOICE_CREATE: return 'Invoice created successfully';
       default: return 'Saved successfully';
     }
   };
@@ -335,6 +344,16 @@ export function SlideoutHost() {
             initialIndex={props?.initialIndex || 0}
             petId={props?.petId}
             petName={props?.petName}
+            onSuccess={onFormSuccess}
+            onCancel={closeSlideout}
+          />
+        );
+
+      case SLIDEOUT_TYPES.INVOICE_CREATE:
+        return (
+          <InvoiceForm
+            ownerId={props?.ownerId}
+            ownerName={props?.ownerName}
             onSuccess={onFormSuccess}
             onCancel={closeSlideout}
           />
@@ -1184,6 +1203,219 @@ function NewConversationForm({ onSuccess, onCancel }) {
         </Button>
         <Button type="submit" disabled={isLoading || !selectedOwner || !message.trim()}>
           {isLoading ? 'Sending...' : 'Start Conversation'}
+        </Button>
+      </FormActions>
+    </form>
+  );
+}
+
+// Invoice Form for creating invoices from owner details
+function InvoiceForm({ ownerId, ownerName, onSuccess, onCancel }) {
+  const createMutation = useCreateInvoiceMutation();
+  const [lineItems, setLineItems] = useState([
+    { description: '', quantity: 1, unitPriceCents: 0 },
+  ]);
+  const [dueDate, setDueDate] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const handleAddLineItem = () => {
+    setLineItems(prev => [...prev, { description: '', quantity: 1, unitPriceCents: 0 }]);
+  };
+
+  const handleRemoveLineItem = (idx) => {
+    if (lineItems.length > 1) {
+      setLineItems(prev => prev.filter((_, i) => i !== idx));
+    }
+  };
+
+  const handleLineItemChange = (idx, field, value) => {
+    setLineItems(prev =>
+      prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const subtotalCents = lineItems.reduce(
+    (sum, item) => sum + (item.quantity || 0) * (item.unitPriceCents || 0),
+    0
+  );
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // Validate at least one line item with description
+    const validLineItems = lineItems.filter(i => i.description?.trim());
+    if (validLineItems.length === 0) {
+      toast.error('Please add at least one line item with a description');
+      return;
+    }
+
+    try {
+      const result = await createMutation.mutateAsync({
+        ownerId,
+        dueDate: dueDate || null,
+        notes: notes || null,
+        lineItems: validLineItems,
+        subtotalCents,
+        totalCents: subtotalCents,
+        status: 'DRAFT',
+      });
+      onSuccess?.(result);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to create invoice');
+    }
+  };
+
+  const isLoading = createMutation.isPending;
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Customer Info */}
+      {ownerName && (
+        <div
+          className="p-3 rounded-lg border"
+          style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
+        >
+          <p className="text-xs uppercase tracking-wide mb-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+            Customer
+          </p>
+          <p className="font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            {ownerName}
+          </p>
+        </div>
+      )}
+
+      {/* Due Date */}
+      <FormSection title="Invoice Details">
+        <div className="space-y-2">
+          <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Due Date
+          </label>
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className={inputClass}
+            style={inputStyles}
+          />
+        </div>
+      </FormSection>
+
+      {/* Line Items */}
+      <FormSection title="Line Items">
+        <div className="space-y-3">
+          {lineItems.map((item, idx) => (
+            <div
+              key={idx}
+              className="p-3 rounded-lg space-y-2"
+              style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+            >
+              <div className="flex gap-2 items-start">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={item.description}
+                    onChange={(e) => handleLineItemChange(idx, 'description', e.target.value)}
+                    placeholder="Description"
+                    className={inputClass}
+                    style={inputStyles}
+                  />
+                </div>
+                {lineItems.length > 1 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveLineItem(idx)}
+                    className="text-red-500 hover:text-red-600 flex-shrink-0"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <div className="w-24">
+                  <input
+                    type="number"
+                    min="1"
+                    value={item.quantity}
+                    onChange={(e) => handleLineItemChange(idx, 'quantity', parseInt(e.target.value) || 0)}
+                    placeholder="Qty"
+                    className={inputClass}
+                    style={inputStyles}
+                  />
+                </div>
+                <div className="flex-1 relative">
+                  <span
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-sm"
+                    style={{ color: 'var(--bb-color-text-muted)' }}
+                  >
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={(item.unitPriceCents / 100).toFixed(2)}
+                    onChange={(e) => handleLineItemChange(idx, 'unitPriceCents', Math.round(parseFloat(e.target.value || 0) * 100))}
+                    placeholder="Price"
+                    className={cn(inputClass, 'pl-7')}
+                    style={inputStyles}
+                  />
+                </div>
+                <div className="w-24 flex items-center justify-end">
+                  <span className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                    ${((item.quantity || 0) * (item.unitPriceCents || 0) / 100).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={handleAddLineItem} className="mt-2">
+          <svg className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Line Item
+        </Button>
+      </FormSection>
+
+      {/* Totals */}
+      <div
+        className="p-3 rounded-lg border"
+        style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+      >
+        <div className="flex justify-between items-center">
+          <span className="text-sm font-medium" style={{ color: 'var(--bb-color-text-muted)' }}>
+            Total
+          </span>
+          <span className="text-lg font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
+            ${(subtotalCents / 100).toFixed(2)}
+          </span>
+        </div>
+      </div>
+
+      {/* Notes */}
+      <FormSection title="Notes">
+        <div className="space-y-2">
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            className={cn(inputClass, 'resize-y')}
+            style={inputStyles}
+            placeholder="Add any notes for this invoice..."
+          />
+        </div>
+      </FormSection>
+
+      <FormActions>
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? 'Creating...' : 'Create Invoice'}
         </Button>
       </FormActions>
     </form>
