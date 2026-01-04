@@ -328,7 +328,7 @@ function DeterminatorNode({
 
   // Calculate SVG connector paths for multiple branches
   const branchCount = sortedBranches.length;
-  const branchSpacing = 180; // Space between branch centers
+  const branchSpacing = 320; // Space between branch centers
   const containerWidth = branchCount * branchSpacing;
 
   // Calculate positions for connector SVG
