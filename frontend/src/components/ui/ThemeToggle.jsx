@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 /**
  * ThemeToggle - Beautiful animated toggle button for dark/light mode
  * Uses --bb-color-toggle-* tokens for consistent styling across light/dark themes
+ * WCAG 2.5.5 compliant with 44x44px touch target
  */
 export const ThemeToggle = ({ className = '' }) => {
   const { toggleTheme, isDark } = useTheme();
@@ -17,7 +18,7 @@ export const ThemeToggle = ({ className = '' }) => {
       aria-checked={isDark}
       onClick={toggleTheme}
       className={cn(
-        'relative inline-flex h-7 w-12 items-center rounded-full border transition-colors',
+        'relative inline-flex min-h-11 w-12 items-center rounded-full border transition-colors',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
         'focus-visible:ring-[color:var(--bb-color-accent)] focus-visible:ring-offset-transparent',
         className,
@@ -57,6 +58,7 @@ export const ThemeToggle = ({ className = '' }) => {
 
 /**
  * ThemeToggleIconButton - Icon-only variant for compact spaces
+ * WCAG 2.5.5 compliant with 44x44px touch target
  */
 export const ThemeToggleIconButton = ({ className = '' }) => {
   const { toggleTheme, isDark } = useTheme();
@@ -66,7 +68,7 @@ export const ThemeToggleIconButton = ({ className = '' }) => {
       type="button"
       onClick={toggleTheme}
       className={cn(
-        'p-2 rounded-lg transition-all duration-200',
+        'min-h-11 min-w-11 flex items-center justify-center rounded-lg transition-all duration-200',
         'hover:bg-[color:var(--bb-color-bg-elevated)]',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--bb-color-accent)]',
         className,

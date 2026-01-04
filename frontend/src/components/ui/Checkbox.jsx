@@ -1,18 +1,47 @@
 /**
  * Checkbox Component - Phase 9 Enterprise Form System
  * Token-based styling for consistent theming.
+ * WCAG 2.5.5 compliant with 44x44px touch target.
  */
 
 import React from 'react';
 import { cn } from '@/lib/utils';
 
 const Checkbox = React.forwardRef(
-  ({ className, label, description, checked, onChange, onCheckedChange, ...props }, ref) => {
+  ({ className, label, description, checked, onChange, onCheckedChange, compact = false, ...props }, ref) => {
     const handleChange = (e) => {
       onChange?.(e);
       onCheckedChange?.(e.target.checked);
     };
 
+    // Compact variant for table checkboxes - uses larger hit area while keeping visual size small
+    if (compact) {
+      return (
+        <label className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] cursor-pointer">
+          <input
+            type="checkbox"
+            ref={ref}
+            checked={checked}
+            onChange={handleChange}
+            className={cn(
+              'h-4 w-4 rounded cursor-pointer',
+              'transition-colors',
+              'disabled:cursor-not-allowed disabled:opacity-50',
+              'focus:outline-none focus:ring-2 focus:ring-offset-2',
+              className
+            )}
+            style={{
+              borderColor: 'var(--bb-color-border-subtle)',
+              backgroundColor: checked ? 'var(--bb-color-accent)' : 'var(--bb-color-bg-surface)',
+              accentColor: 'var(--bb-color-accent)',
+            }}
+            {...props}
+          />
+        </label>
+      );
+    }
+
+    // Standard checkbox with label support
     return (
       <div className="flex items-start gap-[var(--bb-space-3,0.75rem)]">
         <div className="flex items-center h-5">

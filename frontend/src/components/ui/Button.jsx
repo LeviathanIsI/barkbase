@@ -96,12 +96,12 @@ const buttonVariants = cva(
       },
       size: {
         xs: 'h-7 px-[var(--bb-space-2)] py-[var(--bb-space-1)] text-[0.75rem]',
-        sm: 'h-8 px-[var(--bb-space-3)] py-[var(--bb-space-1)]',
-        md: 'h-10 px-[var(--bb-space-4)] py-[var(--bb-space-2)]',
+        sm: 'min-h-11 px-[var(--bb-space-3)] py-[var(--bb-space-1)]',
+        md: 'min-h-11 px-[var(--bb-space-4)] py-[var(--bb-space-2)]',
         lg: 'h-12 px-[var(--bb-space-5)] py-[var(--bb-space-3)]',
-        icon: 'h-10 w-10 p-0',
-        'icon-sm': 'h-8 w-8 p-0',
-        'icon-xs': 'h-6 w-6 p-0',
+        icon: 'min-h-11 min-w-11 p-0',
+        'icon-sm': 'min-h-11 min-w-11 p-0',
+        'icon-xs': 'min-h-11 min-w-11 p-0',
       },
     },
     defaultVariants: {

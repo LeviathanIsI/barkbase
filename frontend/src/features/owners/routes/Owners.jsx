@@ -15,6 +15,7 @@ import StyledSelect from '@/components/ui/StyledSelect';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
+import Checkbox from '@/components/ui/Checkbox';
 import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
 // Replaced with LoadingState (mascot) for page-level loading
 import LoadingState from '@/components/ui/LoadingState';
@@ -526,7 +527,7 @@ const Owners = () => {
               <>
                 {/* Column Controls */}
                 <div className="relative" ref={columnsRef}>
-                  <Button variant="outline" size="sm" onClick={() => setShowColumnsDropdown(!showColumnsDropdown)} className="gap-1.5 h-9">
+                  <Button variant="outline" size="sm" onClick={() => setShowColumnsDropdown(!showColumnsDropdown)} className="gap-1.5" aria-label="Manage columns">
                     <Columns className="h-4 w-4" />
                     <span className="hidden sm:inline">Columns</span>
                   </Button>
@@ -541,12 +542,12 @@ const Owners = () => {
                   )}
                 </div>
 
-                <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={handleExportAll}>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExportAll} aria-label="Export owners">
                   <Download className="h-4 w-4" />
                   <span className="hidden sm:inline">Export</span>
                 </Button>
 
-                <Button size="sm" onClick={() => setFormModalOpen(true)} className="gap-1.5 h-9">
+                <Button size="sm" onClick={() => setFormModalOpen(true)} className="gap-1.5" aria-label="Add new owner">
                   <Plus className="h-4 w-4" />
                   <span className="hidden sm:inline">Add Owner</span>
                 </Button>
@@ -598,12 +599,11 @@ const Owners = () => {
                           onClick={() => column.sortable && handleSort(column.sortKey)}
                         >
                           {column.id === 'select' ? (
-                            <input
-                              type="checkbox"
+                            <Checkbox
+                              compact
                               checked={selectedRows.size === paginatedOwners.length && paginatedOwners.length > 0}
                               onChange={handleSelectAll}
                               aria-label="Select all owners"
-                              className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
                             />
                           ) : (
                             <span className="inline-flex items-center gap-1.5">
@@ -658,17 +658,17 @@ const Owners = () => {
                   {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sortedOwners.length)} of {sortedOwners.length}
                 </span>
                 <div className="flex items-center gap-1">
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 h-8" aria-label="First page">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2" aria-label="First page">
                     <ChevronLeft className="h-4 w-4" /><ChevronLeft className="h-4 w-4 -ml-2" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2 h-8" aria-label="Previous page">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2" aria-label="Previous page">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="px-3 text-sm font-medium text-[color:var(--bb-color-text-primary)]">{currentPage}</span>
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 h-8" aria-label="Next page">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2" aria-label="Next page">
                     <ChevronRight className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 h-8" aria-label="Last page">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2" aria-label="Last page">
                     <ChevronRight className="h-4 w-4" /><ChevronRight className="h-4 w-4 -ml-2" />
                   </Button>
                 </div>
@@ -800,7 +800,7 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStat
       case 'select':
         return (
           <td key={column.id} className={cn(cellPadding, 'text-center')} onClick={(e) => e.stopPropagation()}>
-            <input type="checkbox" checked={isSelected} onChange={onSelect} aria-label="Select owner" className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]" />
+            <Checkbox compact checked={isSelected} onChange={onSelect} aria-label="Select owner" />
           </td>
         );
       case 'owner':

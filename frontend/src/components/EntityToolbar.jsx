@@ -35,7 +35,7 @@ export default function EntityToolbar({
 
       {/* Right: Search + Actions */}
       <div className="flex items-center gap-2">
-        {/* Search Input */}
+        {/* Search Input - WCAG 2.5.5 compliant 44px height */}
         {onSearchChange && (
           <div className={`relative ${searchWidth}`}>
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--bb-color-text-muted)]" />
@@ -44,7 +44,7 @@ export default function EntityToolbar({
               placeholder={searchPlaceholder}
               value={searchValue}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full h-9 rounded-lg border pl-10 pr-4 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
+              className="w-full h-11 rounded-lg border pl-10 pr-4 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
               style={{
                 backgroundColor: 'var(--bb-color-bg-body)',
                 borderColor: 'var(--bb-color-border-subtle)',

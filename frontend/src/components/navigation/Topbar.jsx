@@ -331,7 +331,7 @@ const NotificationsButton = () => {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'relative flex items-center justify-center rounded-lg border p-2 transition-all',
+          'relative flex min-h-11 min-w-11 items-center justify-center rounded-lg border transition-all',
           'hover:bg-[color:var(--bb-color-bg-elevated)]',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]'
         )}
@@ -1290,7 +1290,7 @@ const Topbar = ({ onToggleSidebar }) => {
       <div className="mx-auto flex h-[var(--bb-topbar-height,56px)] w-full items-center justify-between gap-4 px-[var(--bb-space-4,1rem)] sm:px-[var(--bb-space-6,1.5rem)] lg:px-[var(--bb-space-8,2rem)]">
         {/* Left: Mobile menu + Location */}
         <div className="flex items-center gap-3">
-          <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-lg border text-[color:var(--bb-color-text-muted)] transition-colors hover:bg-[color:var(--bb-color-bg-elevated)] hover:text-[color:var(--bb-color-text-primary)] lg:hidden" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }} onClick={onToggleSidebar} aria-label="Open navigation">
+          <button type="button" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border text-[color:var(--bb-color-text-muted)] transition-colors hover:bg-[color:var(--bb-color-bg-elevated)] hover:text-[color:var(--bb-color-text-primary)] lg:hidden" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }} onClick={onToggleSidebar} aria-label="Open navigation">
             <Menu className="h-5 w-5" />
           </button>
           <LocationSwitcher />
@@ -1300,7 +1300,7 @@ const Topbar = ({ onToggleSidebar }) => {
         <div className="flex-1 max-w-xl hidden sm:flex items-center gap-3"><div className="flex-1 max-w-lg"><GlobalSearch /></div><span className="hidden lg:flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)] whitespace-nowrap">Press <kbd className="rounded border px-1.5 py-0.5 text-[0.65rem] font-medium" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>?</kbd> for shortcuts</span></div>
         {/* Right: Actions + User */}
         <div className="flex items-center gap-2">
-          <button type="button" className="sm:hidden flex items-center justify-center rounded-lg border p-2" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }} aria-label="Search"><Search className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" /></button>
+          <button type="button" className="sm:hidden flex min-h-11 min-w-11 items-center justify-center rounded-lg border" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }} aria-label="Search"><Search className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" /></button>
           <NotificationsButton />
           <HelpButton />
           <TimeClockButton />

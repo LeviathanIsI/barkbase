@@ -17,7 +17,7 @@ const getSelectStyles = (error) => ({
         ? 'var(--bb-color-accent)'
         : 'var(--bb-color-border-subtle)',
     borderRadius: '0.5rem',
-    minHeight: '40px',
+    minHeight: '44px',
     boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
     '&:hover': {
       borderColor: state.isFocused ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
