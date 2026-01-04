@@ -200,6 +200,9 @@ const StatsBar = ({ conversations }) => {
 const ConversationItem = ({ conversation, isSelected, onClick }) => {
   const hasUnread = conversation.unreadCount > 0;
   const needsReply = conversation.needsReply;
+  const ownerName = conversation.owner
+    ? `${conversation.owner.firstName} ${conversation.owner.lastName}`
+    : conversation.otherUser?.name || 'Unknown';
 
   return (
     <button
@@ -214,7 +217,7 @@ const ConversationItem = ({ conversation, isSelected, onClick }) => {
     >
       {/* Avatar with unread indicator */}
       <div className="relative flex-shrink-0">
-        <Avatar name={conversation.otherUser?.name} size="sm" />
+        <Avatar name={ownerName} size="sm" />
         {hasUnread && (
           <div className="absolute -top-0.5 -right-0.5 h-3 w-3 bg-[var(--bb-color-accent)] rounded-full border-2 border-white dark:border-[var(--bb-color-bg-surface)]" />
         )}
@@ -227,7 +230,7 @@ const ConversationItem = ({ conversation, isSelected, onClick }) => {
             'font-medium truncate text-sm',
             hasUnread ? 'text-[color:var(--bb-color-text-primary)]' : 'text-[color:var(--bb-color-text-primary)]'
           )}>
-            {conversation.otherUser?.name || 'Unknown User'}
+            {ownerName}
           </span>
           <span className="text-[10px] text-[color:var(--bb-color-text-muted)] flex-shrink-0">
             {formatConversationTime(conversation.lastMessage?.createdAt)}
@@ -259,11 +262,16 @@ const ConversationItem = ({ conversation, isSelected, onClick }) => {
 };
 
 // Message Bubble
-const MessageBubble = ({ message, isCurrentUser, showTimestamp }) => {
+const MessageBubble = ({ message, isCurrentUser, showTimestamp, conversation }) => {
+  // Get display name based on sender type
+  const senderName = isCurrentUser
+    ? (message.staffName || 'Staff')
+    : (conversation?.owner ? `${conversation.owner.firstName}` : 'Customer');
+
   return (
     <div className={cn('flex gap-2', isCurrentUser ? 'justify-end' : 'justify-start')}>
       {!isCurrentUser && (
-        <Avatar name={message.senderName} size="sm" className="mt-1" />
+        <Avatar name={senderName} size="sm" className="mt-1" />
       )}
       <div className={cn('max-w-[70%]', isCurrentUser ? 'items-end' : 'items-start')}>
         <div
@@ -285,17 +293,13 @@ const MessageBubble = ({ message, isCurrentUser, showTimestamp }) => {
               {formatMessageTime(message.createdAt)}
             </span>
             {isCurrentUser && (
-              message.read ? (
-                <CheckCheck className="h-3 w-3 text-[var(--bb-color-accent)]" />
-              ) : (
-                <Check className="h-3 w-3 text-[color:var(--bb-color-text-muted)]" />
-              )
+              <CheckCheck className="h-3 w-3 text-[var(--bb-color-accent)]" />
             )}
           </div>
         )}
       </div>
       {isCurrentUser && (
-        <Avatar name={message.senderName} size="sm" className="mt-1" />
+        <Avatar name={senderName} size="sm" className="mt-1" />
       )}
     </div>
   );
@@ -335,7 +339,11 @@ const ContextSidebar = ({ conversation, onViewOwner, onViewPet, onScheduleBookin
     );
   }
 
-  const owner = conversation.otherUser;
+  const ownerData = conversation.owner || conversation.otherUser;
+  const owner = ownerData ? {
+    ...ownerData,
+    name: ownerData.firstName ? `${ownerData.firstName} ${ownerData.lastName}` : ownerData.name,
+  } : null;
   const pets = conversation.pets || [];
 
   return (
@@ -578,7 +586,7 @@ const Messages = () => {
 
   const { data: conversations, isLoading: conversationsLoading, refetch: refetchConversations } = useConversationsQuery();
   const { data: messages, isLoading: messagesLoading, refetch: refetchMessages } = useConversationMessagesQuery(
-    selectedConversation?.conversationId
+    selectedConversation?.id || selectedConversation?.conversationId
   );
   const sendMutation = useSendMessageMutation();
   const markReadMutation = useMarkConversationReadMutation();
@@ -586,7 +594,7 @@ const Messages = () => {
   // Mark conversation as read when selected
   useEffect(() => {
     if (selectedConversation && selectedConversation.unreadCount > 0) {
-      markReadMutation.mutate(selectedConversation.conversationId);
+      markReadMutation.mutate(selectedConversation.id || selectedConversation.conversationId);
     }
   }, [selectedConversation]);
 
@@ -629,11 +637,14 @@ const Messages = () => {
     // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      result = result.filter(conv =>
-        conv.otherUser?.name?.toLowerCase().includes(term) ||
-        conv.pets?.some(p => p.name?.toLowerCase().includes(term)) ||
-        conv.lastMessage?.content?.toLowerCase().includes(term)
-      );
+      result = result.filter(conv => {
+        const ownerName = conv.owner
+          ? `${conv.owner.firstName} ${conv.owner.lastName}`.toLowerCase()
+          : conv.otherUser?.name?.toLowerCase() || '';
+        return ownerName.includes(term) ||
+          conv.pets?.some(p => p.name?.toLowerCase().includes(term)) ||
+          conv.lastMessage?.content?.toLowerCase().includes(term);
+      });
     }
 
     // Status filter
@@ -657,9 +668,11 @@ const Messages = () => {
         );
         break;
       case 'owner':
-        result = [...result].sort((a, b) =>
-          (a.otherUser?.name || '').localeCompare(b.otherUser?.name || '')
-        );
+        result = [...result].sort((a, b) => {
+          const nameA = a.owner ? `${a.owner.firstName} ${a.owner.lastName}` : a.otherUser?.name || '';
+          const nameB = b.owner ? `${b.owner.firstName} ${b.owner.lastName}` : b.otherUser?.name || '';
+          return nameA.localeCompare(nameB);
+        });
         break;
       default: // recent
         result = [...result].sort((a, b) =>
@@ -709,9 +722,10 @@ const Messages = () => {
     if (!messageText.trim() || !selectedConversation) return;
 
     try {
+      const ownerId = selectedConversation.owner?.id || selectedConversation.otherUser?.recordId;
       await sendMutation.mutateAsync({
-        recipientId: selectedConversation.otherUser.recordId,
-        conversationId: selectedConversation.conversationId,
+        recipientId: ownerId,
+        conversationId: selectedConversation.id || selectedConversation.conversationId,
         content: messageText
       });
       setMessageText('');
@@ -726,8 +740,12 @@ const Messages = () => {
 
   // DAFE: Open Owner slideout
   const handleViewOwner = () => {
-    const owner = selectedConversation?.otherUser;
-    if (owner) {
+    const ownerData = selectedConversation?.owner || selectedConversation?.otherUser;
+    if (ownerData) {
+      const owner = {
+        ...ownerData,
+        name: ownerData.firstName ? `${ownerData.firstName} ${ownerData.lastName}` : ownerData.name,
+      };
       openSlideout(SLIDEOUT_TYPES.OWNER_EDIT, {
         owner,
         title: `${owner.name || 'Owner'} Profile`,
@@ -747,13 +765,13 @@ const Messages = () => {
 
   // DAFE: Open Booking slideout
   const handleScheduleBooking = () => {
-    const owner = selectedConversation?.otherUser;
+    const ownerData = selectedConversation?.owner || selectedConversation?.otherUser;
     const pets = selectedConversation?.pets || [];
     openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, {
       title: 'New Booking',
       prefill: {
-        ownerId: owner?.recordId,
-        petId: pets[0]?.recordId,
+        ownerId: ownerData?.id || ownerData?.recordId,
+        petId: pets[0]?.id || pets[0]?.recordId,
       },
     });
   };
@@ -863,9 +881,9 @@ const Messages = () => {
             ) : (
               filteredConversations.map(conv => (
                 <ConversationItem
-                  key={conv.conversationId}
+                  key={conv.id || conv.conversationId}
                   conversation={conv}
-                  isSelected={selectedConversation?.conversationId === conv.conversationId}
+                  isSelected={(selectedConversation?.id || selectedConversation?.conversationId) === (conv.id || conv.conversationId)}
                   onClick={() => handleSelectConversation(conv)}
                 />
               ))
@@ -893,14 +911,14 @@ const Messages = () => {
                     <ChevronLeft className="h-5 w-5" />
                   </button>
 
-                  <Avatar name={selectedConversation.otherUser?.name} size="md" />
+                  <Avatar name={selectedConversation.owner ? `${selectedConversation.owner.firstName} ${selectedConversation.owner.lastName}` : 'Unknown'} size="md" />
                   <div>
                     <button
                       onClick={handleViewOwner}
                       className="flex items-center gap-2 hover:underline"
                     >
                       <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">
-                        {selectedConversation.otherUser?.name || 'Unknown User'}
+                        {selectedConversation.owner ? `${selectedConversation.owner.firstName} ${selectedConversation.owner.lastName}` : 'Unknown User'}
                       </h3>
                       {selectedConversation.isOnline && (
                         <span className="h-2 w-2 bg-green-500 rounded-full" />
@@ -943,6 +961,7 @@ const Messages = () => {
                           message={item.message}
                           isCurrentUser={item.message.senderId === currentUser?.recordId || item.message.senderType === 'STAFF'}
                           showTimestamp={item.showTimestamp}
+                          conversation={selectedConversation}
                         />
                       );
                     })}

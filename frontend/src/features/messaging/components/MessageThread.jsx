@@ -36,8 +36,10 @@ const MessageThread = ({
     <>
       {/* Thread Header */}
       <div className="p-4 border-b border-border">
-        <h3 className="font-semibold">{conversation.otherUser?.name || 'Unknown User'}</h3>
-        <p className="text-sm text-muted">{conversation.otherUser?.email}</p>
+        <h3 className="font-semibold">
+          {conversation.owner?.firstName} {conversation.owner?.lastName}
+        </h3>
+        <p className="text-sm text-muted">{conversation.owner?.email || conversation.owner?.phone}</p>
       </div>
 
       {/* Messages */}
@@ -47,21 +49,32 @@ const MessageThread = ({
         ) : (
           <>
             {messages?.map((msg) => {
-              const isCurrentUser = msg.senderId === currentUserId;
+              // Staff messages on right (our side), owner messages on left (their side)
+              const isStaffMessage = msg.senderType === 'staff';
               return (
                 <div
-                  key={msg.recordId}
-                  className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
+                  key={msg.id || msg.recordId}
+                  className={`flex ${isStaffMessage ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
                     className={`max-w-[70%] rounded-lg p-3 ${
-                      isCurrentUser
+                      isStaffMessage
                         ? 'bg-primary text-white'
                         : 'bg-surface text-text'
                     }`}
                   >
+                    {!isStaffMessage && (
+                      <p className="text-xs font-medium text-muted mb-1">
+                        {conversation.owner?.firstName || 'Customer'}
+                      </p>
+                    )}
+                    {isStaffMessage && msg.staffName && (
+                      <p className="text-xs font-medium text-white/80 mb-1">
+                        {msg.staffName}
+                      </p>
+                    )}
                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                    <p className={`text-xs mt-1 ${isCurrentUser ? 'text-white/70' : 'text-muted'}`}>
+                    <p className={`text-xs mt-1 ${isStaffMessage ? 'text-white/70' : 'text-muted'}`}>
                       {tz.formatTime(msg.createdAt)}
                     </p>
                   </div>

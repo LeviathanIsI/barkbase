@@ -33,14 +33,23 @@ const ConversationList = ({ conversations, selectedConversation, onSelectConvers
       <div className="divide-y divide-border overflow-y-auto">
         {conversations?.map((conv) => (
           <button
-            key={conv.conversationId}
+            key={conv.id || conv.conversationId}
             onClick={() => onSelectConversation(conv)}
             className={`w-full p-4 text-left hover:bg-surface transition-colors ${
-              selectedConversation?.conversationId === conv.conversationId ? 'bg-surface' : ''
+              (selectedConversation?.id || selectedConversation?.conversationId) === (conv.id || conv.conversationId) ? 'bg-surface' : ''
             }`}
           >
             <div className="flex items-center justify-between mb-1">
-              <span className="font-semibold truncate">{conv.otherUser?.name || 'Unknown User'}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="font-semibold truncate">
+                  {conv.owner?.firstName} {conv.owner?.lastName}
+                </span>
+                {conv.pets?.length > 0 && (
+                  <span className="text-xs text-muted truncate">
+                    ({conv.pets.map(p => p.name).join(', ')})
+                  </span>
+                )}
+              </div>
               {conv.unreadCount > 0 && (
                 <Badge variant="primary" className="text-xs shrink-0 ml-2">
                   {conv.unreadCount}
