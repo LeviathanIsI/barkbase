@@ -1,7 +1,7 @@
 import { format, subWeeks, eachWeekOfInterval, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { BarChart3, TrendingUp, DollarSign, Users } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCapacityQuery } from '../api-capacity';
 

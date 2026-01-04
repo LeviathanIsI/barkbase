@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FileText, Download, Filter, Shield, Key, User, Lock, AlertTriangle, MapPin } from 'lucide-react';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import StyledSelect from '@/components/ui/StyledSelect';
 

@@ -5,7 +5,7 @@ import {
   MoreVertical, Star, Copy, Edit, Eye, ChevronDown, Settings,
   Loader2, AlertCircle, X
 } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';

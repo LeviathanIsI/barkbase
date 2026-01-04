@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, UserPlus, UserMinus, Dog } from 'lucide-react';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import LoadingState from '@/components/ui/LoadingState';

@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Avatar from '@/components/ui/Avatar';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import StyledSelect from '@/components/ui/StyledSelect';

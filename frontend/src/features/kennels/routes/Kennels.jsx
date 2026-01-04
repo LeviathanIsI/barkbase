@@ -3,7 +3,7 @@
  * Visual facility map view with spatial kennel layout
  */
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';

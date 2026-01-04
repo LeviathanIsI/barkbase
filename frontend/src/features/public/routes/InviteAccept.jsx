@@ -18,7 +18,7 @@
 import { useState, useEffect } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, AlertTriangle, Building2, Shield, Mail } from 'lucide-react';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useAuthStore } from '@/stores/auth';

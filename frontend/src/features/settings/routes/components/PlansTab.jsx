@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Check, X, Star, Zap, Users, Phone, Download, ExternalLink, Loader2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { useSubscriptionQuery, useBillingUsageQuery, useUpgradePlanMutation } from '@/features/settings/api';
 
 export default function PlansTab() {

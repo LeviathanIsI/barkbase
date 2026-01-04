@@ -4,7 +4,7 @@ import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
 import StyledSelect from '@/components/ui/StyledSelect';
 import Badge from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/utils';
 // Platform billing invoices = BarkBase billing the tenant (NOT business invoices)

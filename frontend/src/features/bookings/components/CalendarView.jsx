@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 
 const CalendarView = ({ bookings, currentDate, onDateChange, onBookingClick }) => {
   return (

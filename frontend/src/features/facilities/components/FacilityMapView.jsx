@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
 import { Bed, Home, Scissors, Dumbbell, Sun, HeartPulse, ZoomIn, ZoomOut, Maximize2, RotateCcw, Info } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import FacilityDetailsModal from './FacilityDetailsModal';
 
 /**

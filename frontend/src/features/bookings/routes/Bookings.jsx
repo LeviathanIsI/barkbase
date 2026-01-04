@@ -1,6 +1,6 @@
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { PageHeader } from '@/components/ui/Card';
+import { PageHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   ArrowDown,

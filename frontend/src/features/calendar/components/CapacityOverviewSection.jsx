@@ -3,7 +3,7 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { Building, Settings, TrendingUp, AlertTriangle, DollarSign, Calendar, Users, Home } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCapacityQuery } from '../api-capacity';
 

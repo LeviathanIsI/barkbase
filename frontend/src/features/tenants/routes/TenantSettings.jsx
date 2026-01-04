@@ -54,7 +54,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import Badge from '@/components/ui/Badge';
 import StyledSelect from '@/components/ui/StyledSelect';
 import { useTenantStore } from '@/stores/tenant';

@@ -1,7 +1,7 @@
 import { CreditCard, Calendar, DollarSign, TrendingUp, Loader2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import { useSubscriptionQuery, usePaymentMethodsQuery, useBillingUsageQuery } from '@/features/settings/api';
 import { usePaymentSummaryQuery } from '@/features/payments/api';

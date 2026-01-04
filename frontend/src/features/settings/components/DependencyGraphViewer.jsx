@@ -7,7 +7,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Download, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 
 export const DependencyGraphViewer = ({ propertyId, graphData, onNodeClick }) => {
   const svgRef = useRef(null);

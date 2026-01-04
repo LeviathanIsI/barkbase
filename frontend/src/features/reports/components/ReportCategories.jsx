@@ -5,7 +5,7 @@
 
 import { DollarSign, BarChart3, Users, TrendingUp, Star, Lock, Eye } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { chartPalette } from '@/components/ui/charts/palette';
 
 const ReportCategories = ({ onGenerateReport, onExportReport }) => {

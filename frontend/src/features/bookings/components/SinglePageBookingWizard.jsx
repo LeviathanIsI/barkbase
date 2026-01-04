@@ -12,7 +12,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import Badge from '@/components/ui/Badge';
 import { useOwnerSearchQuery } from '@/features/owners/api';
 import { usePetsQuery } from '@/features/pets/api';

@@ -1,5 +1,5 @@
 import { DollarSign, Calendar, Users, TrendingUp, Target, AlertTriangle } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 
 const QuickInsightsDashboard = () => {
   // Placeholder data until real API data is available

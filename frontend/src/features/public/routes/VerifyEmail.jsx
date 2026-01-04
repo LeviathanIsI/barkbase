@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { auth } from '@/lib/apiClient'; // Using the new auth client
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 
 // This component now needs to handle Cognito's email verification flow.

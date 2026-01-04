@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import StyledSelect from '@/components/ui/StyledSelect';
 import { useInviteMemberMutation } from '../api';
 

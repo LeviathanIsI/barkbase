@@ -1,6 +1,6 @@
 import { TrendingUp, AlertTriangle, BarChart3, Shield, Loader2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import StyledSelect from '@/components/ui/StyledSelect';
 import { useBillingUsageQuery } from '@/features/settings/api';
 

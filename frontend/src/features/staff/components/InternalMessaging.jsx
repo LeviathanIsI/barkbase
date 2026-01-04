@@ -1,6 +1,6 @@
 import { MessageSquare, Plus, Send } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { useState } from 'react';
 import { useConversationsQuery, useConversationMessagesQuery, useSendMessageMutation } from '@/features/messaging/api';
 

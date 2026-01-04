@@ -14,7 +14,7 @@ import {
 import { CheckCircleIcon as CheckCircleSolidIcon } from '@heroicons/react/24/solid';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 
 const CHECKLIST_CATEGORIES = [
   {

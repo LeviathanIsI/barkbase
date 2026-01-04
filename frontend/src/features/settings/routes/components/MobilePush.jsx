@@ -1,5 +1,5 @@
 import { Smartphone, Download, Bell, Volume2, Smartphone as PhoneIcon } from 'lucide-react';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 
 const MobilePush = () => {

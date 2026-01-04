@@ -1,6 +1,6 @@
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Modal from '@/components/ui/Modal';
 import SlidePanel from '@/components/ui/SlidePanel';
 import StyledSelect from '@/components/ui/StyledSelect';

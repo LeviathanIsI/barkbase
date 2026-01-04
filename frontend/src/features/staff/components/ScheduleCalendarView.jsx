@@ -1,6 +1,6 @@
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { useState, useMemo } from 'react';
 import { useTimezoneUtils } from '@/lib/timezone';
 import { useRunsQuery } from '@/features/daycare/api';

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Building, MapPin } from 'lucide-react';
-import { Card, PageHeader } from '@/components/ui/Card';
+import { Card, PageHeader } from '@/components/ui/card';
 import BookingHUD from '@/features/bookings/components/BookingHUD';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useKennelsWithOccupancy } from '@/features/kennels/api';

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import SettingsPage from '../components/SettingsPage';
 import UpgradeBanner from '@/components/ui/UpgradeBanner';

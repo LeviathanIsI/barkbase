@@ -10,7 +10,7 @@ import {
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
-import { PageHeader } from '@/components/ui/Card';
+import { PageHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';

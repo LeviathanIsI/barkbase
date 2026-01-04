@@ -24,7 +24,7 @@
 
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { useAuthStore } from '@/stores/auth';

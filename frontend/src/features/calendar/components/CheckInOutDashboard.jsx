@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { CheckCircle, Clock, AlertTriangle, Phone, CreditCard, FileText } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { useBookingCheckInMutation, useBookingCheckOutMutation } from '@/features/bookings/api';
 import { useAuthStore } from '@/stores/auth';
 import toast from 'react-hot-toast';

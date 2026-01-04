@@ -1,4 +1,4 @@
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/cn';
 
 const TodayCard = ({ children, className }) => {

@@ -1,6 +1,6 @@
 import { TrendingUp } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import StyledSelect from '@/components/ui/StyledSelect';
 import { useState, useMemo } from 'react';
 import { useTasksQuery } from '@/features/tasks/api';

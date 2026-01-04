@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Search, Filter, MoreVertical, UserPlus, Users, CheckCircle, Clock, Calendar, AlertTriangle, TrendingUp, Target } from 'lucide-react';
 import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import StyledSelect from '@/components/ui/StyledSelect';
 
 const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {

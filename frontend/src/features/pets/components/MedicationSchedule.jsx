@@ -1,5 +1,5 @@
 import { format, parseISO } from 'date-fns';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Select from '@/components/ui/Select';

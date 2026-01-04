@@ -43,7 +43,7 @@ import { format, formatDistanceToNow, isAfter, isBefore, startOfToday } from 'da
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import StyledSelect from '@/components/ui/StyledSelect';
-import { Card, MetricCard } from '@/components/ui/Card';
+import { Card, MetricCard } from '@/components/ui/card';
 import { PropertyCard, PropertyList } from '@/components/ui/PropertyCard';
 import { AssociationCard, AssociationItem } from '@/components/ui/AssociationCard';
 import { EditablePropertyList, EditablePropertyProvider } from '@/components/ui/EditableProperty';

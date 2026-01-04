@@ -1,6 +1,6 @@
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
 import Badge from '@/components/ui/Badge';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 
 const placeholderImage =
   'https://images.unsplash.com/photo-1507149833265-60c372daea22?auto=format&fit=crop&w=400&q=80';

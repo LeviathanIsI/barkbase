@@ -4,7 +4,7 @@ import {
   Mail, MessageSquare, Phone, FileText, Calendar, 
   DollarSign, AlertTriangle, StickyNote, ChevronRight 
 } from 'lucide-react';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCustomerTimeline } from '../api';

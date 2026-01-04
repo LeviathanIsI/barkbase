@@ -4,7 +4,7 @@ import { useTimezoneUtils } from '@/lib/timezone';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 
 const TeamMemberCard = ({ member, isSelected, onSelect, onEdit, onDelete }) => {
   const tz = useTimezoneUtils();

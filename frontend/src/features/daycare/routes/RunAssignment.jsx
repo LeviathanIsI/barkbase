@@ -48,7 +48,7 @@ import {
 import { format, addDays, subDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
-import { Card, PageHeader } from '@/components/ui/Card';
+import { Card, PageHeader } from '@/components/ui/card';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';

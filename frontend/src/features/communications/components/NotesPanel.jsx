@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Plus, Pin, Edit2, Trash2, Eye, EyeOff } from 'lucide-react';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Textarea from '@/components/ui/Textarea';

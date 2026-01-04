@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar, Home, Scissors, Pill } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useKennels } from '@/features/kennels/api';
 import { useBookingsQuery } from '@/features/bookings/api';

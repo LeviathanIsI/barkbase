@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import { format, isToday, isTomorrow, isAfter, isBefore, addDays, startOfDay, endOfDay } from 'date-fns';
 import Button from '@/components/ui/Button';
-import { Card, PageHeader } from '@/components/ui/Card';
+import { Card, PageHeader } from '@/components/ui/card';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';

@@ -52,7 +52,7 @@ import {
   Percent,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import SlidePanel from '@/components/ui/SlidePanel';

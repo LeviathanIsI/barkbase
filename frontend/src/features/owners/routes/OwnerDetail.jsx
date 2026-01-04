@@ -43,7 +43,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import AssociationModal from '@/components/ui/AssociationModal';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { PropertyCard, PropertyList } from '@/components/ui/PropertyCard';
 import { AssociationCard, AssociationItem } from '@/components/ui/AssociationCard';
 import { EditablePropertyList, EditablePropertyProvider } from '@/components/ui/EditableProperty';

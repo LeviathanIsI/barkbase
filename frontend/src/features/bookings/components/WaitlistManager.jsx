@@ -2,7 +2,7 @@ import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { useBookingStore } from '@/stores/booking';

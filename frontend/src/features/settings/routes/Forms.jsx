@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Switch from '@/components/ui/Switch';
 import Badge from '@/components/ui/Badge';

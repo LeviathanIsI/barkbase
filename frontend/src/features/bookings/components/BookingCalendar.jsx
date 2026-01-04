@@ -4,7 +4,7 @@ import { eachDayOfInterval, endOfWeek, format, parseISO, startOfDay, startOfWeek
 import { DndContext, useDroppable, useDraggable } from '@dnd-kit/core';
 import { CalendarCheck2, Clock, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';

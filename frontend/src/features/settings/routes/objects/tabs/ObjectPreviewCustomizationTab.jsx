@@ -4,7 +4,7 @@ import {
   Eye, Plus, GripVertical, Trash2, RotateCcw, Search,
   MoreVertical, Layout, Info, Loader2, AlertCircle, Edit, Copy, Star
 } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { OBJECT_TYPES } from '../objectConfig';

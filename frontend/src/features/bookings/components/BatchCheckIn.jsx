@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, Clock, Camera, User, AlertTriangle, ChevronRight, Check, X, Search } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import apiClient from '@/lib/apiClient';
 import { useTimezoneUtils } from '@/lib/timezone';
 import toast from 'react-hot-toast';

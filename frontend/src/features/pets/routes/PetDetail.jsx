@@ -46,7 +46,7 @@ import { format, formatDistanceToNow, isAfter, isBefore, startOfToday } from 'da
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Card, PageHeader } from '@/components/ui/Card';
+import { Card, PageHeader } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';

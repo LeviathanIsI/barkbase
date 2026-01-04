@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 import { useTimezoneUtils } from '@/lib/timezone';
 import StyledSelect from '@/components/ui/StyledSelect';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import Badge from '@/components/ui/Badge';
 import { useRunTemplatesQuery } from '@/features/daycare/api-templates';
 import { useBookingsQuery } from '../api';

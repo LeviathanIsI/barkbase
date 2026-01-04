@@ -63,7 +63,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import Badge from '@/components/ui/Badge';
 import SlidePanel from '@/components/ui/SlidePanel';
 import Modal from '@/components/ui/Modal';

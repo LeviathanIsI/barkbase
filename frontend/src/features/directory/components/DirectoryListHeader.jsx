@@ -1,4 +1,4 @@
-import { PageHeader } from '@/components/ui/Card';
+import { PageHeader } from '@/components/ui/card';
 
 /**
  * DirectoryListHeader

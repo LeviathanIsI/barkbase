@@ -1,6 +1,6 @@
 import { Calendar, Plus, AlertTriangle } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import StyledSelect from '@/components/ui/StyledSelect';
 import { useState, useMemo } from 'react';
 import { useTodaysTasksQuery, useOverdueTasksQuery, useCompleteTaskMutation, useCreateTaskMutation } from '@/features/tasks/api';

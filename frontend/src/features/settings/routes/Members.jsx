@@ -18,7 +18,7 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import StyledSelect from '@/components/ui/StyledSelect';

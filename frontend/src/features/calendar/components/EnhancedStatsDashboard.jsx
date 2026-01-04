@@ -1,6 +1,6 @@
 import { Calendar, TrendingUp, Users, Home, AlertTriangle, DollarSign, Clock, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { useCapacity } from '@/features/schedule/api/api';
 
 const EnhancedStatsDashboard = ({ currentDate, stats: todayStats = {} }) => {

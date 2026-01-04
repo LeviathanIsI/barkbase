@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Monitor, Smartphone, MapPin, Clock, LogOut, AlertTriangle } from 'lucide-react';
 import { useTimezoneUtils } from '@/lib/timezone';
 import toast from 'react-hot-toast';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import StyledSelect from '@/components/ui/StyledSelect';
 import { Skeleton } from '@/components/ui/skeleton';

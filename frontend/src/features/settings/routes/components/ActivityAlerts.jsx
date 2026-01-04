@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Calendar, CreditCard, Heart, MessageSquare, Users, ChevronDown, ChevronRight } from 'lucide-react';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 
 const ActivityAlerts = ({ alerts, onUpdate }) => {

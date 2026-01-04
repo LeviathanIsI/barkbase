@@ -1,6 +1,6 @@
 import { Clock, Mail, Calendar, Settings } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 
 const ScheduledReports = () => {
   const scheduledReports = [

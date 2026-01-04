@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { Calendar, List, Activity, Layout, Search, Settings } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
-import { Card, PageHeader } from '@/components/ui/Card';
+import { Card, PageHeader } from '@/components/ui/card';
 import BookingCard from '../components/BookingCard';
 import ListView from '../components/ListView';
 import CalendarView from '../components/CalendarView';

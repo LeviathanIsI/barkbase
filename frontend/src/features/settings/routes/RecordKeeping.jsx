@@ -1,4 +1,4 @@
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import UpgradeBanner from '@/components/ui/UpgradeBanner';
 import SettingsPage from '../components/SettingsPage';
 

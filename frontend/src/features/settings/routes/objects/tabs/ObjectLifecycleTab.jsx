@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import {
   Circle, Plus, GripVertical, Trash2, Edit, CheckCircle, Loader2, X
 } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { OBJECT_TYPES } from '../objectConfig';

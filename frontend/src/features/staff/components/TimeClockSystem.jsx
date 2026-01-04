@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Clock, Play, Pause, Square, Coffee, Calendar, CheckCircle, AlertCircle, User } from 'lucide-react';
 import { useTimezoneUtils } from '@/lib/timezone';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/cn';
 import {
   clockIn,

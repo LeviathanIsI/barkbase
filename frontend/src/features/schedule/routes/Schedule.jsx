@@ -1,6 +1,6 @@
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { PageHeader } from '@/components/ui/Card';
+import { PageHeader } from '@/components/ui/card';
 import { useTimezoneUtils } from '@/lib/timezone';
 import { addDays, format, startOfWeek } from 'date-fns';
 import {

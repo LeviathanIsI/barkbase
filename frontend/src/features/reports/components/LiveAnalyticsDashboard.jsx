@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { DollarSign, Calendar, Users, BarChart3, TrendingUp, Target } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import StyledSelect from '@/components/ui/StyledSelect';
 import { MetricCard } from '@/components/ui/charts';
 import { chartPalette } from '@/components/ui/charts/palette';

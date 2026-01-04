@@ -4,7 +4,7 @@ import {
   Database, TrendingUp, Users, Bell, AlertTriangle,
   CheckCircle, Clock, MapPin
 } from 'lucide-react';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import toast from 'react-hot-toast';

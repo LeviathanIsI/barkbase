@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, Edit, Trash2, DollarSign } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card, PageHeader } from '@/components/ui/Card';
+import { Card, PageHeader } from '@/components/ui/card';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import Modal from '@/components/ui/Modal';

@@ -1,6 +1,6 @@
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import Badge from '@/components/ui/Badge';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 
 const getVariant = (days) => {
   if (days <= 30) return 'danger';

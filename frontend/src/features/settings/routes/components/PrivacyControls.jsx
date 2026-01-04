@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Database, Download, Trash2, AlertTriangle, FileText, Clock } from 'lucide-react';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import { useAuthStore } from '@/stores/auth';
 

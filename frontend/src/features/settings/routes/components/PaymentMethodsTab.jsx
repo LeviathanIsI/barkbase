@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Plus, MoreVertical, CreditCard, MapPin, Bell, Loader2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { usePaymentMethodsQuery, useBillingContactQuery } from '@/features/settings/api';
 import { useTimezoneUtils } from '@/lib/timezone';
 

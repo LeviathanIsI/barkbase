@@ -5,7 +5,7 @@ import {
   GitBranch, Plus, GripVertical, Settings, Trash2, ChevronRight,
   ChevronDown, CheckCircle, XCircle, Clock, Edit, Loader2, X, Star
 } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';

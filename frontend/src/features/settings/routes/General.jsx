@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import StyledSelect from '@/components/ui/StyledSelect';

@@ -21,7 +21,7 @@
  */
 
 import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import { config } from '@/config/env';
 import { apiClient, auth } from '@/lib/apiClient';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';

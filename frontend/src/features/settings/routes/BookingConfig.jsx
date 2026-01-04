@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Switch from '@/components/ui/Switch';
 import { Calendar, Clock, DollarSign, Shield, Settings, Loader2 } from 'lucide-react';

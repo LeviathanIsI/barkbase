@@ -1,5 +1,5 @@
 import { Edit, Trash2, DollarSign, Users, MapPin, Hash } from 'lucide-react';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { formatCurrency } from '@/lib/utils';

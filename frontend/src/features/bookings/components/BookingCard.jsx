@@ -1,7 +1,7 @@
 import { Clock, CheckCircle, Home, AlertTriangle, Pill, Calendar, FileText, MessageCircle, Phone, Mail, Edit, UserCheck, X, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { StatusPill } from '@/components/primitives';
 
 const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onContact, onViewDetails, isSelected, onSelect }) => {

@@ -1,5 +1,5 @@
 import { Mail, Smartphone, Monitor, Smartphone as PhoneIcon, Plus } from 'lucide-react';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 
 const CommunicationChannels = ({ preferences, onUpdate }) => {

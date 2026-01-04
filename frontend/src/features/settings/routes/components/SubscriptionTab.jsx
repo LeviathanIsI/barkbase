@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CheckCircle, X, Zap, TrendingUp, ArrowRight, Loader2, AlertTriangle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { useSubscriptionQuery, useBillingUsageQuery, useUpgradePlanMutation } from '@/features/settings/api';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 

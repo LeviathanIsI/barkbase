@@ -3,7 +3,7 @@
  * Token-based styling for consistent theming.
  */
 
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import {
   Table,
   TableHeader,

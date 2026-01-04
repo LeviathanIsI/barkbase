@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { useActivities, useDeleteActivity, useUpdateActivity } from '../api';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';

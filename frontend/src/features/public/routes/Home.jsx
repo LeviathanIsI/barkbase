@@ -1,6 +1,6 @@
 import { Link, Navigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import { useAuthStore } from '@/stores/auth';
 
 const Home = () => {

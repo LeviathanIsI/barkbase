@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Key, Plus, Eye, RotateCcw, Trash2, Copy, Download, AlertTriangle } from 'lucide-react';
 import { useTimezoneUtils } from '@/lib/timezone';
-import Card from '@/components/ui/Card';
+import Card from '@/components/ui/card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 
