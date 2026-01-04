@@ -432,11 +432,11 @@ const Owners = () => {
     <>
       {/* Main content container - fixed height, no page scroll */}
       <div className={cn(
-        "flex flex-col w-full h-[calc(100vh-120px)] overflow-hidden transition-opacity duration-200",
+        "flex flex-col w-full max-w-full h-[calc(100vh-120px)] overflow-hidden transition-opacity duration-200",
         hasLoaded ? "opacity-100" : "opacity-0"
       )}>
         {/* Header Section - fixed, doesn't shrink */}
-        <div className="flex-shrink-0 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+        <div className="flex-shrink-0 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b min-w-0" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
           <div>
             <Breadcrumbs items={['Clients', 'Owners']} />
             <h1 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">Pet Owners</h1>
@@ -459,7 +459,7 @@ const Owners = () => {
 
         {/* Toolbar - fixed, doesn't shrink */}
         <div
-          className="flex-shrink-0 px-4 py-3 border-b shadow-sm rounded-lg"
+          className="flex-shrink-0 px-4 py-3 border-b shadow-sm rounded-lg min-w-0"
           style={{
             backgroundColor: 'var(--bb-color-bg-surface)',
             borderColor: 'var(--bb-color-border-subtle)',
@@ -527,7 +527,7 @@ const Owners = () => {
               <>
                 {/* Column Controls */}
                 <div className="relative" ref={columnsRef}>
-                  <Button variant="outline" size="sm" onClick={() => setShowColumnsDropdown(!showColumnsDropdown)} className="gap-1.5" aria-label="Manage columns">
+                  <Button variant="outline" size="sm" onClick={() => setShowColumnsDropdown(!showColumnsDropdown)} className="gap-1.5 min-w-11" aria-label="Manage columns">
                     <Columns className="h-4 w-4" />
                     <span className="hidden sm:inline">Columns</span>
                   </Button>
@@ -542,12 +542,12 @@ const Owners = () => {
                   )}
                 </div>
 
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExportAll} aria-label="Export owners">
+                <Button variant="outline" size="sm" className="gap-1.5 min-w-11" onClick={handleExportAll} aria-label="Export owners">
                   <Download className="h-4 w-4" />
                   <span className="hidden sm:inline">Export</span>
                 </Button>
 
-                <Button size="sm" onClick={() => setFormModalOpen(true)} className="gap-1.5" aria-label="Add new owner">
+                <Button size="sm" onClick={() => setFormModalOpen(true)} className="gap-1.5 min-w-11" aria-label="Add new owner">
                   <Plus className="h-4 w-4" />
                   <span className="hidden sm:inline">Add Owner</span>
                 </Button>
@@ -658,17 +658,17 @@ const Owners = () => {
                   {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sortedOwners.length)} of {sortedOwners.length}
                 </span>
                 <div className="flex items-center gap-1">
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2" aria-label="First page">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="min-w-11 px-2" aria-label="First page">
                     <ChevronLeft className="h-4 w-4" /><ChevronLeft className="h-4 w-4 -ml-2" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2" aria-label="Previous page">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="min-w-11 px-2" aria-label="Previous page">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="px-3 text-sm font-medium text-[color:var(--bb-color-text-primary)]">{currentPage}</span>
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2" aria-label="Next page">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="min-w-11 px-2" aria-label="Next page">
                     <ChevronRight className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2" aria-label="Last page">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="min-w-11 px-2" aria-label="Last page">
                     <ChevronRight className="h-4 w-4" /><ChevronRight className="h-4 w-4 -ml-2" />
                   </Button>
                 </div>
@@ -1024,7 +1024,7 @@ const ColumnsDropdown = ({ columns, visibleColumns, columnOrder, onToggle, onReo
   const handleDragOver = (e, index) => {
     e.preventDefault();
     if (draggedId === null) return;
-    
+
     const draggedIndex = columnOrder.indexOf(draggedId);
     if (draggedIndex !== -1 && draggedIndex !== index) {
       onReorder(draggedIndex, index);
@@ -1052,18 +1052,16 @@ const ColumnsDropdown = ({ columns, visibleColumns, columnOrder, onToggle, onReo
             onDragEnd={handleDragEnd}
             className={cn(
               'flex items-center gap-2 px-2 py-1.5 text-sm cursor-move rounded transition-all duration-150',
-              draggedId === column.id 
-                ? 'opacity-50 bg-[color:var(--bb-color-accent-soft)] ring-2 ring-[color:var(--bb-color-accent)]' 
+              draggedId === column.id
+                ? 'opacity-50 bg-[color:var(--bb-color-accent-soft)] ring-2 ring-[color:var(--bb-color-accent)]'
                 : 'hover:bg-[color:var(--bb-color-bg-elevated)]'
             )}
           >
             <GripVertical className="h-4 w-4 text-[color:var(--bb-color-text-muted)] opacity-50" />
-            <input 
-              type="checkbox" 
-              checked={visibleColumns.includes(column.id)} 
-              onChange={() => onToggle(column.id)} 
-              onClick={(e) => e.stopPropagation()}
-              className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]" 
+            <Checkbox
+              compact
+              checked={visibleColumns.includes(column.id)}
+              onChange={() => onToggle(column.id)}
             />
             <span className="text-[color:var(--bb-color-text-primary)]">{column.label}</span>
           </div>

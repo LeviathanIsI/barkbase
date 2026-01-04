@@ -142,14 +142,31 @@ test.describe('Responsive Standards Tests', () => {
               const isVisible = await isElementVisible(element);
               if (!isVisible) continue;
 
-              const box = await getElementBox(element);
+              // For checkbox/radio inputs, measure the clickable parent (label or container)
+              const tagName = await element.evaluate(el => el.tagName.toLowerCase());
+              const type = await element.getAttribute('type').catch(() => '');
+
+              let box;
+              if ((tagName === 'input' && (type === 'checkbox' || type === 'radio'))) {
+                // Check if input is wrapped in a label
+                box = await element.evaluate((el) => {
+                  const label = el.closest('label');
+                  if (label) {
+                    return label.getBoundingClientRect();
+                  }
+                  // Otherwise measure the input itself
+                  return el.getBoundingClientRect();
+                });
+              } else {
+                box = await getElementBox(element);
+              }
+
               if (!box) continue;
 
               const meetsStandard = box.width >= STANDARDS.minTouchTargetSize &&
                                    box.height >= STANDARDS.minTouchTargetSize;
 
               if (!meetsStandard) {
-                const tagName = await element.evaluate(el => el.tagName.toLowerCase());
                 const text = await element.textContent().catch(() => '');
                 const id = await element.getAttribute('id').catch(() => '');
                 const classes = await element.getAttribute('class').catch(() => '');

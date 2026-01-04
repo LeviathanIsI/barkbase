@@ -105,7 +105,7 @@ const LocationSwitcher = () => {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all',
+          'flex items-center gap-2 rounded-lg border px-3 py-2 min-h-11 text-sm transition-all',
           'hover:bg-[color:var(--bb-color-bg-elevated)]',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]'
         )}
@@ -564,7 +564,7 @@ const HelpButton = () => {
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           className={cn(
-            'flex items-center justify-center rounded-lg border p-2 transition-all',
+            'flex min-h-11 min-w-11 items-center justify-center rounded-lg border transition-all',
             'hover:bg-[color:var(--bb-color-bg-elevated)]',
             'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]'
           )}
@@ -931,7 +931,7 @@ const TimeClockButton = () => {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'relative flex items-center justify-center rounded-lg border p-2 transition-all',
+          'relative flex min-h-11 min-w-11 items-center justify-center rounded-lg border transition-all',
           'hover:bg-[color:var(--bb-color-bg-elevated)]',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]'
         )}
