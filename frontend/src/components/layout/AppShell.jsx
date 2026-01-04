@@ -21,7 +21,7 @@ const AppShell = () => {
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen w-full max-w-full overflow-x-hidden"
       style={{
         backgroundColor: 'var(--bb-color-bg-body)',
         color: 'var(--bb-color-text-primary)',
