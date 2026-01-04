@@ -49,11 +49,11 @@ const AppShell = () => {
         <Topbar onToggleSidebar={() => setMobileSidebarOpen(true)} />
         <GlobalKeyboardShortcuts />
         <main
-          className="flex-1"
+          className="flex-1 max-w-full overflow-x-hidden"
           style={{ backgroundColor: 'var(--bb-color-bg-body)' }}
         >
           {/* Global content rail - wide layout for SaaS app with comfortable side padding */}
-          <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-6">
+          <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-6 min-w-0">
             <Outlet />
           </div>
         </main>

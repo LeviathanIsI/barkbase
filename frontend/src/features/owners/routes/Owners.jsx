@@ -445,8 +445,8 @@ const Owners = () => {
             </p>
           </div>
 
-          {/* Stats Pills - Right Aligned */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Stats Pills - Right Aligned - Hide on very small screens */}
+          <div className="hidden sm:flex flex-wrap items-center gap-2">
             <StatBadge icon={Users} value={stats.total} label="Total" />
             <StatBadge icon={Star} value={stats.active} label="Active" variant="success" />
             <StatBadge icon={DollarSign} value={stats.highValue} label="High Value" variant="purple" />
@@ -637,12 +637,12 @@ const Owners = () => {
           {/* Pagination - fixed at bottom */}
           {sortedOwners.length > 0 && (
             <div
-              className="flex-shrink-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-3 px-4 border-t"
+              className="flex-shrink-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-3 px-4 border-t min-w-0"
               style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-surface)' }}
             >
-              <div className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)]">
-                <span>Rows per page:</span>
-                <div className="w-24">
+              <div className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)] min-w-0">
+                <span className="whitespace-nowrap">Rows per page:</span>
+                <div className="w-20 min-w-0">
                   <StyledSelect
                     options={PAGE_SIZE_OPTIONS.map((size) => ({ value: size, label: String(size) }))}
                     value={pageSize}
@@ -653,12 +653,12 @@ const Owners = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-[color:var(--bb-color-text-muted)]">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-sm text-[color:var(--bb-color-text-muted)] whitespace-nowrap">
                   {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sortedOwners.length)} of {sortedOwners.length}
                 </span>
-                <div className="flex items-center gap-1">
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="min-w-11 px-2" aria-label="First page">
+                <div className="flex items-center gap-1 flex-wrap">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="min-w-11 px-2 hidden sm:inline-flex" aria-label="First page">
                     <ChevronLeft className="h-4 w-4" /><ChevronLeft className="h-4 w-4 -ml-2" />
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="min-w-11 px-2" aria-label="Previous page">
@@ -668,7 +668,7 @@ const Owners = () => {
                   <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="min-w-11 px-2" aria-label="Next page">
                     <ChevronRight className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="min-w-11 px-2" aria-label="Last page">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="min-w-11 px-2 hidden sm:inline-flex" aria-label="Last page">
                     <ChevronRight className="h-4 w-4" /><ChevronRight className="h-4 w-4 -ml-2" />
                   </Button>
                 </div>
