@@ -16,6 +16,7 @@ export const SLIDEOUT_TYPES = {
   PET_CREATE: 'petCreate',
   PET_EDIT: 'petEdit',
   PET_LINK_OWNER: 'petLinkOwner',
+  OWNER_LINK_PET: 'ownerLinkPet',
   TASK_CREATE: 'taskCreate',
   TASK_EDIT: 'taskEdit',
   COMMUNICATION_CREATE: 'communicationCreate',
@@ -63,6 +64,11 @@ export const SLIDEOUT_CONFIG = {
   [SLIDEOUT_TYPES.PET_LINK_OWNER]: {
     title: 'Link Owner',
     description: 'Link an existing owner or create a new one',
+    width: 'max-w-2xl',
+  },
+  [SLIDEOUT_TYPES.OWNER_LINK_PET]: {
+    title: 'Link Pet',
+    description: 'Link an existing pet or create a new one',
     width: 'max-w-2xl',
   },
   [SLIDEOUT_TYPES.TASK_CREATE]: {
@@ -126,6 +132,7 @@ const SLIDEOUT_LABELS = {
   [SLIDEOUT_TYPES.PET_CREATE]: 'Pet',
   [SLIDEOUT_TYPES.PET_EDIT]: 'Pet',
   [SLIDEOUT_TYPES.PET_LINK_OWNER]: 'Link Owner',
+  [SLIDEOUT_TYPES.OWNER_LINK_PET]: 'Link Pet',
   [SLIDEOUT_TYPES.TASK_CREATE]: 'Task',
   [SLIDEOUT_TYPES.TASK_EDIT]: 'Task',
   [SLIDEOUT_TYPES.COMMUNICATION_CREATE]: 'Message',

@@ -9,7 +9,7 @@ import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
 import { cn } from '@/lib/cn';
 import { useTenantStore } from '@/stores/tenant';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import Select from 'react-select';
@@ -51,11 +51,11 @@ const selectStyles = {
 // API hooks
 import { useCreateCommunicationMutation, useCreateNote } from '@/features/communications/api';
 import { useSendMessageMutation } from '@/features/messaging/api';
-import { useCreateOwnerMutation, useOwner, useOwnersQuery, useUpdateOwnerMutation, useOwnerSearchQuery } from '@/features/owners/api';
-import { useCreatePetMutation, useUpdatePetMutation, useUpdateVaccinationMutation, useLinkOwnerToPetMutation } from '@/features/pets/api';
+import { useCreateOwnerMutation, useOwner, useOwnersQuery, useUpdateOwnerMutation, useOwnerSearchQuery, useAddPetToOwnerMutation } from '@/features/owners/api';
+import { useCreatePetMutation, useUpdatePetMutation, useUpdateVaccinationMutation, useLinkOwnerToPetMutation, usePetsQuery } from '@/features/pets/api';
 import { useCreateInvoiceMutation } from '@/features/invoices/api';
 import { addDays, format } from 'date-fns';
-import { Search, UserPlus, Check, AlertCircle } from 'lucide-react';
+import { Search, UserPlus, Check, AlertCircle, PawPrint } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 
 // Form components for complex flows
@@ -159,6 +159,13 @@ export function SlideoutHost() {
           ['owners'],
         ].filter(Boolean);
 
+      case SLIDEOUT_TYPES.OWNER_LINK_PET:
+        return [
+          state?.props?.ownerId ? ['owner', state.props.ownerId] : null,
+          ['pets', { tenantId }],
+          ['owners', { tenantId }],
+        ].filter(Boolean);
+
       default:
         return [];
     }
@@ -194,6 +201,7 @@ export function SlideoutHost() {
       case SLIDEOUT_TYPES.BOOKING_CHECK_IN: return 'Pet checked in successfully';
       case SLIDEOUT_TYPES.INVOICE_CREATE: return 'Invoice created successfully';
       case SLIDEOUT_TYPES.PET_LINK_OWNER: return 'Owner linked successfully';
+      case SLIDEOUT_TYPES.OWNER_LINK_PET: return 'Pet linked successfully';
       default: return 'Saved successfully';
     }
   };
@@ -375,6 +383,17 @@ export function SlideoutHost() {
             petId={props?.petId}
             petName={props?.petName}
             existingOwnerIds={props?.existingOwnerIds || []}
+            onSuccess={onFormSuccess}
+            onCancel={closeSlideout}
+          />
+        );
+
+      case SLIDEOUT_TYPES.OWNER_LINK_PET:
+        return (
+          <LinkPetForm
+            ownerId={props?.ownerId}
+            ownerName={props?.ownerName}
+            existingPetIds={props?.existingPetIds || []}
             onSuccess={onFormSuccess}
             onCancel={closeSlideout}
           />
@@ -1807,6 +1826,408 @@ function LinkOwnerForm({ petId, petName, existingOwnerIds = [], onSuccess, onCan
             <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>Cancel</Button>
             <Button type="submit" disabled={isLoading || !isDirty}>
               {isLoading ? 'Creating...' : 'Create & Link Owner'}
+            </Button>
+          </FormActions>
+        </form>
+      )}
+    </div>
+  );
+}
+
+// Link Pet Form - Link existing pet or create new one for an owner
+function LinkPetForm({ ownerId, ownerName, existingPetIds = [], onSuccess, onCancel }) {
+  const [mode, setMode] = useState('search'); // 'search' | 'create'
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedPet, setSelectedPet] = useState(null);
+  const [isPrimary, setIsPrimary] = useState(existingPetIds.length === 0);
+
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
+  // Fetch all pets and filter client-side
+  const { data: petsData, isLoading: petsLoading } = usePetsQuery();
+  const allPets = petsData?.pets || [];
+
+  // Filter pets by search term
+  const searchResults = useMemo(() => {
+    if (!debouncedSearch || debouncedSearch.length < 2) return [];
+    const term = debouncedSearch.toLowerCase();
+    return allPets.filter(pet => {
+      const name = (pet.name || '').toLowerCase();
+      const breed = (pet.breed || '').toLowerCase();
+      const species = (pet.species || '').toLowerCase();
+      return name.includes(term) || breed.includes(term) || species.includes(term);
+    });
+  }, [allPets, debouncedSearch]);
+
+  // Mutation for linking pet to owner
+  const linkMutation = useAddPetToOwnerMutation(ownerId);
+
+  // Mutation for creating new pet
+  const createPetMutation = useCreatePetMutation();
+
+  // Form for new pet creation
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors, isDirty },
+  } = useForm({
+    defaultValues: {
+      name: '',
+      species: '',
+      breed: '',
+      weight: '',
+    },
+  });
+
+  // Filter out already-associated pets
+  const filteredResults = searchResults.filter(
+    pet => !existingPetIds.includes(pet.recordId)
+  );
+
+  // Check if selected pet is already associated
+  const isAlreadyAssociated = selectedPet && existingPetIds.includes(selectedPet.recordId);
+
+  // Handle linking existing pet
+  const handleLinkPet = async () => {
+    if (!selectedPet) return;
+
+    try {
+      await linkMutation.mutateAsync({
+        petId: selectedPet.recordId,
+        isPrimary,
+      });
+      onSuccess?.({ petId: selectedPet.recordId });
+    } catch (error) {
+      // Error is handled by mutation
+    }
+  };
+
+  // Handle creating new pet and linking
+  const onSubmitNewPet = async (data) => {
+    try {
+      // First create the pet
+      const newPet = await createPetMutation.mutateAsync(data);
+
+      if (newPet?.recordId) {
+        // Then link to owner
+        await linkMutation.mutateAsync({
+          petId: newPet.recordId,
+          isPrimary,
+        });
+        onSuccess?.({ petId: newPet.recordId });
+      }
+    } catch (error) {
+      // Error is handled by mutations
+    }
+  };
+
+  const isLoading = linkMutation.isPending || createPetMutation.isPending;
+  const isSearching = petsLoading && debouncedSearch.length >= 2;
+
+  return (
+    <div className="space-y-6">
+      {/* Owner info header */}
+      {ownerName && (
+        <div
+          className="p-3 rounded-lg border"
+          style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+        >
+          <p className="text-sm text-[color:var(--bb-color-text-muted)]">Adding pet for</p>
+          <p className="font-medium text-[color:var(--bb-color-text-primary)]">{ownerName}</p>
+        </div>
+      )}
+
+      {/* Mode toggle */}
+      <div className="flex rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+        <button
+          type="button"
+          onClick={() => {
+            setMode('search');
+            setSelectedPet(null);
+          }}
+          className={cn(
+            'flex-1 px-4 py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2',
+            mode === 'search'
+              ? 'bg-[var(--bb-color-accent)] text-white'
+              : 'bg-[var(--bb-color-bg-surface)] text-[var(--bb-color-text-muted)] hover:bg-[var(--bb-color-bg-elevated)]'
+          )}
+        >
+          <Search className="w-4 h-4" />
+          Link Existing
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode('create');
+            setSelectedPet(null);
+            setSearchTerm('');
+          }}
+          className={cn(
+            'flex-1 px-4 py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2',
+            mode === 'create'
+              ? 'bg-[var(--bb-color-accent)] text-white'
+              : 'bg-[var(--bb-color-bg-surface)] text-[var(--bb-color-text-muted)] hover:bg-[var(--bb-color-bg-elevated)]'
+          )}
+        >
+          <PawPrint className="w-4 h-4" />
+          Create New
+        </button>
+      </div>
+
+      {mode === 'search' ? (
+        <>
+          {/* Search input */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+              Search Pets
+            </label>
+            <div className="relative">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                style={{ color: 'var(--bb-color-text-muted)' }}
+              />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setSelectedPet(null);
+                }}
+                className={cn(inputClass, 'pl-10')}
+                style={inputStyles}
+                placeholder="Search by name, breed, or species..."
+                autoFocus
+              />
+            </div>
+            {debouncedSearch.length > 0 && debouncedSearch.length < 2 && (
+              <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                Type at least 2 characters to search
+              </p>
+            )}
+          </div>
+
+          {/* Search results */}
+          {debouncedSearch.length >= 2 && (
+            <div className="space-y-2">
+              {isSearching ? (
+                <div className="py-8 text-center">
+                  <div className="inline-block w-6 h-6 border-2 border-[var(--bb-color-accent)] border-t-transparent rounded-full animate-spin" />
+                  <p className="text-sm mt-2" style={{ color: 'var(--bb-color-text-muted)' }}>
+                    Searching...
+                  </p>
+                </div>
+              ) : filteredResults.length > 0 ? (
+                <div className="space-y-1 max-h-60 overflow-y-auto">
+                  {filteredResults.map((pet) => {
+                    const isSelected = selectedPet?.recordId === pet.recordId;
+
+                    return (
+                      <button
+                        key={pet.recordId}
+                        type="button"
+                        onClick={() => setSelectedPet(pet)}
+                        className={cn(
+                          'w-full text-left p-3 rounded-lg border transition-colors flex items-center gap-3',
+                          isSelected
+                            ? 'border-[var(--bb-color-accent)] bg-[var(--bb-color-accent-soft)]'
+                            : 'border-transparent hover:bg-[var(--bb-color-bg-elevated)]'
+                        )}
+                        style={{
+                          backgroundColor: isSelected ? undefined : 'var(--bb-color-bg-surface)',
+                        }}
+                      >
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: 'var(--bb-color-amber-soft)', color: 'var(--bb-color-amber)' }}
+                        >
+                          <PawPrint className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate" style={{ color: 'var(--bb-color-text-primary)' }}>
+                            {pet.name}
+                          </p>
+                          <p className="text-sm truncate" style={{ color: 'var(--bb-color-text-muted)' }}>
+                            {pet.breed || pet.species || 'Pet'}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <Check className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--bb-color-accent)' }} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div
+                  className="py-8 text-center rounded-lg border"
+                  style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-surface)' }}
+                >
+                  <AlertCircle
+                    className="w-8 h-8 mx-auto mb-2"
+                    style={{ color: 'var(--bb-color-text-muted)' }}
+                  />
+                  <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                    No pets found
+                  </p>
+                  <p className="text-sm mt-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+                    No matching pets for "{debouncedSearch}"
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => setMode('create')}
+                  >
+                    <PawPrint className="w-4 h-4 mr-2" />
+                    Create New Pet
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Already associated warning */}
+          {isAlreadyAssociated && (
+            <div
+              className="p-3 rounded-lg border flex items-start gap-2"
+              style={{ borderColor: 'var(--bb-color-status-warning)', backgroundColor: 'var(--bb-color-status-warning-soft)' }}
+            >
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--bb-color-status-warning)' }} />
+              <p className="text-sm" style={{ color: 'var(--bb-color-status-warning)' }}>
+                This pet is already associated with this customer.
+              </p>
+            </div>
+          )}
+
+          {/* Primary pet toggle */}
+          {selectedPet && !isAlreadyAssociated && (
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="isPrimaryPet"
+                checked={isPrimary}
+                onChange={(e) => setIsPrimary(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-[var(--bb-color-accent)] focus:ring-[var(--bb-color-accent)]"
+              />
+              <label htmlFor="isPrimaryPet" className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+                Set as primary pet
+              </label>
+            </div>
+          )}
+
+          {/* Actions */}
+          <FormActions>
+            <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleLinkPet}
+              disabled={isLoading || !selectedPet || isAlreadyAssociated}
+            >
+              {isLoading ? 'Linking...' : 'Link Pet'}
+            </Button>
+          </FormActions>
+        </>
+      ) : (
+        /* Create new pet form */
+        <form onSubmit={handleSubmit(onSubmitNewPet)} className="space-y-6">
+          <FormSection title="Pet Information">
+            <FormGrid cols={2}>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                  Name <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  {...register('name', { required: 'Pet name is required' })}
+                  className={inputClass}
+                  style={{ ...inputStyles, borderColor: errors.name ? 'var(--bb-color-status-negative)' : inputStyles.borderColor }}
+                  placeholder="Buddy"
+                  autoFocus
+                />
+                {errors.name && <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>{errors.name.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                  Breed
+                </label>
+                <input
+                  type="text"
+                  {...register('breed')}
+                  className={inputClass}
+                  style={inputStyles}
+                  placeholder="Golden Retriever"
+                />
+              </div>
+            </FormGrid>
+            <FormGrid cols={2}>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                  Species
+                </label>
+                <Controller
+                  name="species"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      options={[
+                        { value: 'Dog', label: 'Dog' },
+                        { value: 'Cat', label: 'Cat' },
+                        { value: 'Other', label: 'Other' },
+                      ]}
+                      value={[
+                        { value: 'Dog', label: 'Dog' },
+                        { value: 'Cat', label: 'Cat' },
+                        { value: 'Other', label: 'Other' },
+                      ].find(o => o.value === field.value) || null}
+                      onChange={(opt) => field.onChange(opt?.value || '')}
+                      placeholder="Select species"
+                      isClearable
+                      isSearchable
+                      styles={selectStyles}
+                      menuPortalTarget={document.body}
+                    />
+                  )}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                  Weight (lbs)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  {...register('weight')}
+                  className={inputClass}
+                  style={inputStyles}
+                  placeholder="25.5"
+                />
+              </div>
+            </FormGrid>
+          </FormSection>
+
+          {/* Primary pet toggle */}
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="isPrimaryNewPet"
+              checked={isPrimary}
+              onChange={(e) => setIsPrimary(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-[var(--bb-color-accent)] focus:ring-[var(--bb-color-accent)]"
+            />
+            <label htmlFor="isPrimaryNewPet" className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+              Set as primary pet
+            </label>
+          </div>
+
+          <FormActions>
+            <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>Cancel</Button>
+            <Button type="submit" disabled={isLoading || !isDirty}>
+              {isLoading ? 'Creating...' : 'Create & Link Pet'}
             </Button>
           </FormActions>
         </form>

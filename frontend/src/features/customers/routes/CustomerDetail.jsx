@@ -574,7 +574,7 @@ export default function CustomerDetail() {
             title="Pets"
             type="pet"
             count={pets.length}
-            onAdd={() => navigate(`/pets?action=new&ownerId=${ownerId}`)}
+            onAdd={() => openSlideout(SLIDEOUT_TYPES.OWNER_LINK_PET, { ownerId, ownerName: fullName, existingPetIds: pets.map(p => p.recordId || p.id).filter(Boolean) })}
             viewAllLink={pets.length > 5 ? `/pets?ownerId=${ownerId}` : undefined}
             emptyMessage="No pets yet"
           >
@@ -616,7 +616,7 @@ export default function CustomerDetail() {
             title="Invoices"
             type="invoice"
             count={invoices.length}
-            onAdd={() => navigate(`/invoices?action=new&ownerId=${ownerId}`)}
+            onAdd={() => openSlideout(SLIDEOUT_TYPES.INVOICE_CREATE, { ownerId, ownerName: fullName })}
             viewAllLink={invoices.length > 3 ? `/invoices?ownerId=${ownerId}` : undefined}
             emptyMessage="No invoices yet"
           >
@@ -695,7 +695,7 @@ export default function CustomerDetail() {
                 variant="outline"
                 size="sm"
                 className="w-full justify-start"
-                onClick={() => navigate(`/pets?action=new&ownerId=${ownerId}`)}
+                onClick={() => openSlideout(SLIDEOUT_TYPES.PET_CREATE, { ownerId })}
               >
                 <PawPrint className="w-4 h-4 mr-2" />
                 Add Pet
