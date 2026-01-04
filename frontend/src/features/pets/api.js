@@ -417,6 +417,62 @@ export const useDeleteVaccinationMutation = (petId) => {
 };
 
 // ============================================================================
+// PET-OWNER RELATIONSHIP MUTATIONS
+// ============================================================================
+
+/**
+ * Link an existing owner to a pet
+ * Uses POST /api/v1/entity/pets/owners with { petId, ownerId, isPrimary }
+ */
+export const useLinkOwnerToPetMutation = (petId) => {
+  const queryClient = useQueryClient();
+  const tenantId = useTenantId();
+
+  return useMutation({
+    mutationFn: async ({ ownerId, isPrimary = false }) => {
+      const res = await apiClient.post(canonicalEndpoints.pets.ownerLink, {
+        petId,
+        ownerId,
+        isPrimary,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      // Invalidate pet owners query to refresh the association list
+      queryClient.invalidateQueries({ queryKey: ['pets', { tenantId }, petId, 'owners'] });
+      // Also invalidate pet detail in case owners are embedded
+      queryClient.invalidateQueries({ queryKey: ['pets', { tenantId }, petId] });
+    },
+    onError: (error) => {
+      toast.error(extractErrorMessage(error));
+    },
+  });
+};
+
+/**
+ * Unlink an owner from a pet
+ * Uses DELETE /api/v1/entity/pets/{petId}/owners/{ownerId}
+ */
+export const useUnlinkOwnerFromPetMutation = (petId) => {
+  const queryClient = useQueryClient();
+  const tenantId = useTenantId();
+
+  return useMutation({
+    mutationFn: async (ownerId) => {
+      await apiClient.delete(`${canonicalEndpoints.pets.owners(petId)}/${ownerId}`);
+      return ownerId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pets', { tenantId }, petId, 'owners'] });
+      queryClient.invalidateQueries({ queryKey: ['pets', { tenantId }, petId] });
+    },
+    onError: (error) => {
+      toast.error(extractErrorMessage(error));
+    },
+  });
+};
+
+// ============================================================================
 // DIRECT API FUNCTIONS (non-hook, for use in effects/callbacks)
 // ============================================================================
 

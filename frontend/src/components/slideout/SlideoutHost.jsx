@@ -51,10 +51,12 @@ const selectStyles = {
 // API hooks
 import { useCreateCommunicationMutation, useCreateNote } from '@/features/communications/api';
 import { useSendMessageMutation } from '@/features/messaging/api';
-import { useCreateOwnerMutation, useOwner, useOwnersQuery, useUpdateOwnerMutation } from '@/features/owners/api';
-import { useCreatePetMutation, useUpdatePetMutation, useUpdateVaccinationMutation } from '@/features/pets/api';
+import { useCreateOwnerMutation, useOwner, useOwnersQuery, useUpdateOwnerMutation, useOwnerSearchQuery } from '@/features/owners/api';
+import { useCreatePetMutation, useUpdatePetMutation, useUpdateVaccinationMutation, useLinkOwnerToPetMutation } from '@/features/pets/api';
 import { useCreateInvoiceMutation } from '@/features/invoices/api';
 import { addDays, format } from 'date-fns';
+import { Search, UserPlus, Check, AlertCircle } from 'lucide-react';
+import { useDebounce } from '@/hooks/useDebounce';
 
 // Form components for complex flows
 import LogActivityForm from '@/features/activities/components/LogActivityForm';
@@ -150,6 +152,13 @@ export function SlideoutHost() {
           state?.props?.ownerId ? ['owner', state.props.ownerId] : null,
         ].filter(Boolean);
 
+      case SLIDEOUT_TYPES.PET_LINK_OWNER:
+        return [
+          state?.props?.petId ? ['pets', { tenantId }, state.props.petId] : null,
+          state?.props?.petId ? ['pets', { tenantId }, state.props.petId, 'owners'] : null,
+          ['owners'],
+        ].filter(Boolean);
+
       default:
         return [];
     }
@@ -184,6 +193,7 @@ export function SlideoutHost() {
       case SLIDEOUT_TYPES.VACCINATION_EDIT: return 'Vaccination updated successfully';
       case SLIDEOUT_TYPES.BOOKING_CHECK_IN: return 'Pet checked in successfully';
       case SLIDEOUT_TYPES.INVOICE_CREATE: return 'Invoice created successfully';
+      case SLIDEOUT_TYPES.PET_LINK_OWNER: return 'Owner linked successfully';
       default: return 'Saved successfully';
     }
   };
@@ -354,6 +364,17 @@ export function SlideoutHost() {
           <InvoiceForm
             ownerId={props?.ownerId}
             ownerName={props?.ownerName}
+            onSuccess={onFormSuccess}
+            onCancel={closeSlideout}
+          />
+        );
+
+      case SLIDEOUT_TYPES.PET_LINK_OWNER:
+        return (
+          <LinkOwnerForm
+            petId={props?.petId}
+            petName={props?.petName}
+            existingOwnerIds={props?.existingOwnerIds || []}
             onSuccess={onFormSuccess}
             onCancel={closeSlideout}
           />
@@ -1419,6 +1440,378 @@ function InvoiceForm({ ownerId, ownerName, onSuccess, onCancel }) {
         </Button>
       </FormActions>
     </form>
+  );
+}
+
+// Link Owner Form - Link existing owner or create new one for a pet
+function LinkOwnerForm({ petId, petName, existingOwnerIds = [], onSuccess, onCancel }) {
+  const [mode, setMode] = useState('search'); // 'search' | 'create'
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedOwner, setSelectedOwner] = useState(null);
+  const [isPrimary, setIsPrimary] = useState(existingOwnerIds.length === 0); // First owner is primary by default
+
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
+  // Search for owners
+  const { data: searchResults, isLoading: isSearching } = useOwnerSearchQuery(debouncedSearch, {
+    enabled: mode === 'search' && debouncedSearch.length >= 2,
+  });
+
+  // Mutation for linking owner to pet
+  const linkMutation = useLinkOwnerToPetMutation(petId);
+
+  // Mutation for creating new owner
+  const createOwnerMutation = useCreateOwnerMutation();
+
+  // Form for new owner creation
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isDirty },
+  } = useForm({
+    defaultValues: {
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+    },
+  });
+
+  // Filter out already-associated owners
+  const filteredResults = (searchResults || []).filter(
+    owner => !existingOwnerIds.includes(owner.recordId)
+  );
+
+  // Check if selected owner is already associated
+  const isAlreadyAssociated = selectedOwner && existingOwnerIds.includes(selectedOwner.recordId);
+
+  // Handle linking existing owner
+  const handleLinkOwner = async () => {
+    if (!selectedOwner) return;
+
+    try {
+      await linkMutation.mutateAsync({
+        ownerId: selectedOwner.recordId,
+        isPrimary,
+      });
+      onSuccess?.({ ownerId: selectedOwner.recordId });
+    } catch (error) {
+      // Error is handled by mutation
+    }
+  };
+
+  // Handle creating new owner and linking
+  const onSubmitNewOwner = async (data) => {
+    try {
+      // First create the owner
+      const newOwner = await createOwnerMutation.mutateAsync(data);
+
+      if (newOwner?.recordId) {
+        // Then link to pet
+        await linkMutation.mutateAsync({
+          ownerId: newOwner.recordId,
+          isPrimary,
+        });
+        onSuccess?.({ ownerId: newOwner.recordId });
+      }
+    } catch (error) {
+      // Error is handled by mutations
+    }
+  };
+
+  const isLoading = linkMutation.isPending || createOwnerMutation.isPending;
+
+  return (
+    <div className="space-y-6">
+      {/* Pet info header */}
+      {petName && (
+        <div
+          className="p-3 rounded-lg border"
+          style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+        >
+          <p className="text-sm text-[color:var(--bb-color-text-muted)]">Adding owner for</p>
+          <p className="font-medium text-[color:var(--bb-color-text-primary)]">{petName}</p>
+        </div>
+      )}
+
+      {/* Mode toggle */}
+      <div className="flex rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+        <button
+          type="button"
+          onClick={() => {
+            setMode('search');
+            setSelectedOwner(null);
+          }}
+          className={cn(
+            'flex-1 px-4 py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2',
+            mode === 'search'
+              ? 'bg-[var(--bb-color-accent)] text-white'
+              : 'bg-[var(--bb-color-bg-surface)] text-[var(--bb-color-text-muted)] hover:bg-[var(--bb-color-bg-elevated)]'
+          )}
+        >
+          <Search className="w-4 h-4" />
+          Link Existing
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode('create');
+            setSelectedOwner(null);
+            setSearchTerm('');
+          }}
+          className={cn(
+            'flex-1 px-4 py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-2',
+            mode === 'create'
+              ? 'bg-[var(--bb-color-accent)] text-white'
+              : 'bg-[var(--bb-color-bg-surface)] text-[var(--bb-color-text-muted)] hover:bg-[var(--bb-color-bg-elevated)]'
+          )}
+        >
+          <UserPlus className="w-4 h-4" />
+          Create New
+        </button>
+      </div>
+
+      {mode === 'search' ? (
+        <>
+          {/* Search input */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+              Search Owners
+            </label>
+            <div className="relative">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                style={{ color: 'var(--bb-color-text-muted)' }}
+              />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setSelectedOwner(null);
+                }}
+                className={cn(inputClass, 'pl-10')}
+                style={inputStyles}
+                placeholder="Search by name, email, or phone..."
+                autoFocus
+              />
+            </div>
+            {debouncedSearch.length > 0 && debouncedSearch.length < 2 && (
+              <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                Type at least 2 characters to search
+              </p>
+            )}
+          </div>
+
+          {/* Search results */}
+          {debouncedSearch.length >= 2 && (
+            <div className="space-y-2">
+              {isSearching ? (
+                <div className="py-8 text-center">
+                  <div className="inline-block w-6 h-6 border-2 border-[var(--bb-color-accent)] border-t-transparent rounded-full animate-spin" />
+                  <p className="text-sm mt-2" style={{ color: 'var(--bb-color-text-muted)' }}>
+                    Searching...
+                  </p>
+                </div>
+              ) : filteredResults.length > 0 ? (
+                <div className="space-y-1 max-h-60 overflow-y-auto">
+                  {filteredResults.map((owner) => {
+                    const isSelected = selectedOwner?.recordId === owner.recordId;
+                    const ownerName = [owner.firstName, owner.lastName].filter(Boolean).join(' ') || owner.email || 'Unknown';
+
+                    return (
+                      <button
+                        key={owner.recordId}
+                        type="button"
+                        onClick={() => setSelectedOwner(owner)}
+                        className={cn(
+                          'w-full text-left p-3 rounded-lg border transition-colors flex items-center gap-3',
+                          isSelected
+                            ? 'border-[var(--bb-color-accent)] bg-[var(--bb-color-accent-soft)]'
+                            : 'border-transparent hover:bg-[var(--bb-color-bg-elevated)]'
+                        )}
+                        style={{
+                          backgroundColor: isSelected ? undefined : 'var(--bb-color-bg-surface)',
+                        }}
+                      >
+                        <div
+                          className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: 'var(--bb-color-purple-soft)', color: 'var(--bb-color-purple)' }}
+                        >
+                          {(owner.firstName?.[0] || owner.email?.[0] || '?').toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate" style={{ color: 'var(--bb-color-text-primary)' }}>
+                            {ownerName}
+                          </p>
+                          <p className="text-sm truncate" style={{ color: 'var(--bb-color-text-muted)' }}>
+                            {owner.email || owner.phone || 'No contact info'}
+                          </p>
+                        </div>
+                        {isSelected && (
+                          <Check className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--bb-color-accent)' }} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div
+                  className="py-8 text-center rounded-lg border"
+                  style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-surface)' }}
+                >
+                  <AlertCircle
+                    className="w-8 h-8 mx-auto mb-2"
+                    style={{ color: 'var(--bb-color-text-muted)' }}
+                  />
+                  <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                    No owners found
+                  </p>
+                  <p className="text-sm mt-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+                    No matching owners for "{debouncedSearch}"
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => setMode('create')}
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Create New Owner
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Already associated warning */}
+          {isAlreadyAssociated && (
+            <div
+              className="p-3 rounded-lg border flex items-start gap-2"
+              style={{ borderColor: 'var(--bb-color-status-warning)', backgroundColor: 'var(--bb-color-status-warning-soft)' }}
+            >
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--bb-color-status-warning)' }} />
+              <p className="text-sm" style={{ color: 'var(--bb-color-status-warning)' }}>
+                This owner is already associated with this pet.
+              </p>
+            </div>
+          )}
+
+          {/* Primary owner toggle */}
+          {selectedOwner && !isAlreadyAssociated && (
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="isPrimary"
+                checked={isPrimary}
+                onChange={(e) => setIsPrimary(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-[var(--bb-color-accent)] focus:ring-[var(--bb-color-accent)]"
+              />
+              <label htmlFor="isPrimary" className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+                Set as primary owner
+              </label>
+            </div>
+          )}
+
+          {/* Actions */}
+          <FormActions>
+            <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleLinkOwner}
+              disabled={isLoading || !selectedOwner || isAlreadyAssociated}
+            >
+              {isLoading ? 'Linking...' : 'Link Owner'}
+            </Button>
+          </FormActions>
+        </>
+      ) : (
+        /* Create new owner form */
+        <form onSubmit={handleSubmit(onSubmitNewOwner)} className="space-y-6">
+          <FormSection title="Owner Information">
+            <FormGrid cols={2}>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                  First Name <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  {...register('firstName', { required: 'First name is required' })}
+                  className={inputClass}
+                  style={{ ...inputStyles, borderColor: errors.firstName ? 'var(--bb-color-status-negative)' : inputStyles.borderColor }}
+                  placeholder="John"
+                  autoFocus
+                />
+                {errors.firstName && <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>{errors.firstName.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                  Last Name <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  {...register('lastName', { required: 'Last name is required' })}
+                  className={inputClass}
+                  style={{ ...inputStyles, borderColor: errors.lastName ? 'var(--bb-color-status-negative)' : inputStyles.borderColor }}
+                  placeholder="Doe"
+                />
+                {errors.lastName && <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>{errors.lastName.message}</p>}
+              </div>
+            </FormGrid>
+          </FormSection>
+
+          <FormSection title="Contact Information">
+            <FormGrid cols={2}>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>Email</label>
+                <input
+                  type="email"
+                  {...register('email')}
+                  className={inputClass}
+                  style={inputStyles}
+                  placeholder="john@example.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>Phone</label>
+                <input
+                  type="tel"
+                  {...register('phone')}
+                  className={inputClass}
+                  style={inputStyles}
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+            </FormGrid>
+          </FormSection>
+
+          {/* Primary owner toggle */}
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="isPrimaryNew"
+              checked={isPrimary}
+              onChange={(e) => setIsPrimary(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-[var(--bb-color-accent)] focus:ring-[var(--bb-color-accent)]"
+            />
+            <label htmlFor="isPrimaryNew" className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+              Set as primary owner
+            </label>
+          </div>
+
+          <FormActions>
+            <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>Cancel</Button>
+            <Button type="submit" disabled={isLoading || !isDirty}>
+              {isLoading ? 'Creating...' : 'Create & Link Owner'}
+            </Button>
+          </FormActions>
+        </form>
+      )}
+    </div>
   );
 }
 

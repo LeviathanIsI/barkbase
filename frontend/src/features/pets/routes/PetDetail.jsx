@@ -862,7 +862,11 @@ const PetDetail = () => {
               title="Owners"
               type="owner"
               count={owners.length}
-              showAdd={false}
+              onAdd={() => openSlideout(SLIDEOUT_TYPES.PET_LINK_OWNER, {
+                petId,
+                petName: pet?.name,
+                existingOwnerIds: owners.map(o => o.recordId || o.id).filter(Boolean),
+              })}
               emptyMessage="No owners linked"
             >
               {owners.map((owner, index) => (
