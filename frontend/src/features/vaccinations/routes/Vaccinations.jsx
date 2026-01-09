@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Shield, RefreshCw, Search, Trash2, ChevronDown, ChevronLeft, ChevronRight,
+  Shield, RefreshCw, Trash2, ChevronDown, ChevronLeft, ChevronRight,
   Download, SlidersHorizontal, BookmarkPlus, Check, X, Mail, FileCheck,
   Calendar, Syringe, AlertTriangle, CheckCircle2, Clock, AlertCircle,
   MoreHorizontal, Dog, Cat, User, Send, Loader2, Edit, History,
@@ -9,6 +9,19 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import TableRowActions, { ActionButton, ActionMenu } from '@/components/ui/TableRowActions';
+import {
+  SearchInput,
+  ViewSwitcher,
+  FilterChip,
+  ActiveFiltersBar,
+  FilterButton,
+  ActionGroup,
+  FilterBar,
+  FilterBarSection,
+  FilterBarRow,
+  SortDropdown,
+  ViewsDropdown as FilterBarViewsDropdown,
+} from '@/components/ui/FilterBar';
 import Badge, { StatusBadge, TypeBadge } from '@/components/ui/Badge';
 import { HeaderStat, HeaderStatGroup, HeaderStatDivider } from '@/components/ui/HeaderStat';
 import Modal from '@/components/ui/Modal';
@@ -576,139 +589,84 @@ const Vaccinations = () => {
         </HeaderStatGroup>
       </div>
 
-      {/* Toolbar - fixed, doesn't shrink */}
-      <div
-        className="flex-shrink-0 px-4 py-3 border-b shadow-sm rounded-lg"
-        style={{
-          backgroundColor: 'var(--bb-color-bg-surface)',
-          borderColor: 'var(--bb-color-border-subtle)',
-        }}
-      >
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      {/* Enhanced Filter Bar */}
+      <FilterBar sticky={false} className="flex-shrink-0 rounded-lg shadow-sm">
+        <FilterBarRow>
           {/* Left: Filters + Views */}
-          <div className="flex flex-wrap items-center gap-2">
+          <FilterBarSection>
             {/* Filters Button */}
             <div className="relative" ref={filterRef}>
-              <Button
-                variant="outline"
-                size="sm"
+              <FilterButton
                 onClick={() => setShowFilterPanel(!showFilterPanel)}
-                className={cn('gap-1.5 h-9', showFilterPanel && 'ring-2 ring-[var(--bb-color-accent)]')}
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                Filters
-                {Object.keys(customFilters).length > 0 && (
-                  <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--bb-color-accent)] text-xs text-white">
-                    {Object.keys(customFilters).length}
-                  </span>
-                )}
-              </Button>
+                isOpen={showFilterPanel}
+                activeCount={Object.keys(customFilters).filter(k => customFilters[k] !== undefined && customFilters[k] !== '' && (!Array.isArray(customFilters[k]) || customFilters[k].length > 0)).length}
+              />
               {showFilterPanel && (
                 <FilterPanel filters={customFilters} onFiltersChange={setCustomFilters} onClose={() => setShowFilterPanel(false)} />
               )}
             </div>
 
             {/* Saved Views */}
-            <div className="relative" ref={viewsRef}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowViewsDropdown(!showViewsDropdown)}
-                className="gap-1.5 h-9"
-              >
-                <BookmarkPlus className="h-4 w-4" />
-                <span>{savedViews.find(v => v.id === activeView)?.name || 'Views'}</span>
-                <ChevronDown className={cn('h-4 w-4 transition-transform', showViewsDropdown && 'rotate-180')} />
-              </Button>
-              {showViewsDropdown && (
-                <ViewsDropdown views={savedViews} activeView={activeView} onSelectView={(id) => { setActiveView(id); setShowViewsDropdown(false); }} />
-              )}
-            </div>
+            <FilterBarViewsDropdown
+              views={savedViews}
+              activeView={activeView}
+              onChange={(id) => setActiveView(id)}
+            />
 
-            {/* Clear Filters */}
-            {hasActiveFilters && (
-              <Button variant="link" size="sm" onClick={clearFilters} leftIcon={<X className="h-3.5 w-3.5" />}>
-                Clear all
-              </Button>
-            )}
+            {/* Status Switcher */}
+            <ViewSwitcher
+              views={[
+                { id: 'active', label: 'Active', icon: CheckCircle2 },
+                { id: 'archived', label: 'Archived', icon: Archive },
+                { id: 'all', label: 'All' },
+              ]}
+              activeView={statusFilter}
+              onChange={setStatusFilter}
+              size="default"
+            />
 
             {/* Results Count */}
-            <span className="text-sm text-[color:var(--bb-color-text-muted)] ml-2">
-              {isFetching ? 'Refreshing...' : `Showing ${sortedRecords.length} of ${allRecords.length} vaccinations`}
+            <span className="text-sm text-[color:var(--bb-color-text-muted)] hidden lg:inline ml-2">
+              {isFetching ? 'Refreshing...' : `${sortedRecords.length} of ${allRecords.length}`}
             </span>
-          </div>
-
-          {/* Spacer */}
-          <div className="flex-1" />
+          </FilterBarSection>
 
           {/* Right: Search + Actions */}
-          <div className="flex items-center gap-2">
-            {/* Search */}
-            <div className="relative w-full lg:w-72">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--bb-color-text-muted)]" />
-              <input
-                type="text"
-                placeholder="Search by pet, owner, vaccine..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-9 rounded-lg border pl-10 pr-4 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
-                style={{
-                  backgroundColor: 'var(--bb-color-bg-body)',
-                  borderColor: 'var(--bb-color-border-subtle)',
-                  color: 'var(--bb-color-text-primary)',
-                }}
-              />
-            </div>
+          <FilterBarSection>
+            {/* Enhanced Search */}
+            <SearchInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Search by pet, owner, vaccine..."
+              className="w-full lg:w-72"
+            />
 
-            {/* Status Filter Toggle (Active/Archived/All) */}
-            <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-              <Button
-                variant={statusFilter === 'active' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => setStatusFilter('active')}
-                className={cn(
-                  'rounded-none px-3 h-9',
-                  statusFilter !== 'active' && 'bg-[color:var(--bb-color-bg-body)]'
-                )}
-                title="Show active vaccinations only"
-              >
-                <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                Active
-              </Button>
-              <Button
-                variant={statusFilter === 'archived' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => setStatusFilter('archived')}
-                className={cn(
-                  'rounded-none px-3 h-9',
-                  statusFilter !== 'archived' && 'bg-[color:var(--bb-color-bg-body)]'
-                )}
-                title="Show archived vaccinations only"
-              >
-                <Archive className="h-4 w-4 mr-1.5" />
-                Archived
-              </Button>
-              <Button
-                variant={statusFilter === 'all' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => setStatusFilter('all')}
-                className={cn(
-                  'rounded-none px-3 h-9',
-                  statusFilter !== 'all' && 'bg-[color:var(--bb-color-bg-body)]'
-                )}
-                title="Show all vaccinations"
-              >
-                All
-              </Button>
-            </div>
+            {/* Action Group */}
+            <ActionGroup
+              actions={[
+                {
+                  icon: Columns,
+                  tooltip: 'Manage Columns',
+                  onClick: () => setShowColumnsDropdown(!showColumnsDropdown),
+                  active: showColumnsDropdown,
+                },
+                {
+                  icon: Download,
+                  tooltip: 'Export All',
+                  onClick: handleExportAll,
+                },
+                {
+                  icon: RefreshCw,
+                  tooltip: 'Refresh',
+                  onClick: () => refetch(),
+                  loading: isFetching,
+                },
+              ]}
+            />
 
-            {/* Column Controls */}
-            <div className="relative" ref={columnsRef}>
-              <Button variant="outline" size="sm" onClick={() => setShowColumnsDropdown(!showColumnsDropdown)} className="gap-1.5 h-9">
-                <Columns className="h-4 w-4" />
-                <span className="hidden sm:inline">Columns</span>
-              </Button>
-              {showColumnsDropdown && (
+            {/* Columns Dropdown Portal */}
+            {showColumnsDropdown && (
+              <div className="absolute right-4 top-full mt-1 z-50" ref={columnsRef}>
                 <ColumnsDropdown
                   columns={ALL_COLUMNS.filter(c => c.hideable !== false)}
                   visibleColumns={visibleColumns}
@@ -716,56 +674,29 @@ const Vaccinations = () => {
                   onToggle={toggleColumn}
                   onReorder={moveColumn}
                 />
-              )}
-            </div>
+              </div>
+            )}
+          </FilterBarSection>
+        </FilterBarRow>
 
-            <Button variant="outline" size="sm" onClick={handleExportAll} className="gap-1.5 h-9">
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Export All</span>
-            </Button>
-
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="gap-1.5 h-9">
-              <RefreshCw className={cn('h-4 w-4', isFetching && 'animate-spin')} />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* Active Filter Tags */}
-        {hasActiveFilters && (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {activeView !== 'all' && (
-              <FilterTag
-                label={savedViews.find(v => v.id === activeView)?.name || 'View'}
-                onRemove={() => setActiveView('all')}
-              />
-            )}
-            {customFilters.status && (
-              <FilterTag
-                label={`Status: ${customFilters.status}`}
-                onRemove={() => setCustomFilters({ ...customFilters, status: undefined })}
-              />
-            )}
-            {customFilters.species && (
-              <FilterTag
-                label={`Species: ${customFilters.species}`}
-                onRemove={() => setCustomFilters({ ...customFilters, species: undefined })}
-              />
-            )}
-            {customFilters.vaccineTypes?.length > 0 && (
-              <FilterTag
-                label={`Vaccines: ${customFilters.vaccineTypes.join(', ')}`}
-                onRemove={() => setCustomFilters({ ...customFilters, vaccineTypes: undefined })}
-              />
-            )}
-            {searchTerm && (
-              <FilterTag
-                label={`Search: "${searchTerm}"`}
-                onRemove={() => setSearchTerm('')}
-              />
-            )}
-          </div>
-        )}
+        {/* Active Filter Chips */}
+        <ActiveFiltersBar
+          filters={[
+            ...(activeView !== 'all' ? [{ id: 'view', label: 'View', value: savedViews.find(v => v.id === activeView)?.name || 'Custom' }] : []),
+            ...(customFilters.status ? [{ id: 'status', label: 'Status', value: customFilters.status }] : []),
+            ...(customFilters.species ? [{ id: 'species', label: 'Species', value: customFilters.species }] : []),
+            ...(customFilters.vaccineTypes?.length > 0 ? [{ id: 'vaccines', label: 'Vaccines', value: customFilters.vaccineTypes.join(', ') }] : []),
+            ...(searchTerm ? [{ id: 'search', label: 'Search', value: `"${searchTerm}"` }] : []),
+          ]}
+          onRemoveFilter={(filter) => {
+            if (filter.id === 'view') setActiveView('all');
+            else if (filter.id === 'status') setCustomFilters({ ...customFilters, status: undefined });
+            else if (filter.id === 'species') setCustomFilters({ ...customFilters, species: undefined });
+            else if (filter.id === 'vaccines') setCustomFilters({ ...customFilters, vaccineTypes: undefined });
+            else if (filter.id === 'search') setSearchTerm('');
+          }}
+          onClearAll={clearFilters}
+        />
 
         {/* Bulk Actions Bar */}
         {selectedRows.size > 0 && (
@@ -787,38 +718,26 @@ const Vaccinations = () => {
             </Button>
           </div>
         )}
-      </div>
+      </FilterBar>
 
       {/* Sort Controls Header - fixed, doesn't shrink */}
-      <div className="flex-shrink-0 flex items-center justify-between py-3 px-0">
-        <div className="flex items-center gap-4">
-          {/* Sort By */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-[color:var(--bb-color-text-muted)]">Sort by:</span>
-            <div className="min-w-[180px]">
-              <StyledSelect
-                options={[
-                  { value: 'daysRemaining-asc', label: 'Soonest Expiry First' },
-                  { value: 'daysRemaining-desc', label: 'Latest Expiry First' },
-                  { value: 'petName-asc', label: 'Pet Name A–Z' },
-                  { value: 'petName-desc', label: 'Pet Name Z–A' },
-                  { value: 'ownerName-asc', label: 'Owner Name A–Z' },
-                  { value: 'ownerName-desc', label: 'Owner Name Z–A' },
-                  { value: 'type-asc', label: 'Vaccine Type A–Z' },
-                ]}
-                value={`${sortConfig.key}-${sortConfig.direction}`}
-                onChange={(opt) => {
-                  if (opt?.value) {
-                    const [key, direction] = opt.value.split('-');
-                    setSortConfig({ key, direction });
-                  }
-                }}
-                isClearable={false}
-                isSearchable={false}
-              />
-            </div>
-          </div>
-        </div>
+      <div className="flex-shrink-0 flex items-center justify-between py-3 px-4">
+        <SortDropdown
+          options={[
+            { value: 'daysRemaining-asc', label: 'Soonest Expiry First' },
+            { value: 'daysRemaining-desc', label: 'Latest Expiry First' },
+            { value: 'petName-asc', label: 'Pet Name A–Z' },
+            { value: 'petName-desc', label: 'Pet Name Z–A' },
+            { value: 'ownerName-asc', label: 'Owner Name A–Z' },
+            { value: 'ownerName-desc', label: 'Owner Name Z–A' },
+            { value: 'type-asc', label: 'Vaccine Type A–Z' },
+          ]}
+          value={`${sortConfig.key}-${sortConfig.direction}`}
+          onChange={(value) => {
+            const [key, direction] = value.split('-');
+            setSortConfig({ key, direction });
+          }}
+        />
 
         {/* Pagination info */}
         <span className="text-sm text-[color:var(--bb-color-text-muted)]">
@@ -968,15 +887,7 @@ const Vaccinations = () => {
   );
 };
 
-// Filter Tag Component
-const FilterTag = ({ label, onRemove }) => (
-  <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]">
-    {label}
-    <Button variant="ghost" size="icon-xs" onClick={onRemove} className="hover:bg-[color:var(--bb-color-accent)]/20 rounded-full">
-      <X className="h-3 w-3" />
-    </Button>
-  </span>
-);
+// FilterTag is now imported as FilterChip from FilterBar
 
 // Vaccination Row Component
 const VaccinationRow = ({ record, viewMode, isSelected, isReviewed, onSelect, onDelete, onEdit, onRenew, onClearReviewed }) => {
@@ -1214,19 +1125,7 @@ const FilterPanel = ({ filters, onFiltersChange, onClose }) => {
   );
 };
 
-// Views Dropdown Component
-const ViewsDropdown = ({ views, activeView, onSelectView }) => (
-  <div className="absolute left-0 top-full mt-2 w-56 rounded-xl border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
-    <div className="py-1">
-      {views.map((view) => (
-        <Button key={view.id} variant="ghost" size="sm" onClick={() => onSelectView(view.id)} className={cn('w-full justify-start gap-2', activeView === view.id && 'bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]')}>
-          {activeView === view.id && <Check className="h-4 w-4" />}
-          <span className={activeView !== view.id ? 'ml-6' : ''}>{view.name}</span>
-        </Button>
-      ))}
-    </div>
-  </div>
-);
+// ViewsDropdown is now imported from FilterBar as FilterBarViewsDropdown
 
 // List Skeleton Component
 const ListSkeleton = () => {

@@ -1,11 +1,11 @@
-import { Search } from 'lucide-react';
+import { SearchInput } from '@/components/ui/FilterBar';
 
 /**
  * EntityToolbar - Shared toolbar row for entity list pages
- * 
+ *
  * Replaces the duplicated "search + filters + actions" flex row.
  * Does NOT include the sticky wrapper, filter tags, or bulk actions.
- * 
+ *
  * @example
  * <EntityToolbar
  *   searchValue={searchTerm}
@@ -22,6 +22,7 @@ export default function EntityToolbar({
   searchWidth = 'w-full lg:w-72',
   leftContent,
   rightContent,
+  showSearchShortcut = true,
 }) {
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between min-w-0">
@@ -35,23 +36,15 @@ export default function EntityToolbar({
 
       {/* Right: Search + Actions */}
       <div className="flex items-center gap-2 min-w-0">
-        {/* Search Input - WCAG 2.5.5 compliant 44px height */}
+        {/* Enhanced Search Input */}
         {onSearchChange && (
-          <div className={`relative ${searchWidth} min-w-0`}>
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--bb-color-text-muted)]" />
-            <input
-              type="text"
-              placeholder={searchPlaceholder}
-              value={searchValue}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full max-w-full h-11 rounded-lg border pl-10 pr-4 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
-              style={{
-                backgroundColor: 'var(--bb-color-bg-body)',
-                borderColor: 'var(--bb-color-border-subtle)',
-                color: 'var(--bb-color-text-primary)',
-              }}
-            />
-          </div>
+          <SearchInput
+            value={searchValue}
+            onChange={onSearchChange}
+            placeholder={searchPlaceholder}
+            showShortcut={showSearchShortcut}
+            className={searchWidth}
+          />
         )}
 
         {/* Right-side actions */}

@@ -12,6 +12,12 @@ import {
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import toast from 'react-hot-toast';
 import EntityToolbar from '@/components/EntityToolbar';
+import {
+  FilterButton,
+  ActionGroup,
+  ActiveFiltersBar,
+  ViewsDropdown as FilterBarViewsDropdown,
+} from '@/components/ui/FilterBar';
 import Button from '@/components/ui/Button';
 import Badge, { StatusBadge } from '@/components/ui/Badge';
 import { HeaderStat, HeaderStatGroup } from '@/components/ui/HeaderStat';
@@ -141,7 +147,6 @@ const Pets = () => {
   const [activeView, setActiveView] = useState('all');
   const [customFilters, setCustomFilters] = useState({});
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [showViewsDropdown, setShowViewsDropdown] = useState(false);
   const [showColumnsDropdown, setShowColumnsDropdown] = useState(false);
 
   // Table state
@@ -168,14 +173,12 @@ const Pets = () => {
 
   // Refs for click outside
   const filterRef = useRef(null);
-  const viewsRef = useRef(null);
   const columnsRef = useRef(null);
 
   // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilterPanel(false);
-      if (viewsRef.current && !viewsRef.current.contains(e.target)) setShowViewsDropdown(false);
       if (columnsRef.current && !columnsRef.current.contains(e.target)) setShowColumnsDropdown(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -767,41 +770,22 @@ const Pets = () => {
               <>
                 {/* Filters Button */}
                 <div className="relative" ref={filterRef}>
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  <FilterButton
                     onClick={() => setShowFilterPanel(!showFilterPanel)}
-                    className={cn('gap-1.5 h-9', showFilterPanel && 'ring-2 ring-[var(--bb-color-accent)]')}
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filters
-                    {Object.keys(customFilters).length > 0 && (
-                      <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--bb-color-accent)] text-xs text-white">
-                        {Object.keys(customFilters).length}
-                      </span>
-                    )}
-                  </Button>
+                    isOpen={showFilterPanel}
+                    activeCount={Object.keys(customFilters).length}
+                  />
                   {showFilterPanel && (
                     <FilterPanel filters={customFilters} onFiltersChange={setCustomFilters} onClose={() => setShowFilterPanel(false)} />
                   )}
                 </div>
 
                 {/* Saved Views */}
-                <div className="relative" ref={viewsRef}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowViewsDropdown(!showViewsDropdown)}
-                    className="gap-1.5 h-9"
-                  >
-                    <BookmarkPlus className="h-4 w-4" />
-                    <span className="max-w-[100px] truncate">{savedViews.find(v => v.id === activeView)?.name || 'Views'}</span>
-                    <ChevronDown className={cn('h-4 w-4 transition-transform', showViewsDropdown && 'rotate-180')} />
-                  </Button>
-                  {showViewsDropdown && (
-                    <ViewsDropdown views={savedViews} activeView={activeView} onSelectView={(id) => { setActiveView(id); setShowViewsDropdown(false); }} />
-                  )}
-                </div>
+                <FilterBarViewsDropdown
+                  views={savedViews}
+                  activeView={activeView}
+                  onChange={(id) => setActiveView(id)}
+                />
 
                 {/* Species Quick Filter */}
                 <div className="min-w-[130px]">
@@ -867,10 +851,11 @@ const Pets = () => {
                   )}
                 </div>
 
-                <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={handleExportAll}>
-                  <Download className="h-4 w-4" />
-                  <span className="hidden sm:inline">Export</span>
-                </Button>
+                <ActionGroup
+                  actions={[
+                    { icon: Download, label: 'Export', onClick: handleExportAll },
+                  ]}
+                />
 
                 <Button size="sm" onClick={() => setPetFormModalOpen(true)} className="gap-1.5 h-9">
                   <Plus className="h-4 w-4" />
@@ -882,38 +867,24 @@ const Pets = () => {
 
           {/* Active Filter Tags */}
           {hasActiveFilters && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {activeView !== 'all' && (
-                <FilterTag
-                  label={savedViews.find(v => v.id === activeView)?.name || 'View'}
-                  onRemove={() => setActiveView('all')}
-                />
-              )}
-              {customFilters.status && (
-                <FilterTag
-                  label={`Status: ${customFilters.status}`}
-                  onRemove={() => setCustomFilters({ ...customFilters, status: undefined })}
-                />
-              )}
-              {customFilters.species && (
-                <FilterTag
-                  label={`Species: ${customFilters.species}`}
-                  onRemove={() => setCustomFilters({ ...customFilters, species: undefined })}
-                />
-              )}
-              {customFilters.vaccinationStatus && (
-                <FilterTag
-                  label="Expiring Vaccinations"
-                  onRemove={() => setCustomFilters({ ...customFilters, vaccinationStatus: undefined })}
-                />
-              )}
-              {searchTerm && (
-                <FilterTag
-                  label={`Search: "${searchTerm}"`}
-                  onRemove={() => setSearchTerm('')}
-                />
-              )}
-            </div>
+            <ActiveFiltersBar
+              filters={[
+                ...(activeView !== 'all' ? [{ key: 'view', label: 'View', value: savedViews.find(v => v.id === activeView)?.name || 'View' }] : []),
+                ...(customFilters.status ? [{ key: 'status', label: 'Status', value: customFilters.status }] : []),
+                ...(customFilters.species ? [{ key: 'species', label: 'Species', value: customFilters.species }] : []),
+                ...(customFilters.vaccinationStatus ? [{ key: 'vaccinationStatus', label: 'Expiring Vaccinations', value: '' }] : []),
+                ...(searchTerm ? [{ key: 'search', label: 'Search', value: `"${searchTerm}"` }] : []),
+              ]}
+              onRemoveFilter={(key) => {
+                if (key === 'view') setActiveView('all');
+                else if (key === 'status') setCustomFilters({ ...customFilters, status: undefined });
+                else if (key === 'species') setCustomFilters({ ...customFilters, species: undefined });
+                else if (key === 'vaccinationStatus') setCustomFilters({ ...customFilters, vaccinationStatus: undefined });
+                else if (key === 'search') setSearchTerm('');
+              }}
+              onClearAll={clearFilters}
+              className="mt-3"
+            />
           )}
 
           {/* Bulk Actions Bar */}
@@ -1181,17 +1152,6 @@ const SortIcon = ({ active, direction }) => {
   if (!active) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
   return direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
 };
-
-// Filter Tag Component
-const FilterTag = ({ label, onRemove }) => (
-  <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]">
-    {label}
-    <Button variant="ghost" size="icon-xs" onClick={onRemove} className="hover:bg-[color:var(--bb-color-accent)]/20 rounded-full">
-      <X className="h-3 w-3" />
-    </Button>
-  </span>
-);
-
 // Vaccination Badge Component (simple, non-hoverable)
 const VaccinationBadge = ({ status }) => {
   const configs = {
@@ -1829,26 +1789,6 @@ const FilterPanel = ({ filters, onFiltersChange, onClose }) => (
     <div className="mt-4 flex gap-2">
       <Button variant="outline" size="sm" className="flex-1" onClick={() => onFiltersChange({})}>Reset</Button>
       <Button size="sm" className="flex-1" onClick={onClose}>Apply</Button>
-    </div>
-  </div>
-);
-
-// Views Dropdown Component
-const ViewsDropdown = ({ views, activeView, onSelectView }) => (
-  <div className="absolute left-0 top-full mt-2 w-52 rounded-xl border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
-    <div className="py-1">
-      {views.map((view) => (
-        <Button
-          key={view.id}
-          variant="ghost"
-          size="sm"
-          onClick={() => onSelectView(view.id)}
-          className={cn('w-full justify-start gap-2', activeView === view.id && 'bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]')}
-        >
-          {activeView === view.id && <Check className="h-4 w-4" />}
-          <span className={activeView !== view.id ? 'ml-6' : ''}>{view.name}</span>
-        </Button>
-      ))}
     </div>
   </div>
 );

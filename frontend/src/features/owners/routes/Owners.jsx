@@ -5,12 +5,18 @@ import {
   ChevronLeft, ChevronRight, Download, Columns, Trash2,
   MessageSquare, Check, X, Star, SlidersHorizontal,
   BookmarkPlus, PawPrint, ArrowUpDown, ArrowUp, ArrowDown, GripVertical,
-  Calendar, Loader2, ShieldCheck, ShieldOff, Clock, Send, AlertTriangle,
+  Calendar, Loader2, ShieldCheck, ShieldOff, Clock, Send, AlertTriangle, RefreshCw,
 } from 'lucide-react';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useTimezoneUtils } from '@/lib/timezone';
 import EntityToolbar from '@/components/EntityToolbar';
+import {
+  FilterButton,
+  ActionGroup,
+  ActiveFiltersBar,
+  ViewsDropdown as FilterBarViewsDropdown,
+} from '@/components/ui/FilterBar';
 import StyledSelect from '@/components/ui/StyledSelect';
 import Button from '@/components/ui/Button';
 import Badge, { StatusBadge } from '@/components/ui/Badge';
@@ -504,51 +510,25 @@ const Owners = () => {
               <>
                 {/* Filters Button */}
                 <div className="relative" ref={filterRef}>
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  <FilterButton
                     onClick={() => setShowFilterPanel(!showFilterPanel)}
-                    className={cn('gap-1.5 h-9', showFilterPanel && 'ring-2 ring-[var(--bb-color-accent)]')}
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                    Filters
-                    {Object.keys(customFilters).length > 0 && (
-                      <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--bb-color-accent)] text-xs text-white">
-                        {Object.keys(customFilters).length}
-                      </span>
-                    )}
-                  </Button>
+                    isOpen={showFilterPanel}
+                    activeCount={Object.keys(customFilters).filter(k => customFilters[k] !== undefined && customFilters[k] !== '').length}
+                  />
                   {showFilterPanel && (
                     <FilterPanel filters={customFilters} onFiltersChange={setCustomFilters} onClose={() => setShowFilterPanel(false)} />
                   )}
                 </div>
 
                 {/* Saved Views */}
-                <div className="relative" ref={viewsRef}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowViewsDropdown(!showViewsDropdown)}
-                    className="gap-1.5 h-9"
-                  >
-                    <BookmarkPlus className="h-4 w-4" />
-                    <span className="max-w-[100px] truncate">{savedViews.find(v => v.id === activeView)?.name || 'Views'}</span>
-                    <ChevronDown className={cn('h-4 w-4 transition-transform', showViewsDropdown && 'rotate-180')} />
-                  </Button>
-                  {showViewsDropdown && (
-                    <ViewsDropdown views={savedViews} activeView={activeView} onSelectView={(id) => { setActiveView(id); setShowViewsDropdown(false); }} />
-                  )}
-                </div>
-
-                {/* Clear Filters */}
-                {hasActiveFilters && (
-                  <Button variant="link" size="sm" onClick={clearFilters} leftIcon={<X className="h-3.5 w-3.5" />}>
-                    Clear all
-                  </Button>
-                )}
+                <FilterBarViewsDropdown
+                  views={savedViews}
+                  activeView={activeView}
+                  onChange={(id) => setActiveView(id)}
+                />
 
                 {/* Results Count */}
-                <span className="text-sm text-[color:var(--bb-color-text-muted)] ml-2">
+                <span className="text-sm text-[color:var(--bb-color-text-muted)] ml-2 hidden lg:inline">
                   {sortedOwners.length} owner{sortedOwners.length !== 1 ? 's' : ''}{hasActiveFilters && ' filtered'}
                   {isUpdating && <UpdateChip className="ml-2" />}
                 </span>
@@ -556,13 +536,26 @@ const Owners = () => {
             }
             rightContent={
               <>
-                {/* Column Controls */}
-                <div className="relative" ref={columnsRef}>
-                  <Button variant="outline" size="sm" onClick={() => setShowColumnsDropdown(!showColumnsDropdown)} className="gap-1.5 min-w-11" aria-label="Manage columns">
-                    <Columns className="h-4 w-4" />
-                    <span className="hidden sm:inline">Columns</span>
-                  </Button>
-                  {showColumnsDropdown && (
+                {/* Action Group */}
+                <ActionGroup
+                  actions={[
+                    {
+                      icon: Columns,
+                      tooltip: 'Manage Columns',
+                      onClick: () => setShowColumnsDropdown(!showColumnsDropdown),
+                      active: showColumnsDropdown,
+                    },
+                    {
+                      icon: Download,
+                      tooltip: 'Export All',
+                      onClick: handleExportAll,
+                    },
+                  ]}
+                />
+
+                {/* Columns Dropdown */}
+                {showColumnsDropdown && (
+                  <div className="absolute right-4 top-full mt-1 z-50" ref={columnsRef}>
                     <ColumnsDropdown
                       columns={ALL_COLUMNS.filter(c => c.hideable !== false)}
                       visibleColumns={visibleColumns}
@@ -570,20 +563,35 @@ const Owners = () => {
                       onToggle={toggleColumn}
                       onReorder={moveColumn}
                     />
-                  )}
-                </div>
+                  </div>
+                )}
 
-                <Button variant="outline" size="sm" className="gap-1.5 min-w-11" onClick={handleExportAll} aria-label="Export owners">
-                  <Download className="h-4 w-4" />
-                  <span className="hidden sm:inline">Export</span>
-                </Button>
-
-                <Button size="sm" onClick={() => setFormModalOpen(true)} className="gap-1.5 min-w-11" aria-label="Add new owner">
+                <Button size="sm" onClick={() => setFormModalOpen(true)} className="gap-1.5" aria-label="Add new owner">
                   <Plus className="h-4 w-4" />
                   <span className="hidden sm:inline">Add Owner</span>
                 </Button>
               </>
             }
+          />
+
+          {/* Active Filter Chips */}
+          <ActiveFiltersBar
+            filters={[
+              ...(activeView !== 'all' ? [{ id: 'view', label: 'View', value: savedViews.find(v => v.id === activeView)?.name || 'Custom' }] : []),
+              ...(customFilters.status ? [{ id: 'status', label: 'Status', value: customFilters.status }] : []),
+              ...(customFilters.minPetCount ? [{ id: 'minPets', label: 'Min Pets', value: customFilters.minPetCount }] : []),
+              ...(customFilters.minLifetimeValue ? [{ id: 'minValue', label: 'Min Value', value: `$${customFilters.minLifetimeValue}` }] : []),
+              ...(searchTerm ? [{ id: 'search', label: 'Search', value: `"${searchTerm}"` }] : []),
+            ]}
+            onRemoveFilter={(filter) => {
+              if (filter.id === 'view') setActiveView('all');
+              else if (filter.id === 'status') setCustomFilters({ ...customFilters, status: undefined });
+              else if (filter.id === 'minPets') setCustomFilters({ ...customFilters, minPetCount: undefined });
+              else if (filter.id === 'minValue') setCustomFilters({ ...customFilters, minLifetimeValue: undefined });
+              else if (filter.id === 'search') setSearchTerm('');
+            }}
+            onClearAll={clearFilters}
+            className="mt-2"
           />
 
           {/* Bulk Actions Bar */}
@@ -1016,25 +1024,7 @@ const FilterPanel = ({ filters, onFiltersChange, onClose }) => (
   </div>
 );
 
-// Views Dropdown Component
-const ViewsDropdown = ({ views, activeView, onSelectView }) => (
-  <div className="absolute left-0 top-full mt-2 w-52 rounded-xl border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
-    <div className="py-1">
-      {views.map((view) => (
-        <Button
-          key={view.id}
-          variant="ghost"
-          size="sm"
-          onClick={() => onSelectView(view.id)}
-          className={cn('w-full justify-start gap-2', activeView === view.id && 'bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]')}
-        >
-          {activeView === view.id && <Check className="h-4 w-4" />}
-          <span className={activeView !== view.id ? 'ml-6' : ''}>{view.name}</span>
-        </Button>
-      ))}
-    </div>
-  </div>
-);
+// ViewsDropdown is now imported from FilterBar as FilterBarViewsDropdown
 
 // Columns Dropdown Component with Drag & Reorder
 // Columns Dropdown Component with Drag & Reorder (live reorder during drag)
