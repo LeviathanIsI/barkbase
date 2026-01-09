@@ -5,6 +5,57 @@ import { UpdateChip } from '@/components/PageLoader';
 import { cn } from '@/lib/utils';
 import { useTimezoneUtils } from '@/lib/timezone';
 
+/**
+ * Premium Stat Card Variants
+ * Each card type has unique semantic styling to communicate meaning at a glance
+ */
+const statCardVariants = {
+  // Arriving - Cool blue/cyan accent (incoming)
+  arriving: {
+    gradient: 'from-blue-500/10 to-cyan-500/5',
+    gradientDark: 'dark:from-blue-500/15 dark:to-cyan-500/10',
+    border: 'border-blue-200/60 dark:border-blue-500/20',
+    hoverBorder: 'hover:border-blue-300 dark:hover:border-blue-400/40',
+    iconBg: 'bg-gradient-to-br from-blue-500 to-cyan-500',
+    iconShadow: 'shadow-lg shadow-blue-500/25 dark:shadow-blue-500/40',
+    numberColor: 'text-blue-700 dark:text-blue-300',
+  },
+  // Departing - Warm purple/violet accent (outgoing)
+  departing: {
+    gradient: 'from-violet-500/10 to-purple-500/5',
+    gradientDark: 'dark:from-violet-500/15 dark:to-purple-500/10',
+    border: 'border-violet-200/60 dark:border-violet-500/20',
+    hoverBorder: 'hover:border-violet-300 dark:hover:border-violet-400/40',
+    iconBg: 'bg-gradient-to-br from-violet-500 to-purple-600',
+    iconShadow: 'shadow-lg shadow-violet-500/25 dark:shadow-violet-500/40',
+    numberColor: 'text-violet-700 dark:text-violet-300',
+  },
+  // In Facility - Calm emerald/green (stable, everything is fine)
+  inFacility: {
+    gradient: 'from-emerald-500/10 to-green-500/5',
+    gradientDark: 'dark:from-emerald-500/15 dark:to-green-500/10',
+    border: 'border-emerald-200/60 dark:border-emerald-500/20',
+    hoverBorder: 'hover:border-emerald-300 dark:hover:border-emerald-400/40',
+    iconBg: 'bg-gradient-to-br from-emerald-500 to-green-600',
+    iconShadow: 'shadow-lg shadow-emerald-500/25 dark:shadow-emerald-500/40',
+    numberColor: 'text-emerald-700 dark:text-emerald-300',
+  },
+  // Needs Attention - URGENT orange/red with pulsing glow
+  attention: {
+    gradient: 'from-orange-500/15 to-red-500/10',
+    gradientDark: 'dark:from-orange-500/20 dark:to-red-500/15',
+    border: 'border-orange-300/80 dark:border-orange-500/40',
+    hoverBorder: 'hover:border-orange-400 dark:hover:border-orange-400/60',
+    iconBg: 'bg-gradient-to-br from-orange-500 to-red-500',
+    iconShadow: 'shadow-lg shadow-orange-500/40 dark:shadow-orange-500/50',
+    numberColor: 'text-orange-600 dark:text-orange-400',
+    // Special urgent styling
+    ring: 'ring-2 ring-orange-400/30 dark:ring-orange-500/40',
+    glow: 'shadow-[0_0_20px_rgba(249,115,22,0.15)] dark:shadow-[0_0_30px_rgba(249,115,22,0.25)]',
+    pulse: true,
+  },
+};
+
 const TodayHeroCard = ({
   kennelName,
   formattedDate,
@@ -55,10 +106,16 @@ const TodayHeroCard = ({
             </div>
           </div>
 
+          {/* New Booking Button with glow effect */}
           <Button
             variant="primary"
             size="md"
-            className="self-start sm:self-auto gap-2"
+            className={cn(
+              'self-start sm:self-auto gap-2',
+              'shadow-lg shadow-amber-500/20 dark:shadow-amber-500/30',
+              'hover:shadow-xl hover:shadow-amber-500/30 dark:hover:shadow-amber-500/40',
+              'transition-all duration-200'
+            )}
             onClick={onNewBooking}
           >
             <Plus className="h-4 w-4" />
@@ -66,27 +123,27 @@ const TodayHeroCard = ({
           </Button>
         </div>
 
-        {/* Metrics row - Responsive flex container */}
-        <div className="grid gap-[var(--bb-space-3,0.75rem)] sm:grid-cols-2 lg:grid-cols-4">
+        {/* Metrics row - Premium stat cards with visual hierarchy */}
+        <div className="grid gap-[var(--bb-space-4,1rem)] sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             icon={UserCheck}
             label="Arriving"
             value={stats.arrivals}
-            variant="success"
+            variant="arriving"
             emptyMessage="No arrivals today"
           />
           <StatCard
             icon={UserX}
             label="Departing"
             value={stats.departures}
-            variant="warning"
+            variant="departing"
             emptyMessage="No departures today"
           />
           <StatCard
             icon={Home}
             label="In Facility"
             value={stats.inFacility}
-            variant="primary"
+            variant="inFacility"
             emptyMessage="Facility is empty"
           />
           {stats.attentionItems > 0 && (
@@ -94,7 +151,8 @@ const TodayHeroCard = ({
               icon={AlertCircle}
               label="Needs Attention"
               value={stats.attentionItems}
-              variant="error"
+              variant="attention"
+              isUrgent
             />
           )}
         </div>
@@ -103,71 +161,116 @@ const TodayHeroCard = ({
   );
 };
 
-const variantStyles = {
-  success: {
-    icon: 'text-emerald-600 dark:text-emerald-400',
-    bg: 'bg-emerald-50 dark:bg-emerald-950/30',
-    border: 'border-emerald-200 dark:border-emerald-800/50',
-    hoverBg: 'hover:bg-emerald-100 dark:hover:bg-emerald-900/40',
-    iconBg: 'bg-emerald-100 dark:bg-emerald-900/50',
-  },
-  warning: {
-    icon: 'text-amber-600 dark:text-amber-400',
-    bg: 'bg-amber-50 dark:bg-amber-950/30',
-    border: 'border-amber-200 dark:border-amber-800/50',
-    hoverBg: 'hover:bg-amber-100 dark:hover:bg-amber-900/40',
-    iconBg: 'bg-amber-100 dark:bg-amber-900/50',
-  },
-  primary: {
-    icon: 'text-blue-600 dark:text-blue-400',
-    bg: 'bg-blue-50 dark:bg-blue-950/30',
-    border: 'border-blue-200 dark:border-blue-800/50',
-    hoverBg: 'hover:bg-blue-100 dark:hover:bg-blue-900/40',
-    iconBg: 'bg-blue-100 dark:bg-blue-900/50',
-  },
-  error: {
-    icon: 'text-red-600 dark:text-red-400',
-    bg: 'bg-red-50 dark:bg-red-950/30',
-    border: 'border-red-200 dark:border-red-800/50',
-    hoverBg: 'hover:bg-red-100 dark:hover:bg-red-900/40',
-    iconBg: 'bg-red-100 dark:bg-red-900/50',
-  },
-};
-
-const StatCard = ({ icon: Icon, label, value, variant = 'primary', emptyMessage }) => {
-  const styles = variantStyles[variant] || variantStyles.primary;
+/**
+ * Premium Stat Card Component
+ * Features:
+ * - Gradient backgrounds with semantic colors
+ * - Large icons with colored circular backgrounds and shadows
+ * - Strong typography hierarchy (large bold numbers, smaller muted labels)
+ * - Special urgent treatment for attention cards with pulsing animation
+ * - Subtle hover states for interactivity
+ */
+const StatCard = ({ icon: Icon, label, value, variant = 'inFacility', emptyMessage, isUrgent }) => {
+  const styles = statCardVariants[variant] || statCardVariants.inFacility;
   const isEmpty = value === 0;
 
   return (
     <div
       data-testid="stat-card"
       className={cn(
-        'flex items-center gap-[var(--bb-space-3,0.75rem)] rounded-xl border p-[var(--bb-space-4,1rem)]',
-        styles.bg,
-        styles.border
+        // Base card styling
+        'relative flex items-center gap-[var(--bb-space-4,1rem)]',
+        'rounded-2xl border p-[var(--bb-space-5,1.25rem)]',
+        'transition-all duration-200 ease-out',
+        'cursor-default',
+
+        // Gradient background
+        'bg-gradient-to-br',
+        styles.gradient,
+        styles.gradientDark,
+
+        // Border styling
+        styles.border,
+        styles.hoverBorder,
+
+        // Hover elevation
+        'hover:translate-y-[-1px]',
+
+        // Urgent styling for attention card
+        isUrgent && styles.ring,
+        isUrgent && styles.glow,
       )}
       aria-label={`${label}: ${value}`}
     >
-      {/* Icon container */}
-      <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl', styles.iconBg)}>
-        <Icon className={cn('h-6 w-6', styles.icon)} />
+      {/* Pulsing background for urgent cards */}
+      {isUrgent && styles.pulse && (
+        <div
+          className="absolute inset-0 rounded-2xl bg-gradient-to-br from-orange-500/5 to-red-500/5 animate-pulse"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Icon container - Large with gradient background and shadow */}
+      <div className="relative">
+        <div
+          className={cn(
+            'flex h-14 w-14 shrink-0 items-center justify-center rounded-xl',
+            styles.iconBg,
+            styles.iconShadow,
+            'transition-transform duration-200',
+            'group-hover:scale-105',
+            // Pulse animation for urgent icons
+            isUrgent && 'animate-[pulse_2s_ease-in-out_infinite]'
+          )}
+        >
+          <Icon className="h-7 w-7 text-white" strokeWidth={2} />
+        </div>
+
+        {/* Urgent indicator dot */}
+        {isUrgent && (
+          <span className="absolute -top-1 -right-1 flex h-4 w-4">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-orange-500 border-2 border-white dark:border-gray-900" />
+          </span>
+        )}
       </div>
 
-      {/* Content */}
-      <div className="min-w-0 text-left">
-        <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+      {/* Content - Strong typography hierarchy */}
+      <div className="min-w-0 flex-1">
+        {/* Label - Small, uppercase, muted */}
+        <p className={cn(
+          'text-[0.6875rem] font-semibold uppercase tracking-wider',
+          'text-[color:var(--bb-color-text-muted)]',
+          isUrgent && 'text-orange-600/80 dark:text-orange-400/80'
+        )}>
           {label}
         </p>
+
+        {/* Value or Empty Message */}
         {isEmpty && emptyMessage ? (
-          <p className="text-[0.8125rem] text-[color:var(--bb-color-text-muted)] mt-0.5">
+          <p className="text-[0.8125rem] text-[color:var(--bb-color-text-muted)] mt-1">
             {emptyMessage}
           </p>
         ) : (
-          <p className="text-[var(--bb-font-size-2xl,2rem)] font-bold leading-none text-[color:var(--bb-color-text-primary)] mt-0.5">
+          <p className={cn(
+            // Large, bold number
+            'text-[2.25rem] font-bold leading-none tracking-tight mt-0.5',
+            styles.numberColor,
+            // Extra emphasis for urgent numbers
+            isUrgent && 'drop-shadow-sm'
+          )}>
             {value}
           </p>
         )}
       </div>
+
+      {/* Subtle corner accent for urgent cards */}
+      {isUrgent && (
+        <div
+          className="absolute top-0 right-0 h-16 w-16 bg-gradient-to-bl from-orange-500/10 to-transparent rounded-tr-2xl"
+          aria-hidden="true"
+        />
+      )}
     </div>
   );
 };
