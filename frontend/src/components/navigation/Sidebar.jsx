@@ -1,3 +1,16 @@
+/**
+ * =============================================================================
+ * BarkBase Sidebar Navigation - Premium SaaS Design
+ * =============================================================================
+ *
+ * Modern sidebar with:
+ * - Strong active states with amber fill and glow
+ * - Better section headers with visual hierarchy
+ * - Smooth hover transitions
+ * - Icon animations and color states
+ * - Glassmorphism accents
+ */
+
 import { useState, useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
@@ -13,6 +26,7 @@ import {
   ChevronRight,
   Circle,
   CreditCard,
+  Dog,
   FileText,
   Gift,
   GitBranch,
@@ -34,6 +48,9 @@ import { useTenantStore } from '@/stores/tenant';
 import { useUIStore } from '@/stores/ui';
 import { cn } from '@/lib/utils';
 
+// ============================================================================
+// ICON MAP
+// ============================================================================
 const iconMap = {
   '/today': LayoutDashboard,
   'layout-dashboard': LayoutDashboard,
@@ -81,39 +98,142 @@ const iconMap = {
   settings: Settings,
 };
 
+// ============================================================================
+// NAV ITEM COMPONENT - Expanded State
+// ============================================================================
+const NavItem = ({ item, onNavigate }) => {
+  const Icon = iconMap[item.icon ?? item.path] ?? Circle;
+
+  return (
+    <NavLink
+      to={item.path}
+      className={({ isActive }) =>
+        cn(
+          // Base styles
+          'group relative flex items-center gap-3 rounded-xl px-3 py-2.5',
+          'text-[0.8125rem] font-medium',
+          'transition-all duration-200 ease-out',
+
+          // Focus styles
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bb-color-sidebar-bg)]',
+
+          isActive
+            ? // Active state - Premium amber fill with glow
+              [
+                'bg-gradient-to-r from-amber-500 to-amber-600',
+                'text-white font-semibold',
+                'shadow-[0_4px_15px_rgba(251,191,36,0.35)]',
+              ]
+            : // Default state
+              [
+                'text-[color:var(--bb-color-sidebar-text-secondary)]',
+                'hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)]',
+                'hover:text-[color:var(--bb-color-sidebar-text-primary)]',
+              ]
+        )
+      }
+      onClick={onNavigate}
+      end={item.path === '/today'}
+    >
+      {({ isActive }) => (
+        <>
+          {/* Left accent bar for active state */}
+          {isActive && (
+            <div
+              className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-white/30"
+              aria-hidden="true"
+            />
+          )}
+
+          {/* Icon with background circle for active state */}
+          <div
+            className={cn(
+              'relative flex items-center justify-center transition-all duration-200',
+              isActive
+                ? 'text-white'
+                : 'text-[color:var(--bb-color-sidebar-icon-default,var(--bb-color-sidebar-text-muted))] group-hover:text-[color:var(--bb-color-sidebar-text-primary)]'
+            )}
+          >
+            <Icon
+              className={cn(
+                'h-[18px] w-[18px] transition-transform duration-200',
+                'group-hover:scale-110'
+              )}
+              strokeWidth={isActive ? 2.5 : 2}
+            />
+          </div>
+
+          {/* Label */}
+          <span className="truncate">{item.label}</span>
+        </>
+      )}
+    </NavLink>
+  );
+};
+
+// ============================================================================
+// NAV ITEM COMPONENT - Collapsed State (Icon Only)
+// ============================================================================
+const NavItemCollapsed = ({ item, onNavigate }) => {
+  const Icon = iconMap[item.icon ?? item.path] ?? Circle;
+
+  return (
+    <NavLink
+      to={item.path}
+      className={({ isActive }) =>
+        cn(
+          // Base styles
+          'group relative flex items-center justify-center rounded-xl p-2.5',
+          'transition-all duration-200 ease-out',
+
+          // Focus styles
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)] focus-visible:ring-inset',
+
+          isActive
+            ? // Active state
+              [
+                'bg-gradient-to-br from-amber-500 to-amber-600',
+                'text-white',
+                'shadow-[0_4px_12px_rgba(251,191,36,0.4)]',
+              ]
+            : // Default state
+              [
+                'text-[color:var(--bb-color-sidebar-icon-default,var(--bb-color-sidebar-text-muted))]',
+                'hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)]',
+                'hover:text-[color:var(--bb-color-sidebar-text-primary)]',
+              ]
+        )
+      }
+      onClick={onNavigate}
+      end={item.path === '/today'}
+      title={item.label}
+    >
+      {({ isActive }) => (
+        <Icon
+          className={cn(
+            'h-5 w-5 transition-transform duration-200',
+            'group-hover:scale-110'
+          )}
+          strokeWidth={isActive ? 2.5 : 2}
+        />
+      )}
+    </NavLink>
+  );
+};
+
+// ============================================================================
+// COLLAPSIBLE SECTION COMPONENT
+// ============================================================================
 const CollapsibleSection = ({ section, onNavigate, isExpanded, onToggle, isSidebarCollapsed }) => {
   const canCollapse = section.collapsible !== false;
 
-  // When sidebar is collapsed, always show items (no section headers)
+  // Collapsed sidebar - just render items without headers
   if (isSidebarCollapsed) {
     return (
-      <div className="space-y-1">
-        {section.items.map((item) => {
-          const Icon = iconMap[item.icon ?? item.path] ?? Circle;
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                cn(
-                  'group flex items-center justify-center rounded-lg p-2',
-                  'transition-all duration-150',
-                  'text-[color:var(--bb-color-sidebar-text-primary)]',
-                  'hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)]',
-                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)] focus-visible:ring-inset',
-                  isActive
-                    ? 'bg-[color:var(--bb-color-sidebar-item-active-bg)] text-[color:var(--bb-color-sidebar-item-active-text)] shadow-sm'
-                    : ''
-                )
-              }
-              onClick={onNavigate}
-              end={item.path === '/today'}
-              title={item.label}
-            >
-              <Icon className="h-5 w-5 shrink-0 transition-transform group-hover:scale-110" />
-            </NavLink>
-          );
-        })}
+      <div className="space-y-1 px-2">
+        {section.items.map((item) => (
+          <NavItemCollapsed key={item.path} item={item} onNavigate={onNavigate} />
+        ))}
       </div>
     );
   }
@@ -125,21 +245,25 @@ const CollapsibleSection = ({ section, onNavigate, isExpanded, onToggle, isSideb
         type="button"
         onClick={() => canCollapse && onToggle()}
         className={cn(
-          'flex w-full items-center justify-between px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)]',
-          'text-[0.7rem] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wider',
-          'text-[color:var(--bb-color-sidebar-text-muted)]',
-          'rounded-md transition-colors',
-          canCollapse && 'hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)] cursor-pointer',
+          'flex w-full items-center justify-between px-3 py-2',
+          'text-[0.65rem] font-semibold uppercase tracking-widest',
+          'text-[color:var(--bb-color-sidebar-section-text)]',
+          'rounded-lg transition-all duration-200',
+          canCollapse && 'hover:text-[color:var(--bb-color-sidebar-text-primary)] cursor-pointer',
           !canCollapse && 'cursor-default'
         )}
         aria-expanded={isExpanded}
         aria-label={`${section.label} section${canCollapse ? ', click to toggle' : ''}`}
       >
-        <span>{section.label}</span>
+        <span className="flex items-center gap-2">
+          {/* Decorative dot */}
+          <span className="h-1 w-1 rounded-full bg-current opacity-60" />
+          {section.label}
+        </span>
         {canCollapse && (
           <ChevronDown
             className={cn(
-              'h-3.5 w-3.5 transition-transform duration-200',
+              'h-3 w-3 transition-transform duration-200 opacity-60',
               isExpanded ? 'rotate-0' : '-rotate-90'
             )}
           />
@@ -149,49 +273,106 @@ const CollapsibleSection = ({ section, onNavigate, isExpanded, onToggle, isSideb
       {/* Section items */}
       <div
         className={cn(
-          'mt-1 space-y-0.5 overflow-hidden transition-all duration-200',
+          'mt-1 space-y-0.5 overflow-hidden transition-all duration-300 ease-out',
           isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
         )}
       >
-        {section.items.map((item) => {
-          const Icon = iconMap[item.icon ?? item.path] ?? Circle;
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                cn(
-                  'group flex items-center gap-3 rounded-lg px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)]',
-                  'text-[0.8125rem] font-[var(--bb-font-weight-medium,500)] transition-all duration-150',
-                  'text-[color:var(--bb-color-sidebar-text-primary)]',
-                  'hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)] hover:text-[color:var(--bb-color-sidebar-item-hover-text,var(--bb-color-sidebar-text-primary))]',
-                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)] focus-visible:ring-inset',
-                  isActive
-                    ? 'bg-[color:var(--bb-color-sidebar-item-active-bg)] text-[color:var(--bb-color-sidebar-item-active-text)] font-[var(--bb-font-weight-semibold,600)] shadow-sm'
-                    : 'hover:translate-x-0.5'
-                )
-              }
-              onClick={onNavigate}
-              end={item.path === '/today'}
-            >
-              <Icon className="h-4 w-4 shrink-0 transition-transform group-hover:scale-110" />
-              <span className="truncate">{item.label}</span>
-            </NavLink>
-          );
-        })}
+        {section.items.map((item) => (
+          <NavItem key={item.path} item={item} onNavigate={onNavigate} />
+        ))}
       </div>
     </div>
   );
 };
 
+// ============================================================================
+// WORKSPACE HEADER COMPONENT
+// ============================================================================
+const WorkspaceHeader = ({ isCollapsed }) => {
+  const tenant = useTenantStore((state) => state.tenant);
+  const tenantName = tenant?.name ?? tenant?.slug ?? 'BarkBase';
+  const tenantPlan = tenant?.plan;
+
+  const tenantInitials = tenantName
+    .split(' ')
+    .slice(0, 2)
+    .map((chunk) => chunk.charAt(0))
+    .join('')
+    .toUpperCase();
+
+  if (isCollapsed) {
+    return (
+      <div className="flex items-center justify-center px-2 py-4 border-b border-[color:var(--bb-color-sidebar-border)]">
+        <div
+          className="relative flex h-10 w-10 items-center justify-center rounded-xl font-semibold text-sm shadow-lg"
+          style={{
+            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            color: '#ffffff',
+          }}
+          title={tenantName}
+        >
+          {/* Subtle glow */}
+          <div
+            className="absolute inset-0 rounded-xl blur-md opacity-40"
+            style={{ background: 'var(--bb-color-accent)' }}
+          />
+          <span className="relative">{tenantInitials}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center gap-3 px-4 py-5 border-b"
+      style={{
+        borderColor: 'var(--bb-color-sidebar-border)',
+        background: 'var(--bb-color-sidebar-workspace-bg)',
+      }}
+    >
+      {/* Logo/Avatar with glow */}
+      <div className="relative">
+        {/* Glow layer */}
+        <div
+          className="absolute inset-0 rounded-xl blur-lg opacity-30"
+          style={{ background: 'var(--bb-color-accent)' }}
+        />
+        {/* Avatar */}
+        <div
+          className="relative flex h-11 w-11 items-center justify-center rounded-xl font-semibold text-sm shadow-lg"
+          style={{
+            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+            color: '#ffffff',
+          }}
+        >
+          <Dog className="h-5 w-5" strokeWidth={2} />
+        </div>
+      </div>
+
+      {/* Workspace info */}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[0.875rem] font-semibold text-[color:var(--bb-color-sidebar-text-primary)]">
+          {tenantName}
+        </p>
+        {tenantPlan && (
+          <p className="text-[0.65rem] uppercase tracking-wider text-[color:var(--bb-color-sidebar-text-muted)] mt-0.5">
+            {tenantPlan} Plan
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// SIDEBAR SECTION (CONTENT) COMPONENT
+// ============================================================================
 const SidebarSection = ({ onNavigate, isCollapsed = false }) => {
   const tenant = useTenantStore((state) => state.tenant);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const terminology = tenant?.terminology || {};
-  const tenantName = tenant?.name ?? tenant?.slug ?? 'BarkBase';
-  const tenantPlan = tenant?.plan;
 
-  // Get sidebar sections with dynamic labels based on terminology
+  // Get sidebar sections with dynamic labels
   const sidebarSections = useMemo(() => getSidebarSections(terminology), [terminology]);
 
   // Track expanded state for each section
@@ -210,62 +391,27 @@ const SidebarSection = ({ onNavigate, isCollapsed = false }) => {
     }));
   };
 
-  const tenantInitials = tenantName
-    .split(' ')
-    .slice(0, 2)
-    .map((chunk) => chunk.charAt(0))
-    .join('')
-    .toUpperCase();
-
   return (
     <div className="flex h-full flex-col">
-      {/* Tenant header */}
-      <div
-        className={cn(
-          'flex items-center border-b border-[color:var(--bb-color-sidebar-border)]',
-          isCollapsed ? 'justify-center px-2 py-4' : 'gap-3 px-[var(--bb-space-4,1rem)] py-[var(--bb-space-5,1.25rem)]'
-        )}
-      >
-        <div
-          className={cn(
-            'flex items-center justify-center rounded-xl font-semibold shadow-md',
-            isCollapsed ? 'h-9 w-9 text-xs' : 'h-10 w-10 text-sm'
-          )}
-          style={{ backgroundColor: 'var(--bb-color-accent)', color: 'var(--bb-color-text-on-accent)' }}
-          title={isCollapsed ? tenantName : undefined}
-        >
-          {tenantInitials}
-        </div>
-        {!isCollapsed && (
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[0.875rem] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-sidebar-text-primary)]">
-              {tenantName}
-            </p>
-            {tenantPlan && (
-              <p className="text-[0.7rem] uppercase tracking-wide text-[color:var(--bb-color-sidebar-text-muted)]">
-                {tenantPlan}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
+      {/* Workspace header */}
+      <WorkspaceHeader isCollapsed={isCollapsed} />
 
       {/* Navigation sections */}
-      <nav className={cn(
-        'flex-1 overflow-y-auto py-[var(--bb-space-4,1rem)]',
-        isCollapsed ? 'px-2' : 'px-[var(--bb-space-2,0.5rem)]'
-      )}>
-        <div className={cn(isCollapsed ? 'space-y-1' : 'space-y-[var(--bb-space-1,0.25rem)]')}>
+      <nav
+        className={cn(
+          'flex-1 overflow-y-auto py-4',
+          isCollapsed ? 'px-1' : 'px-2'
+        )}
+      >
+        <div className={cn(isCollapsed ? 'space-y-1' : 'space-y-1')}>
           {sidebarSections.map((section, index) => (
             <div key={section.id}>
-              {/* Separator between sections */}
-              {index > 0 && (
-                <div
-                  className={cn(
-                    'border-t border-[color:var(--bb-color-sidebar-border)] opacity-50',
-                    isCollapsed ? 'my-2 mx-1' : 'my-[var(--bb-space-3,0.75rem)] mx-[var(--bb-space-3,0.75rem)]'
-                  )}
-                />
+              {/* Section divider */}
+              {index > 0 && !isCollapsed && (
+                <div className="my-4 mx-3 border-t border-[color:var(--bb-color-sidebar-section-border)] opacity-50" />
+              )}
+              {index > 0 && isCollapsed && (
+                <div className="my-2 mx-2 border-t border-[color:var(--bb-color-sidebar-section-border)] opacity-30" />
               )}
               <CollapsibleSection
                 section={section}
@@ -280,17 +426,22 @@ const SidebarSection = ({ onNavigate, isCollapsed = false }) => {
       </nav>
 
       {/* Footer with collapse toggle */}
-      <div className={cn(
-        'border-t border-[color:var(--bb-color-sidebar-border)]',
-        isCollapsed ? 'px-2 py-3' : 'px-[var(--bb-space-4,1rem)] py-[var(--bb-space-3,0.75rem)]'
-      )}>
+      <div
+        className={cn(
+          'border-t',
+          isCollapsed ? 'px-2 py-3' : 'px-4 py-3'
+        )}
+        style={{ borderColor: 'var(--bb-color-sidebar-border)' }}
+      >
         <button
           type="button"
           onClick={toggleSidebar}
           className={cn(
-            'flex items-center gap-2 w-full rounded-lg p-2 transition-colors',
+            'flex items-center gap-2 w-full rounded-xl p-2.5',
             'text-[color:var(--bb-color-sidebar-text-muted)]',
-            'hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)] hover:text-[color:var(--bb-color-sidebar-text-primary)]',
+            'transition-all duration-200',
+            'hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)]',
+            'hover:text-[color:var(--bb-color-sidebar-text-primary)]',
             isCollapsed && 'justify-center'
           )}
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -300,12 +451,12 @@ const SidebarSection = ({ onNavigate, isCollapsed = false }) => {
           ) : (
             <>
               <ChevronLeft className="h-4 w-4" />
-              <span className="text-[0.75rem]">Collapse</span>
+              <span className="text-xs font-medium">Collapse</span>
             </>
           )}
         </button>
         {!isCollapsed && (
-          <p className="text-[0.65rem] text-[color:var(--bb-color-sidebar-text-muted)] text-center mt-2">
+          <p className="text-[0.6rem] text-[color:var(--bb-color-sidebar-text-muted)] text-center mt-2 opacity-60">
             BarkBase v1.0
           </p>
         )}
@@ -314,23 +465,28 @@ const SidebarSection = ({ onNavigate, isCollapsed = false }) => {
   );
 };
 
+// ============================================================================
+// MAIN SIDEBAR COMPONENT
+// ============================================================================
 const Sidebar = ({ variant = 'desktop', onNavigate }) => {
   const isCollapsed = useUIStore((state) => state.sidebarCollapsed);
 
+  // Mobile variant
   if (variant === 'mobile') {
     return (
       <div
         className="relative h-full w-[280px] border-l shadow-2xl"
         style={{
-          backgroundColor: 'var(--bb-color-sidebar-bg)',
+          background: 'var(--bb-color-sidebar-gradient, var(--bb-color-sidebar-bg))',
           borderColor: 'var(--bb-color-sidebar-border)',
           color: 'var(--bb-color-sidebar-text-primary)',
         }}
       >
+        {/* Close button */}
         <button
           type="button"
           onClick={onNavigate}
-          className="absolute right-3 top-3 z-10 rounded-full p-1.5 text-[color:var(--bb-color-sidebar-text-muted)] transition-colors hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)] hover:text-[color:var(--bb-color-sidebar-text-primary)]"
+          className="absolute right-3 top-3 z-10 rounded-full p-2 text-[color:var(--bb-color-sidebar-text-muted)] transition-all duration-200 hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)] hover:text-[color:var(--bb-color-sidebar-text-primary)]"
           aria-label="Close navigation"
         >
           <X className="h-5 w-5" />
@@ -340,15 +496,18 @@ const Sidebar = ({ variant = 'desktop', onNavigate }) => {
     );
   }
 
+  // Desktop variant
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 hidden h-screen flex-col border-r lg:flex transition-all duration-300',
+        'fixed left-0 top-0 hidden h-screen flex-col border-r lg:flex',
+        'transition-all duration-300 ease-out',
         isCollapsed ? 'w-[64px]' : 'w-[var(--bb-sidebar-width,240px)]'
       )}
       style={{
-        backgroundColor: 'var(--bb-color-sidebar-bg)',
+        background: 'var(--bb-color-sidebar-gradient, var(--bb-color-sidebar-bg))',
         borderColor: 'var(--bb-color-sidebar-border)',
+        boxShadow: 'var(--bb-color-sidebar-shadow)',
         color: 'var(--bb-color-sidebar-text-primary)',
       }}
     >
