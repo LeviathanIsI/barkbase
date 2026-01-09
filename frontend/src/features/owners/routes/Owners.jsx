@@ -16,6 +16,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { HeaderStat, HeaderStatGroup } from '@/components/ui/HeaderStat';
 import Modal from '@/components/ui/Modal';
+import Avatar, { AvatarGroup } from '@/components/ui/Avatar';
 import Checkbox from '@/components/ui/Checkbox';
 import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
 // Replaced with LoadingState (mascot) for page-level loading
@@ -820,17 +821,20 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStat
             <Button
               variant="ghost"
               size="sm"
-              className="h-auto p-0 gap-3"
+              className="h-auto p-0 gap-3 group"
               onClick={(e) => {
                 e.stopPropagation();
                 onView();
               }}
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold bg-slate-600 dark:bg-slate-500 text-white">
-                {owner.fullName?.[0]?.toUpperCase() || 'O'}
-              </div>
+              <Avatar
+                name={owner.fullName}
+                size="md"
+                shape="round"
+                className="transition-transform duration-150 group-hover:scale-105"
+              />
               <div className="min-w-0 text-left">
-                <p className="font-semibold text-[color:var(--bb-color-text-primary)]">{owner.fullName}</p>
+                <p className="font-semibold text-[color:var(--bb-color-text-primary)] group-hover:text-[var(--bb-color-accent)] transition-colors">{owner.fullName}</p>
                 <p className="text-xs text-[color:var(--bb-color-text-muted)]">{owner.email || 'No email'}</p>
               </div>
             </Button>
@@ -858,21 +862,31 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStat
             <PetHoverCard ownerId={ownerId} petCount={displayPetCount}>
               {owner.pets?.length > 0 ? (
                 <div className="flex items-center gap-2">
-                  <div className="flex -space-x-1.5">
-                    {owner.pets.slice(0, 3).map((pet, i) => (
-                      <div key={i} className="flex h-7 w-7 items-center justify-center rounded-full border-2 text-[0.65rem] font-semibold" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-bg-surface)', color: 'var(--bb-color-text-muted)' }} title={pet.name}>
-                        {pet.name?.[0]?.toUpperCase() || <PawPrint className="h-3 w-3" />}
-                      </div>
+                  <AvatarGroup max={3} size="sm">
+                    {owner.pets.map((pet, i) => (
+                      <Avatar
+                        key={i}
+                        name={pet.name}
+                        size="sm"
+                        shape="rounded"
+                        species={pet.species}
+                      />
                     ))}
-                  </div>
-                  <span className="text-sm text-[color:var(--bb-color-text-primary)]">{owner.pets.length}</span>
-                  {owner.pets.length > 3 && <span className="text-xs text-[color:var(--bb-color-text-muted)]">(+{owner.pets.length - 3})</span>}
+                  </AvatarGroup>
+                  {owner.pets.length > 3 && (
+                    <span className="text-xs text-[color:var(--bb-color-text-muted)]">
+                      +{owner.pets.length - 3}
+                    </span>
+                  )}
                 </div>
               ) : displayPetCount > 0 ? (
                 <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full border-2" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-bg-surface)', color: 'var(--bb-color-text-muted)' }}>
-                    <PawPrint className="h-3.5 w-3.5" />
-                  </div>
+                  <Avatar
+                    name="Pet"
+                    size="sm"
+                    shape="rounded"
+                    fallback={<PawPrint className="h-3.5 w-3.5" />}
+                  />
                   <span className="text-sm text-[color:var(--bb-color-text-primary)]">{displayPetCount}</span>
                 </div>
               ) : (
