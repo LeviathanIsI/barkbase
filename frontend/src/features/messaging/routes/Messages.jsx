@@ -34,6 +34,7 @@ import Badge from '@/components/ui/Badge';
 import StyledSelect from '@/components/ui/StyledSelect';
 import { Skeleton } from '@/components/ui/skeleton';
 import LoadingState from '@/components/ui/LoadingState';
+import EmptyState from '@/components/ui/EmptyState';
 import {
   useConversationsQuery,
   useConversationMessagesQuery,
@@ -537,38 +538,37 @@ const ContextSidebar = ({ conversation, onViewOwner, onViewPet, onScheduleBookin
 
 // Empty State Components
 const EmptyConversationList = ({ onNewConversation }) => (
-  <div className="flex flex-col items-center justify-center h-full py-12 px-4 text-center">
-    <div
-      className="h-16 w-16 rounded-full flex items-center justify-center mb-4"
-      style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
-    >
-      <MessageSquare className="h-8 w-8 text-[color:var(--bb-color-text-muted)]" />
-    </div>
-    <h3 className="font-medium text-[color:var(--bb-color-text-primary)] mb-1">No messages yet</h3>
-    <p className="text-sm text-[color:var(--bb-color-text-muted)] mb-4">Start a conversation with a pet owner</p>
-    <Button size="sm" onClick={onNewConversation}>
-      <Plus className="h-4 w-4 mr-1.5" />
-      New Conversation
-    </Button>
+  <div className="flex flex-col items-center justify-center h-full py-8 px-4">
+    <EmptyState
+      icon={MessageSquare}
+      title="Your inbox is ready"
+      description="Start connecting with pet owners. Conversations will appear here."
+      variant="messages"
+      compact
+      actions={
+        <Button size="sm" onClick={onNewConversation}>
+          <Plus className="h-4 w-4 mr-1.5" />
+          Start Conversation
+        </Button>
+      }
+    />
   </div>
 );
 
 const EmptyChatPane = ({ onNewConversation }) => (
-  <div className="flex flex-col items-center justify-center h-full text-center px-4">
-    <div
-      className="h-20 w-20 rounded-full flex items-center justify-center mb-4"
-      style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
-    >
-      <Send className="h-10 w-10 text-[color:var(--bb-color-text-muted)]" />
-    </div>
-    <h3 className="font-medium text-[color:var(--bb-color-text-primary)] mb-1">Select a conversation</h3>
-    <p className="text-sm text-[color:var(--bb-color-text-muted)] mb-4">
-      Choose a conversation from the list to start messaging
-    </p>
-    <Button variant="outline" size="sm" onClick={onNewConversation}>
-      <Plus className="h-4 w-4 mr-1.5" />
-      New Conversation
-    </Button>
+  <div className="flex flex-col items-center justify-center h-full px-4">
+    <EmptyState
+      icon={Send}
+      title="Select a conversation"
+      description="Choose a conversation from the list to view messages and connect with pet owners."
+      variant="messages"
+      actions={
+        <Button variant="outline" size="sm" onClick={onNewConversation}>
+          <Plus className="h-4 w-4 mr-1.5" />
+          New Conversation
+        </Button>
+      }
+    />
   </div>
 );
 

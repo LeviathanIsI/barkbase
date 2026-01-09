@@ -1,19 +1,18 @@
 /**
- * DirectoryEmptyState - Empty state for directory pages
- * Uses unified empty state system with design tokens
+ * DirectoryEmptyState - Premium empty state for directory pages
+ * Uses unified empty state system with branded styling
  */
 
 import { EmptyState } from '@/components/ui/emptystates';
 
-const DirectoryEmptyState = ({ title, description, icon, children }) => (
+const DirectoryEmptyState = ({ title, description, icon, variant = 'neutral', children }) => (
   <EmptyState
     icon={icon}
     title={title}
     description={description}
+    variant={variant}
     actions={children}
-    className="border border-dashed border-[var(--bb-color-border-subtle)]"
   />
 );
 
 export default DirectoryEmptyState;
-

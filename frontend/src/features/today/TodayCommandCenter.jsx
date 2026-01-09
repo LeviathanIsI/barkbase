@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, AlertTriangle, Clock, ListTodo, Home, ExternalLink, AlertCircle, Dog, User, ChevronRight } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Clock, ListTodo, Home, ExternalLink, AlertCircle, Dog, User, ChevronRight, PartyPopper, Sparkles } from 'lucide-react';
+import EmptyState from '@/components/ui/EmptyState';
 import { useUserProfileQuery } from '@/features/settings/api-user';
 import { useTimezoneUtils } from '@/lib/timezone';
 // Dashboard hooks available if needed:
@@ -318,10 +319,18 @@ const TasksList = ({ tasks, isLoading, emptyMessage, onComplete, isCompleting, i
 
   if (!tasks.length) {
     return (
-      <div className="text-center py-8">
-        <CheckCircle className="h-10 w-10 mx-auto mb-2 text-emerald-500" />
-        <p className="text-[color:var(--bb-color-text-muted)] text-sm">{emptyMessage}</p>
-      </div>
+      <EmptyState
+        icon={isOverdue ? CheckCircle : PartyPopper}
+        accentIcon={isOverdue ? null : Sparkles}
+        title={isOverdue ? "You're all caught up!" : "Tasks complete!"}
+        description={isOverdue
+          ? "No overdue tasks. Keep up the great work!"
+          : "All tasks for today are done. Time for a well-deserved break!"
+        }
+        variant={isOverdue ? "success" : "tasks"}
+        compact
+        showDecorations={false}
+      />
     );
   }
 

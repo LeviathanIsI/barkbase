@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { AlertCircle, PawPrint, Sparkles, UserCheck, Phone, Mail, MessageSquare, CheckCircle } from 'lucide-react';
+import { AlertCircle, UserCheck, Phone, Mail, MessageSquare, CheckCircle, Sparkles, Coffee } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
 import TodayCard from './TodayCard';
 import TodaySection from './TodaySection';
 import { TodayListSkeleton } from './TodaySkeleton';
+import EmptyState from '@/components/ui/EmptyState';
 import PetQuickActionsDrawer from '@/features/owners/components/PetQuickActionsDrawer';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout/SlideoutProvider';
 import { useTimezoneUtils } from '@/lib/timezone';
@@ -67,20 +68,31 @@ const ListBody = ({ items, hasError, checkedInIds, onCheckInSuccess }) => {
   const pendingItems = items.filter(b => !checkedInIds.has(b.id || b.recordId));
 
   if (!pendingItems.length) {
+    // All checked in - success state
+    if (items.length > 0) {
+      return (
+        <EmptyState
+          icon={CheckCircle}
+          accentIcon={Sparkles}
+          title="All checked in!"
+          description="Great work! Every arrival has been welcomed and settled in."
+          variant="success"
+          compact
+          showDecorations={false}
+        />
+      );
+    }
+
+    // No arrivals today - calm blue state
     return (
-      <div className="py-[var(--bb-space-10,2.5rem)] text-center">
-        <div className="relative mx-auto mb-4 h-16 w-16">
-          <div className="absolute inset-0 rounded-full bg-emerald-100 dark:bg-emerald-900/30" />
-          <PawPrint className="absolute inset-0 m-auto h-8 w-8 text-emerald-500 dark:text-emerald-400" />
-          <Sparkles className="absolute -top-1 -right-1 h-5 w-5 text-amber-400" />
-        </div>
-        <p className="text-[var(--bb-font-size-base,1rem)] font-semibold text-[color:var(--bb-color-text-primary)]">
-          {items.length > 0 ? 'All checked in!' : 'No pets arriving today'}
-        </p>
-        <p className="mt-1 text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)]">
-          {items.length > 0 ? 'Great job! All arrivals are checked in.' : 'Chill day ahead!'}
-        </p>
-      </div>
+      <EmptyState
+        icon={Coffee}
+        title="Clear skies today"
+        description="No arrivals scheduled. A perfect time to focus on your guests."
+        variant="arrivals"
+        compact
+        showDecorations={false}
+      />
     );
   }
 

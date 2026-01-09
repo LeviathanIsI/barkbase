@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { AlertCircle, Heart, LogOut, UserX, Phone, Mail, MessageSquare, Loader2 } from 'lucide-react';
+import { AlertCircle, Heart, LogOut, UserX, Phone, Mail, MessageSquare, Loader2, CheckCircle, Sparkles, Home } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
 import TodayCard from './TodayCard';
 import TodaySection from './TodaySection';
 import { TodayListSkeleton } from './TodaySkeleton';
+import EmptyState from '@/components/ui/EmptyState';
 import { useBookingCheckOutMutation } from '@/features/bookings/api';
 import PetQuickActionsDrawer from '@/features/owners/components/PetQuickActionsDrawer';
 import { useTimezoneUtils } from '@/lib/timezone';
@@ -67,20 +68,31 @@ const ListBody = ({ items, hasError, checkedOutIds, onCheckOutSuccess }) => {
   const pendingItems = items.filter(b => !checkedOutIds.has(b.id || b.recordId));
 
   if (!pendingItems.length) {
+    // All checked out - success state
+    if (items.length > 0) {
+      return (
+        <EmptyState
+          icon={CheckCircle}
+          accentIcon={Heart}
+          title="All checked out!"
+          description="Wonderful! All departures have been processed smoothly."
+          variant="success"
+          compact
+          showDecorations={false}
+        />
+      );
+    }
+
+    // No departures today - cozy purple state
     return (
-      <div className="py-[var(--bb-space-10,2.5rem)] text-center">
-        <div className="relative mx-auto mb-4 h-16 w-16">
-          <div className="absolute inset-0 rounded-full bg-amber-100 dark:bg-amber-900/30" />
-          <LogOut className="absolute inset-0 m-auto h-8 w-8 text-amber-500 dark:text-amber-400" />
-          <Heart className="absolute -top-1 -right-1 h-5 w-5 text-rose-400" />
-        </div>
-        <p className="text-[var(--bb-font-size-base,1rem)] font-semibold text-[color:var(--bb-color-text-primary)]">
-          {items.length > 0 ? 'All checked out!' : 'No pets departing today'}
-        </p>
-        <p className="mt-1 text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)]">
-          {items.length > 0 ? 'Great job! All departures complete.' : 'Everyone\'s staying cozy!'}
-        </p>
-      </div>
+      <EmptyState
+        icon={Home}
+        title="Everyone's staying cozy"
+        description="No departures scheduled. Your guests are enjoying their stay!"
+        variant="departures"
+        compact
+        showDecorations={false}
+      />
     );
   }
 

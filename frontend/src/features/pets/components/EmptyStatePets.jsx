@@ -1,9 +1,9 @@
 /**
- * EmptyStatePets - Empty state for pets directory
- * Uses unified empty state system with design tokens
+ * EmptyStatePets - Premium empty state for pets directory
+ * Uses unified empty state system with branded styling
  */
 
-import { Plus, PawPrint } from 'lucide-react';
+import { Plus, PawPrint, Upload } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/emptystates';
 
@@ -12,8 +12,9 @@ const EmptyStatePets = ({ onAddPet, onImport }) => {
     <div className="flex items-center justify-center min-h-[400px] p-[var(--bb-space-6)]">
       <EmptyState
         icon={PawPrint}
-        title="No pets yet"
-        description="Add your first pet profile to start managing stays, vaccinations, and care notes."
+        title="Welcome to your pet directory"
+        description="This is where all your furry guests will live. Add your first pet to start managing stays, vaccinations, and care notes."
+        variant="neutral"
         actions={
           <div className="flex flex-col items-center gap-[var(--bb-space-3)]">
             <Button variant="primary" onClick={onAddPet}>
@@ -21,12 +22,10 @@ const EmptyStatePets = ({ onAddPet, onImport }) => {
               Add First Pet
             </Button>
             {onImport && (
-              <button
-                onClick={onImport}
-                className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-accent)] hover:underline"
-              >
+              <Button variant="ghost" size="sm" onClick={onImport}>
+                <Upload className="w-4 h-4 mr-2" />
                 Import from spreadsheet
-              </button>
+              </Button>
             )}
           </div>
         }
@@ -37,4 +36,3 @@ const EmptyStatePets = ({ onAddPet, onImport }) => {
 };
 
 export default EmptyStatePets;
-
