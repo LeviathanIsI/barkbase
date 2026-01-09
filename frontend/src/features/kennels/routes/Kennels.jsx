@@ -39,13 +39,26 @@ import { useDeleteKennel, useKennels, useToggleSpecialHandling } from '../api';
 import KennelAssignDrawer from '../components/KennelAssignDrawer';
 import KennelForm from '../components/KennelForm';
 
-// Kennel type configurations
+// Kennel type configurations with size badges
 const KENNEL_TYPES = {
-  KENNEL: { label: 'Kennel', icon: Home, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20', size: 'normal' },
-  SUITE: { label: 'Suite', icon: DoorOpen, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20', size: 'large' },
-  CABIN: { label: 'Cabin', icon: Building, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20', size: 'large' },
-  DAYCARE: { label: 'Daycare', icon: Sun, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20', size: 'xlarge' },
-  MEDICAL: { label: 'Medical', icon: Stethoscope, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20', size: 'normal' },
+  KENNEL: { label: 'Kennel', icon: Home, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20', size: 'normal', sizeBadge: 'S', badgeColor: 'bg-blue-500' },
+  SUITE: { label: 'Suite', icon: DoorOpen, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20', size: 'large', sizeBadge: 'L', badgeColor: 'bg-purple-500' },
+  CABIN: { label: 'Cabin', icon: Building, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20', size: 'large', sizeBadge: 'L', badgeColor: 'bg-amber-500' },
+  DAYCARE: { label: 'Daycare', icon: Sun, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20', size: 'xlarge', sizeBadge: 'XL', badgeColor: 'bg-green-500' },
+  MEDICAL: { label: 'Medical', icon: Stethoscope, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20', size: 'normal', sizeBadge: 'M', badgeColor: 'bg-red-500' },
+};
+
+// Size badge mapping based on kennel name prefix
+const getSizeBadge = (name) => {
+  if (!name) return null;
+  const prefix = name.split('-')[0]?.toUpperCase();
+  switch (prefix) {
+    case 'S': return { badge: 'S', color: 'bg-slate-500', label: 'Small' };
+    case 'M': return { badge: 'M', color: 'bg-blue-500', label: 'Medium' };
+    case 'L': return { badge: 'L', color: 'bg-purple-500', label: 'Large' };
+    case 'XL': return { badge: 'XL', color: 'bg-amber-500', label: 'Extra Large' };
+    default: return null;
+  }
 };
 
 // Stat Card Component
@@ -97,13 +110,14 @@ const StatCard = ({ icon: Icon, label, value, subValue, variant = 'primary' }) =
   );
 };
 
-// Kennel Unit Box for the facility map
+// Kennel Unit Box for the facility map - Enhanced with status borders and size badges
 const KennelUnit = ({ kennel, onClick, isSelected, onToggleSpecialHandling }) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const tooltipRef = useRef(null);
   const unitRef = useRef(null);
   const typeConfig = KENNEL_TYPES[kennel.type] || KENNEL_TYPES.KENNEL;
+  const sizeBadge = getSizeBadge(kennel.name);
 
   const handleFlagClick = (e) => {
     e.stopPropagation();
@@ -113,49 +127,73 @@ const KennelUnit = ({ kennel, onClick, isSelected, onToggleSpecialHandling }) =>
   const available = (kennel.capacity || 1) - (kennel.occupied || 0);
   const isFull = available <= 0;
   const isPartial = available > 0 && (kennel.occupied || 0) > 0;
-  // Check for future bookings (hasReservation flag or non-empty bookings array from backend)
   const hasReservation = kennel.hasReservation || (kennel.bookings && kennel.bookings.length > 0);
+  const hasCurrentPets = kennel.currentPets && kennel.currentPets.length > 0;
 
-  // Determine status color
-  const getStatusColor = () => {
-    if (!kennel.isActive) return { bg: 'bg-gray-400', ring: 'ring-gray-400', glow: 'shadow-gray-400/30', text: 'Inactive' };
-    if (isFull) return { bg: 'bg-red-500', ring: 'ring-red-500', glow: 'shadow-red-500/30', text: 'Full' };
-    if (isPartial) return { bg: 'bg-amber-500', ring: 'ring-amber-500', glow: 'shadow-amber-500/30', text: `${available} open` };
-    // Show "Reserved" if kennel has a future booking reservation but is currently empty
-    if (hasReservation) return { bg: 'bg-blue-500', ring: 'ring-blue-500', glow: 'shadow-blue-500/30', text: 'Reserved' };
-    return { bg: 'bg-emerald-500', ring: 'ring-emerald-500', glow: 'shadow-emerald-500/30', text: 'Open' };
+  // Determine status with enhanced styling
+  const getStatusConfig = () => {
+    if (!kennel.isActive) return {
+      bg: 'bg-gray-400',
+      border: 'border-gray-300 dark:border-gray-600',
+      glow: '',
+      text: 'Inactive',
+      cardBg: 'bg-gray-50 dark:bg-gray-800/30',
+    };
+    if (isFull) return {
+      bg: 'bg-red-500',
+      border: 'border-red-400 dark:border-red-600',
+      glow: 'shadow-[0_0_12px_rgba(239,68,68,0.25)]',
+      text: 'Full',
+      cardBg: 'bg-red-50/50 dark:bg-red-950/20',
+    };
+    if (isPartial) return {
+      bg: 'bg-amber-500',
+      border: 'border-amber-400 dark:border-amber-600',
+      glow: 'shadow-[0_0_10px_rgba(245,158,11,0.2)]',
+      text: `${available} spot${available > 1 ? 's' : ''}`,
+      cardBg: 'bg-amber-50/50 dark:bg-amber-950/20',
+    };
+    if (hasReservation) return {
+      bg: 'bg-blue-500',
+      border: 'border-blue-400 dark:border-blue-600',
+      glow: '',
+      text: 'Reserved',
+      cardBg: 'bg-blue-50/30 dark:bg-blue-950/20',
+    };
+    return {
+      bg: 'bg-emerald-500',
+      border: 'border-emerald-400 dark:border-emerald-500',
+      glow: '',
+      text: 'Available',
+      cardBg: 'bg-[color:var(--bb-color-bg-surface)]',
+    };
   };
 
-  const status = getStatusColor();
+  const status = getStatusConfig();
 
-  // Size based on type - bigger boxes for touch-friendly tablet use
-  // Suites are premium units and should be visually larger (2x width)
+  // Size based on type
   const getSizeClass = () => {
     switch (typeConfig.size) {
-      case 'xlarge': return 'w-[200px] min-h-[130px]'; // Daycare - extra wide
-      case 'large': return 'w-[180px] min-h-[120px]';  // Suites/Cabins - premium 2x width
-      default: return 'w-[110px] min-h-[110px]';       // Standard kennels - touch-friendly
+      case 'xlarge': return 'w-[200px] min-h-[140px]';
+      case 'large': return 'w-[180px] min-h-[130px]';
+      default: return 'w-[120px] min-h-[120px]';
     }
   };
 
   const handleMouseEnter = () => {
     if (unitRef.current) {
       const rect = unitRef.current.getBoundingClientRect();
-      const tooltipWidth = 256; // w-64 = 16rem = 256px
-      const tooltipHeight = 200; // Approximate tooltip height
+      const tooltipWidth = 280;
+      const tooltipHeight = 220;
       const margin = 8;
 
-      // Position tooltip below the element by default
-      // Flip to above if too close to bottom of screen
       const spaceBelow = window.innerHeight - rect.bottom;
       const flipToAbove = spaceBelow < tooltipHeight + margin;
 
       const top = flipToAbove
-        ? rect.top - tooltipHeight - margin  // Position above
-        : rect.bottom + margin;              // Position below
+        ? rect.top - tooltipHeight - margin
+        : rect.bottom + margin;
 
-      // Horizontally center the tooltip relative to the element
-      // Clamp to keep within viewport
       let left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
       left = Math.max(margin, Math.min(left, window.innerWidth - tooltipWidth - margin));
 
@@ -174,23 +212,41 @@ const KennelUnit = ({ kennel, onClick, isSelected, onToggleSpecialHandling }) =>
       <button
         onClick={() => onClick(kennel)}
         className={cn(
-          'relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200',
-          'hover:shadow-xl hover:-translate-y-1 hover:z-10',
+          'relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-300',
+          'hover:shadow-xl hover:-translate-y-1.5 hover:z-10',
           getSizeClass(),
-          isSelected
-            ? 'ring-2 ring-offset-2 ring-[color:var(--bb-color-accent)] border-[color:var(--bb-color-accent)]'
-            : 'border-[color:var(--bb-color-border-subtle)] hover:border-[color:var(--bb-color-accent)]',
-          kennel.isActive
-            ? `bg-[color:var(--bb-color-bg-surface)] hover:${status.glow}`
-            : 'bg-gray-100 dark:bg-gray-800/50 opacity-60'
+          status.border,
+          status.cardBg,
+          status.glow,
+          isSelected && 'ring-2 ring-offset-2 ring-[color:var(--bb-color-accent)]',
+          !kennel.isActive && 'opacity-60'
         )}
       >
-        {/* Special handling flag - top left */}
+        {/* Left status bar - visual indicator */}
+        <div className={cn(
+          'absolute left-0 top-3 bottom-3 w-1 rounded-r-full',
+          status.bg
+        )} />
+
+        {/* Size badge - top left */}
+        {sizeBadge && (
+          <div
+            className={cn(
+              'absolute top-2 left-3 px-1.5 py-0.5 rounded text-[10px] font-bold text-white',
+              sizeBadge.color
+            )}
+            title={sizeBadge.label}
+          >
+            {sizeBadge.badge}
+          </div>
+        )}
+
+        {/* Special handling flag - top right area */}
         <button
           type="button"
           onClick={handleFlagClick}
           className={cn(
-            'absolute top-2 left-2 p-0.5 rounded transition-colors',
+            'absolute top-2 right-8 p-0.5 rounded transition-colors z-10',
             'hover:bg-red-100 dark:hover:bg-red-900/30',
             kennel.specialHandling ? 'text-red-500' : 'text-gray-300 dark:text-gray-600'
           )}
@@ -199,40 +255,55 @@ const KennelUnit = ({ kennel, onClick, isSelected, onToggleSpecialHandling }) =>
           <Flag className="h-3.5 w-3.5" fill={kennel.specialHandling ? 'currentColor' : 'none'} />
         </button>
 
-        {/* Status indicator dot - positioned in corner with breathing room */}
-        <div className={cn('absolute top-2 right-2 w-2.5 h-2.5 rounded-full', status.bg)} />
+        {/* Status dot - enhanced with ring */}
+        <div className={cn(
+          'absolute top-2 right-2 w-3 h-3 rounded-full ring-2 ring-white dark:ring-gray-800',
+          status.bg
+        )} />
 
-        {/* Kennel name */}
-        <span className="text-base font-bold text-[color:var(--bb-color-text-primary)] mb-1.5">
+        {/* Kennel name - more prominent */}
+        <span className="text-lg font-bold text-[color:var(--bb-color-text-primary)] mb-1">
           {kennel.name}
         </span>
 
-        {/* Type icon - slightly larger */}
-        <typeConfig.icon className={cn('h-5 w-5 mb-1.5', typeConfig.color)} />
+        {/* Type icon with background */}
+        <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center mb-2', typeConfig.bg)}>
+          <typeConfig.icon className={cn('h-5 w-5', typeConfig.color)} />
+        </div>
 
-        {/* Capacity */}
-        <span className="text-sm font-medium text-[color:var(--bb-color-text-muted)]">
-          {kennel.occupied || 0}/{kennel.capacity || 1}
-        </span>
+        {/* Current pet name preview (if occupied) */}
+        {hasCurrentPets && (
+          <div className="flex items-center gap-1 mb-1 px-2 py-0.5 rounded-full bg-[color:var(--bb-color-bg-elevated)]">
+            <PawPrint className="h-3 w-3 text-[color:var(--bb-color-accent)]" />
+            <span className="text-xs font-medium text-[color:var(--bb-color-text-primary)] truncate max-w-[80px]">
+              {kennel.currentPets[0].name}
+            </span>
+            {kennel.currentPets.length > 1 && (
+              <span className="text-xs text-[color:var(--bb-color-text-muted)]">
+                +{kennel.currentPets.length - 1}
+              </span>
+            )}
+          </div>
+        )}
 
-        {/* Status text */}
+        {/* Status badge - enhanced */}
         <span className={cn(
-          'text-xs font-semibold mt-1.5 px-2 py-1 rounded-full',
-          isFull ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-          isPartial ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-          !kennel.isActive ? 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400' :
-          hasReservation ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-          'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+          'text-xs font-semibold px-2.5 py-1 rounded-full',
+          isFull ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
+          isPartial ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' :
+          !kennel.isActive ? 'bg-gray-100 text-gray-600 dark:bg-gray-900/40 dark:text-gray-400' :
+          hasReservation ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' :
+          'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
         )}>
           {status.text}
         </span>
       </button>
 
-      {/* Tooltip with pet/booking details - rendered via portal */}
+      {/* Enhanced Tooltip */}
       {showTooltip && createPortal(
         <div
           ref={tooltipRef}
-          className="fixed z-[9999] w-64 p-4 rounded-xl shadow-2xl border"
+          className="fixed z-[9999] w-72 rounded-xl shadow-2xl border overflow-hidden"
           style={{
             top: tooltipPosition.top,
             left: tooltipPosition.left,
@@ -242,60 +313,78 @@ const KennelUnit = ({ kennel, onClick, isSelected, onToggleSpecialHandling }) =>
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
         >
-          <div className="flex items-center justify-between mb-3">
-            <span className="font-bold text-base text-[color:var(--bb-color-text-primary)]">{kennel.name}</span>
-            <span className={cn('px-2.5 py-1 rounded-full text-xs font-medium', typeConfig.bg, typeConfig.color)}>
-              {typeConfig.label}
-            </span>
+          {/* Header with status color */}
+          <div className={cn('px-4 py-3 border-b', status.cardBg)} style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold text-[color:var(--bb-color-text-primary)]">{kennel.name}</span>
+                {sizeBadge && (
+                  <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-bold text-white', sizeBadge.color)}>
+                    {sizeBadge.badge}
+                  </span>
+                )}
+              </div>
+              <span className={cn('px-2.5 py-1 rounded-full text-xs font-semibold', typeConfig.bg, typeConfig.color)}>
+                {typeConfig.label}
+              </span>
+            </div>
           </div>
 
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-2 text-[color:var(--bb-color-text-muted)]">
-              <Building className="h-3.5 w-3.5" />
-              <span>{kennel.building || 'No building'}{kennel.floor ? ` - ${kennel.floor}` : ''}</span>
+          <div className="p-4 space-y-3">
+            <div className="flex items-center gap-3 text-sm">
+              <div className="flex items-center gap-2 text-[color:var(--bb-color-text-muted)]">
+                <Building className="h-4 w-4" />
+                <span>{kennel.building || 'No building'}{kennel.floor ? ` • ${kennel.floor}` : ''}</span>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 text-[color:var(--bb-color-text-muted)]">
-              <Activity className="h-3.5 w-3.5" />
-              <span>Capacity: {kennel.occupied || 0}/{kennel.capacity || 1}</span>
+            <div className="flex items-center gap-2">
+              <div className={cn('w-3 h-3 rounded-full', status.bg)} />
+              <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">{status.text}</span>
+              <span className="text-sm text-[color:var(--bb-color-text-muted)]">
+                • {kennel.occupied || 0}/{kennel.capacity || 1} capacity
+              </span>
             </div>
 
-            {/* Current guests with full details */}
-            {kennel.currentPets && kennel.currentPets.length > 0 && (
-              <div className="pt-2.5 mt-2 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-                <div className="flex items-center gap-1.5 mb-2">
-                  <PawPrint className="h-3.5 w-3.5 text-[color:var(--bb-color-accent)]" />
-                  <span className="font-medium text-[color:var(--bb-color-text-primary)]">Current Guests</span>
+            {/* Current guests with enhanced display */}
+            {hasCurrentPets && (
+              <div className="pt-3 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <PawPrint className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
+                  <span className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
+                    Current Guest{kennel.currentPets.length > 1 ? 's' : ''}
+                  </span>
                 </div>
-                {kennel.currentPets.map((pet, i) => (
-                  <div key={i} className="ml-5 mb-2 last:mb-0">
-                    <div className="font-medium text-[color:var(--bb-color-text-primary)]">{pet.name}</div>
-                    {pet.ownerName && (
-                      <div className="flex items-center gap-1.5 text-xs text-[color:var(--bb-color-text-muted)]">
-                        <User className="h-3 w-3" />
-                        {pet.ownerName}
+                <div className="space-y-2">
+                  {kennel.currentPets.map((pet, i) => (
+                    <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-[color:var(--bb-color-bg-surface)]">
+                      <div className="h-8 w-8 rounded-full bg-[color:var(--bb-color-accent-soft)] flex items-center justify-center">
+                        <PawPrint className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
                       </div>
-                    )}
-                    {(pet.checkIn || pet.checkOut) && (
-                      <div className="flex items-center gap-1.5 text-xs text-[color:var(--bb-color-text-muted)]">
-                        <Clock className="h-3 w-3" />
-                        {pet.checkIn && pet.checkOut ? `${pet.checkIn} - ${pet.checkOut}` : pet.checkIn || pet.checkOut}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm text-[color:var(--bb-color-text-primary)]">{pet.name}</div>
+                        {pet.ownerName && (
+                          <div className="text-xs text-[color:var(--bb-color-text-muted)] flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {pet.ownerName}
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {pet.serviceType && (
-                      <div className="flex items-center gap-1.5 text-xs text-[color:var(--bb-color-text-muted)]">
-                        <Calendar className="h-3 w-3" />
-                        {pet.serviceType}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      {(pet.checkIn || pet.checkOut) && (
+                        <div className="text-xs text-[color:var(--bb-color-text-muted)]">
+                          <Clock className="h-3 w-3 inline mr-1" />
+                          {pet.checkOut || 'TBD'}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
             {kennel.notes && (
-              <div className="pt-2 border-t text-[color:var(--bb-color-text-muted)] italic text-xs" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-                {kennel.notes}
+              <div className="pt-3 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+                <p className="text-xs text-[color:var(--bb-color-text-muted)] italic">{kennel.notes}</p>
               </div>
             )}
           </div>
@@ -306,123 +395,229 @@ const KennelUnit = ({ kennel, onClick, isSelected, onToggleSpecialHandling }) =>
   );
 };
 
-// Building Floor Section
-const BuildingFloorSection = ({ title, kennels, onKennelClick, selectedKennelId, onToggleSpecialHandling }) => {
+// Building Floor Section - Enhanced with collapsible and better visual hierarchy
+const BuildingFloorSection = ({ title, kennels, onKennelClick, selectedKennelId, onToggleSpecialHandling, defaultExpanded = true }) => {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
   const sectionStats = useMemo(() => {
     const total = kennels.length;
     const capacity = kennels.reduce((sum, k) => sum + (k.capacity || 1), 0);
     const occupied = kennels.reduce((sum, k) => sum + (k.occupied || 0), 0);
     const available = capacity - occupied;
-    return { total, capacity, occupied, available };
+    const utilizationPercent = capacity > 0 ? Math.round((occupied / capacity) * 100) : 0;
+    return { total, capacity, occupied, available, utilizationPercent };
   }, [kennels]);
+
+  // Determine section status styling
+  const getSectionStyle = () => {
+    if (sectionStats.available === 0) return {
+      headerBg: 'bg-red-50/50 dark:bg-red-950/20',
+      borderColor: 'border-red-200 dark:border-red-800/50',
+      iconBg: 'bg-red-100 dark:bg-red-900/40',
+      iconColor: 'text-red-600 dark:text-red-400',
+    };
+    if (sectionStats.available <= 2) return {
+      headerBg: 'bg-amber-50/30 dark:bg-amber-950/10',
+      borderColor: 'border-amber-200 dark:border-amber-800/50',
+      iconBg: 'bg-amber-100 dark:bg-amber-900/40',
+      iconColor: 'text-amber-600 dark:text-amber-400',
+    };
+    return {
+      headerBg: '',
+      borderColor: 'border-[color:var(--bb-color-border-subtle)]',
+      iconBg: 'bg-[color:var(--bb-color-accent-soft)]',
+      iconColor: 'text-[color:var(--bb-color-accent)]',
+    };
+  };
+
+  const style = getSectionStyle();
 
   return (
     <div
-      className="rounded-xl border p-5"
-      style={{
-        backgroundColor: 'var(--bb-color-bg-surface)',
-        borderColor: 'var(--bb-color-border-subtle)',
-      }}
+      className={cn('rounded-xl border overflow-hidden transition-all duration-300', style.borderColor)}
+      style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}
     >
-      {/* Section Header */}
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-[color:var(--bb-color-accent-soft)] flex items-center justify-center">
-            <Building className="h-5 w-5 text-[color:var(--bb-color-accent)]" />
+      {/* Section Header - Clickable to collapse */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={cn(
+          'w-full flex items-center justify-between p-5 text-left transition-colors',
+          style.headerBg,
+          'hover:bg-[color:var(--bb-color-bg-elevated)]'
+        )}
+      >
+        <div className="flex items-center gap-4">
+          {/* Expand/Collapse indicator */}
+          <div className={cn(
+            'transition-transform duration-300',
+            isExpanded ? 'rotate-0' : '-rotate-90'
+          )}>
+            <ChevronRight className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" style={{ transform: 'rotate(90deg)' }} />
           </div>
-          <div>
-            <h3 className="text-base font-semibold text-[color:var(--bb-color-text-primary)]">{title}</h3>
-            <p className="text-sm text-[color:var(--bb-color-text-muted)]">
-              {sectionStats.total} units • {sectionStats.occupied}/{sectionStats.capacity} occupied
-            </p>
-          </div>
-        </div>
-        <div className={cn(
-          'px-3 py-1.5 rounded-full text-sm font-medium',
-          sectionStats.available === 0
-            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-            : sectionStats.available <= 2
-            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-        )}>
-          {sectionStats.available} available
-        </div>
-      </div>
 
-      {/* Kennel Units Grid - more gap for breathing room */}
-      <div className="flex flex-wrap gap-4">
-        {kennels.map((kennel) => (
-          <KennelUnit
-            key={kennel.id || kennel.recordId}
-            kennel={kennel}
-            onClick={onKennelClick}
-            isSelected={selectedKennelId === (kennel.id || kennel.recordId)}
-            onToggleSpecialHandling={onToggleSpecialHandling}
-          />
-        ))}
+          {/* Building icon */}
+          <div className={cn('h-12 w-12 rounded-xl flex items-center justify-center', style.iconBg)}>
+            <Building className={cn('h-6 w-6', style.iconColor)} />
+          </div>
+
+          {/* Title and stats */}
+          <div>
+            <h3 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)]">{title}</h3>
+            <div className="flex items-center gap-3 text-sm text-[color:var(--bb-color-text-muted)]">
+              <span>{sectionStats.total} units</span>
+              <span>•</span>
+              <span>{sectionStats.occupied}/{sectionStats.capacity} occupied</span>
+              <span>•</span>
+              <span>{sectionStats.utilizationPercent}% full</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Utilization mini-bar */}
+          <div className="hidden sm:flex items-center gap-2">
+            <div className="w-24 h-2 rounded-full overflow-hidden bg-[color:var(--bb-color-bg-elevated)]">
+              <div
+                className={cn(
+                  'h-full rounded-full transition-all',
+                  sectionStats.available === 0 ? 'bg-red-500' :
+                  sectionStats.available <= 2 ? 'bg-amber-500' : 'bg-emerald-500'
+                )}
+                style={{ width: `${sectionStats.utilizationPercent}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Availability badge */}
+          <div className={cn(
+            'px-3 py-1.5 rounded-full text-sm font-semibold',
+            sectionStats.available === 0
+              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+              : sectionStats.available <= 2
+              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+          )}>
+            {sectionStats.available === 0 ? 'Full' : `${sectionStats.available} available`}
+          </div>
+        </div>
+      </button>
+
+      {/* Collapsible content */}
+      <div
+        className={cn(
+          'grid transition-all duration-300 ease-in-out',
+          isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="p-5 pt-0">
+            {/* Kennel Units Grid */}
+            <div className="flex flex-wrap gap-4">
+              {kennels.map((kennel) => (
+                <KennelUnit
+                  key={kennel.id || kennel.recordId}
+                  kennel={kennel}
+                  onClick={onKennelClick}
+                  isSelected={selectedKennelId === (kennel.id || kennel.recordId)}
+                  onToggleSpecialHandling={onToggleSpecialHandling}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-// Capacity Overview Sidebar Card
+// Capacity Overview Sidebar Card - Enhanced with SVG circular gauge
 const CapacityOverview = ({ stats }) => {
   const utilizationPercent = stats.totalCapacity > 0
     ? Math.round((stats.occupied / stats.totalCapacity) * 100)
     : 0;
 
   const getStatus = () => {
-    if (utilizationPercent >= 90) return { label: 'Full', color: 'text-red-600', bg: 'bg-red-500' };
-    if (utilizationPercent >= 70) return { label: 'Busy', color: 'text-amber-600', bg: 'bg-amber-500' };
-    return { label: 'Normal', color: 'text-green-600', bg: 'bg-green-500' };
+    if (utilizationPercent >= 90) return { label: 'Full', color: 'text-red-600', bg: 'bg-red-500', stroke: '#ef4444' };
+    if (utilizationPercent >= 70) return { label: 'Busy', color: 'text-amber-600', bg: 'bg-amber-500', stroke: '#f59e0b' };
+    return { label: 'Normal', color: 'text-emerald-600', bg: 'bg-emerald-500', stroke: '#10b981' };
   };
 
   const status = getStatus();
+  const available = stats.totalCapacity - stats.occupied;
+
+  // SVG circular gauge parameters
+  const size = 120;
+  const strokeWidth = 10;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (utilizationPercent / 100) * circumference;
 
   return (
     <div
-      className="rounded-xl border p-4"
+      className="rounded-xl border p-5"
       style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <Activity className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-        <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Capacity Overview</h3>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="mb-3">
-        <div className="flex justify-between text-xs mb-1">
-          <span className="text-[color:var(--bb-color-text-muted)]">Utilization</span>
-          <span className="font-semibold text-[color:var(--bb-color-text-primary)]">{utilizationPercent}%</span>
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="h-8 w-8 rounded-lg bg-[color:var(--bb-color-accent-soft)] flex items-center justify-center">
+          <Activity className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
         </div>
-        <div className="h-3 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-          <div
-            className={cn('h-full rounded-full transition-all', status.bg)}
-            style={{ width: `${utilizationPercent}%` }}
-          />
+        <div>
+          <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Capacity Overview</h3>
+          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Real-time utilization</p>
         </div>
       </div>
 
+      {/* Circular Gauge */}
+      <div className="flex justify-center mb-4">
+        <div className="relative">
+          <svg width={size} height={size} className="transform -rotate-90">
+            {/* Background circle */}
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke="var(--bb-color-bg-elevated)"
+              strokeWidth={strokeWidth}
+            />
+            {/* Progress circle */}
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={status.stroke}
+              strokeWidth={strokeWidth}
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              className="transition-all duration-500"
+            />
+          </svg>
+          {/* Center content */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">{utilizationPercent}%</span>
+            <span className={cn('text-xs font-medium', status.color)}>{status.label}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="text-center p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-          <p className="text-lg font-bold text-[color:var(--bb-color-text-primary)]">{stats.occupied}</p>
-          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Occupied</p>
+        <div className="text-center p-3 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30">
+          <p className="text-2xl font-bold text-red-600 dark:text-red-400">{stats.occupied}</p>
+          <p className="text-xs font-medium text-red-600/70 dark:text-red-400/70">Occupied</p>
         </div>
-        <div className="text-center p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-          <p className="text-lg font-bold text-[color:var(--bb-color-text-primary)]">{stats.totalCapacity - stats.occupied}</p>
-          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Available</p>
+        <div className="text-center p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30">
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{available}</p>
+          <p className="text-xs font-medium text-emerald-600/70 dark:text-emerald-400/70">Available</p>
         </div>
-      </div>
-
-      <div className="mt-3 flex items-center justify-center gap-2 text-sm">
-        <span className={cn('w-2 h-2 rounded-full', status.bg)} />
-        <span className={status.color}>{status.label}</span>
       </div>
     </div>
   );
 };
 
-// By Building Sidebar Card with jump links
+// By Building Sidebar Card - Enhanced with visual feedback and progress bars
 const BuildingBreakdown = ({ kennels, onJumpToSection }) => {
   const buildingStats = useMemo(() => {
     const stats = {};
@@ -442,39 +637,79 @@ const BuildingBreakdown = ({ kennels, onJumpToSection }) => {
 
   return (
     <div
-      className="rounded-xl border p-4"
+      className="rounded-xl border p-5"
       style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
     >
-      <div className="flex items-center gap-2 mb-3">
-        <Building className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-        <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">By Location</h3>
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="h-8 w-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+          <Building className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">By Location</h3>
+          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Click to jump to section</p>
+        </div>
       </div>
 
       <div className="space-y-2">
         {buildingStats.map(([key, data]) => {
           const available = data.capacity - data.occupied;
+          const utilizationPercent = data.capacity > 0 ? Math.round((data.occupied / data.capacity) * 100) : 0;
+          const isFull = available === 0;
+          const isAlmostFull = available > 0 && available <= 2;
+
           return (
             <button
               key={key}
               onClick={() => onJumpToSection(key)}
-              className="w-full flex items-center justify-between p-2 rounded-lg transition-colors hover:bg-[color:var(--bb-color-accent-soft)]"
-              style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+              className={cn(
+                'w-full flex flex-col gap-2 p-3 rounded-xl transition-all duration-200',
+                'hover:shadow-md hover:-translate-y-0.5 hover:bg-[color:var(--bb-color-accent-soft)]',
+                'border border-transparent hover:border-[color:var(--bb-color-accent)]/30',
+                isFull && 'bg-red-50/50 dark:bg-red-950/10',
+                isAlmostFull && 'bg-amber-50/30 dark:bg-amber-950/10',
+                !isFull && !isAlmostFull && 'bg-[color:var(--bb-color-bg-elevated)]'
+              )}
             >
-              <div className="text-left">
-                <p className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">{data.building}</p>
-                <p className="text-xs text-[color:var(--bb-color-text-muted)]">{data.floor} • {data.total} units</p>
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">{data.building}</p>
+                  <p className="text-xs text-[color:var(--bb-color-text-muted)]">{data.floor} • {data.total} units</p>
+                </div>
+                <div className="text-right">
+                  <div className={cn(
+                    'px-2.5 py-1 rounded-full text-xs font-semibold',
+                    isFull ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
+                    isAlmostFull ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' :
+                    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                  )}>
+                    {isFull ? 'Full' : `${available} avail`}
+                  </div>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm font-bold text-[color:var(--bb-color-text-primary)]">{data.occupied}/{data.capacity}</p>
-                <p className={cn('text-xs', available > 0 ? 'text-green-600' : 'text-red-600')}>
-                  {available > 0 ? `${available} avail` : 'Full'}
-                </p>
+
+              {/* Mini progress bar */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-[color:var(--bb-color-bg-surface)]">
+                  <div
+                    className={cn(
+                      'h-full rounded-full transition-all',
+                      isFull ? 'bg-red-500' : isAlmostFull ? 'bg-amber-500' : 'bg-emerald-500'
+                    )}
+                    style={{ width: `${utilizationPercent}%` }}
+                  />
+                </div>
+                <span className="text-xs font-medium text-[color:var(--bb-color-text-muted)] w-8">
+                  {utilizationPercent}%
+                </span>
               </div>
             </button>
           );
         })}
         {buildingStats.length === 0 && (
-          <p className="text-xs text-[color:var(--bb-color-text-muted)] text-center py-2">No buildings configured</p>
+          <div className="text-center py-4">
+            <Building className="h-8 w-8 mx-auto mb-2 text-[color:var(--bb-color-text-muted)]" />
+            <p className="text-xs text-[color:var(--bb-color-text-muted)]">No buildings configured</p>
+          </div>
         )}
       </div>
     </div>
@@ -563,63 +798,106 @@ const QuickActions = ({ onAddKennel, navigate }) => {
   );
 };
 
-// Legend Component - Sidebar Card version
-const MapLegend = () => (
-  <div
-    className="rounded-xl border p-4"
-    style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
-  >
-    <div className="flex items-center gap-2 mb-3">
-      <Map className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-      <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Legend</h3>
-    </div>
+// Legend Component - Collapsible Sidebar Card with compact mode
+const MapLegend = () => {
+  const [isExpanded, setIsExpanded] = useState(false);
 
-    <div className="space-y-2">
-      <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-        <span className="w-4 h-4 rounded-full bg-emerald-500 flex-shrink-0" />
-        <div>
-          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Available</span>
-          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Ready for new bookings</p>
+  const legendItems = [
+    { color: 'bg-emerald-500', label: 'Available', desc: 'Ready for new bookings' },
+    { color: 'bg-blue-500', label: 'Reserved', desc: 'Has future booking' },
+    { color: 'bg-amber-500', label: 'Partial', desc: 'Some capacity remaining' },
+    { color: 'bg-red-500', label: 'Full', desc: 'At maximum capacity' },
+    { color: 'bg-gray-400', label: 'Inactive', desc: 'Not in service' },
+  ];
+
+  return (
+    <div
+      className="rounded-xl border overflow-hidden"
+      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+    >
+      {/* Header - clickable to expand */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-4 text-left hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+            <Map className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Legend</h3>
+            <p className="text-xs text-[color:var(--bb-color-text-muted)]">Status indicators</p>
+          </div>
         </div>
-      </div>
-      <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-        <span className="w-4 h-4 rounded-full bg-blue-500 flex-shrink-0" />
-        <div>
-          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Reserved</span>
-          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Has future booking</p>
+        <ChevronRight
+          className={cn(
+            'h-4 w-4 text-[color:var(--bb-color-text-muted)] transition-transform duration-200',
+            isExpanded && 'rotate-90'
+          )}
+        />
+      </button>
+
+      {/* Compact view - always visible */}
+      {!isExpanded && (
+        <div className="px-4 pb-4 flex flex-wrap gap-2">
+          {legendItems.map(item => (
+            <div
+              key={item.label}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[color:var(--bb-color-bg-elevated)]"
+              title={item.desc}
+            >
+              <span className={cn('w-2.5 h-2.5 rounded-full', item.color)} />
+              <span className="text-xs font-medium text-[color:var(--bb-color-text-primary)]">{item.label}</span>
+            </div>
+          ))}
+          <div
+            className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[color:var(--bb-color-bg-elevated)]"
+            title="Requires extra care"
+          >
+            <Flag className="w-2.5 h-2.5 text-red-500" fill="currentColor" />
+            <span className="text-xs font-medium text-[color:var(--bb-color-text-primary)]">Special</span>
+          </div>
         </div>
-      </div>
-      <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-        <span className="w-4 h-4 rounded-full bg-amber-500 flex-shrink-0" />
-        <div>
-          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Partial</span>
-          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Some capacity remaining</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-        <span className="w-4 h-4 rounded-full bg-red-500 flex-shrink-0" />
-        <div>
-          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Full</span>
-          <p className="text-xs text-[color:var(--bb-color-text-muted)]">At maximum capacity</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-        <span className="w-4 h-4 rounded-full bg-gray-400 flex-shrink-0" />
-        <div>
-          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Inactive</span>
-          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Not in service</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-        <Flag className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" />
-        <div>
-          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Special Handling</span>
-          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Requires extra care</p>
+      )}
+
+      {/* Expanded view */}
+      <div
+        className={cn(
+          'grid transition-all duration-300 ease-in-out',
+          isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="px-4 pb-4 space-y-2">
+            {legendItems.map(item => (
+              <div
+                key={item.label}
+                className="flex items-center gap-3 p-2.5 rounded-lg"
+                style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+              >
+                <span className={cn('w-4 h-4 rounded-full flex-shrink-0 ring-2 ring-white dark:ring-gray-800', item.color)} />
+                <div>
+                  <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">{item.label}</span>
+                  <p className="text-xs text-[color:var(--bb-color-text-muted)]">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+            <div
+              className="flex items-center gap-3 p-2.5 rounded-lg"
+              style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+            >
+              <Flag className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" />
+              <div>
+                <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Special Handling</span>
+                <p className="text-xs text-[color:var(--bb-color-text-muted)]">Requires extra care</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Kennels = () => {
   const navigate = useNavigate();
