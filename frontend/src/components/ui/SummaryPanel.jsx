@@ -371,6 +371,7 @@ export const SummaryQuickActions = ({
 
 /**
  * SummaryHighlight - Prominent callout/highlight box
+ * Uses Tailwind classes for proper dark mode support
  */
 export const SummaryHighlight = ({
   icon: Icon,
@@ -380,57 +381,53 @@ export const SummaryHighlight = ({
   variant = 'default',
   className,
 }) => {
-  const variantStyles = {
+  // Tailwind classes for each variant (light + dark mode)
+  const variantClasses = {
     default: {
-      bg: 'var(--bb-color-bg-elevated)',
-      border: 'var(--bb-color-border-subtle)',
-      iconBg: 'var(--bb-color-accent-soft)',
-      iconColor: 'var(--bb-color-accent)',
-      valueColor: 'var(--bb-color-text-primary)',
+      container: 'bg-[var(--bb-color-bg-elevated)] border-[var(--bb-color-border-subtle)]',
+      iconBg: 'bg-[var(--bb-color-accent-soft)]',
+      iconColor: 'text-[var(--bb-color-accent)]',
+      valueColor: 'text-[var(--bb-color-text-primary)]',
     },
     success: {
-      bg: 'rgb(236 253 245)',
-      border: 'rgb(167 243 208)',
-      iconBg: 'rgb(209 250 229)',
-      iconColor: 'rgb(5 150 105)',
-      valueColor: 'rgb(5 150 105)',
+      container: 'bg-emerald-500/10 border-emerald-500/30',
+      iconBg: 'bg-emerald-500/20',
+      iconColor: 'text-emerald-500',
+      valueColor: 'text-emerald-500',
     },
     warning: {
-      bg: 'rgb(255 251 235)',
-      border: 'rgb(253 230 138)',
-      iconBg: 'rgb(254 243 199)',
-      iconColor: 'rgb(217 119 6)',
-      valueColor: 'rgb(217 119 6)',
+      container: 'bg-amber-500/10 border-amber-500/30',
+      iconBg: 'bg-amber-500/20',
+      iconColor: 'text-amber-500',
+      valueColor: 'text-amber-500',
     },
     danger: {
-      bg: 'rgb(254 242 242)',
-      border: 'rgb(254 202 202)',
-      iconBg: 'rgb(254 226 226)',
-      iconColor: 'rgb(220 38 38)',
-      valueColor: 'rgb(220 38 38)',
+      container: 'bg-red-500/10 border-red-500/30',
+      iconBg: 'bg-red-500/20',
+      iconColor: 'text-red-500',
+      valueColor: 'text-red-500',
     },
   };
 
-  const style = variantStyles[variant] || variantStyles.default;
+  const classes = variantClasses[variant] || variantClasses.default;
 
   return (
     <div
       className={cn(
         'rounded-xl border p-[var(--bb-space-4,1rem)]',
+        classes.container,
         className
       )}
-      style={{
-        backgroundColor: style.bg,
-        borderColor: style.border,
-      }}
     >
       <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
         {Icon && (
           <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-            style={{ backgroundColor: style.iconBg }}
+            className={cn(
+              'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+              classes.iconBg
+            )}
           >
-            <Icon className="h-5 w-5" style={{ color: style.iconColor }} />
+            <Icon className={cn('h-5 w-5', classes.iconColor)} />
           </div>
         )}
         <div className="min-w-0 flex-1">
@@ -441,8 +438,10 @@ export const SummaryHighlight = ({
             {label}
           </p>
           <p
-            className="text-[var(--bb-font-size-xl,1.5rem)] font-bold leading-tight"
-            style={{ color: style.valueColor }}
+            className={cn(
+              'text-[var(--bb-font-size-xl,1.5rem)] font-bold leading-tight',
+              classes.valueColor
+            )}
           >
             {value}
           </p>
