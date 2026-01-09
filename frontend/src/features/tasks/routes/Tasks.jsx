@@ -41,6 +41,7 @@ import { format, isToday, isTomorrow, isAfter, isBefore, addDays, startOfDay, en
 import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/card';
 import Badge from '@/components/ui/Badge';
+import { ActionButton, ActionMenu } from '@/components/ui/TableRowActions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
 import StyledSelect from '@/components/ui/StyledSelect';
@@ -300,33 +301,40 @@ const TaskCard = ({
         </div>
 
         {/* Right Side Actions */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            className="p-1.5 text-muted hover:text-primary hover:bg-primary/10 rounded transition-colors"
-            title="Edit task"
-          >
-            <Edit className="h-4 w-4" />
-          </button>
-          <button
-            className="p-1.5 text-muted hover:text-primary hover:bg-primary/10 rounded transition-colors"
-            title="Add comment"
-          >
-            <MessageSquare className="h-4 w-4" />
-          </button>
-          <button
-            className="p-1.5 text-muted hover:text-primary hover:bg-primary/10 rounded transition-colors"
-            title="Reassign"
-          >
-            <UserPlus className="h-4 w-4" />
-          </button>
-          <div className="relative">
-            <button
-              onClick={() => setShowActions(!showActions)}
-              className="p-1.5 text-muted hover:text-primary hover:bg-primary/10 rounded transition-colors"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
-          </div>
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+          <ActionButton
+            icon={Edit}
+            label="Edit"
+            iconOnly
+            tooltip="Edit task"
+            variant="default"
+            size="md"
+          />
+          <ActionButton
+            icon={MessageSquare}
+            label="Comment"
+            iconOnly
+            tooltip="Add comment"
+            variant="default"
+            size="md"
+          />
+          <ActionButton
+            icon={UserPlus}
+            label="Reassign"
+            iconOnly
+            tooltip="Reassign task"
+            variant="default"
+            size="md"
+          />
+          <ActionMenu
+            actions={[
+              { icon: Edit, label: 'Edit Task', onClick: () => {} },
+              { icon: MessageSquare, label: 'Add Comment', onClick: () => {} },
+              { icon: UserPlus, label: 'Reassign', onClick: () => {} },
+              { icon: X, label: 'Delete', onClick: () => {}, variant: 'danger' },
+            ]}
+            size="md"
+          />
         </div>
       </div>
     </div>

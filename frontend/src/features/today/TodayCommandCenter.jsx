@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, AlertTriangle, Clock, ListTodo, Home, ExternalLink, AlertCircle, Dog, User, ChevronRight, PartyPopper, Sparkles } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Clock, ListTodo, Home, ExternalLink, AlertCircle, Dog, User, ChevronRight, PartyPopper, Sparkles, Check } from 'lucide-react';
 import EmptyState from '@/components/ui/EmptyState';
 import { useUserProfileQuery } from '@/features/settings/api-user';
 import { useTimezoneUtils } from '@/lib/timezone';
@@ -22,6 +22,7 @@ import TodayCard from '@/features/today/components/TodayCard';
 import TodaySection from '@/features/today/components/TodaySection';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
+import { QuickAction } from '@/components/ui/TableRowActions';
 import { cn } from '@/lib/cn';
 import toast from 'react-hot-toast';
 
@@ -340,10 +341,10 @@ const TasksList = ({ tasks, isLoading, emptyMessage, onComplete, isCompleting, i
         <div
           key={task.id || idx}
           className={cn(
-            "flex items-center justify-between p-3 rounded-lg border transition-colors",
-            isOverdue 
-              ? "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800"
-              : "bg-[color:var(--bb-color-bg-elevated)] border-[color:var(--bb-color-border)]"
+            "group flex items-center justify-between p-3 rounded-lg border transition-all duration-200",
+            isOverdue
+              ? "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800 hover:border-amber-300 dark:hover:border-amber-700"
+              : "bg-[color:var(--bb-color-bg-elevated)] border-[color:var(--bb-color-border)] hover:border-[color:var(--bb-color-border-subtle)] hover:shadow-sm"
           )}
         >
           <div className="flex-1 min-w-0">
@@ -351,7 +352,10 @@ const TasksList = ({ tasks, isLoading, emptyMessage, onComplete, isCompleting, i
               {task.title || `${task.type} ${task.petName ? `- ${task.petName}` : ''}`}
             </p>
             {task.scheduledFor && (
-              <p className="text-xs text-[color:var(--bb-color-text-muted)] flex items-center gap-1 mt-0.5">
+              <p className={cn(
+                "text-xs flex items-center gap-1 mt-0.5",
+                isOverdue ? "text-amber-600 dark:text-amber-400" : "text-[color:var(--bb-color-text-muted)]"
+              )}>
                 <Clock className="h-3 w-3" />
                 {tz ? tz.formatTime(task.scheduledFor) : new Date(task.scheduledFor).toLocaleTimeString('en-US', {
                   hour: 'numeric',
@@ -361,16 +365,15 @@ const TasksList = ({ tasks, isLoading, emptyMessage, onComplete, isCompleting, i
               </p>
             )}
           </div>
-          <Button
-            size="sm"
-            variant={isOverdue ? "warning" : "outline"}
+          <QuickAction
+            icon={Check}
+            label="Done"
             onClick={() => onComplete(task.id)}
-            disabled={isCompleting}
+            loading={isCompleting}
+            variant={isOverdue ? "warning" : "success"}
+            size="sm"
             className="ml-2 flex-shrink-0"
-          >
-            <CheckCircle className="h-3.5 w-3.5 mr-1" />
-            Done
-          </Button>
+          />
         </div>
       ))}
       {tasks.length > 10 && (

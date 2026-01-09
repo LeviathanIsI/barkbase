@@ -122,7 +122,6 @@ const ALL_COLUMNS = [
     // Age is derived from birthdate - compute it on access
     accessor: (row) => getAgeFromBirthdate(row.birthdate),
   },
-  { id: 'actions', label: '', minWidth: 100, maxWidth: 100, align: 'right', sortable: false, hideable: false, editable: false },
 ];
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
@@ -989,8 +988,6 @@ const Pets = () => {
                         isSelected={selectedRows.has(pet.id || pet.recordId)}
                         onSelect={() => handleSelectRow(pet.id || pet.recordId)}
                         onView={() => navigate(`/pets/${pet.id || pet.recordId}`)}
-                        onEdit={() => navigate(`/pets/${pet.id || pet.recordId}`)}
-                        onDelete={() => deletePetMutation.mutate(pet.id || pet.recordId)}
                         isEven={index % 2 === 0}
                         onUpdateField={handleInlineUpdateField}
                         onStatusChange={handleStatusChange}
@@ -1526,8 +1523,6 @@ const PetRow = ({
   isSelected,
   onSelect,
   onView,
-  onEdit,
-  onDelete,
   isEven,
   onUpdateField,
   onStatusChange,
@@ -1537,29 +1532,16 @@ const PetRow = ({
   navigate,
   onOwnerClick,
 }) => {
-  const [showActions, setShowActions] = useState(false);
-  const [showActionsMenu, setShowActionsMenu] = useState(false);
-  const actionsRef = useRef(null);
   const cellPadding = 'px-4 lg:px-6 py-3';
-  
+
   // Prepare owner options for relationship editor
-  const ownerOptions = useMemo(() => 
+  const ownerOptions = useMemo(() =>
     owners.map(owner => ({
       value: owner.recordId,
       label: owner.name || `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'Unknown',
     })),
     [owners]
   );
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (actionsRef.current && !actionsRef.current.contains(e.target)) {
-        setShowActionsMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const SpeciesIcon = pet.species?.toLowerCase() === 'cat' ? Cat : Dog;
 
@@ -1684,44 +1666,6 @@ const PetRow = ({
             </InlineEditableCell>
           </td>
         );
-      case 'actions':
-        return (
-          <td key={column.id} className={cn(cellPadding, 'text-right')}>
-            <span className={cn('inline-flex items-center gap-1 transition-opacity', showActions ? 'opacity-100' : 'opacity-0')} ref={actionsRef}>
-              <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); onView(); }} title="View profile">
-                <Eye className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); onEdit(); }} title="Edit">
-                <Edit className="h-4 w-4" />
-              </Button>
-              <div className="relative">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={(e) => { e.stopPropagation(); setShowActionsMenu(!showActionsMenu); }}
-                  title="More actions"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-                {showActionsMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-40 rounded-lg border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
-                    <div className="py-1">
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onView(); setShowActionsMenu(false); }} className="w-full justify-start gap-2">
-                        <Eye className="h-4 w-4" />View Profile
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onEdit(); setShowActionsMenu(false); }} className="w-full justify-start gap-2">
-                        <Edit className="h-4 w-4" />Edit
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onDelete(); setShowActionsMenu(false); }} className="w-full justify-start gap-2 text-red-500 hover:text-red-600">
-                        <Trash2 className="h-4 w-4" />Delete
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </span>
-          </td>
-        );
       default:
         return <td key={column.id} className={cellPadding}>—</td>;
     }
@@ -1729,10 +1673,14 @@ const PetRow = ({
 
   return (
     <tr
-      className={cn('transition-colors', isSelected && 'bg-[color:var(--bb-color-accent-soft)]')}
-      style={{ borderBottom: '1px solid var(--bb-color-border-subtle)', backgroundColor: !isSelected && isEven ? 'var(--bb-color-bg-surface)' : !isSelected ? 'var(--bb-color-bg-body)' : undefined }}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => { setShowActions(false); setShowActionsMenu(false); }}
+      className={cn(
+        'transition-colors hover:bg-[color:var(--bb-color-bg-elevated)]',
+        isSelected && 'bg-[color:var(--bb-color-accent-soft)]'
+      )}
+      style={{
+        borderBottom: '1px solid var(--bb-color-border-subtle)',
+        backgroundColor: !isSelected && isEven ? 'var(--bb-color-bg-surface)' : !isSelected ? 'var(--bb-color-bg-body)' : undefined
+      }}
     >
       {columns.map(renderCell)}
     </tr>

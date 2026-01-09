@@ -4,10 +4,11 @@ import {
   Shield, RefreshCw, Search, Trash2, ChevronDown, ChevronLeft, ChevronRight,
   Download, SlidersHorizontal, BookmarkPlus, Check, X, Mail, FileCheck,
   Calendar, Syringe, AlertTriangle, CheckCircle2, Clock, AlertCircle,
-  MoreHorizontal, Dog, Cat, User, Send, Loader2,
+  MoreHorizontal, Dog, Cat, User, Send, Loader2, Edit, History,
   Archive, Columns, GripVertical, ArrowUp, ArrowDown, ArrowUpDown,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import TableRowActions, { ActionButton, ActionMenu } from '@/components/ui/TableRowActions';
 import Badge, { StatusBadge, TypeBadge } from '@/components/ui/Badge';
 import { HeaderStat, HeaderStatGroup, HeaderStatDivider } from '@/components/ui/HeaderStat';
 import Modal from '@/components/ui/Modal';
@@ -1063,36 +1064,33 @@ const VaccinationRow = ({ record, viewMode, isSelected, isReviewed, onSelect, on
         </div>
 
         {/* Right: Action Pills */}
-        <div className="flex items-center gap-2 shrink-0" data-menu>
-          {record.recordStatus !== 'archived' && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => { e.stopPropagation(); onRenew?.(); }}
-              className="gap-1 text-[color:var(--bb-color-accent)]"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Renew
-            </Button>
-          )}
-          <Button
-            variant="ghost"
+        <div className="flex items-center gap-1 shrink-0" data-menu>
+          <TableRowActions
+            primary={record.recordStatus !== 'archived' ? {
+              icon: RefreshCw,
+              label: 'Renew',
+              onClick: onRenew,
+              variant: 'primary',
+            } : null}
+            secondary={[
+              {
+                icon: Edit,
+                label: 'Edit',
+                onClick: onEdit,
+                variant: 'default',
+              },
+            ]}
+            overflow={[
+              {
+                icon: Trash2,
+                label: 'Delete',
+                onClick: onDelete,
+                variant: 'danger',
+              },
+            ]}
             size="sm"
-            onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
-            className="gap-1"
-          >
-            <Syringe className="h-3.5 w-3.5" />
-            Edit
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="gap-1 text-red-500 hover:text-red-600"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-          </Button>
+            alwaysVisible
+          />
         </div>
       </div>
     </div>
@@ -1571,38 +1569,33 @@ const VaccinationTableRow = ({ record, columns, isSelected, isReviewed, onSelect
           />
         );
       case 'actions':
+        const isArchived = record.recordStatus === 'archived';
         return (
-          <div className="flex items-center justify-end gap-1">
-            {record.recordStatus !== 'archived' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => { e.stopPropagation(); onRenew?.(); }}
-                className="gap-1 text-[color:var(--bb-color-accent)]"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Renew
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
-              className="gap-1"
-            >
-              <Syringe className="h-3.5 w-3.5" />
-              Edit
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="gap-1 text-red-500 hover:text-red-600"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete
-            </Button>
-          </div>
+          <TableRowActions
+            primary={!isArchived ? {
+              icon: RefreshCw,
+              label: 'Renew',
+              onClick: onRenew,
+              variant: 'primary',
+            } : null}
+            secondary={[
+              {
+                icon: Edit,
+                label: 'Edit',
+                onClick: onEdit,
+                variant: 'default',
+              },
+            ]}
+            overflow={[
+              {
+                icon: Trash2,
+                label: 'Delete',
+                onClick: onDelete,
+                variant: 'danger',
+              },
+            ]}
+            size="sm"
+          />
         );
       default:
         return null;
@@ -1613,7 +1606,7 @@ const VaccinationTableRow = ({ record, columns, isSelected, isReviewed, onSelect
     <tr
       onClick={onEdit}
       className={cn(
-        'cursor-pointer transition-colors',
+        'group cursor-pointer transition-colors',
         isSelected && 'bg-[color:var(--bb-color-accent-soft)]',
         !isSelected && isEven && 'bg-[color:var(--bb-color-bg-surface)]',
         !isSelected && !isEven && 'bg-[color:var(--bb-color-bg-body)]',
