@@ -63,6 +63,21 @@ import StyledSelect from '@/components/ui/StyledSelect';
 import Textarea from '@/components/ui/Textarea';
 // Unified loader: replaced inline loading with LoadingState
 import LoadingState from '@/components/ui/LoadingState';
+// Premium sidebar components
+import {
+  SummaryPanel,
+  SummaryPanelHeader,
+  SummaryPanelBody,
+  SummaryStatRow,
+  SummaryStatStack,
+  SummaryProgressBar,
+  SummaryDivider,
+  SummaryActivityItem,
+  SummaryActivityList,
+  SummaryQuickAction,
+  SummaryQuickActions,
+  SummaryHighlight,
+} from '@/components/ui/SummaryPanel';
 // Business invoices = tenant billing pet owners (NOT platform billing)
 import { useBusinessInvoicesQuery, useSendInvoiceEmailMutation, useMarkInvoicePaidMutation, useCreateInvoiceMutation, useVoidInvoiceMutation } from '../api';
 import { useOwnersQuery } from '@/features/owners/api';
@@ -914,7 +929,7 @@ const InvoiceDrawer = ({ invoice, isOpen, onClose, onSendEmail, onMarkPaid }) =>
   );
 };
 
-// Invoices Sidebar Component
+// Invoices Sidebar Component - Premium Version
 const InvoicesSidebar = ({ invoices, stats, onCreateInvoice, onExport, onSendReminders }) => {
   // Calculate revenue summary
   const revenueSummary = useMemo(() => {
@@ -935,10 +950,10 @@ const InvoicesSidebar = ({ invoices, stats, onCreateInvoice, onExport, onSendRem
     const unpaidInvoices = invoices.filter(i => i.status !== 'paid' && i.status !== 'void');
 
     const aging = {
-      current: 0,      // Not due yet
-      days1to30: 0,    // 1-30 days overdue
-      days31to60: 0,   // 31-60 days overdue
-      days60plus: 0,   // 60+ days overdue
+      current: 0,
+      days1to30: 0,
+      days31to60: 0,
+      days60plus: 0,
     };
 
     unpaidInvoices.forEach(inv => {
@@ -967,11 +982,10 @@ const InvoicesSidebar = ({ invoices, stats, onCreateInvoice, onExport, onSendRem
     return { ...aging, total };
   }, [invoices]);
 
-  // Recent activity (mock based on invoice data)
+  // Recent activity
   const recentActivity = useMemo(() => {
     const activities = [];
 
-    // Get invoices with recent activity, sorted by most recent
     const sortedInvoices = [...invoices]
       .filter(i => i.paidAt || i.viewedAt || i.sentAt)
       .sort((a, b) => {
@@ -993,28 +1007,31 @@ const InvoicesSidebar = ({ invoices, stats, onCreateInvoice, onExport, onSendRem
         activities.push({
           id: `${inv.id}-paid`,
           type: 'paid',
-          text: `${ownerName} paid ${invNumber}`,
+          title: `${ownerName} paid ${invNumber}`,
           date: new Date(inv.paidAt),
           icon: CheckCircle,
-          iconColor: 'text-green-600',
+          iconColor: 'rgb(5, 150, 105)',
+          iconBg: 'rgb(209, 250, 229)',
         });
       } else if (inv.viewedAt) {
         activities.push({
           id: `${inv.id}-viewed`,
           type: 'viewed',
-          text: `${ownerName} viewed ${invNumber}`,
+          title: `${ownerName} viewed ${invNumber}`,
           date: new Date(inv.viewedAt),
           icon: Eye,
-          iconColor: 'text-amber-600',
+          iconColor: 'rgb(217, 119, 6)',
+          iconBg: 'rgb(254, 243, 199)',
         });
       } else if (inv.sentAt) {
         activities.push({
           id: `${inv.id}-sent`,
           type: 'sent',
-          text: `${invNumber} sent to ${ownerName}`,
+          title: `${invNumber} sent to ${ownerName}`,
           date: new Date(inv.sentAt),
           icon: Send,
-          iconColor: 'text-blue-600',
+          iconColor: 'rgb(37, 99, 235)',
+          iconBg: 'rgb(219, 234, 254)',
         });
       }
     });
@@ -1031,186 +1048,126 @@ const InvoicesSidebar = ({ invoices, stats, onCreateInvoice, onExport, onSendRem
   );
 
   return (
-    <div className="space-y-4">
-      {/* Revenue Summary Card */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <TrendingUp className="h-4 w-4 text-muted" />
-          <h3 className="text-sm font-medium text-text">Revenue Summary</h3>
-        </div>
+    <div className="space-y-[var(--bb-space-4,1rem)]">
+      {/* Outstanding Balance Highlight */}
+      {agingReport.total > 0 && (
+        <SummaryHighlight
+          icon={Wallet}
+          label="Total Outstanding"
+          value={`$${agingReport.total.toLocaleString()}`}
+          subValue={`${stats.overdue} overdue invoice${stats.overdue !== 1 ? 's' : ''}`}
+          variant={stats.overdue > 0 ? 'warning' : 'default'}
+        />
+      )}
 
-        <div className="space-y-3">
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-muted">Total Invoiced</span>
-            <span className="text-sm font-semibold text-text">
-              ${revenueSummary.totalInvoiced.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-muted">Total Collected</span>
-            <span className="text-sm font-semibold text-green-600">
-              ${revenueSummary.totalCollected.toLocaleString()}
-            </span>
-          </div>
-          <div className="flex justify-between items-center pt-2 border-t border-border">
-            <span className="text-xs text-muted flex items-center gap-1">
-              <Percent className="h-3 w-3" />
-              Collection Rate
-            </span>
-            <span className={cn(
-              'text-sm font-semibold',
-              revenueSummary.collectionRate >= 90 ? 'text-green-600' :
-              revenueSummary.collectionRate >= 70 ? 'text-amber-600' : 'text-red-600'
-            )}>
-              {revenueSummary.collectionRate.toFixed(1)}%
-            </span>
-          </div>
-        </div>
-      </div>
+      {/* Revenue Summary Panel */}
+      <SummaryPanel>
+        <SummaryPanelHeader icon={TrendingUp} title="Revenue Summary" />
+        <SummaryPanelBody>
+          <SummaryStatStack>
+            <SummaryStatRow
+              label="Total Invoiced"
+              value={`$${revenueSummary.totalInvoiced.toLocaleString()}`}
+            />
+            <SummaryStatRow
+              label="Total Collected"
+              value={`$${revenueSummary.totalCollected.toLocaleString()}`}
+              variant="success"
+            />
+            <SummaryStatRow
+              icon={Percent}
+              label="Collection Rate"
+              value={`${revenueSummary.collectionRate.toFixed(1)}%`}
+              variant={
+                revenueSummary.collectionRate >= 90 ? 'success' :
+                revenueSummary.collectionRate >= 70 ? 'warning' : 'danger'
+              }
+              prominent
+            />
+          </SummaryStatStack>
+        </SummaryPanelBody>
+      </SummaryPanel>
 
-      {/* Aging Report Card */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <BarChart3 className="h-4 w-4 text-muted" />
-          <h3 className="text-sm font-medium text-text">Aging Report</h3>
-        </div>
+      {/* Aging Report Panel */}
+      <SummaryPanel>
+        <SummaryPanelHeader icon={BarChart3} title="Aging Report" />
+        <SummaryPanelBody>
+          <div className="space-y-[var(--bb-space-4,1rem)]">
+            <SummaryProgressBar
+              label="Current (not due)"
+              value={agingReport.current}
+              maxValue={maxAgingValue}
+              displayValue={`$${agingReport.current.toLocaleString()}`}
+              variant="success"
+            />
+            <SummaryProgressBar
+              label="1-30 days overdue"
+              value={agingReport.days1to30}
+              maxValue={maxAgingValue}
+              displayValue={`$${agingReport.days1to30.toLocaleString()}`}
+              variant="warning"
+            />
+            <SummaryProgressBar
+              label="31-60 days overdue"
+              value={agingReport.days31to60}
+              maxValue={maxAgingValue}
+              displayValue={`$${agingReport.days31to60.toLocaleString()}`}
+              variant="warning"
+            />
+            <SummaryProgressBar
+              label="60+ days overdue"
+              value={agingReport.days60plus}
+              maxValue={maxAgingValue}
+              displayValue={`$${agingReport.days60plus.toLocaleString()}`}
+              variant="danger"
+            />
+          </div>
+        </SummaryPanelBody>
+      </SummaryPanel>
 
-        <div className="space-y-3">
-          {/* Current */}
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-muted">Current (not due)</span>
-              <span className="text-text font-medium">${agingReport.current.toLocaleString()}</span>
-            </div>
-            <div className="h-2 bg-surface rounded-full overflow-hidden">
-              <div
-                className="h-full bg-green-500 rounded-full transition-all"
-                style={{ width: `${(agingReport.current / maxAgingValue) * 100}%` }}
+      {/* Recent Activity Panel */}
+      <SummaryPanel>
+        <SummaryPanelHeader icon={History} title="Recent Activity" />
+        <SummaryPanelBody noPadding>
+          <SummaryActivityList emptyMessage="No recent activity">
+            {recentActivity.map(activity => (
+              <SummaryActivityItem
+                key={activity.id}
+                icon={activity.icon}
+                iconColor={activity.iconColor}
+                iconBg={activity.iconBg}
+                title={activity.title}
+                timestamp={format(activity.date, 'MMM d, h:mm a')}
               />
-            </div>
-          </div>
+            ))}
+          </SummaryActivityList>
+        </SummaryPanelBody>
+      </SummaryPanel>
 
-          {/* 1-30 days */}
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-muted">1-30 days overdue</span>
-              <span className="text-text font-medium">${agingReport.days1to30.toLocaleString()}</span>
-            </div>
-            <div className="h-2 bg-surface rounded-full overflow-hidden">
-              <div
-                className="h-full bg-amber-500 rounded-full transition-all"
-                style={{ width: `${(agingReport.days1to30 / maxAgingValue) * 100}%` }}
-              />
-            </div>
-          </div>
-
-          {/* 31-60 days */}
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-muted">31-60 days overdue</span>
-              <span className="text-text font-medium">${agingReport.days31to60.toLocaleString()}</span>
-            </div>
-            <div className="h-2 bg-surface rounded-full overflow-hidden">
-              <div
-                className="h-full bg-orange-500 rounded-full transition-all"
-                style={{ width: `${(agingReport.days31to60 / maxAgingValue) * 100}%` }}
-              />
-            </div>
-          </div>
-
-          {/* 60+ days */}
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-muted">60+ days overdue</span>
-              <span className="text-text font-medium">${agingReport.days60plus.toLocaleString()}</span>
-            </div>
-            <div className="h-2 bg-surface rounded-full overflow-hidden">
-              <div
-                className="h-full bg-red-500 rounded-full transition-all"
-                style={{ width: `${(agingReport.days60plus / maxAgingValue) * 100}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Total */}
-          <div className="flex items-center justify-between pt-2 border-t border-border">
-            <span className="text-xs text-muted">Total Outstanding</span>
-            <span className="text-sm font-semibold text-text">${agingReport.total.toLocaleString()}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity Card */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <History className="h-4 w-4 text-muted" />
-          <h3 className="text-sm font-medium text-text">Recent Activity</h3>
-        </div>
-
-        {recentActivity.length === 0 ? (
-          <p className="text-xs text-muted text-center py-4">No recent activity</p>
-        ) : (
-          <div className="space-y-2">
-            {recentActivity.map(activity => {
-              const ActivityIcon = activity.icon;
-              return (
-                <div
-                  key={activity.id}
-                  className="flex items-start gap-2 p-2 bg-surface rounded-lg"
-                >
-                  <div className={cn('h-5 w-5 flex items-center justify-center flex-shrink-0', activity.iconColor)}>
-                    <ActivityIcon className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-text truncate">{activity.text}</p>
-                    <p className="text-xs text-muted">
-                      {format(activity.date, 'MMM d, h:mm a')}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Quick Actions Card */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Zap className="h-4 w-4 text-muted" />
-          <h3 className="text-sm font-medium text-text">Quick Actions</h3>
-        </div>
-
-        <div className="space-y-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-start"
-            onClick={onCreateInvoice}
-          >
-            <Plus className="h-3.5 w-3.5 mr-2" />
-            Create Invoice
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-start"
-            onClick={onSendReminders}
-          >
-            <Mail className="h-3.5 w-3.5 mr-2" />
-            Send Reminders
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-start"
-            onClick={onExport}
-          >
-            <Download className="h-3.5 w-3.5 mr-2" />
-            Export Report
-          </Button>
-        </div>
-      </div>
+      {/* Quick Actions Panel */}
+      <SummaryPanel>
+        <SummaryPanelHeader icon={Zap} title="Quick Actions" />
+        <SummaryPanelBody>
+          <SummaryQuickActions>
+            <SummaryQuickAction
+              icon={Plus}
+              label="Create Invoice"
+              onClick={onCreateInvoice}
+              variant="primary"
+            />
+            <SummaryQuickAction
+              icon={Mail}
+              label="Send Reminders"
+              onClick={onSendReminders}
+            />
+            <SummaryQuickAction
+              icon={Download}
+              label="Export Report"
+              onClick={onExport}
+            />
+          </SummaryQuickActions>
+        </SummaryPanelBody>
+      </SummaryPanel>
     </div>
   );
 };
