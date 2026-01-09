@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import { HeaderStat, HeaderStatGroup, HeaderStatDivider } from '@/components/ui/HeaderStat';
 import Modal from '@/components/ui/Modal';
 import { PageHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -529,13 +530,49 @@ const Vaccinations = () => {
         </p>
 
         {/* Stats Pills */}
-        <div className="flex flex-wrap items-center gap-2 mt-4">
-          <StatBadge icon={Shield} value={stats.total} label="Total" />
-          <StatBadge icon={AlertCircle} value={stats.overdue} label="Overdue" variant="danger" />
-          <StatBadge icon={AlertTriangle} value={stats.critical} label="Critical (7d)" variant="warning" />
-          <StatBadge icon={Clock} value={stats.expiring} label="Expiring (30d)" variant="amber" />
-          <StatBadge icon={CheckCircle2} value={stats.current} label="Current" variant="success" />
-        </div>
+        <HeaderStatGroup className="mt-4">
+          <HeaderStat
+            icon={Shield}
+            value={stats.total}
+            label="Total"
+            variant="neutral"
+            prominent
+          />
+          <HeaderStatDivider />
+          {stats.overdue > 0 && (
+            <HeaderStat
+              icon={AlertCircle}
+              value={stats.overdue}
+              label="Overdue"
+              variant="danger"
+              pulse
+              onClick={() => setActiveView('overdue')}
+            />
+          )}
+          {stats.critical > 0 && (
+            <HeaderStat
+              icon={AlertTriangle}
+              value={stats.critical}
+              label="Critical (7d)"
+              variant="danger"
+              pulse={stats.critical > 5}
+              onClick={() => setActiveView('expiring-7')}
+            />
+          )}
+          <HeaderStat
+            icon={Clock}
+            value={stats.expiring}
+            label="Expiring (30d)"
+            variant="warning"
+            onClick={() => setActiveView('expiring-30')}
+          />
+          <HeaderStat
+            icon={CheckCircle2}
+            value={stats.current}
+            label="Current"
+            variant="success"
+          />
+        </HeaderStatGroup>
       </div>
 
       {/* Toolbar - fixed, doesn't shrink */}
@@ -926,25 +963,6 @@ const Vaccinations = () => {
         petName={vaccinationToRenew?.petName}
         isLoading={isRenewing}
       />
-    </div>
-  );
-};
-
-// Stat Badge Component
-const StatBadge = ({ icon: Icon, value, label, variant = 'default' }) => {
-  const variants = {
-    default: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300',
-    success: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400',
-    warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
-    amber: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400',
-    danger: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400',
-  };
-
-  return (
-    <div className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium', variants[variant])}>
-      <Icon className="h-3 w-3" />
-      <span className="font-semibold">{value}</span>
-      <span>{label}</span>
     </div>
   );
 };

@@ -14,6 +14,7 @@ import EntityToolbar from '@/components/EntityToolbar';
 import StyledSelect from '@/components/ui/StyledSelect';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import { HeaderStat, HeaderStatGroup } from '@/components/ui/HeaderStat';
 import Modal from '@/components/ui/Modal';
 import Checkbox from '@/components/ui/Checkbox';
 import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
@@ -446,15 +447,44 @@ const Owners = () => {
           </div>
 
           {/* Stats Pills - Right Aligned - Hide on very small screens */}
-          <div className="hidden sm:flex flex-wrap items-center gap-2">
-            <StatBadge icon={Users} value={stats.total} label="Total" />
-            <StatBadge icon={Star} value={stats.active} label="Active" variant="success" />
-            <StatBadge icon={DollarSign} value={stats.highValue} label="High Value" variant="purple" />
-            <StatBadge icon={DollarSign} value={formatCurrency(stats.totalRevenue)} label="Revenue" variant="warning" />
+          <HeaderStatGroup className="hidden sm:flex">
+            <HeaderStat
+              icon={Users}
+              value={stats.total}
+              label="Total"
+              variant="neutral"
+              prominent
+            />
+            <HeaderStat
+              icon={Star}
+              value={stats.active}
+              label="Active"
+              variant="success"
+              onClick={() => setActiveView('active')}
+            />
+            <HeaderStat
+              icon={DollarSign}
+              value={stats.highValue}
+              label="High Value"
+              variant="purple"
+              onClick={() => setActiveView('high-value')}
+            />
+            <HeaderStat
+              icon={DollarSign}
+              value={formatCurrency(stats.totalRevenue)}
+              label="Revenue"
+              variant="revenue"
+            />
             {stats.totalPending > 0 && (
-              <StatBadge icon={Clock} value={formatCurrency(stats.totalPending)} label="Pending" variant="amber" />
+              <HeaderStat
+                icon={Clock}
+                value={formatCurrency(stats.totalPending)}
+                label="Pending"
+                variant="warning"
+                pulse={stats.totalPending > 50000}
+              />
             )}
-          </div>
+          </HeaderStatGroup>
         </div>
 
         {/* Toolbar - fixed, doesn't shrink */}
@@ -761,25 +791,6 @@ const Owners = () => {
         </div>
       </Modal>
     </>
-  );
-};
-
-// Stat Badge Component
-const StatBadge = ({ icon: Icon, value, label, variant = 'default' }) => {
-  const variants = {
-    default: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300',
-    success: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400',
-    warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
-    purple: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400',
-    amber: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400',
-  };
-
-  return (
-    <div className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium', variants[variant])}>
-      <Icon className="h-3 w-3" />
-      <span className="font-semibold">{value}</span>
-      <span>{label}</span>
-    </div>
   );
 };
 

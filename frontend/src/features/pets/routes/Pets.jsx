@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 import EntityToolbar from '@/components/EntityToolbar';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import { HeaderStat, HeaderStatGroup } from '@/components/ui/HeaderStat';
 import Modal from '@/components/ui/Modal';
 import PetAvatar from '@/components/ui/PetAvatar';
 import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
@@ -709,13 +710,46 @@ const Pets = () => {
           </div>
 
           {/* Stats Pills - Right Aligned */}
-          <div className="flex flex-wrap items-center gap-2">
-            <StatBadge icon={PawPrint} value={stats.total} label="Total" />
-            <StatBadge icon={Star} value={stats.active} label="Active" variant="success" />
-            <StatBadge icon={Dog} value={stats.dogs} label="Dogs" variant="default" />
-            <StatBadge icon={Cat} value={stats.cats} label="Cats" variant="default" />
-            <StatBadge icon={ShieldAlert} value={stats.expiringVaccinations} label="Expiring" variant="warning" />
-          </div>
+          <HeaderStatGroup>
+            <HeaderStat
+              icon={PawPrint}
+              value={stats.total}
+              label="Total"
+              variant="neutral"
+              prominent
+            />
+            <HeaderStat
+              icon={Star}
+              value={stats.active}
+              label="Active"
+              variant="success"
+              onClick={() => setActiveView('active')}
+            />
+            <HeaderStat
+              icon={Dog}
+              value={stats.dogs}
+              label="Dogs"
+              variant="info"
+              onClick={() => setCustomFilters({ ...customFilters, species: 'dog' })}
+            />
+            <HeaderStat
+              icon={Cat}
+              value={stats.cats}
+              label="Cats"
+              variant="info"
+              onClick={() => setCustomFilters({ ...customFilters, species: 'cat' })}
+            />
+            {stats.expiringVaccinations > 0 && (
+              <HeaderStat
+                icon={ShieldAlert}
+                value={stats.expiringVaccinations}
+                label="Expiring"
+                variant="danger"
+                pulse={stats.expiringVaccinations > 10}
+                onClick={() => setActiveView('expiring-vaccines')}
+              />
+            )}
+          </HeaderStatGroup>
         </div>
 
         {/* Toolbar - fixed, doesn't shrink */}
@@ -1142,24 +1176,6 @@ const Pets = () => {
         </div>
       </Modal>
     </>
-  );
-};
-
-// Stat Badge Component
-const StatBadge = ({ icon: Icon, value, label, variant = 'default' }) => {
-  const variants = {
-    default: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300',
-    success: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400',
-    warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
-    purple: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400',
-  };
-
-  return (
-    <div className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium', variants[variant])}>
-      <Icon className="h-3 w-3" />
-      <span className="font-semibold">{value}</span>
-      <span>{label}</span>
-    </div>
   );
 };
 
