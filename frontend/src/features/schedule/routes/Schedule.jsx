@@ -881,35 +881,74 @@ const DailyHourlyGrid = ({
         ref={scrollRef}
       >
         <div style={{ minWidth: `${80 + runs.length * 140}px` }}>
-          {/* Column Headers - Kennels/Runs */}
+          {/* Column Headers - Kennels/Runs - Enhanced with clear hierarchy */}
           <div
-            className="grid border-b"
+            className="grid sticky top-0 z-20"
             style={{
-              gridTemplateColumns: `80px repeat(${runs.length}, minmax(120px, 1fr))`,
+              gridTemplateColumns: `80px repeat(${runs.length}, minmax(140px, 1fr))`,
               backgroundColor: 'var(--bb-color-bg-elevated)',
-              borderColor: 'var(--bb-color-border-subtle)'
             }}
           >
-            <div className="p-3 font-medium text-sm text-[color:var(--bb-color-text-muted)] sticky left-0 z-10" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-              Time
+            {/* Time column header */}
+            <div
+              className="py-4 px-3 sticky left-0 z-30 border-b border-r flex flex-col items-center justify-center"
+              style={{
+                backgroundColor: 'var(--bb-color-bg-elevated)',
+                borderColor: 'var(--bb-color-border-subtle)'
+              }}
+            >
+              <Clock className="h-4 w-4 text-[color:var(--bb-color-text-muted)] mb-1" />
+              <span className="text-[var(--bb-text-2xs)] font-[var(--bb-font-weight-semibold)] uppercase tracking-[var(--bb-tracking-widest)] text-[color:var(--bb-color-text-muted)]">
+                Time
+              </span>
             </div>
-            {runs.map((run) => {
+
+            {/* Run/Play Area columns */}
+            {runs.map((run, idx) => {
               const occupancy = getRunOccupancy(run.id);
+              const isLastCol = idx === runs.length - 1;
+
               return (
                 <div
                   key={run.id}
-                  className="p-2 text-center border-l"
+                  className={cn(
+                    'py-3 px-3 text-center border-b transition-all',
+                    !isLastCol && 'border-r'
+                  )}
                   style={{ borderColor: 'var(--bb-color-border-subtle)' }}
                 >
-                  <div className="font-medium text-sm text-[color:var(--bb-color-text-primary)]">{run.name}</div>
-                  <div className="text-xs text-[color:var(--bb-color-text-muted)]">{run.type}</div>
-                  <Badge
-                    variant={occupancy >= 85 ? 'danger' : occupancy >= 50 ? 'warning' : 'success'}
-                    size="sm"
-                    className="mt-1"
-                  >
-                    {occupancy}%
-                  </Badge>
+                  {/* Play area name - Large and prominent */}
+                  <div className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-text-sm)] text-[color:var(--bb-color-text-primary)] leading-tight">
+                    {run.name}
+                  </div>
+
+                  {/* Type badge - More visible */}
+                  <div className="mt-1">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[color:var(--bb-color-bg-body)] text-[color:var(--bb-color-text-muted)]">
+                      {run.type}
+                    </span>
+                  </div>
+
+                  {/* Utilization indicator - More prominent */}
+                  <div className="mt-2 flex items-center justify-center gap-1.5">
+                    <div className="flex-1 h-1.5 rounded-full max-w-[60px] overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-body)' }}>
+                      <div
+                        className={cn(
+                          'h-full rounded-full transition-all',
+                          occupancy >= 85 ? 'bg-red-500' : occupancy >= 50 ? 'bg-amber-500' : 'bg-emerald-500'
+                        )}
+                        style={{ width: `${Math.min(occupancy, 100)}%` }}
+                      />
+                    </div>
+                    <span className={cn(
+                      'text-[var(--bb-text-xs)] font-[var(--bb-font-weight-semibold)] tabular-nums',
+                      occupancy >= 85 ? 'text-red-600 dark:text-red-400' :
+                      occupancy >= 50 ? 'text-amber-600 dark:text-amber-400' :
+                      'text-emerald-600 dark:text-emerald-400'
+                    )}>
+                      {occupancy}%
+                    </span>
+                  </div>
                 </div>
               );
             })}
@@ -921,84 +960,103 @@ const DailyHourlyGrid = ({
               <LoadingState variant="skeleton" />
             </div>
           ) : runs.length === 0 ? (
-            <div className="p-8 text-center">
-              <Home className="h-8 w-8 text-[color:var(--bb-color-text-muted)] mx-auto mb-2" />
-              <p className="text-[color:var(--bb-color-text-muted)]">No kennels or runs configured</p>
-              <Button variant="outline" size="sm" className="mt-2" asChild>
-                <Link to="/settings/objects/facilities">Configure Facility</Link>
+            <div className="p-12 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[color:var(--bb-color-bg-elevated)] mx-auto mb-4">
+                <Home className="h-8 w-8 text-[color:var(--bb-color-text-muted)]" />
+              </div>
+              <h3 className="text-[var(--bb-text-lg)] font-[var(--bb-font-weight-semibold)] text-[color:var(--bb-color-text-primary)] mb-2">
+                No Play Areas Configured
+              </h3>
+              <p className="text-[var(--bb-text-sm)] text-[color:var(--bb-color-text-muted)] mb-4 max-w-sm mx-auto">
+                Set up your kennels, runs, and play areas to start scheduling activities
+              </p>
+              <Button variant="primary" size="sm" asChild>
+                <Link to="/settings/objects/facilities">
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Configure Facility
+                </Link>
               </Button>
             </div>
           ) : (
-            hours.map((hour) => {
+            hours.map((hour, hourIndex) => {
               const isCurrentHour = isToday && hour === currentHour;
+              const isEvenRow = hourIndex % 2 === 0;
+
               return (
                 <div
                   key={hour}
                   ref={isCurrentHour ? currentHourRef : null}
                   className={cn(
-                    "grid border-b last:border-b-0",
-                    isCurrentHour && "ring-2 ring-inset ring-[var(--bb-color-accent)]"
+                    "grid border-b last:border-b-0 relative",
+                    // Current hour gets special highlight
+                    isCurrentHour && "ring-2 ring-inset ring-amber-500 dark:ring-amber-400 z-10"
                   )}
                   style={{
-                    gridTemplateColumns: `80px repeat(${runs.length}, minmax(120px, 1fr))`,
+                    gridTemplateColumns: `80px repeat(${runs.length}, minmax(140px, 1fr))`,
                     borderColor: 'var(--bb-color-border-subtle)',
-                    overflow: 'visible', // Allow spanning lines to extend vertically
+                    overflow: 'visible',
                   }}
                 >
-                  {/* Hour Label - Sticky */}
+                  {/* Hour Label - Sticky with enhanced current hour styling */}
                   <div
                     className={cn(
-                      'p-2 sticky left-0 z-10 border-r flex items-center justify-center',
-                      isCurrentHour && 'bg-[var(--bb-color-accent)] text-white'
+                      'py-3 px-2 sticky left-0 z-10 border-r flex flex-col items-center justify-center min-h-[64px]',
+                      isCurrentHour && 'bg-gradient-to-r from-amber-500 to-amber-400 text-white shadow-lg shadow-amber-500/20'
                     )}
                     style={{
-                      backgroundColor: isCurrentHour ? undefined : 'var(--bb-color-bg-surface)',
+                      backgroundColor: isCurrentHour ? undefined : isEvenRow ? 'var(--bb-color-bg-surface)' : 'var(--bb-color-bg-body)',
                       borderColor: 'var(--bb-color-border-subtle)'
                     }}
                   >
+                    {isCurrentHour && (
+                      <span className="text-[8px] font-bold uppercase tracking-wider mb-0.5 opacity-90">
+                        Now
+                      </span>
+                    )}
                     <span className={cn(
-                      'text-sm font-semibold',
+                      'text-[var(--bb-text-sm)] font-[var(--bb-font-weight-semibold)] tabular-nums',
                       !isCurrentHour && 'text-[color:var(--bb-color-text-muted)]'
                     )}>
                       {formatHour(hour)}
-                      {isCurrentHour && ' •'}
                     </span>
                   </div>
 
-                  {/* Kennel/Run Cells */}
+                  {/* Kennel/Run Cells - Enhanced with alternating backgrounds */}
                   {runs.map((run, runIndex) => {
                     const cellPets = getPetsForCell(run.id, hour);
                     const hasPets = cellPets.length > 0;
                     const isNearRightEdge = runIndex >= runs.length - 3;
+                    const isLastCol = runIndex === runs.length - 1;
 
                     return (
                       <div
                         key={run.id}
                         className={cn(
-                          'min-h-[60px] border-l relative transition-colors cursor-pointer',
-                          !hasPets && 'hover:bg-[color:var(--bb-color-bg-elevated)]',
-                          isCurrentHour && 'bg-[color:var(--bb-color-accent-soft)]'
+                          'min-h-[64px] relative transition-all cursor-pointer group',
+                          !isLastCol && 'border-r',
+                          // Current hour column highlight
+                          isCurrentHour && 'bg-amber-500/5 dark:bg-amber-500/10',
+                          // Empty cell hover state
+                          !hasPets && !isCurrentHour && 'hover:bg-[color:var(--bb-color-bg-elevated)]'
                         )}
                         style={{
-                          backgroundColor: isCurrentHour ? undefined : 'var(--bb-color-bg-body)',
+                          backgroundColor: isCurrentHour ? undefined : isEvenRow ? 'var(--bb-color-bg-surface)' : 'var(--bb-color-bg-body)',
                           borderColor: 'var(--bb-color-border-subtle)',
-                          overflow: 'visible', // Allow spanning lines to extend into subsequent cells
+                          overflow: 'visible',
                         }}
                         onClick={() => hasPets ? onBookingClick(cellPets[0]) : onEmptyCellClick(run, hour)}
                       >
                         {hasPets ? (
-                          <div className="absolute inset-0 p-1" style={{ overflow: 'visible' }}>
+                          <div className="absolute inset-0 p-1.5" style={{ overflow: 'visible' }}>
                             {cellPets.slice(0, 4).map((pet, idx) => {
                               const position = pet.position || 'single';
-                              const trackOffset = pet.trackIndex * 28; // Offset for parallel tracks
+                              const trackOffset = pet.trackIndex * 28;
 
                               if (position === 'start' || position === 'single') {
-                                // Calculate start/end hour indices for spanning line
                                 const startHourIndex = hours.indexOf(pet._startHour);
                                 const endHourIndex = hours.indexOf(pet._endHour);
                                 const isMultiHour = position === 'start' && startHourIndex >= 0 && endHourIndex > startHourIndex;
 
-                                // Use array return for multiple elements with keys
                                 const elements = [
                                   <PetTimeBar
                                     key={`bar-${pet.id || idx}`}
@@ -1009,7 +1067,6 @@ const DailyHourlyGrid = ({
                                     flipTooltip={isNearRightEdge}
                                   />
                                 ];
-                                /* Render spanning SVG line for multi-hour assignments */
                                 if (isMultiHour) {
                                   elements.push(
                                     <SpanningDashLine
@@ -1019,7 +1076,7 @@ const DailyHourlyGrid = ({
                                       endHourIndex={endHourIndex}
                                       hours={hours}
                                       trackOffset={trackOffset}
-                                      rowHeight={60}
+                                      rowHeight={64}
                                       onBookingClick={onBookingClick}
                                     />
                                   );
@@ -1054,14 +1111,27 @@ const DailyHourlyGrid = ({
                               return null;
                             })}
                             {cellPets.length > 4 && (
-                              <p className="text-[9px] text-center text-blue-600 dark:text-blue-300 font-medium absolute bottom-0 right-1">
+                              <span className="absolute bottom-1 right-2 text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 rounded">
                                 +{cellPets.length - 4}
-                              </p>
+                              </span>
                             )}
                           </div>
                         ) : (
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                            <Plus className="h-3 w-3 text-[color:var(--bb-color-text-muted)]" />
+                          /* Empty cell - Enhanced visual with hover interaction */
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            {/* Subtle pattern for empty cells */}
+                            <div className="absolute inset-2 rounded-lg border-2 border-dashed opacity-0 group-hover:opacity-100 transition-opacity"
+                              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+                            />
+                            {/* Add button on hover */}
+                            <div className="flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--bb-color-bg-elevated)] group-hover:bg-[color:var(--bb-color-accent-soft)] transition-colors">
+                                <Plus className="h-4 w-4 text-[color:var(--bb-color-text-muted)] group-hover:text-[color:var(--bb-color-accent)]" />
+                              </div>
+                              <span className="text-[10px] mt-1 text-[color:var(--bb-color-text-muted)] group-hover:text-[color:var(--bb-color-accent)]">
+                                Add
+                              </span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1450,68 +1520,163 @@ const PetTimeBar = ({ pet, hour, onBookingClick, trackOffset = 0, flipTooltip = 
   );
 };
 
-// Capacity Overview Widget
+// Capacity Overview Widget - Enhanced with larger gauge and premium styling
 const CapacityOverview = ({ stats }) => {
-  const getThresholdLabel = (pct) => {
-    if (pct >= 90) return { label: 'Critical', color: 'text-red-600' };
-    if (pct >= 70) return { label: 'High', color: 'text-amber-600' };
-    return { label: 'Normal', color: 'text-emerald-600' };
+  const getThresholdConfig = (pct) => {
+    if (pct >= 90) return {
+      label: 'Critical',
+      color: 'text-red-600 dark:text-red-400',
+      bgColor: 'bg-red-500',
+      ringColor: 'ring-red-500/20',
+      glowColor: 'shadow-red-500/20'
+    };
+    if (pct >= 70) return {
+      label: 'High',
+      color: 'text-amber-600 dark:text-amber-400',
+      bgColor: 'bg-amber-500',
+      ringColor: 'ring-amber-500/20',
+      glowColor: 'shadow-amber-500/20'
+    };
+    return {
+      label: 'Normal',
+      color: 'text-emerald-600 dark:text-emerald-400',
+      bgColor: 'bg-emerald-500',
+      ringColor: 'ring-emerald-500/20',
+      glowColor: 'shadow-emerald-500/20'
+    };
   };
 
-  const threshold = getThresholdLabel(stats.occupancy);
+  const threshold = getThresholdConfig(stats.occupancy);
+
+  // Calculate SVG arc for circular gauge
+  const radius = 60;
+  const strokeWidth = 10;
+  const circumference = 2 * Math.PI * radius;
+  const progress = Math.min(stats.occupancy, 100) / 100;
+  const strokeDashoffset = circumference * (1 - progress);
 
   return (
-    <div className="rounded-xl border p-4" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
-      <div className="flex items-center gap-2 mb-4">
-        <BarChart3 className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
-        <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Capacity Overview</h3>
-      </div>
-
-      {/* Visual Capacity Bar */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-[color:var(--bb-color-text-muted)]">Current Utilization</span>
-          <span className={cn('text-lg font-bold', threshold.color)}>{stats.occupancy}%</span>
+    <div
+      className="rounded-2xl border p-5"
+      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-2.5 mb-5 pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[color:var(--bb-color-bg-elevated)]">
+          <BarChart3 className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
         </div>
-        <div className="h-4 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-          <div
-            className={cn(
-              'h-full rounded-full transition-all',
-              stats.occupancy >= 90 ? 'bg-red-500' : stats.occupancy >= 70 ? 'bg-amber-500' : 'bg-emerald-500'
-            )}
-            style={{ width: `${Math.min(stats.occupancy, 100)}%` }}
-          />
-        </div>
-        <div className="flex justify-between mt-1 text-[10px] text-[color:var(--bb-color-text-muted)]">
-          <span>Normal</span>
-          <span>70%</span>
-          <span>90%</span>
-          <span>Full</span>
+        <div>
+          <h3 className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-text-base)] text-[color:var(--bb-color-text-primary)]">
+            Capacity Overview
+          </h3>
+          <p className="text-[var(--bb-text-xs)] text-[color:var(--bb-color-text-muted)]">
+            Real-time utilization
+          </p>
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-sm mb-4">
-        <span className="text-[color:var(--bb-color-text-muted)]">Status:</span>
-        <Badge variant={stats.occupancy >= 90 ? 'danger' : stats.occupancy >= 70 ? 'warning' : 'success'}>
+      {/* Circular Gauge - Larger and more prominent */}
+      <div className="flex justify-center mb-5">
+        <div className="relative">
+          <svg width="150" height="150" viewBox="0 0 150 150" className="transform -rotate-90">
+            {/* Background circle */}
+            <circle
+              cx="75"
+              cy="75"
+              r={radius}
+              fill="none"
+              stroke="var(--bb-color-bg-elevated)"
+              strokeWidth={strokeWidth}
+            />
+            {/* Progress arc */}
+            <circle
+              cx="75"
+              cy="75"
+              r={radius}
+              fill="none"
+              className={threshold.bgColor}
+              strokeWidth={strokeWidth}
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              style={{ transition: 'stroke-dashoffset 0.5s ease-in-out' }}
+            />
+          </svg>
+          {/* Center content */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className={cn('text-[var(--bb-text-3xl)] font-[var(--bb-font-weight-bold)] tabular-nums', threshold.color)}>
+              {stats.occupancy}%
+            </span>
+            <span className="text-[var(--bb-text-xs)] text-[color:var(--bb-color-text-muted)]">
+              Utilization
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Scale markers */}
+      <div className="relative h-2 mb-4 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+        <div
+          className={cn('h-full rounded-full transition-all', threshold.bgColor)}
+          style={{ width: `${Math.min(stats.occupancy, 100)}%` }}
+        />
+        {/* Threshold markers */}
+        <div className="absolute top-0 left-[70%] w-px h-full bg-amber-500/50" />
+        <div className="absolute top-0 left-[90%] w-px h-full bg-red-500/50" />
+      </div>
+      <div className="flex justify-between text-[var(--bb-text-2xs)] text-[color:var(--bb-color-text-muted)] mb-4">
+        <span>0%</span>
+        <span className="text-amber-600 dark:text-amber-400">70%</span>
+        <span className="text-red-600 dark:text-red-400">90%</span>
+        <span>100%</span>
+      </div>
+
+      {/* Status Badge - More prominent */}
+      <div
+        className={cn(
+          'flex items-center justify-between p-3 rounded-xl mb-5 ring-2',
+          threshold.ringColor,
+          stats.occupancy >= 90 ? 'bg-red-500/10 dark:bg-red-500/20' :
+          stats.occupancy >= 70 ? 'bg-amber-500/10 dark:bg-amber-500/20' :
+          'bg-emerald-500/10 dark:bg-emerald-500/20'
+        )}
+      >
+        <div className="flex items-center gap-2">
+          <span className={cn('w-3 h-3 rounded-full ring-4 ring-opacity-30', threshold.bgColor, threshold.ringColor)} />
+          <span className="text-[var(--bb-text-sm)] font-[var(--bb-font-weight-medium)] text-[color:var(--bb-color-text-primary)]">
+            Status
+          </span>
+        </div>
+        <span className={cn('text-[var(--bb-text-sm)] font-[var(--bb-font-weight-bold)]', threshold.color)}>
           {threshold.label}
-        </Badge>
+        </span>
+      </div>
+
+      {/* Availability info */}
+      <div className="flex items-center justify-between p-3 rounded-xl mb-5" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+        <span className="text-[var(--bb-text-sm)] text-[color:var(--bb-color-text-muted)]">Available Spots</span>
+        <span className="text-[var(--bb-text-lg)] font-[var(--bb-font-weight-bold)] text-[color:var(--bb-color-text-primary)] tabular-nums">
+          {stats.availableSpots} <span className="text-[var(--bb-text-sm)] font-normal text-[color:var(--bb-color-text-muted)]">/ {stats.totalCapacity}</span>
+        </span>
       </div>
 
       {/* Activity Types Legend */}
-      <div className="pt-3 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-        <p className="text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-2">Activity Types</p>
-        <div className="flex flex-wrap gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="text-xs text-[color:var(--bb-color-text-primary)]">Social</span>
+      <div className="pt-4 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+        <p className="text-[var(--bb-text-2xs)] font-[var(--bb-font-weight-semibold)] uppercase tracking-[var(--bb-tracking-widest)] text-[color:var(--bb-color-text-muted)] mb-3">
+          Activity Types
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="flex items-center gap-2 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+            <span className="w-3 h-3 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" />
+            <span className="text-[var(--bb-text-xs)] font-medium text-[color:var(--bb-color-text-primary)]">Social</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-blue-500" />
-            <span className="text-xs text-[color:var(--bb-color-text-primary)]">Individual</span>
+          <div className="flex items-center gap-2 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+            <span className="w-3 h-3 rounded-full bg-blue-500 ring-4 ring-blue-500/20" />
+            <span className="text-[var(--bb-text-xs)] font-medium text-[color:var(--bb-color-text-primary)]">Individual</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-            <span className="text-xs text-[color:var(--bb-color-text-primary)]">Training</span>
+          <div className="flex items-center gap-2 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+            <span className="w-3 h-3 rounded-full bg-amber-500 ring-4 ring-amber-500/20" />
+            <span className="text-[var(--bb-text-xs)] font-medium text-[color:var(--bb-color-text-primary)]">Training</span>
           </div>
         </div>
       </div>
@@ -1519,7 +1684,7 @@ const CapacityOverview = ({ stats }) => {
   );
 };
 
-// Smart Scheduling Assistant
+// Smart Scheduling Assistant - Enhanced with premium styling and visual distinctiveness
 const SmartSchedulingAssistant = ({ stats, onOpenCheckInPanel }) => {
   const insights = useMemo(() => {
     const list = [];
@@ -1528,9 +1693,10 @@ const SmartSchedulingAssistant = ({ stats, onOpenCheckInPanel }) => {
       list.push({
         type: 'warning',
         icon: AlertTriangle,
-        title: 'High Capacity',
+        title: 'High Capacity Alert',
         message: `At ${stats.occupancy}% capacity — consider limiting new bookings`,
         clickable: false,
+        priority: 'high',
       });
     } else if (stats.occupancy < 50) {
       list.push({
@@ -1539,6 +1705,7 @@ const SmartSchedulingAssistant = ({ stats, onOpenCheckInPanel }) => {
         title: 'Good Availability',
         message: `${stats.availableSpots} spots open — great time to accept new bookings`,
         clickable: false,
+        priority: 'normal',
       });
     }
 
@@ -1547,9 +1714,10 @@ const SmartSchedulingAssistant = ({ stats, onOpenCheckInPanel }) => {
         type: 'info',
         icon: UserCheck,
         title: 'Pending Check-ins',
-        message: `${stats.checkIns} guest${stats.checkIns > 1 ? 's' : ''} arriving — click to view`,
+        message: `${stats.checkIns} guest${stats.checkIns > 1 ? 's' : ''} arriving today`,
         clickable: true,
         onClick: onOpenCheckInPanel,
+        priority: 'normal',
       });
     }
 
@@ -1560,51 +1728,134 @@ const SmartSchedulingAssistant = ({ stats, onOpenCheckInPanel }) => {
         title: 'All Systems Optimal',
         message: 'No scheduling recommendations at this time',
         clickable: false,
+        priority: 'low',
       });
     }
 
     return list;
   }, [stats, onOpenCheckInPanel]);
 
-  const variantStyles = {
-    success: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50 text-emerald-800 dark:text-emerald-200',
-    warning: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/50 text-amber-800 dark:text-amber-200',
-    info: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800/50 text-blue-800 dark:text-blue-200',
+  const variantConfig = {
+    success: {
+      bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+      border: 'border-emerald-200 dark:border-emerald-700/50',
+      iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
+      icon: 'text-emerald-600 dark:text-emerald-400',
+      title: 'text-emerald-800 dark:text-emerald-200',
+      message: 'text-emerald-700/80 dark:text-emerald-300/80',
+    },
+    warning: {
+      bg: 'bg-amber-50 dark:bg-amber-900/20',
+      border: 'border-amber-200 dark:border-amber-700/50',
+      iconBg: 'bg-amber-100 dark:bg-amber-900/40',
+      icon: 'text-amber-600 dark:text-amber-400',
+      title: 'text-amber-800 dark:text-amber-200',
+      message: 'text-amber-700/80 dark:text-amber-300/80',
+    },
+    info: {
+      bg: 'bg-blue-50 dark:bg-blue-900/20',
+      border: 'border-blue-200 dark:border-blue-700/50',
+      iconBg: 'bg-blue-100 dark:bg-blue-900/40',
+      icon: 'text-blue-600 dark:text-blue-400',
+      title: 'text-blue-800 dark:text-blue-200',
+      message: 'text-blue-700/80 dark:text-blue-300/80',
+    },
   };
 
   return (
-    <div className="rounded-xl border p-4" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
-      <div className="flex items-center gap-2 mb-3">
-        <Brain className="h-5 w-5 text-[color:var(--bb-color-accent)]" />
-        <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Smart Scheduling Assistant</h3>
+    <div
+      className="rounded-2xl border overflow-hidden"
+      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+    >
+      {/* Header with gradient accent */}
+      <div
+        className="relative p-4 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 dark:from-violet-500/20 dark:via-purple-500/20 dark:to-fuchsia-500/20 border-b"
+        style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-violet-500/25">
+            <Brain className="h-5 w-5 text-white" />
+          </div>
+          <div>
+            <h3 className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-text-base)] text-[color:var(--bb-color-text-primary)]">
+              Smart Scheduling
+            </h3>
+            <p className="text-[var(--bb-text-xs)] text-[color:var(--bb-color-text-muted)]">
+              AI-powered insights
+            </p>
+          </div>
+        </div>
+        {/* Decorative sparkle */}
+        <div className="absolute top-2 right-3 text-violet-400/40">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L13.09 8.26L19 9.27L14.55 13.14L15.82 19.02L12 16.27L8.18 19.02L9.45 13.14L5 9.27L10.91 8.26L12 2Z" fill="currentColor" />
+          </svg>
+        </div>
       </div>
 
-      <div className="space-y-2">
+      {/* Insights */}
+      <div className="p-4 space-y-3">
         {insights.map((insight, idx) => {
           const Icon = insight.icon;
+          const config = variantConfig[insight.type];
           const Wrapper = insight.clickable ? 'button' : 'div';
+
           return (
             <Wrapper
               key={idx}
               type={insight.clickable ? 'button' : undefined}
               onClick={insight.clickable ? insight.onClick : undefined}
               className={cn(
-                'flex items-start gap-2 rounded-lg border p-3 w-full text-left',
-                variantStyles[insight.type],
-                insight.clickable && 'cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all'
+                'flex items-start gap-3 rounded-xl border p-4 w-full text-left transition-all',
+                config.bg,
+                config.border,
+                insight.clickable && 'cursor-pointer hover:shadow-lg hover:-translate-y-0.5 hover:ring-2 hover:ring-offset-2 hover:ring-blue-500/20'
               )}
             >
-              <Icon className="h-4 w-4 mt-0.5 shrink-0" />
-              <div className="flex-1">
-                <p className="font-medium text-sm">{insight.title}</p>
-                <p className="text-xs opacity-80">{insight.message}</p>
+              {/* Icon with background */}
+              <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', config.iconBg)}>
+                <Icon className={cn('h-5 w-5', config.icon)} />
               </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className={cn('font-[var(--bb-font-weight-semibold)] text-[var(--bb-text-sm)]', config.title)}>
+                    {insight.title}
+                  </p>
+                  {insight.priority === 'high' && (
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                      Urgent
+                    </span>
+                  )}
+                </div>
+                <p className={cn('text-[var(--bb-text-sm)] mt-0.5', config.message)}>
+                  {insight.message}
+                </p>
+              </div>
+
+              {/* Action indicator */}
               {insight.clickable && (
-                <ChevronRight className="h-4 w-4 mt-0.5 shrink-0 opacity-60" />
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                  <ChevronRight className="h-4 w-4" />
+                </div>
               )}
             </Wrapper>
           );
         })}
+      </div>
+
+      {/* Quick action footer */}
+      <div className="px-4 pb-4">
+        <button
+          type="button"
+          onClick={onOpenCheckInPanel}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[var(--bb-text-sm)] font-[var(--bb-font-weight-medium)] transition-all hover:bg-[color:var(--bb-color-bg-elevated)]"
+          style={{ color: 'var(--bb-color-accent)' }}
+        >
+          <UserCheck className="h-4 w-4" />
+          View All Check-ins
+        </button>
       </div>
     </div>
   );
