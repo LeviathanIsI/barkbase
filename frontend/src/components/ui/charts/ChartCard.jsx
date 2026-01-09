@@ -17,9 +17,9 @@ const ChartCard = ({
   return (
     <div
       className={cn(
-        'rounded-[var(--bb-radius-xl)] border border-[var(--bb-color-border-subtle)]',
+        'rounded-[var(--bb-radius-lg,0.75rem)] border border-[var(--bb-color-border-subtle)]',
         'bg-[var(--bb-color-bg-surface)]',
-        'shadow-[var(--bb-elevation-subtle)]',
+        'shadow-[var(--shadow-sm)]',
         className
       )}
       style={{ minHeight }}

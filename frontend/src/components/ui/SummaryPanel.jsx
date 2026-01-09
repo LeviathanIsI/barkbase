@@ -26,7 +26,7 @@ export const SummaryPanel = ({
 }) => (
   <div
     className={cn(
-      'rounded-xl border overflow-hidden',
+      'rounded-[var(--bb-radius-lg,0.75rem)] border overflow-hidden',
       'bg-[var(--bb-color-bg-surface)]',
       'border-[var(--bb-color-border-subtle)]',
       className
@@ -263,7 +263,7 @@ export const SummaryActivityItem = ({
     className={cn(
       'flex items-start gap-[var(--bb-space-3,0.75rem)]',
       'p-[var(--bb-space-3,0.75rem)]',
-      'rounded-lg transition-colors',
+      'rounded-[var(--bb-radius-md,0.5rem)] transition-colors',
       'hover:bg-[var(--bb-color-bg-elevated)]',
       className
     )}
@@ -414,7 +414,7 @@ export const SummaryHighlight = ({
   return (
     <div
       className={cn(
-        'rounded-xl border p-[var(--bb-space-4,1rem)]',
+        'rounded-[var(--bb-radius-lg,0.75rem)] border p-[var(--bb-space-4,1rem)]',
         classes.container,
         className
       )}
@@ -423,7 +423,7 @@ export const SummaryHighlight = ({
         {Icon && (
           <div
             className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+              'flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--bb-radius-lg,0.75rem)]',
               classes.iconBg
             )}
           >

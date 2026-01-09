@@ -1,14 +1,18 @@
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/cn';
 
-const TodayCard = ({ children, className }) => {
+/**
+ * TodayCard - Wrapper card for Today/Dashboard sections
+ * Uses the standardized Card component with consistent styling
+ */
+const TodayCard = ({ children, className, noPadding = false, ...props }) => {
   return (
     <Card
-      className={cn('p-[var(--bb-space-6,1.5rem)]', className)}
-      style={{
-        backgroundColor: 'var(--bb-color-bg-surface)',
-        borderColor: 'var(--bb-color-border-subtle)',
-      }}
+      variant="outlined"
+      size="lg"
+      noPadding={noPadding}
+      className={cn(className)}
+      {...props}
     >
       {children}
     </Card>

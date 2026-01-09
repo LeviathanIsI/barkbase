@@ -43,7 +43,7 @@ export function PropertyCard({
   return (
     <div
       className={cn(
-        "rounded-lg border overflow-hidden",
+        "rounded-[var(--bb-radius-lg,0.75rem)] border overflow-hidden",
         className
       )}
       style={{

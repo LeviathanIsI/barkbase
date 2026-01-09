@@ -178,9 +178,9 @@ const StatCard = ({ icon: Icon, label, value, variant = 'inFacility', emptyMessa
     <div
       data-testid="stat-card"
       className={cn(
-        // Base card styling
+        // Base card styling - use standardized radius
         'relative flex items-center gap-[var(--bb-space-4,1rem)]',
-        'rounded-2xl border p-[var(--bb-space-5,1.25rem)]',
+        'rounded-[var(--bb-radius-xl,1rem)] border p-[var(--bb-space-5,1.25rem)]',
         'transition-all duration-200 ease-out',
         'cursor-default',
 
@@ -205,7 +205,7 @@ const StatCard = ({ icon: Icon, label, value, variant = 'inFacility', emptyMessa
       {/* Pulsing background for urgent cards */}
       {isUrgent && styles.pulse && (
         <div
-          className="absolute inset-0 rounded-2xl bg-gradient-to-br from-orange-500/5 to-red-500/5 animate-pulse"
+          className="absolute inset-0 rounded-[var(--bb-radius-xl,1rem)] bg-gradient-to-br from-orange-500/5 to-red-500/5 animate-pulse"
           aria-hidden="true"
         />
       )}

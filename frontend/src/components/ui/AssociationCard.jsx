@@ -63,7 +63,7 @@ export function AssociationCard({
   return (
     <div
       className={cn(
-        "rounded-lg border overflow-hidden",
+        "rounded-[var(--bb-radius-lg,0.75rem)] border overflow-hidden",
         className
       )}
       style={{
@@ -296,7 +296,7 @@ export function AssociationSingleItem({
   return (
     <div
       className={cn(
-        "rounded-lg border p-4",
+        "rounded-[var(--bb-radius-lg,0.75rem)] border p-4",
         className
       )}
       style={{
