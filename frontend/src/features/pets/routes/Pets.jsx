@@ -834,13 +834,21 @@ const Pets = () => {
             }
             rightContent={
               <>
-                {/* Column Controls */}
-                <div className="relative" ref={columnsRef}>
-                  <Button variant="outline" size="sm" onClick={() => setShowColumnsDropdown(!showColumnsDropdown)} className="gap-1.5 h-9">
-                    <Columns className="h-4 w-4" />
-                    <span className="hidden sm:inline">Columns</span>
-                  </Button>
-                  {showColumnsDropdown && (
+                <ActionGroup
+                  actions={[
+                    {
+                      icon: Columns,
+                      tooltip: 'Manage Columns',
+                      onClick: () => setShowColumnsDropdown(!showColumnsDropdown),
+                      active: showColumnsDropdown,
+                    },
+                    { icon: Download, tooltip: 'Export', onClick: handleExportAll },
+                  ]}
+                />
+
+                {/* Columns Dropdown Portal */}
+                {showColumnsDropdown && (
+                  <div className="absolute right-4 top-full mt-1 z-50" ref={columnsRef}>
                     <ColumnsDropdown
                       columns={ALL_COLUMNS.filter(c => c.hideable !== false)}
                       visibleColumns={visibleColumns}
@@ -848,14 +856,8 @@ const Pets = () => {
                       onToggle={toggleColumn}
                       onReorder={moveColumn}
                     />
-                  )}
-                </div>
-
-                <ActionGroup
-                  actions={[
-                    { icon: Download, label: 'Export', onClick: handleExportAll },
-                  ]}
-                />
+                  </div>
+                )}
 
                 <Button size="sm" onClick={() => setPetFormModalOpen(true)} className="gap-1.5 h-9">
                   <Plus className="h-4 w-4" />
