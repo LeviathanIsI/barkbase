@@ -52,7 +52,7 @@ import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 import SlideOutDrawer from '@/components/ui/SlideOutDrawer';
 
-// Stat Card Component - Matching Schedule/Run Assignment style
+// Stat Card Component - Matching Schedule/Run Assignment style with enhanced danger state
 const StatCard = ({ icon: Icon, label, value, variant = 'primary', tooltip }) => {
   const variantStyles = {
     primary: {
@@ -60,42 +60,74 @@ const StatCard = ({ icon: Icon, label, value, variant = 'primary', tooltip }) =>
       iconBg: 'bg-blue-100 dark:bg-blue-900/40',
       icon: 'text-blue-600 dark:text-blue-400',
       border: 'border-blue-200 dark:border-blue-800/50',
+      ring: '',
+      glow: '',
+      valueColor: 'text-[color:var(--bb-color-text-primary)]',
     },
     success: {
       bg: 'bg-emerald-50 dark:bg-emerald-900/20',
       iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
       icon: 'text-emerald-600 dark:text-emerald-400',
       border: 'border-emerald-200 dark:border-emerald-800/50',
+      ring: '',
+      glow: '',
+      valueColor: 'text-emerald-700 dark:text-emerald-300',
     },
     warning: {
       bg: 'bg-amber-50 dark:bg-amber-900/20',
       iconBg: 'bg-amber-100 dark:bg-amber-900/40',
       icon: 'text-amber-600 dark:text-amber-400',
       border: 'border-amber-200 dark:border-amber-800/50',
+      ring: 'ring-1 ring-amber-300 dark:ring-amber-700/50',
+      glow: '',
+      valueColor: 'text-amber-700 dark:text-amber-300',
     },
     danger: {
-      bg: 'bg-red-50 dark:bg-red-900/20',
-      iconBg: 'bg-red-100 dark:bg-red-900/40',
+      bg: 'bg-red-50 dark:bg-red-950/30',
+      iconBg: 'bg-red-100 dark:bg-red-900/60',
       icon: 'text-red-600 dark:text-red-400',
-      border: 'border-red-200 dark:border-red-800/50',
+      border: 'border-red-300 dark:border-red-700/70',
+      ring: 'ring-2 ring-red-400/50 dark:ring-red-500/40',
+      glow: 'shadow-[0_0_15px_rgba(239,68,68,0.15)] dark:shadow-[0_0_20px_rgba(239,68,68,0.25)]',
+      valueColor: 'text-red-600 dark:text-red-400 font-extrabold',
     },
   };
 
   const styles = variantStyles[variant] || variantStyles.primary;
+  const isDanger = variant === 'danger';
 
   return (
     <div
-      className={cn('relative flex items-center gap-3 rounded-xl border p-4', styles.bg, styles.border)}
+      className={cn(
+        'relative flex items-center gap-3 rounded-xl border p-4 transition-all duration-300',
+        styles.bg,
+        styles.border,
+        styles.ring,
+        styles.glow,
+        isDanger && 'animate-pulse-subtle'
+      )}
       title={tooltip}
+      style={isDanger ? { '--pulse-opacity': '0.6' } : undefined}
     >
-      <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', styles.iconBg)}>
-        <Icon className={cn('h-5 w-5', styles.icon)} />
+      {/* Danger indicator bar */}
+      {isDanger && (
+        <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-gradient-to-b from-red-500 to-red-600" />
+      )}
+      <div className={cn(
+        'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform',
+        styles.iconBg,
+        isDanger && 'scale-110'
+      )}>
+        <Icon className={cn('h-5 w-5', styles.icon, isDanger && 'h-6 w-6')} />
       </div>
       <div className="min-w-0 text-left">
-        <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+        <p className={cn(
+          'text-[0.7rem] font-semibold uppercase tracking-wider',
+          isDanger ? 'text-red-600 dark:text-red-400' : 'text-[color:var(--bb-color-text-muted)]'
+        )}>
           {label}
         </p>
-        <p className="text-2xl font-bold text-[color:var(--bb-color-text-primary)] leading-tight">{value}</p>
+        <p className={cn('text-2xl font-bold leading-tight', styles.valueColor)}>{value}</p>
       </div>
     </div>
   );
@@ -110,12 +142,12 @@ const TASK_TYPES = {
   CHECKUP: { label: 'Checkup', icon: Stethoscope, color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-900/30' },
 };
 
-// Priority configurations
+// Priority configurations with border colors
 const PRIORITY_CONFIG = {
-  URGENT: { label: 'Urgent', variant: 'danger' },
-  HIGH: { label: 'High', variant: 'warning' },
-  NORMAL: { label: 'Normal', variant: 'info' },
-  LOW: { label: 'Low', variant: 'neutral' },
+  URGENT: { label: 'Urgent', variant: 'danger', borderColor: 'border-l-red-500', bgTint: 'bg-red-50/50 dark:bg-red-950/20' },
+  HIGH: { label: 'High', variant: 'warning', borderColor: 'border-l-amber-500', bgTint: 'bg-amber-50/30 dark:bg-amber-950/10' },
+  NORMAL: { label: 'Normal', variant: 'info', borderColor: 'border-l-blue-400', bgTint: '' },
+  LOW: { label: 'Low', variant: 'neutral', borderColor: 'border-l-gray-300 dark:border-l-gray-600', bgTint: '' },
 };
 
 // Sort options
@@ -126,58 +158,105 @@ const SORT_OPTIONS = [
   { value: 'assignedStaff', label: 'Assigned Staff' },
 ];
 
-// Time bucket component
+// Time bucket component with enhanced styling and smooth animation
 const TimeBucket = ({ title, count, isExpanded, onToggle, children, variant = 'default' }) => {
   const variantStyles = {
-    overdue: 'border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-900/10',
-    dueNow: 'border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-900/10',
-    default: 'border-border bg-transparent',
+    overdue: {
+      container: 'border-red-200 dark:border-red-800/60 bg-red-50/60 dark:bg-red-950/20',
+      header: 'bg-red-100/50 dark:bg-red-900/30',
+      icon: 'text-red-500',
+      title: 'text-red-700 dark:text-red-300',
+      glow: 'shadow-[0_0_10px_rgba(239,68,68,0.1)]',
+    },
+    dueNow: {
+      container: 'border-amber-200 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/20',
+      header: 'bg-amber-100/50 dark:bg-amber-900/30',
+      icon: 'text-amber-500',
+      title: 'text-amber-700 dark:text-amber-300',
+      glow: '',
+    },
+    default: {
+      container: 'border-border bg-transparent',
+      header: 'bg-transparent hover:bg-[color:var(--bb-color-bg-elevated)]',
+      icon: 'text-muted',
+      title: 'text-[color:var(--bb-color-text-primary)]',
+      glow: '',
+    },
   };
 
+  const styles = variantStyles[variant] || variantStyles.default;
+
   return (
-    <div className={cn('rounded-lg border', variantStyles[variant])}>
+    <div className={cn('rounded-xl border overflow-hidden transition-all duration-300', styles.container, styles.glow)}>
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-surface/50 transition-colors rounded-t-lg"
+        className={cn(
+          'w-full flex items-center justify-between px-5 py-4 text-left transition-all duration-200',
+          styles.header
+        )}
       >
         <div className="flex items-center gap-3">
-          {isExpanded ? (
-            <ChevronDown className="h-4 w-4 text-muted" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-muted" />
-          )}
-          <span className="font-medium text-text">{title}</span>
-          <Badge variant={variant === 'overdue' ? 'danger' : variant === 'dueNow' ? 'warning' : 'neutral'} size="sm">
+          <div className={cn(
+            'transition-transform duration-300',
+            isExpanded ? 'rotate-0' : '-rotate-90'
+          )}>
+            <ChevronDown className={cn('h-5 w-5', styles.icon)} />
+          </div>
+          <span className={cn('font-semibold text-base', styles.title)}>{title}</span>
+          <Badge
+            variant={variant === 'overdue' ? 'danger' : variant === 'dueNow' ? 'warning' : 'neutral'}
+            size="sm"
+            className={cn(
+              'min-w-[1.75rem] justify-center',
+              variant === 'overdue' && count > 0 && 'animate-pulse'
+            )}
+          >
             {count}
           </Badge>
         </div>
+        {variant === 'overdue' && count > 0 && (
+          <span className="text-xs font-medium text-red-500 dark:text-red-400 flex items-center gap-1">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Needs attention
+          </span>
+        )}
       </button>
-      {isExpanded && (
-        <div className="px-4 pb-4">
-          {children}
+      <div
+        className={cn(
+          'grid transition-all duration-300 ease-in-out',
+          isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="px-5 pb-4 pt-2 space-y-2">
+            {children}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
 
-// Task Card component
-const TaskCard = ({ 
-  task, 
-  onComplete, 
+// Task Card component with enhanced visual hierarchy and completion animation
+const TaskCard = ({
+  task,
+  onComplete,
   isCompleting,
   pets,
   staff,
 }) => {
   const [showActions, setShowActions] = useState(false);
+  const [justCompleted, setJustCompleted] = useState(false);
   const typeConfig = TASK_TYPES[task.type] || { label: task.type, icon: ClipboardList, color: 'text-gray-500', bg: 'bg-gray-100' };
   const TypeIcon = typeConfig.icon;
   const priorityConfig = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.NORMAL;
-  
+
   const isCompleted = !!task.completedAt;
   const isOverdue = task.isOverdue;
-  const isDueSoon = !isOverdue && !isCompleted && task.scheduledFor && 
+  const isDueSoon = !isOverdue && !isCompleted && task.scheduledFor &&
     new Date(task.scheduledFor).getTime() - Date.now() < 60 * 60 * 1000; // Within 1 hour
+  const isUrgent = task.priority === 'URGENT';
+  const isHighPriority = task.priority === 'HIGH' || isUrgent;
 
   // Get related pet info
   const relatedPet = useMemo(() => {
@@ -196,6 +275,13 @@ const TaskCard = ({
     return null;
   }, [task.assignedTo, staff]);
 
+  const handleComplete = () => {
+    if (!isCompleted && !isCompleting) {
+      setJustCompleted(true);
+      onComplete(task.id);
+    }
+  };
+
   const getStatusBadge = () => {
     if (isCompleted) return <Badge variant="success" size="sm">Completed</Badge>;
     if (isOverdue) return <Badge variant="danger" size="sm">Overdue</Badge>;
@@ -206,74 +292,107 @@ const TaskCard = ({
   return (
     <div
       className={cn(
-        'group bg-white dark:bg-surface-primary border rounded-lg p-4 transition-all duration-200',
-        isCompleted ? 'opacity-60 border-border' : 'border-border hover:border-primary/30 hover:shadow-sm',
-        isOverdue && !isCompleted && 'border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-900/10',
+        'group relative bg-white dark:bg-surface-primary border-l-4 border rounded-lg transition-all duration-300',
+        // Priority-based left border
+        priorityConfig.borderColor,
+        // Background tint for high priority
+        !isCompleted && priorityConfig.bgTint,
+        // Completed state - fade out
+        isCompleted
+          ? 'opacity-50 border-gray-200 dark:border-gray-700 hover:opacity-70'
+          : 'border-border hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5',
+        // Overdue override
+        isOverdue && !isCompleted && 'border-l-red-500 bg-red-50/40 dark:bg-red-950/20',
+        // Just completed animation
+        justCompleted && 'animate-task-complete'
       )}
     >
-      <div className="flex items-start gap-3">
-        {/* Checkbox */}
+      {/* Urgent pulse indicator */}
+      {isUrgent && !isCompleted && (
+        <div className="absolute -left-1 top-1/2 -translate-y-1/2 h-3 w-3">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 animate-ping" />
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+        </div>
+      )}
+
+      <div className="flex items-start gap-4 p-4">
+        {/* Enhanced Checkbox */}
         <button
-          onClick={() => !isCompleted && onComplete(task.id)}
+          onClick={handleComplete}
           disabled={isCompleted || isCompleting}
           className={cn(
-            'mt-0.5 transition-colors',
-            isCompleted ? 'text-green-500' : 'text-muted hover:text-primary'
+            'mt-0.5 flex-shrink-0 transition-all duration-200 rounded-full',
+            isCompleted
+              ? 'text-green-500 scale-110'
+              : 'text-muted hover:text-primary hover:scale-110 hover:bg-primary/10 p-0.5 -m-0.5'
           )}
         >
           {isCompleting ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
           ) : isCompleted ? (
-            <CheckCircle className="h-5 w-5" />
+            <CheckCircle2 className="h-6 w-6 fill-green-100 dark:fill-green-900/50" />
           ) : (
-            <Circle className="h-5 w-5" />
+            <Circle className="h-6 w-6 stroke-[1.5]" />
           )}
         </button>
 
-        {/* Task Icon */}
-        <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0', typeConfig.bg)}>
+        {/* Task Icon - larger for visual weight */}
+        <div className={cn(
+          'h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform',
+          typeConfig.bg,
+          !isCompleted && 'group-hover:scale-105'
+        )}>
           <TypeIcon className={cn('h-5 w-5', typeConfig.color)} />
         </div>
 
         {/* Main Content */}
         <div className="flex-1 min-w-0">
           {/* Top Row: Title + Badges */}
-          <div className="flex items-center flex-wrap gap-2 mb-1">
+          <div className="flex items-center flex-wrap gap-2 mb-1.5">
             <h3 className={cn(
-              'font-semibold text-text',
-              isCompleted && 'line-through text-muted'
+              'font-semibold text-[color:var(--bb-color-text-primary)] text-base',
+              isCompleted && 'line-through text-muted decoration-2'
             )}>
               {typeConfig.label}
             </h3>
-            <Badge variant={priorityConfig.variant} size="sm">{priorityConfig.label}</Badge>
+            {!isCompleted && (
+              <Badge variant={priorityConfig.variant} size="sm">{priorityConfig.label}</Badge>
+            )}
             {getStatusBadge()}
           </div>
 
           {/* Notes */}
           {task.notes && (
             <p className={cn(
-              'text-sm mb-2',
-              isCompleted ? 'text-muted line-through' : 'text-text'
+              'text-sm mb-2 leading-relaxed',
+              isCompleted ? 'text-muted line-through decoration-1' : 'text-[color:var(--bb-color-text-secondary)]'
             )}>
               {task.notes}
             </p>
           )}
 
-          {/* Middle Row: Due time, Assigned, Pet, Service type */}
-          <div className="flex flex-wrap items-center gap-4 text-xs text-muted">
+          {/* Meta Row: Due time, Assigned, Pet */}
+          <div className="flex flex-wrap items-center gap-4 text-xs">
             {/* Due Time */}
-            <div className="flex items-center gap-1.5">
-              <Clock className={cn('h-3.5 w-3.5', isOverdue && !isCompleted ? 'text-red-500' : '')} />
-              <span className={cn(isOverdue && !isCompleted ? 'text-red-600 dark:text-red-400 font-medium' : '')}>
+            <div className={cn(
+              'flex items-center gap-1.5 px-2 py-1 rounded-md',
+              isOverdue && !isCompleted
+                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium'
+                : 'text-muted'
+            )}>
+              <Clock className="h-3.5 w-3.5" />
+              <span>
                 {task.scheduledFor ? format(new Date(task.scheduledFor), 'MMM d, h:mm a') : 'No due time'}
               </span>
             </div>
 
             {/* Assigned Staff */}
             {assignedStaff && (
-              <div className="flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5" />
-                <span>{assignedStaff.firstName} {assignedStaff.lastName}</span>
+              <div className="flex items-center gap-1.5 text-muted">
+                <div className="h-5 w-5 rounded-full bg-[color:var(--bb-color-bg-elevated)] flex items-center justify-center">
+                  <User className="h-3 w-3" />
+                </div>
+                <span className="font-medium">{assignedStaff.firstName} {assignedStaff.lastName}</span>
               </div>
             )}
 
@@ -281,18 +400,18 @@ const TaskCard = ({
             {relatedPet && (
               <Link
                 to={`/pets/${relatedPet.id || relatedPet.recordId}`}
-                className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                className="flex items-center gap-1.5 text-muted hover:text-primary transition-colors group/pet"
               >
-                <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center">
+                <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center group-hover/pet:bg-primary/20 transition-colors">
                   <PawPrint className="h-3 w-3 text-primary" />
                 </div>
-                <span className="hover:underline">{relatedPet.name}</span>
+                <span className="font-medium group-hover/pet:underline">{relatedPet.name}</span>
               </Link>
             )}
 
             {/* Completed Time */}
             {isCompleted && task.completedAt && (
-              <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
+              <div className="flex items-center gap-1.5 text-green-600 dark:text-green-400 font-medium">
                 <CheckCircle className="h-3.5 w-3.5" />
                 <span>Done {format(new Date(task.completedAt), 'h:mm a')}</span>
               </div>
@@ -301,7 +420,7 @@ const TaskCard = ({
         </div>
 
         {/* Right Side Actions */}
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <ActionButton
             icon={Edit}
             label="Edit"
@@ -341,31 +460,57 @@ const TaskCard = ({
   );
 };
 
-// Today's Summary Sidebar Card - Compact horizontal layout
+// Today's Summary Sidebar Card - Enhanced with larger icons and better visual grouping
 const TodaysSummary = ({ categoryCounts, taskTypes }) => {
+  const totalTasks = categoryCounts.all || 0;
+
   return (
     <div
-      className="rounded-xl border p-4"
+      className="rounded-xl border p-5"
       style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
     >
-      <div className="flex items-center gap-2 mb-3">
-        <BarChart3 className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-        <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Today's Summary</h3>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-lg bg-[color:var(--bb-color-accent-soft)] flex items-center justify-center">
+            <BarChart3 className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Today's Summary</h3>
+            <p className="text-xs text-[color:var(--bb-color-text-muted)]">{totalTasks} total tasks</p>
+          </div>
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-3">
         {Object.entries(taskTypes).map(([key, config]) => {
           const count = categoryCounts[key] || 0;
           const Icon = config.icon;
+          const hasItems = count > 0;
 
           return (
             <div
               key={key}
-              className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg', config.bg)}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all',
+                config.bg,
+                hasItems ? 'opacity-100' : 'opacity-50'
+              )}
               title={config.label}
             >
-              <Icon className={cn('h-3.5 w-3.5', config.color)} />
-              <span className="text-xs font-medium text-[color:var(--bb-color-text-primary)]">{count}</span>
+              <div className={cn(
+                'h-9 w-9 rounded-lg flex items-center justify-center',
+                'bg-white/60 dark:bg-black/20'
+              )}>
+                <Icon className={cn('h-5 w-5', config.color)} />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-lg font-bold text-[color:var(--bb-color-text-primary)] leading-tight">
+                  {count}
+                </span>
+                <span className="text-[10px] font-medium text-[color:var(--bb-color-text-muted)] uppercase tracking-wide">
+                  {config.label}
+                </span>
+              </div>
             </div>
           );
         })}
@@ -1031,8 +1176,8 @@ const Tasks = () => {
             className="rounded-xl border p-4"
             style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
           >
-            {/* Type Filter Chips + Sort */}
-            <div className="flex flex-wrap items-center gap-2 mb-3">
+            {/* Type Filter Chips + Sort - Enhanced pill-style tabs */}
+            <div className="flex flex-wrap items-center gap-2 mb-4 p-1 rounded-xl bg-[color:var(--bb-color-bg-elevated)]/50">
               {[
                 { key: 'all', label: 'All', icon: ClipboardList },
                 ...Object.entries(TASK_TYPES).map(([key, config]) => ({ key, label: config.label, icon: config.icon, color: config.color }))
@@ -1041,18 +1186,20 @@ const Tasks = () => {
                   key={key}
                   onClick={() => setFilterType(key)}
                   className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
+                    'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
                     filterType === key
-                      ? 'bg-[color:var(--bb-color-accent)] text-white'
-                      : 'hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]'
+                      ? 'bg-white dark:bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)] shadow-md ring-1 ring-black/5 dark:ring-white/10'
+                      : 'hover:bg-white/60 dark:hover:bg-[color:var(--bb-color-bg-surface)]/60 text-[color:var(--bb-color-text-muted)]'
                   )}
                 >
-                  <TypeIcon className={cn('h-3.5 w-3.5', filterType === key ? 'text-white' : color)} />
-                  {label}
+                  <TypeIcon className={cn('h-4 w-4', filterType === key ? color : 'text-current')} />
+                  <span>{label}</span>
                   {categoryCounts[key] > 0 && (
                     <span className={cn(
-                      'px-1.5 py-0.5 rounded text-xs',
-                      filterType === key ? 'bg-white/20' : 'bg-[color:var(--bb-color-bg-elevated)]'
+                      'min-w-[1.25rem] h-5 px-1.5 rounded-full text-xs font-semibold flex items-center justify-center transition-colors',
+                      filterType === key
+                        ? 'bg-[color:var(--bb-color-accent)] text-white'
+                        : 'bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]'
                     )}>
                       {categoryCounts[key]}
                     </span>
