@@ -82,7 +82,7 @@ const NOTIFICATION_STYLES = {
   info: { icon: 'ℹ️', color: 'text-blue-500' },
 };
 
-// Location Switcher Component
+// Location/Workspace Switcher Component - Premium Brand Moment
 const LocationSwitcher = () => {
   const [isOpen, setIsOpen] = useState(false);
   const tenant = useTenantStore((state) => state.tenant);
@@ -98,6 +98,7 @@ const LocationSwitcher = () => {
 
   const locations = tenant?.locations || [{ id: 'main', name: tenant?.name || 'Main Location', isDefault: true }];
   const currentLocation = locations.find((l) => l.isDefault) || locations[0];
+  const tenantInitial = (tenant?.name || currentLocation?.name || 'B')[0].toUpperCase();
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -105,26 +106,117 @@ const LocationSwitcher = () => {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'flex items-center gap-2 rounded-lg border px-3 py-2 min-h-11 text-sm transition-all',
-          'hover:bg-[color:var(--bb-color-bg-elevated)]',
+          'group flex items-center gap-3 rounded-xl px-3 py-2 min-h-11 text-sm transition-all',
+          'border-2',
+          'hover:border-[var(--bb-color-accent)]/30',
+          'hover:shadow-[0_0_0_4px_var(--bb-color-accent-soft)]',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]'
         )}
-        style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
-        aria-label="Switch location"
+        style={{
+          backgroundColor: 'var(--bb-color-bg-surface)',
+          borderColor: 'var(--bb-color-border-subtle)',
+        }}
+        aria-label="Switch workspace"
       >
-        <MapPin className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
-        <span className="hidden sm:inline font-medium text-[color:var(--bb-color-text-primary)]">{currentLocation?.name}</span>
-        <ChevronDown className={cn('h-4 w-4 text-[color:var(--bb-color-text-muted)] transition-transform', isOpen && 'rotate-180')} />
+        {/* Brand Logo/Avatar */}
+        <div
+          className={cn(
+            'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+            'bg-gradient-to-br from-amber-500 to-amber-600',
+            'shadow-sm shadow-amber-500/25',
+            'transition-transform duration-200',
+            'group-hover:scale-105'
+          )}
+        >
+          <span className="text-sm font-bold text-white">{tenantInitial}</span>
+        </div>
+
+        {/* Name & Location */}
+        <div className="hidden sm:flex flex-col items-start min-w-0">
+          <span className="font-semibold text-[color:var(--bb-color-text-primary)] truncate max-w-[140px]">
+            {tenant?.name || currentLocation?.name}
+          </span>
+          {locations.length > 1 && (
+            <span className="text-[0.65rem] text-[color:var(--bb-color-text-muted)] flex items-center gap-1">
+              <MapPin className="h-2.5 w-2.5" />
+              {currentLocation?.name}
+            </span>
+          )}
+        </div>
+
+        {/* Dropdown Arrow */}
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 text-[color:var(--bb-color-text-muted)] transition-transform duration-200',
+            isOpen && 'rotate-180'
+          )}
+        />
       </button>
+
+      {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1 w-56 rounded-lg border shadow-lg z-50" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
+        <div
+          className="absolute left-0 top-full mt-2 w-64 rounded-xl border-2 shadow-xl z-50 overflow-hidden"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            borderColor: 'var(--bb-color-border-subtle)',
+          }}
+        >
+          {/* Header */}
+          <div
+            className="px-4 py-3 border-b"
+            style={{
+              borderColor: 'var(--bb-color-border-subtle)',
+              backgroundColor: 'var(--bb-color-bg-elevated)',
+            }}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+              Workspace
+            </p>
+            <p className="text-sm font-medium text-[color:var(--bb-color-text-primary)] mt-0.5">
+              {tenant?.name || 'My Workspace'}
+            </p>
+          </div>
+
+          {/* Locations List */}
           <div className="p-2">
-            <p className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-[color:var(--bb-color-text-muted)]">Locations</p>
+            <p className="px-2 py-1.5 text-[0.65rem] font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+              Locations
+            </p>
             {locations.map((loc) => (
-              <button key={loc.id} type="button" onClick={() => setIsOpen(false)} className={cn('flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm transition-colors hover:bg-[color:var(--bb-color-bg-elevated)]', loc.id === currentLocation?.id && 'bg-[color:var(--bb-color-accent-soft)]')}>
-                <MapPin className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-                <span className="text-[color:var(--bb-color-text-primary)]">{loc.name}</span>
-                {loc.isDefault && <span className="ml-auto text-xs text-[color:var(--bb-color-accent)]">Default</span>}
+              <button
+                key={loc.id}
+                type="button"
+                onClick={() => setIsOpen(false)}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all',
+                  'hover:bg-[color:var(--bb-color-bg-elevated)]',
+                  loc.id === currentLocation?.id && 'bg-[color:var(--bb-color-accent-soft)]'
+                )}
+              >
+                <div
+                  className={cn(
+                    'flex h-8 w-8 items-center justify-center rounded-lg',
+                    loc.id === currentLocation?.id
+                      ? 'bg-[color:var(--bb-color-accent)] text-white'
+                      : 'bg-[color:var(--bb-color-bg-elevated)]'
+                  )}
+                >
+                  <MapPin className="h-4 w-4" />
+                </div>
+                <div className="flex-1 text-left">
+                  <span className="font-medium text-[color:var(--bb-color-text-primary)]">
+                    {loc.name}
+                  </span>
+                </div>
+                {loc.isDefault && (
+                  <span className="text-[0.65rem] font-medium px-2 py-0.5 rounded-full bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]">
+                    Default
+                  </span>
+                )}
+                {loc.id === currentLocation?.id && (
+                  <Check className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
+                )}
               </button>
             ))}
           </div>
@@ -134,7 +226,7 @@ const LocationSwitcher = () => {
   );
 };
 
-// Global Search Component
+// Global Search Component - Command Palette Style
 const GlobalSearch = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -164,25 +256,156 @@ const GlobalSearch = () => {
 
   return (
     <>
-      <button type="button" onClick={() => setIsOpen(true)} className={cn('flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all w-full hover:bg-[color:var(--bb-color-bg-elevated)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]')} style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }} aria-label="Search">
-        <Search className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-        <span className="hidden md:inline text-[color:var(--bb-color-text-muted)] flex-1 text-left">Search pets, owners, bookings...</span>
-        <kbd className="hidden lg:inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[0.65rem] font-medium text-[color:var(--bb-color-text-muted)]" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>Ctrl+K</kbd>
+      {/* Search Trigger Button - Premium styling */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className={cn(
+          'group flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm w-full',
+          'border-2 transition-all duration-200',
+          'hover:border-[var(--bb-color-accent)]/50',
+          'hover:shadow-[0_0_0_4px_var(--bb-color-accent-soft)]',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]'
+        )}
+        style={{
+          backgroundColor: 'var(--bb-color-bg-elevated)',
+          borderColor: 'var(--bb-color-border-subtle)',
+        }}
+        aria-label="Search"
+      >
+        <Search className="h-4 w-4 text-[color:var(--bb-color-text-muted)] group-hover:text-[color:var(--bb-color-accent)] transition-colors" />
+        <span className="hidden md:inline text-[color:var(--bb-color-text-muted)] flex-1 text-left">
+          Search anything...
+        </span>
+        <kbd
+          className={cn(
+            'hidden lg:inline-flex items-center gap-0.5 rounded-md px-2 py-1',
+            'text-[0.65rem] font-semibold',
+            'bg-[var(--bb-color-bg-surface)] border',
+            'text-[color:var(--bb-color-text-muted)]',
+            'group-hover:border-[var(--bb-color-accent)]/30 group-hover:text-[color:var(--bb-color-accent)]',
+            'transition-colors'
+          )}
+          style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+        >
+          <span className="text-[0.6rem]">⌘</span>K
+        </kbd>
       </button>
+
+      {/* Command Palette Modal */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
-          <div className="absolute inset-0" style={{ backgroundColor: 'var(--bb-color-overlay-scrim)' }} onClick={() => setIsOpen(false)} />
-          <div className="relative w-full max-w-xl mx-4 rounded-xl border shadow-2xl" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]">
+          {/* Backdrop with blur */}
+          <div
+            className="absolute inset-0 backdrop-blur-sm"
+            style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+            onClick={() => setIsOpen(false)}
+          />
+          {/* Modal */}
+          <div
+            className={cn(
+              'relative w-full max-w-2xl mx-4 rounded-2xl border-2 overflow-hidden',
+              'shadow-2xl shadow-black/20'
+            )}
+            style={{
+              backgroundColor: 'var(--bb-color-bg-surface)',
+              borderColor: 'var(--bb-color-border-subtle)',
+            }}
+          >
+            {/* Search Input */}
             <form onSubmit={handleSearch}>
-              <div className="flex items-center gap-3 border-b px-4 py-3" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-                <Search className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
-                <input ref={inputRef} type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search pets, owners, bookings..." className="flex-1 bg-transparent text-[color:var(--bb-color-text-primary)] placeholder:text-[color:var(--bb-color-text-muted)] focus:outline-none" />
-                <button type="button" onClick={() => setIsOpen(false)} className="rounded p-1 hover:bg-[color:var(--bb-color-bg-elevated)]"><X className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" /></button>
+              <div
+                className="flex items-center gap-4 px-5 py-4 border-b"
+                style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+              >
+                <Search className="h-5 w-5 text-[color:var(--bb-color-accent)]" />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search pets, owners, bookings, invoices..."
+                  className={cn(
+                    'flex-1 bg-transparent text-lg',
+                    'text-[color:var(--bb-color-text-primary)]',
+                    'placeholder:text-[color:var(--bb-color-text-muted)]',
+                    'focus:outline-none'
+                  )}
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className={cn(
+                    'rounded-lg p-2 transition-colors',
+                    'hover:bg-[color:var(--bb-color-bg-elevated)]'
+                  )}
+                >
+                  <X className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
+                </button>
               </div>
             </form>
-            <div className="p-4 text-center text-sm text-[color:var(--bb-color-text-muted)]">
-              <p>Type to search across all records</p>
-              <p className="mt-1 text-xs">Press <kbd className="rounded border px-1" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>Enter</kbd> to search or <kbd className="rounded border px-1" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>Esc</kbd> to close</p>
+
+            {/* Quick Actions */}
+            <div className="p-3">
+              <p
+                className="px-3 py-2 text-xs font-semibold uppercase tracking-wider"
+                style={{ color: 'var(--bb-color-text-muted)' }}
+              >
+                Quick Actions
+              </p>
+              <div className="space-y-1">
+                {[
+                  { icon: '🐕', label: 'Search pets', hint: 'Find by name or breed' },
+                  { icon: '👤', label: 'Search owners', hint: 'Find by name or email' },
+                  { icon: '📅', label: 'Search bookings', hint: 'Find by date or status' },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    className={cn(
+                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left',
+                      'transition-colors hover:bg-[color:var(--bb-color-bg-elevated)]'
+                    )}
+                    onClick={() => {
+                      setQuery(item.label.split(' ')[1] + ':');
+                      inputRef.current?.focus();
+                    }}
+                  >
+                    <span className="text-lg">{item.icon}</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">
+                        {item.label}
+                      </p>
+                      <p className="text-xs text-[color:var(--bb-color-text-muted)]">
+                        {item.hint}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div
+              className="flex items-center justify-between px-5 py-3 border-t"
+              style={{
+                borderColor: 'var(--bb-color-border-subtle)',
+                backgroundColor: 'var(--bb-color-bg-elevated)',
+              }}
+            >
+              <div className="flex items-center gap-4 text-xs text-[color:var(--bb-color-text-muted)]">
+                <span className="flex items-center gap-1.5">
+                  <kbd className="rounded border px-1.5 py-0.5 text-[0.6rem] font-medium" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>↵</kbd>
+                  Search
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <kbd className="rounded border px-1.5 py-0.5 text-[0.6rem] font-medium" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>Esc</kbd>
+                  Close
+                </span>
+              </div>
+              <span className="text-xs text-[color:var(--bb-color-text-muted)]">
+                Powered by BarkBase
+              </span>
             </div>
           </div>
         </div>
@@ -191,7 +414,7 @@ const GlobalSearch = () => {
   );
 };
 
-// Live Connection Status Indicator
+// Live Connection Status Indicator - Premium with glow
 const LiveIndicator = () => {
   const [status, setStatus] = useState('connecting'); // 'live' | 'connecting' | 'offline'
   const [showTooltip, setShowTooltip] = useState(false);
@@ -227,17 +450,26 @@ const LiveIndicator = () => {
 
   const statusConfig = {
     live: {
-      color: 'var(--bb-color-status-positive)',
+      dotClass: 'bg-emerald-500',
+      glowClass: 'shadow-[0_0_8px_rgba(16,185,129,0.6)]',
+      bgClass: 'bg-emerald-500/10 border-emerald-500/30',
+      textClass: 'text-emerald-600 dark:text-emerald-400',
       label: 'Live',
       tooltip: 'Real-time updates active',
     },
     connecting: {
-      color: 'var(--bb-color-status-warning, #f59e0b)',
+      dotClass: 'bg-amber-500',
+      glowClass: '',
+      bgClass: 'bg-amber-500/10 border-amber-500/30',
+      textClass: 'text-amber-600 dark:text-amber-400',
       label: 'Connecting',
       tooltip: 'Establishing connection...',
     },
     offline: {
-      color: 'var(--bb-color-status-negative)',
+      dotClass: 'bg-red-500',
+      glowClass: '',
+      bgClass: 'bg-red-500/10 border-red-500/30',
+      textClass: 'text-red-600 dark:text-red-400',
       label: 'Offline',
       tooltip: 'No connection - changes may not sync',
     },
@@ -247,26 +479,40 @@ const LiveIndicator = () => {
 
   return (
     <div
-      className="relative hidden sm:flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium cursor-default"
-      style={{
-        backgroundColor: 'var(--bb-color-bg-elevated)',
-        borderColor: 'var(--bb-color-border-subtle)',
-        color: 'var(--bb-color-text-muted)',
-      }}
+      className={cn(
+        'relative hidden sm:flex items-center gap-2 rounded-full border px-3 py-1.5',
+        'text-xs font-semibold cursor-default transition-all',
+        config.bgClass
+      )}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
     >
-      <span
-        className={cn('h-2 w-2 rounded-full', status === 'connecting' && 'animate-pulse')}
-        style={{ backgroundColor: config.color }}
-      />
-      <span>{config.label}</span>
+      {/* Animated dot with glow */}
+      <span className="relative flex h-2 w-2">
+        {status === 'live' && (
+          <span className={cn('absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping', config.dotClass)} />
+        )}
+        <span
+          className={cn(
+            'relative inline-flex h-2 w-2 rounded-full',
+            config.dotClass,
+            config.glowClass,
+            status === 'connecting' && 'animate-pulse'
+          )}
+        />
+      </span>
+      <span className={config.textClass}>{config.label}</span>
 
+      {/* Tooltip */}
       {showTooltip && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 top-full mt-2 whitespace-nowrap rounded-md px-2 py-1 text-xs shadow-lg z-50"
+          className={cn(
+            'absolute left-1/2 -translate-x-1/2 top-full mt-2',
+            'whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium',
+            'shadow-lg z-50'
+          )}
           style={{
-            backgroundColor: 'var(--bb-color-bg-elevated)',
+            backgroundColor: 'var(--bb-color-bg-surface)',
             color: 'var(--bb-color-text-primary)',
             border: '1px solid var(--bb-color-border-subtle)',
           }}
@@ -1286,24 +1532,109 @@ const ProfileDropdown = () => {
 
 const Topbar = ({ onToggleSidebar }) => {
   return (
-    <header className="sticky top-0 z-30 flex w-full border-b" style={{ backgroundColor: 'var(--bb-color-topbar-bg)', borderColor: 'var(--bb-color-topbar-border)', boxShadow: 'var(--bb-color-topbar-shadow)' }}>
-      <div className="mx-auto flex h-[var(--bb-topbar-height,56px)] w-full items-center justify-between gap-4 px-[var(--bb-space-4,1rem)] sm:px-[var(--bb-space-6,1.5rem)] lg:px-[var(--bb-space-8,2rem)]">
-        {/* Left: Mobile menu + Location */}
+    <header
+      className={cn(
+        'sticky top-0 z-30 flex w-full',
+        'border-b backdrop-blur-sm'
+      )}
+      style={{
+        backgroundColor: 'var(--bb-color-topbar-bg)',
+        borderColor: 'var(--bb-color-topbar-border)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1)',
+      }}
+    >
+      {/* Subtle gradient overlay for visual interest */}
+      <div
+        className="absolute inset-0 opacity-50 pointer-events-none"
+        style={{
+          background: 'linear-gradient(90deg, var(--bb-color-accent-soft) 0%, transparent 30%, transparent 70%, var(--bb-color-accent-soft) 100%)',
+        }}
+      />
+
+      <div className="relative mx-auto flex h-[var(--bb-topbar-height,60px)] w-full items-center justify-between gap-4 px-[var(--bb-space-4,1rem)] sm:px-[var(--bb-space-6,1.5rem)] lg:px-[var(--bb-space-8,2rem)]">
+        {/* Left: Mobile menu + Workspace */}
         <div className="flex items-center gap-3">
-          <button type="button" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border text-[color:var(--bb-color-text-muted)] transition-colors hover:bg-[color:var(--bb-color-bg-elevated)] hover:text-[color:var(--bb-color-text-primary)] lg:hidden" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }} onClick={onToggleSidebar} aria-label="Open navigation">
+          {/* Mobile Menu Button */}
+          <button
+            type="button"
+            className={cn(
+              'inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl border-2',
+              'text-[color:var(--bb-color-text-muted)] transition-all duration-200',
+              'hover:bg-[color:var(--bb-color-bg-elevated)]',
+              'hover:text-[color:var(--bb-color-text-primary)]',
+              'hover:border-[var(--bb-color-accent)]/30',
+              'lg:hidden'
+            )}
+            style={{
+              backgroundColor: 'var(--bb-color-bg-surface)',
+              borderColor: 'var(--bb-color-border-subtle)',
+            }}
+            onClick={onToggleSidebar}
+            aria-label="Open navigation"
+          >
             <Menu className="h-5 w-5" />
           </button>
           <LocationSwitcher />
           <LiveIndicator />
         </div>
-        {/* Center: Search + Shortcuts hint */}
-        <div className="flex-1 max-w-xl hidden sm:flex items-center gap-3"><div className="flex-1 max-w-lg"><GlobalSearch /></div><span className="hidden lg:flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)] whitespace-nowrap">Press <kbd className="rounded border px-1.5 py-0.5 text-[0.65rem] font-medium" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>?</kbd> for shortcuts</span></div>
+
+        {/* Center: Search */}
+        <div className="flex-1 max-w-xl hidden sm:flex items-center gap-4">
+          <div className="flex-1 max-w-lg">
+            <GlobalSearch />
+          </div>
+          <span
+            className={cn(
+              'hidden xl:flex items-center gap-1.5 text-xs',
+              'text-[color:var(--bb-color-text-muted)] whitespace-nowrap'
+            )}
+          >
+            Press{' '}
+            <kbd
+              className={cn(
+                'rounded-md border px-2 py-0.5 text-[0.65rem] font-semibold',
+                'bg-[var(--bb-color-bg-surface)]'
+              )}
+              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            >
+              ?
+            </kbd>{' '}
+            for shortcuts
+          </span>
+        </div>
+
         {/* Right: Actions + User */}
-        <div className="flex items-center gap-2">
-          <button type="button" className="sm:hidden flex min-h-11 min-w-11 items-center justify-center rounded-lg border" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }} aria-label="Search"><Search className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" /></button>
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* Mobile Search */}
+          <button
+            type="button"
+            className={cn(
+              'sm:hidden flex min-h-11 min-w-11 items-center justify-center rounded-xl border-2',
+              'transition-all duration-200',
+              'hover:bg-[color:var(--bb-color-bg-elevated)]',
+              'hover:border-[var(--bb-color-accent)]/30'
+            )}
+            style={{
+              backgroundColor: 'var(--bb-color-bg-surface)',
+              borderColor: 'var(--bb-color-border-subtle)',
+            }}
+            aria-label="Search"
+            onClick={() => window.dispatchEvent(new CustomEvent('bb-open-search'))}
+          >
+            <Search className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+          </button>
+
+          {/* Action buttons with consistent styling */}
           <NotificationsButton />
           <HelpButton />
           <TimeClockButton />
+
+          {/* Separator */}
+          <div
+            className="hidden sm:block h-8 w-px mx-1"
+            style={{ backgroundColor: 'var(--bb-color-border-subtle)' }}
+          />
+
           <ThemeToggle />
           <ProfileDropdown />
         </div>
