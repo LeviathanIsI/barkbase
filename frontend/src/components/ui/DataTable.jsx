@@ -543,9 +543,9 @@ const DataTable = ({
         <div className="flex-1" />
 
         {/* Search */}
-        <div className="relative w-64">
+        <div className="relative w-72">
           <Search
-            className="absolute left-[var(--bb-space-3,0.75rem)] top-1/2 h-4 w-4 -translate-y-1/2"
+            className="absolute left-[var(--bb-space-3,0.75rem)] top-1/2 h-4 w-4 -translate-y-1/2 transition-colors"
             style={{ color: 'var(--bb-color-text-muted)' }}
           />
           <input
@@ -553,13 +553,28 @@ const DataTable = ({
             placeholder={searchPlaceholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border py-[var(--bb-space-1\\.5,0.375rem)] pl-9 pr-[var(--bb-space-3,0.75rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
+            className={cn(
+              'w-full rounded-xl border-2 py-2 pl-10 pr-4',
+              'text-[var(--bb-font-size-sm,0.875rem)]',
+              'transition-all duration-200',
+              'focus:outline-none focus:border-[var(--bb-color-accent)]',
+              'focus:ring-4 focus:ring-[var(--bb-color-accent)]/10',
+              'placeholder:text-[var(--bb-color-text-muted)]'
+            )}
             style={{
               borderColor: 'var(--bb-color-border-subtle)',
-              backgroundColor: 'var(--bb-color-bg-elevated)',
+              backgroundColor: 'var(--bb-color-bg-surface)',
               color: 'var(--bb-color-text-primary)',
             }}
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-[var(--bb-color-bg-elevated)] transition-colors"
+            >
+              <X className="h-4 w-4" style={{ color: 'var(--bb-color-text-muted)' }} />
+            </button>
+          )}
         </div>
 
         {/* Export */}
@@ -626,52 +641,70 @@ const DataTable = ({
         </div>
       )}
 
-      {/* Table */}
-      <div style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}>
-        <table className="w-full">
+      {/* Table Container with horizontal scroll */}
+      <div
+        className="overflow-x-auto"
+        style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}
+      >
+        <table className="w-full border-collapse">
+          {/* Sticky Header */}
           <thead
-            className="border-b"
+            className="sticky top-0 z-10 border-b-2"
             style={{
               borderColor: 'var(--bb-color-border-subtle)',
               backgroundColor: 'var(--bb-color-bg-elevated)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
             }}
           >
             <tr>
               {enableSelection && (
-                <th className="w-12 px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-3,0.75rem)]">
-                  <input
-                    type="checkbox"
-                    checked={selectedRows.size === paginatedData.length && paginatedData.length > 0}
-                    onChange={handleSelectAll}
-                    aria-label="Select all rows"
-                    className="h-4 w-4 rounded"
-                    style={{
-                      borderColor: 'var(--bb-color-border-subtle)',
-                      accentColor: 'var(--bb-color-accent)',
-                    }}
-                  />
+                <th className="w-12 px-[var(--bb-space-4,1rem)] py-[var(--bb-space-4,1rem)]">
+                  <div className="flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.size === paginatedData.length && paginatedData.length > 0}
+                      onChange={handleSelectAll}
+                      aria-label="Select all rows"
+                      className="h-4 w-4 rounded border-2 cursor-pointer transition-colors"
+                      style={{
+                        borderColor: 'var(--bb-color-border-strong)',
+                        accentColor: 'var(--bb-color-accent)',
+                      }}
+                    />
+                  </div>
                 </th>
               )}
               {columns.map((column, idx) => {
                 if (!visibleColumns[idx]) return null;
+                const isActive = sortColumn?.accessor === column.accessor;
                 return (
                   <th
                     key={idx}
                     className={cn(
-                      'px-[var(--bb-space-4,1rem)] py-[var(--bb-space-3,0.75rem)] text-left text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wider',
-                      column.sortable && 'cursor-pointer select-none'
+                      'px-[var(--bb-space-4,1rem)] py-[var(--bb-space-4,1rem)] text-left',
+                      'text-[0.6875rem] font-semibold uppercase tracking-wider',
+                      column.sortable && 'cursor-pointer select-none group',
+                      column.sortable && 'hover:bg-[var(--bb-color-bg-surface)]',
+                      'transition-colors duration-150'
                     )}
-                    style={{ color: 'var(--bb-color-text-muted)' }}
+                    style={{
+                      color: isActive ? 'var(--bb-color-accent)' : 'var(--bb-color-text-muted)',
+                    }}
                     onClick={() => handleSort(column)}
                   >
-                    <div className="flex items-center gap-[var(--bb-space-1,0.25rem)]">
+                    <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
                       <span>{column.header}</span>
-                      {column.sortable && sortColumn?.accessor === column.accessor && (
-                        sortDirection === 'asc' ? (
-                          <ChevronUp className="h-3 w-3" />
-                        ) : (
-                          <ChevronDown className="h-3 w-3" />
-                        )
+                      {column.sortable && (
+                        <span className={cn(
+                          'flex items-center transition-opacity',
+                          isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'
+                        )}>
+                          {isActive && sortDirection === 'asc' ? (
+                            <ChevronUp className="h-4 w-4" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4" />
+                          )}
+                        </span>
                       )}
                     </div>
                   </th>
@@ -679,67 +712,99 @@ const DataTable = ({
               })}
             </tr>
           </thead>
-          <tbody
-            className="divide-y"
-            style={{
-              divideColor: 'var(--bb-color-border-subtle)',
-              backgroundColor: 'var(--bb-color-bg-surface)',
-            }}
-          >
+          <tbody style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}>
             {paginatedData.length === 0 ? (
               <tr>
                 <td
                   colSpan={Object.values(visibleColumns).filter(Boolean).length + (enableSelection ? 1 : 0)}
-                  className="px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-12,3rem)] text-center text-[var(--bb-font-size-sm,0.875rem)]"
-                  style={{ color: 'var(--bb-color-text-muted)' }}
+                  className="px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-16,4rem)] text-center"
                 >
-                  No records found
+                  <div className="flex flex-col items-center gap-2">
+                    <div
+                      className="h-12 w-12 rounded-xl flex items-center justify-center"
+                      style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+                    >
+                      <Search className="h-6 w-6" style={{ color: 'var(--bb-color-text-muted)' }} />
+                    </div>
+                    <p
+                      className="text-[var(--bb-font-size-sm,0.875rem)] font-medium"
+                      style={{ color: 'var(--bb-color-text-primary)' }}
+                    >
+                      No records found
+                    </p>
+                    <p
+                      className="text-[var(--bb-font-size-sm,0.875rem)]"
+                      style={{ color: 'var(--bb-color-text-muted)' }}
+                    >
+                      Try adjusting your search or filters
+                    </p>
+                  </div>
                 </td>
               </tr>
             ) : (
-              paginatedData.map((row) => (
+              paginatedData.map((row, rowIndex) => (
                 <tr
                   key={row.recordId}
                   onClick={() => onRowClick?.(row)}
                   className={cn(
-                    'transition-colors',
-                    onRowClick && 'cursor-pointer'
+                    'group transition-all duration-150',
+                    'border-b',
+                    onRowClick && 'cursor-pointer',
+                    selectedRows.has(row.recordId) && 'bg-amber-50/50 dark:bg-amber-900/10'
                   )}
                   style={{
-                    backgroundColor: 'var(--bb-color-bg-surface)',
+                    borderColor: 'var(--bb-color-border-subtle)',
+                    backgroundColor: selectedRows.has(row.recordId)
+                      ? undefined
+                      : 'var(--bb-color-bg-surface)',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--bb-color-sidebar-item-hover-bg)';
+                    if (!selectedRows.has(row.recordId)) {
+                      e.currentTarget.style.backgroundColor = 'var(--bb-color-bg-elevated)';
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--bb-color-bg-surface)';
+                    if (!selectedRows.has(row.recordId)) {
+                      e.currentTarget.style.backgroundColor = 'var(--bb-color-bg-surface)';
+                    }
                   }}
                 >
                   {enableSelection && (
-                    <td className="px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-4,1rem)]">
-                      <input
-                        type="checkbox"
-                        checked={selectedRows.has(row.recordId)}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          handleSelectRow(row.recordId);
-                        }}
-                        aria-label="Select row"
-                        className="h-4 w-4 rounded"
-                        style={{
-                          borderColor: 'var(--bb-color-border-subtle)',
-                          accentColor: 'var(--bb-color-accent)',
-                        }}
-                      />
+                    <td className="px-[var(--bb-space-4,1rem)] py-[var(--bb-space-5,1.25rem)]">
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.has(row.recordId)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleSelectRow(row.recordId);
+                          }}
+                          aria-label="Select row"
+                          className="h-4 w-4 rounded border-2 cursor-pointer transition-colors"
+                          style={{
+                            borderColor: 'var(--bb-color-border-strong)',
+                            accentColor: 'var(--bb-color-accent)',
+                          }}
+                        />
+                      </div>
                     </td>
                   )}
                   {columns.map((column, idx) => {
                     if (!visibleColumns[idx]) return null;
+                    const isPrimary = idx === 0 || column.primary;
                     return (
                       <td
                         key={idx}
-                        className="px-[var(--bb-space-4,1rem)] py-[var(--bb-space-4,1rem)] text-[var(--bb-font-size-sm,0.875rem)]"
-                        style={{ color: 'var(--bb-color-text-primary)' }}
+                        className={cn(
+                          'px-[var(--bb-space-4,1rem)] py-[var(--bb-space-5,1.25rem)]',
+                          'text-[var(--bb-font-size-sm,0.875rem)]',
+                          isPrimary ? 'font-medium' : 'font-normal'
+                        )}
+                        style={{
+                          color: isPrimary
+                            ? 'var(--bb-color-text-primary)'
+                            : 'var(--bb-color-text-secondary)',
+                        }}
                       >
                         {column.cell ? column.cell(row) : row[column.accessor]}
                       </td>
@@ -754,90 +819,136 @@ const DataTable = ({
 
       {/* Pagination */}
       <div
-        className="flex items-center justify-center gap-[var(--bb-space-1,0.25rem)] border-t px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-4,1rem)]"
+        className="flex items-center justify-between border-t px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-4,1rem)]"
         style={{
           borderColor: 'var(--bb-color-border-subtle)',
           backgroundColor: 'var(--bb-color-bg-surface)',
         }}
       >
-        <Button
-          variant="link"
-          size="sm"
-          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-          disabled={currentPage === 1}
+        {/* Left: Record count */}
+        <div
+          className="text-[var(--bb-font-size-sm,0.875rem)]"
+          style={{ color: 'var(--bb-color-text-muted)' }}
         >
-          Prev
-        </Button>
+          Showing{' '}
+          <span style={{ color: 'var(--bb-color-text-primary)', fontWeight: 500 }}>
+            {Math.min((currentPage - 1) * itemsPerPage + 1, filteredData.length)}
+          </span>
+          {' '}-{' '}
+          <span style={{ color: 'var(--bb-color-text-primary)', fontWeight: 500 }}>
+            {Math.min(currentPage * itemsPerPage, filteredData.length)}
+          </span>
+          {' '}of{' '}
+          <span style={{ color: 'var(--bb-color-text-primary)', fontWeight: 500 }}>
+            {filteredData.length}
+          </span>
+        </div>
 
-        {getPaginationRange().map((page, idx) => (
-          page === '...' ? (
-            <span
-              key={`ellipsis-${idx}`}
-              className="px-[var(--bb-space-2,0.5rem)]"
-              style={{ color: 'var(--bb-color-text-muted)' }}
-            >
-              ...
-            </span>
-          ) : (
-            <Button
-              key={page}
-              variant={currentPage === page ? 'primary' : 'ghost'}
-              size="sm"
-              onClick={() => setCurrentPage(page)}
-              className="min-w-[2rem]"
-            >
-              {page}
-            </Button>
-          )
-        ))}
-
-        <Button
-          variant="link"
-          size="sm"
-          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-          disabled={currentPage === totalPages}
-        >
-          Next
-        </Button>
-
-        <div ref={pageSizeDropdownRef} className="relative ml-[var(--bb-space-4,1rem)]">
+        {/* Center: Page numbers */}
+        <div className="flex items-center gap-[var(--bb-space-1,0.25rem)]">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            onClick={() => setShowPageSizeDropdown(!showPageSizeDropdown)}
-            rightIcon={
-              <ChevronDown
-                className={cn('h-3 w-3 transition-transform', showPageSizeDropdown && 'rotate-180')}
-              />
-            }
+            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className="gap-1"
           >
-            {itemsPerPage} per page
+            <ChevronLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">Prev</span>
           </Button>
+
+          <div className="flex items-center gap-[var(--bb-space-0\\.5,0.125rem)]">
+            {getPaginationRange().map((page, idx) => (
+              page === '...' ? (
+                <span
+                  key={`ellipsis-${idx}`}
+                  className="px-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)]"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                >
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={cn(
+                    'min-w-[2rem] h-8 px-2 rounded-lg text-[var(--bb-font-size-sm,0.875rem)] font-medium',
+                    'transition-all duration-150',
+                    currentPage === page
+                      ? 'bg-[var(--bb-color-accent)] text-white shadow-sm'
+                      : 'text-[var(--bb-color-text-secondary)] hover:bg-[var(--bb-color-bg-elevated)]'
+                  )}
+                >
+                  {page}
+                </button>
+              )
+            ))}
+          </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            className="gap-1"
+          >
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Right: Page size selector */}
+        <div ref={pageSizeDropdownRef} className="relative">
+          <button
+            onClick={() => setShowPageSizeDropdown(!showPageSizeDropdown)}
+            className={cn(
+              'flex items-center gap-2 px-3 py-1.5 rounded-lg',
+              'text-[var(--bb-font-size-sm,0.875rem)]',
+              'border transition-all duration-150',
+              'hover:border-[var(--bb-color-accent)]'
+            )}
+            style={{
+              borderColor: 'var(--bb-color-border-subtle)',
+              backgroundColor: 'var(--bb-color-bg-surface)',
+              color: 'var(--bb-color-text-primary)',
+            }}
+          >
+            <span>{itemsPerPage} per page</span>
+            <ChevronDown
+              className={cn('h-4 w-4 transition-transform', showPageSizeDropdown && 'rotate-180')}
+              style={{ color: 'var(--bb-color-text-muted)' }}
+            />
+          </button>
 
           {showPageSizeDropdown && (
             <div
-              className="absolute bottom-full left-0 mb-1 w-full rounded-md border shadow-lg"
+              className="absolute bottom-full right-0 mb-1 min-w-[120px] rounded-lg border shadow-lg overflow-hidden"
               style={{
                 borderColor: 'var(--bb-color-border-subtle)',
                 backgroundColor: 'var(--bb-color-bg-surface)',
               }}
             >
-              <div className="py-[var(--bb-space-1,0.25rem)]">
+              <div className="py-1">
                 {[25, 50, 100].map((size) => (
-                  <Button
+                  <button
                     key={size}
-                    variant={itemsPerPage === size ? 'primary' : 'ghost'}
-                    size="sm"
                     onClick={() => {
                       setItemsPerPage(size);
                       setCurrentPage(1);
                       setShowPageSizeDropdown(false);
                     }}
-                    className="w-full justify-between"
-                    rightIcon={itemsPerPage === size ? <Check className="h-4 w-4" /> : undefined}
+                    className={cn(
+                      'w-full flex items-center justify-between px-3 py-2',
+                      'text-[var(--bb-font-size-sm,0.875rem)]',
+                      'transition-colors duration-150',
+                      itemsPerPage === size
+                        ? 'bg-[var(--bb-color-accent-soft)] text-[var(--bb-color-accent)] font-medium'
+                        : 'text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-elevated)]'
+                    )}
                   >
-                    {size} per page
-                  </Button>
+                    <span>{size} per page</span>
+                    {itemsPerPage === size && <Check className="h-4 w-4" />}
+                  </button>
                 ))}
               </div>
             </div>
