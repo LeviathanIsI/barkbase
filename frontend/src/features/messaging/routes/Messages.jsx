@@ -788,7 +788,7 @@ const Messages = () => {
               <li className="text-[color:var(--bb-color-text-primary)] font-medium">Messages</li>
             </ol>
           </nav>
-          <h1 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)]">Messages</h1>
+          <h1 className="text-[var(--bb-heading-page-size)] font-[var(--bb-heading-page-weight)] leading-[var(--bb-heading-page-leading)] tracking-[var(--bb-heading-page-tracking)] text-[color:var(--bb-color-text-primary)]">Messages</h1>
         </div>
 
         <div className="flex items-center gap-2">

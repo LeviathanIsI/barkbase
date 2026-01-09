@@ -3252,8 +3252,8 @@ const TeamOverview = () => {
                 <li className="text-[color:var(--bb-color-text-primary)] font-medium">Team</li>
               </ol>
             </nav>
-            <h1 className="text-lg font-semibold text-text">Team Management</h1>
-            <p className="text-xs text-muted mt-0.5">Build and manage your team</p>
+            <h1 className="text-[var(--bb-heading-page-size)] font-[var(--bb-heading-page-weight)] leading-[var(--bb-heading-page-leading)] tracking-[var(--bb-heading-page-tracking)] text-[color:var(--bb-color-text-primary)]">Team Management</h1>
+            <p className="text-[var(--bb-body-size)] leading-[var(--bb-body-leading)] text-[color:var(--bb-color-text-muted)] mt-1">Build and manage your team</p>
           </div>
           <Button size="sm" onClick={() => setShowAddStaff(true)}>
             <UserPlus className="h-3.5 w-3.5 mr-1.5" />
@@ -3296,8 +3296,8 @@ const TeamOverview = () => {
               <li className="text-[color:var(--bb-color-text-primary)] font-medium">Team</li>
             </ol>
           </nav>
-          <h1 className="text-lg font-semibold text-text">Team Management</h1>
-          <p className="text-xs text-muted mt-0.5">Manage staff, schedules, and performance</p>
+          <h1 className="text-[var(--bb-heading-page-size)] font-[var(--bb-heading-page-weight)] leading-[var(--bb-heading-page-leading)] tracking-[var(--bb-heading-page-tracking)] text-[color:var(--bb-color-text-primary)]">Team Management</h1>
+          <p className="text-[var(--bb-body-size)] leading-[var(--bb-body-leading)] text-[color:var(--bb-color-text-muted)] mt-1">Manage staff, schedules, and performance</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm">

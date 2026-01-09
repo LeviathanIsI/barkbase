@@ -750,7 +750,7 @@ const Kennels = () => {
                 <li className="text-text font-medium">Kennels</li>
               </ol>
             </nav>
-            <h1 className="text-lg font-semibold text-text">Kennel Management</h1>
+            <h1 className="text-[var(--bb-heading-page-size)] font-[var(--bb-heading-page-weight)] leading-[var(--bb-heading-page-leading)] tracking-[var(--bb-heading-page-tracking)] text-[color:var(--bb-color-text-primary)]">Kennel Management</h1>
           </div>
         </div>
         <Card className="p-8 text-center">
@@ -778,8 +778,8 @@ const Kennels = () => {
               <li className="text-[color:var(--bb-color-text-primary)] font-medium">Kennels</li>
             </ol>
           </nav>
-          <h1 className="text-xl font-semibold text-[color:var(--bb-color-text-primary)]">Facility Map</h1>
-          <p className="text-sm text-[color:var(--bb-color-text-muted)] mt-1">Visual layout of kennel accommodations</p>
+          <h1 className="text-[var(--bb-heading-page-size)] font-[var(--bb-heading-page-weight)] leading-[var(--bb-heading-page-leading)] tracking-[var(--bb-heading-page-tracking)] text-[color:var(--bb-color-text-primary)]">Facility Map</h1>
+          <p className="text-[var(--bb-body-size)] leading-[var(--bb-body-leading)] text-[color:var(--bb-color-text-muted)] mt-1">Visual layout of kennel accommodations</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" asChild>

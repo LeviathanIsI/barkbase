@@ -254,7 +254,9 @@ const CardTitle = React.forwardRef(({ className, children, ...props }, ref) => (
   <h3
     ref={ref}
     className={cn(
-      'text-[var(--bb-font-size-lg,1.125rem)] font-semibold leading-tight tracking-tight text-[color:var(--bb-color-text-primary)]',
+      'text-[var(--bb-heading-section-size)] font-[var(--bb-heading-section-weight)]',
+      'leading-[var(--bb-heading-section-leading)] tracking-[var(--bb-heading-section-tracking)]',
+      'text-[color:var(--bb-color-text-primary)]',
       className,
     )}
     {...props}
@@ -272,7 +274,9 @@ const CardDescription = React.forwardRef(({ className, children, ...props }, ref
   <p
     ref={ref}
     className={cn(
-      'text-[color:var(--bb-color-text-muted)] text-[var(--bb-font-size-sm,0.875rem)] leading-normal',
+      'text-[var(--bb-body-size)] font-[var(--bb-body-weight)]',
+      'leading-[var(--bb-body-leading)]',
+      'text-[color:var(--bb-color-text-muted)]',
       className,
     )}
     {...props}
@@ -528,23 +532,23 @@ const StatCard = React.forwardRef(({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           {title && (
-            <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--bb-color-text-muted)] mb-1">
+            <p className="text-[var(--bb-label-size)] font-[var(--bb-label-weight)] uppercase tracking-[var(--bb-label-tracking)] text-[color:var(--bb-color-text-muted)] mb-1">
               {title}
             </p>
           )}
           {value !== undefined && (
-            <p className="text-2xl font-semibold text-[color:var(--bb-color-text-primary)] leading-tight">
+            <p className="text-[var(--bb-text-2xl)] font-[var(--bb-font-weight-semibold)] text-[color:var(--bb-color-text-primary)] leading-[var(--bb-leading-tight)] tabular-nums">
               {value}
             </p>
           )}
           {subtitle && (
-            <p className="text-xs text-[color:var(--bb-color-text-muted)] mt-1">
+            <p className="text-[var(--bb-small-size)] text-[color:var(--bb-color-text-muted)] mt-1">
               {subtitle}
             </p>
           )}
           {change && (
             <p
-              className="text-xs font-medium mt-2"
+              className="text-[var(--bb-small-size)] font-[var(--bb-font-weight-medium)] mt-2"
               style={{
                 color:
                   trend === 'up'
@@ -618,20 +622,20 @@ const MetricCard = React.forwardRef(({
             </div>
           )}
           <div className="min-w-0">
-            <p className="text-[color:var(--bb-color-text-muted)] text-xs font-medium uppercase tracking-wide">
+            <p className="text-[var(--bb-label-size)] font-[var(--bb-label-weight)] uppercase tracking-[var(--bb-label-tracking)] text-[color:var(--bb-color-text-muted)]">
               {title}
             </p>
-            <p className="mt-0.5 text-xl font-semibold text-[color:var(--bb-color-text-primary)] leading-tight">
+            <p className="mt-0.5 text-[var(--bb-text-xl)] font-[var(--bb-font-weight-semibold)] text-[color:var(--bb-color-text-primary)] leading-[var(--bb-leading-tight)] tabular-nums">
               {value}
             </p>
             {subtitle && (
-              <p className="mt-0.5 text-[color:var(--bb-color-text-muted)] text-xs leading-normal">
+              <p className="mt-0.5 text-[var(--bb-small-size)] leading-[var(--bb-small-leading)] text-[color:var(--bb-color-text-muted)]">
                 {subtitle}
               </p>
             )}
             {change && (
               <p
-                className="mt-1 text-xs font-medium"
+                className="mt-1 text-[var(--bb-small-size)] font-[var(--bb-font-weight-medium)]"
                 style={{
                   color:
                     trend === 'up'
@@ -732,12 +736,12 @@ const PageHeader = React.forwardRef(({
     <div className="flex flex-col gap-[var(--bb-space-4)] sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0 flex-1">
         {title && (
-          <h1 className="text-xl font-semibold leading-tight text-[var(--bb-color-text-primary)]">
+          <h1 className="text-[var(--bb-heading-page-size)] font-[var(--bb-heading-page-weight)] leading-[var(--bb-heading-page-leading)] tracking-[var(--bb-heading-page-tracking)] text-[color:var(--bb-color-text-primary)]">
             {title}
           </h1>
         )}
         {description && (
-          <p className="mt-[var(--bb-space-1)] text-[var(--bb-color-text-muted)] text-sm leading-normal">
+          <p className="mt-[var(--bb-space-1)] text-[var(--bb-body-size)] leading-[var(--bb-body-leading)] text-[color:var(--bb-color-text-muted)]">
             {description}
           </p>
         )}

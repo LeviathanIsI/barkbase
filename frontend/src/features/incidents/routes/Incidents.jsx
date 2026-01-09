@@ -799,8 +799,8 @@ export default function IncidentsPage() {
               <li className="text-[color:var(--bb-color-text-primary)] font-medium">Incidents</li>
             </ol>
           </nav>
-          <h1 className="text-xl font-semibold text-[color:var(--bb-color-text-primary)]">Incident Reports</h1>
-          <p className="text-sm text-[color:var(--bb-color-text-muted)] mt-1">Document and track incidents for compliance and liability protection</p>
+          <h1 className="text-[var(--bb-heading-page-size)] font-[var(--bb-heading-page-weight)] leading-[var(--bb-heading-page-leading)] tracking-[var(--bb-heading-page-tracking)] text-[color:var(--bb-color-text-primary)]">Incident Reports</h1>
+          <p className="text-[var(--bb-body-size)] leading-[var(--bb-body-leading)] text-[color:var(--bb-color-text-muted)] mt-1">Document and track incidents for compliance and liability protection</p>
         </div>
 
         <Button onClick={handleCreateNew}>

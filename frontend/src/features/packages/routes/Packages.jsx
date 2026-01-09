@@ -325,8 +325,8 @@ const Packages = () => {
               <li className="text-text font-medium">Packages</li>
             </ol>
           </nav>
-          <h1 className="text-lg font-semibold text-text">Prepaid Packages</h1>
-          <p className="text-xs text-muted mt-0.5">Manage package templates and customer purchases</p>
+          <h1 className="text-[var(--bb-heading-page-size)] font-[var(--bb-heading-page-weight)] leading-[var(--bb-heading-page-leading)] tracking-[var(--bb-heading-page-tracking)] text-[color:var(--bb-color-text-primary)]">Prepaid Packages</h1>
+          <p className="text-[var(--bb-body-size)] leading-[var(--bb-body-leading)] text-[color:var(--bb-color-text-muted)] mt-1">Manage package templates and customer purchases</p>
         </div>
 
         <Button onClick={() => setPurchaseModalOpen(true)}>

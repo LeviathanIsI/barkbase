@@ -705,8 +705,8 @@ const Pets = () => {
         <div className="flex-shrink-0 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
           <div>
             <Breadcrumbs items={['Clients', 'Pets']} />
-            <h1 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">Pets Directory</h1>
-            <p className="mt-0.5 text-sm text-[color:var(--bb-color-text-muted)]">
+            <h1 className="text-[var(--bb-heading-page-size)] font-[var(--bb-heading-page-weight)] leading-[var(--bb-heading-page-leading)] tracking-[var(--bb-heading-page-tracking)] text-[color:var(--bb-color-text-primary)]">Pets Directory</h1>
+            <p className="mt-1 text-[var(--bb-body-size)] leading-[var(--bb-body-leading)] text-[color:var(--bb-color-text-muted)]">
               Manage all registered pets and their records
             </p>
           </div>

@@ -1344,8 +1344,8 @@ const Payments = () => {
               <li className="text-text font-medium">Payments</li>
             </ol>
           </nav>
-          <h1 className="text-lg font-semibold text-text">Payments</h1>
-          <p className="text-xs text-muted mt-0.5">Financial command center</p>
+          <h1 className="text-[var(--bb-heading-page-size)] font-[var(--bb-heading-page-weight)] leading-[var(--bb-heading-page-leading)] tracking-[var(--bb-heading-page-tracking)] text-[color:var(--bb-color-text-primary)]">Payments</h1>
+          <p className="text-[var(--bb-body-size)] leading-[var(--bb-body-leading)] text-[color:var(--bb-color-text-muted)] mt-1">Financial command center</p>
         </div>
 
         <div className="flex items-center gap-2">

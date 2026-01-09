@@ -14,12 +14,100 @@
   --bb-space-10: 2.5rem; /* 40px */
   --bb-space-12: 3rem; /* 48px */
 
-  /* Typography scale */
-  --bb-text-sm: 0.875rem;
-  --bb-text-base: 1rem;
-  --bb-text-lg: 1.125rem;
-  --bb-text-xl: 1.25rem;
-  --bb-text-2xl: 1.5rem;
+  /* ========================================
+     TYPOGRAPHY SCALE - Comprehensive System
+     ======================================== */
+
+  /* Font Sizes - Complete scale with pixel references */
+  --bb-text-2xs: 0.625rem;    /* 10px - Micro text, badges */
+  --bb-text-xs: 0.75rem;      /* 12px - Labels, timestamps, table headers */
+  --bb-text-sm: 0.875rem;     /* 14px - Secondary text, descriptions */
+  --bb-text-base: 1rem;       /* 16px - Body text */
+  --bb-text-lg: 1.125rem;     /* 18px - Card headers, emphasized */
+  --bb-text-xl: 1.25rem;      /* 20px - Section titles */
+  --bb-text-2xl: 1.5rem;      /* 24px - Page titles */
+  --bb-text-3xl: 1.875rem;    /* 30px - Hero headings */
+  --bb-text-4xl: 2.25rem;     /* 36px - Large metrics */
+  --bb-text-5xl: 3rem;        /* 48px - Dashboard hero numbers */
+
+  /* Line Heights - Semantic naming */
+  --bb-leading-none: 1;           /* Numbers, single-line metrics */
+  --bb-leading-tight: 1.2;        /* Headings */
+  --bb-leading-snug: 1.375;       /* Card titles, compact text */
+  --bb-leading-normal: 1.5;       /* Body text default */
+  --bb-leading-relaxed: 1.625;    /* Long-form content */
+  --bb-leading-loose: 2;          /* Extra spacing for readability */
+
+  /* Letter Spacing */
+  --bb-tracking-tighter: -0.02em; /* Large headings */
+  --bb-tracking-tight: -0.01em;   /* Page titles */
+  --bb-tracking-normal: 0;        /* Body text */
+  --bb-tracking-wide: 0.025em;    /* Buttons, labels */
+  --bb-tracking-wider: 0.05em;    /* Table headers, section labels */
+  --bb-tracking-widest: 0.1em;    /* All-caps labels */
+
+  /* Font Weights */
+  --bb-font-weight-light: 300;
+  --bb-font-weight-regular: 400;
+  --bb-font-weight-medium: 500;
+  --bb-font-weight-semibold: 600;
+  --bb-font-weight-bold: 700;
+  --bb-font-weight-extrabold: 800;
+
+  /* ----------------------------------------
+     Semantic Typography Tokens
+     ---------------------------------------- */
+
+  /* Page Title (H1) */
+  --bb-heading-page-size: var(--bb-text-2xl);
+  --bb-heading-page-weight: var(--bb-font-weight-bold);
+  --bb-heading-page-leading: var(--bb-leading-tight);
+  --bb-heading-page-tracking: var(--bb-tracking-tight);
+
+  /* Section Title (H2) - Card headers */
+  --bb-heading-section-size: var(--bb-text-lg);
+  --bb-heading-section-weight: var(--bb-font-weight-semibold);
+  --bb-heading-section-leading: var(--bb-leading-snug);
+  --bb-heading-section-tracking: var(--bb-tracking-normal);
+
+  /* Subsection (H3) */
+  --bb-heading-sub-size: var(--bb-text-base);
+  --bb-heading-sub-weight: var(--bb-font-weight-semibold);
+  --bb-heading-sub-leading: var(--bb-leading-snug);
+  --bb-heading-sub-tracking: var(--bb-tracking-normal);
+
+  /* Body text */
+  --bb-body-size: var(--bb-text-sm);
+  --bb-body-weight: var(--bb-font-weight-regular);
+  --bb-body-leading: var(--bb-leading-normal);
+
+  /* Small/secondary text */
+  --bb-small-size: var(--bb-text-xs);
+  --bb-small-weight: var(--bb-font-weight-regular);
+  --bb-small-leading: var(--bb-leading-normal);
+
+  /* Micro text */
+  --bb-micro-size: var(--bb-text-2xs);
+  --bb-micro-weight: var(--bb-font-weight-medium);
+  --bb-micro-leading: var(--bb-leading-tight);
+
+  /* Label text (uppercase headers, form labels) */
+  --bb-label-size: var(--bb-text-xs);
+  --bb-label-weight: var(--bb-font-weight-semibold);
+  --bb-label-leading: var(--bb-leading-tight);
+  --bb-label-tracking: var(--bb-tracking-wider);
+
+  /* Metric/stat numbers */
+  --bb-metric-size: var(--bb-text-3xl);
+  --bb-metric-weight: var(--bb-font-weight-bold);
+  --bb-metric-leading: var(--bb-leading-none);
+  --bb-metric-tracking: var(--bb-tracking-tighter);
+
+  /* Large metric (hero) */
+  --bb-metric-lg-size: var(--bb-text-4xl);
+  --bb-metric-lg-weight: var(--bb-font-weight-bold);
+  --bb-metric-lg-leading: var(--bb-leading-none);
+  --bb-metric-lg-tracking: var(--bb-tracking-tighter);
 
   /* Neutral palette (Tailwind neutral) */
   --bb-color-neutral-50: #fafafa;
@@ -138,24 +226,16 @@
   --bb-color-toggle-icon-sun: #f59e0b;
   --bb-color-toggle-icon-moon: #0f172a;
 
-  --bb-font-size-xs: var(--bb-text-sm);
-  --bb-font-size-sm: var(--bb-text-base);
-  --bb-font-size-md: var(--bb-text-lg);
-  --bb-font-size-lg: var(--bb-text-xl);
-  --bb-font-size-xl: var(--bb-text-2xl);
-
-  --bb-font-weight-regular: 400;
-  --bb-font-weight-medium: 500;
-  --bb-font-weight-semibold: 600;
-  --bb-font-weight-bold: 700;
-
-  --bb-leading-tight: 1.15;
-  --bb-leading-normal: 1.35;
-  --bb-leading-relaxed: 1.5;
-
-  /* Additional font sizes */
-  --bb-font-size-2xl: 1.5rem;
-  --bb-font-size-3xl: 1.875rem;
+  /* Legacy font-size aliases (for backward compatibility) */
+  --bb-font-size-xs: var(--bb-text-xs);
+  --bb-font-size-sm: var(--bb-text-sm);
+  --bb-font-size-base: var(--bb-text-base);
+  --bb-font-size-md: var(--bb-text-base);
+  --bb-font-size-lg: var(--bb-text-lg);
+  --bb-font-size-xl: var(--bb-text-xl);
+  --bb-font-size-2xl: var(--bb-text-2xl);
+  --bb-font-size-3xl: var(--bb-text-3xl);
+  --bb-font-size-4xl: var(--bb-text-4xl);
 
   /* Border radius - Standardized card system */
   --bb-radius-sm: 0.25rem;   /* 4px - Small elements */

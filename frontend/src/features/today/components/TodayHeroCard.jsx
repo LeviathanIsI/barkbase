@@ -78,11 +78,11 @@ const TodayHeroCard = ({
         {/* Header row: title + date + primary CTA */}
         <div className="flex flex-col gap-[var(--bb-space-3,0.75rem)] sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-bold,700)] leading-tight text-[color:var(--bb-color-text-primary)]">
+            <h1 className="text-[var(--bb-heading-page-size)] font-[var(--bb-heading-page-weight)] leading-[var(--bb-heading-page-leading)] tracking-[var(--bb-heading-page-tracking)] text-[color:var(--bb-color-text-primary)]">
               Today{kennelName ? ` at ${kennelName}` : ''}
             </h1>
             <div className="flex items-center gap-3 mt-1">
-              <p className="text-[color:var(--bb-color-text-muted)] text-[var(--bb-font-size-sm,0.875rem)]">
+              <p className="text-[var(--bb-body-size)] leading-[var(--bb-body-leading)] text-[color:var(--bb-color-text-muted)]">
                 {formattedDate}
               </p>
               {isUpdating ? (
@@ -239,7 +239,7 @@ const StatCard = ({ icon: Icon, label, value, variant = 'inFacility', emptyMessa
       <div className="min-w-0 flex-1">
         {/* Label - Small, uppercase, muted */}
         <p className={cn(
-          'text-[0.6875rem] font-semibold uppercase tracking-wider',
+          'text-[var(--bb-text-2xs)] font-[var(--bb-font-weight-semibold)] uppercase tracking-[var(--bb-tracking-widest)]',
           'text-[color:var(--bb-color-text-muted)]',
           isUrgent && 'text-orange-600/80 dark:text-orange-400/80'
         )}>
@@ -248,13 +248,14 @@ const StatCard = ({ icon: Icon, label, value, variant = 'inFacility', emptyMessa
 
         {/* Value or Empty Message */}
         {isEmpty && emptyMessage ? (
-          <p className="text-[0.8125rem] text-[color:var(--bb-color-text-muted)] mt-1">
+          <p className="text-[var(--bb-text-sm)] text-[color:var(--bb-color-text-muted)] mt-1">
             {emptyMessage}
           </p>
         ) : (
           <p className={cn(
             // Large, bold number
-            'text-[2.25rem] font-bold leading-none tracking-tight mt-0.5',
+            'text-[var(--bb-metric-lg-size)] font-[var(--bb-metric-lg-weight)] leading-[var(--bb-metric-lg-leading)] tracking-[var(--bb-metric-lg-tracking)] mt-0.5',
+            'tabular-nums',
             styles.numberColor,
             // Extra emphasis for urgent numbers
             isUrgent && 'drop-shadow-sm'

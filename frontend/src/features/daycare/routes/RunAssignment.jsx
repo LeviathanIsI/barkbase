@@ -1219,11 +1219,11 @@ const RunAssignment = () => {
             </ol>
           </nav>
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold text-[color:var(--bb-color-text-primary)]">Run Assignment</h1>
-            <span className="text-sm text-[color:var(--bb-color-text-muted)]">{formattedDate}</span>
+            <h1 className="text-[var(--bb-heading-page-size)] font-[var(--bb-heading-page-weight)] leading-[var(--bb-heading-page-leading)] tracking-[var(--bb-heading-page-tracking)] text-[color:var(--bb-color-text-primary)]">Run Assignment</h1>
+            <span className="text-[var(--bb-body-size)] text-[color:var(--bb-color-text-muted)]">{formattedDate}</span>
             {isToday && <Badge variant="success" size="sm">Today</Badge>}
           </div>
-          <p className="text-sm text-[color:var(--bb-color-text-muted)] mt-1">Drag and drop to assign checked-in pets to daycare runs</p>
+          <p className="text-[var(--bb-body-size)] leading-[var(--bb-body-leading)] text-[color:var(--bb-color-text-muted)] mt-1">Drag and drop to assign checked-in pets to daycare runs</p>
         </div>
 
         {/* Header Actions */}
