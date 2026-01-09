@@ -13,7 +13,7 @@ import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import toast from 'react-hot-toast';
 import EntityToolbar from '@/components/EntityToolbar';
 import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
+import Badge, { StatusBadge } from '@/components/ui/Badge';
 import { HeaderStat, HeaderStatGroup } from '@/components/ui/HeaderStat';
 import Modal from '@/components/ui/Modal';
 import PetAvatar from '@/components/ui/PetAvatar';
@@ -1785,9 +1785,10 @@ const MobilePetCard = ({ pet, isSelected, onSelect, onView }) => {
                 </div>
               </div>
             </Button>
-            <Badge variant={pet.status === 'active' ? 'success' : 'neutral'} size="sm">
-              {pet.status === 'active' ? 'Active' : 'Inactive'}
-            </Badge>
+            <StatusBadge
+              status={pet.status === 'active' ? 'active' : 'inactive'}
+              size="sm"
+            />
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-sm">

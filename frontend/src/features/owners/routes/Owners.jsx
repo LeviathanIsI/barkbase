@@ -13,7 +13,7 @@ import { useTimezoneUtils } from '@/lib/timezone';
 import EntityToolbar from '@/components/EntityToolbar';
 import StyledSelect from '@/components/ui/StyledSelect';
 import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
+import Badge, { StatusBadge } from '@/components/ui/Badge';
 import { HeaderStat, HeaderStatGroup } from '@/components/ui/HeaderStat';
 import Modal from '@/components/ui/Modal';
 import Avatar, { AvatarGroup } from '@/components/ui/Avatar';
@@ -1310,9 +1310,10 @@ const BookingsHoverCard = ({ ownerId, bookingsCount, navigate, children }) => {
                         <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">
                           {petName}
                         </span>
-                        <Badge variant={booking.status === 'CHECKED_IN' ? 'success' : booking.status === 'CONFIRMED' ? 'info' : 'neutral'} size="sm">
-                          {booking.status || 'Pending'}
-                        </Badge>
+                        <StatusBadge
+                          status={booking.status === 'CHECKED_IN' ? 'checked-in' : booking.status === 'CONFIRMED' ? 'confirmed' : 'pending'}
+                          size="sm"
+                        />
                       </div>
                       <div className="flex items-center gap-2 mt-0.5 text-xs text-[color:var(--bb-color-text-muted)]">
                         <span>{serviceName}</span>

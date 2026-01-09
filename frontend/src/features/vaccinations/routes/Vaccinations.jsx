@@ -8,7 +8,7 @@ import {
   Archive, Columns, GripVertical, ArrowUp, ArrowDown, ArrowUpDown,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
+import Badge, { StatusBadge, TypeBadge } from '@/components/ui/Badge';
 import { HeaderStat, HeaderStatGroup, HeaderStatDivider } from '@/components/ui/HeaderStat';
 import Modal from '@/components/ui/Modal';
 import { PageHeader } from '@/components/ui/card';
@@ -1038,7 +1038,7 @@ const VaccinationRow = ({ record, viewMode, isSelected, isReviewed, onSelect, on
             <span className="font-semibold text-[color:var(--bb-color-text-primary)]">
               {record.petName || 'Unknown Pet'}
             </span>
-            <Badge variant="accent" size="sm">{record.type || 'Vaccine'}</Badge>
+            <TypeBadge type={record.type || 'Vaccine'} variant="info" />
             {isReviewed && (
               <Badge variant="success" size="sm" className="gap-1">
                 <CheckCircle2 className="h-3 w-3" />
@@ -1416,7 +1416,7 @@ const EmailOwnersModal = ({ open, onClose, records }) => {
                       {owner.pets.map((pet, pIdx) => (
                         <div key={pIdx} className="flex items-center gap-2 text-xs">
                           <span className="text-[color:var(--bb-color-text-primary)]">{pet.petName}</span>
-                          <Badge variant="accent" size="sm">{pet.vaccineType}</Badge>
+                          <TypeBadge type={pet.vaccineType} variant="info" />
                           <span className={cn(
                             pet.status === 'overdue' ? 'text-red-500' :
                             pet.status === 'critical' ? 'text-amber-500' :
@@ -1541,7 +1541,7 @@ const VaccinationTableRow = ({ record, columns, isSelected, isReviewed, onSelect
           </span>
         );
       case 'vaccine':
-        return <Badge variant="accent" size="sm">{record.type || 'Unknown'}</Badge>;
+        return <TypeBadge type={record.type || 'Unknown'} variant="info" />;
       case 'expiry':
         return (
           <span className="text-[color:var(--bb-color-text-secondary)]">
@@ -1549,15 +1549,26 @@ const VaccinationTableRow = ({ record, columns, isSelected, isReviewed, onSelect
           </span>
         );
       case 'status':
+        // Map internal status to StatusBadge status prop
+        const statusMap = {
+          overdue: 'overdue',
+          critical: 'expiring', // Critical maps to expiring (warning) with pulse
+          expiring: 'expiring',
+          current: 'current',
+        };
+        const badgeStatus = statusMap[record.status] || 'current';
+        const daysLabel = record.daysRemaining !== null
+          ? record.daysRemaining < 0
+            ? `${Math.abs(record.daysRemaining)}d overdue`
+            : `${record.daysRemaining}d`
+          : null;
         return (
-          <span className={cn('text-sm font-medium', statusConfig.color)}>
-            {statusConfig.label}
-            {record.daysRemaining !== null && (
-              <span className="ml-1 opacity-75 text-xs">
-                ({record.daysRemaining < 0 ? `${Math.abs(record.daysRemaining)}d overdue` : `${record.daysRemaining}d`})
-              </span>
-            )}
-          </span>
+          <StatusBadge
+            status={badgeStatus}
+            label={daysLabel ? `${statusConfig.label} (${daysLabel})` : statusConfig.label}
+            pulse={record.status === 'overdue' || record.status === 'critical'}
+            size="sm"
+          />
         );
       case 'actions':
         return (
