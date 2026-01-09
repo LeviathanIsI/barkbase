@@ -535,40 +535,65 @@ const Bookings = () => {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           {/* Left: Period + Date Nav */}
           <div className="flex flex-wrap items-center gap-2">
-            {/* Period Toggles */}
-            <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-              {Object.entries(PERIOD_MODES).map(([key, value]) => (
-                <Button
-                  key={value}
-                  variant={periodMode === value ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setPeriodMode(value)}
-                  className={cn(
-                    'rounded-none h-8',
-                    periodMode !== value && 'bg-[color:var(--bb-color-bg-body)]'
-                  )}
-                >
-                  {key.charAt(0) + key.slice(1).toLowerCase()}
-                </Button>
-              ))}
+            {/* Period Toggles - Enhanced with clear active state */}
+            <div
+              className="flex items-center rounded-xl p-1 gap-1"
+              style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+            >
+              {Object.entries(PERIOD_MODES).map(([key, value]) => {
+                const isActive = periodMode === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setPeriodMode(value)}
+                    className={cn(
+                      'relative px-4 py-1.5 rounded-lg text-[var(--bb-text-sm)] font-[var(--bb-font-weight-medium)] transition-all',
+                      isActive
+                        ? 'bg-[color:var(--bb-color-accent)] text-white shadow-md shadow-[var(--bb-color-accent)]/25'
+                        : 'text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] hover:bg-[color:var(--bb-color-bg-body)]'
+                    )}
+                  >
+                    {key.charAt(0) + key.slice(1).toLowerCase()}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Today Button */}
-            <Button variant="outline" size="sm" onClick={goToToday} className="h-8">
+            {/* Today Button - More prominent */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToToday}
+              className="h-9 px-4 font-[var(--bb-font-weight-semibold)] border-amber-300 dark:border-amber-600 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10"
+            >
               Today
             </Button>
 
-            {/* Date Navigation */}
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={() => navigatePeriod(-1)} className="px-2 h-8" aria-label="Previous period">
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] min-w-[180px] text-center">
+            {/* Date Navigation - Enhanced prominence */}
+            <div
+              className="flex items-center gap-0.5 rounded-xl p-1"
+              style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+            >
+              <button
+                type="button"
+                onClick={() => navigatePeriod(-1)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] hover:bg-[color:var(--bb-color-bg-body)] transition-colors"
+                aria-label="Previous period"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <span className="text-[var(--bb-text-sm)] font-[var(--bb-font-weight-semibold)] text-[color:var(--bb-color-text-primary)] min-w-[180px] text-center px-2">
                 {dateRangeDisplay}
               </span>
-              <Button variant="ghost" size="sm" onClick={() => navigatePeriod(1)} className="px-2 h-8" aria-label="Next period">
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+              <button
+                type="button"
+                onClick={() => navigatePeriod(1)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] hover:bg-[color:var(--bb-color-bg-body)] transition-colors"
+                aria-label="Next period"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
             </div>
 
             {/* Service Filter */}
@@ -731,73 +756,106 @@ const Bookings = () => {
 
 // Legend Sidebar Component - Always visible sidebar with legend info
 const LegendSidebar = () => {
+  const legendItems = [
+    { color: 'bg-blue-500', label: 'Confirmed', description: 'Booking is confirmed' },
+    { color: 'bg-emerald-500', label: 'Checked In', description: 'Currently staying' },
+    { color: 'bg-orange-500', label: 'Checkout Today', description: 'Leaving today' },
+    { color: 'bg-red-500', label: 'Overdue', description: 'Past checkout date' },
+    { color: 'bg-purple-500', label: 'No Show', description: 'Missed check-in' },
+    { color: 'bg-gray-400', label: 'Pending', description: 'Awaiting confirmation' },
+  ];
+
   return (
     <div
-      className="rounded-xl border p-4"
+      className="rounded-2xl border p-5 sticky top-24"
       style={{
         backgroundColor: 'var(--bb-color-bg-surface)',
         borderColor: 'var(--bb-color-border-subtle)'
       }}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 mb-4">
-        <Info className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
-        <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Legend</h3>
+      <div className="flex items-center gap-2.5 mb-5 pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[color:var(--bb-color-bg-elevated)]">
+          <Info className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
+        </div>
+        <div>
+          <h3 className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-text-base)] text-[color:var(--bb-color-text-primary)]">
+            Legend
+          </h3>
+          <p className="text-[var(--bb-text-xs)] text-[color:var(--bb-color-text-muted)]">
+            Status indicators
+          </p>
+        </div>
       </div>
 
-      {/* Card Border Colors */}
-      <div className="mb-5">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] mb-3">
-          Card Border Colors
+      {/* Status Colors - Using dots */}
+      <div className="mb-6">
+        <h4 className="text-[var(--bb-text-2xs)] font-[var(--bb-font-weight-semibold)] uppercase tracking-[var(--bb-tracking-widest)] text-[color:var(--bb-color-text-muted)] mb-3">
+          Booking Status
         </h4>
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="w-1 h-4 rounded-full bg-blue-500 shrink-0" />
-            <span className="text-[color:var(--bb-color-text-primary)]">Confirmed</span>
+        <div className="space-y-2.5">
+          {legendItems.map((item) => (
+            <div key={item.label} className="flex items-center gap-3 group">
+              {/* Colored dot with glow effect */}
+              <span className={cn(
+                'w-3 h-3 rounded-full shrink-0 ring-4 ring-opacity-20 transition-all',
+                item.color,
+                item.color.replace('bg-', 'ring-')
+              )} />
+              <div className="flex-1 min-w-0">
+                <span className="text-[var(--bb-text-sm)] font-medium text-[color:var(--bb-color-text-primary)]">
+                  {item.label}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Day Indicators */}
+      <div className="mb-6">
+        <h4 className="text-[var(--bb-text-2xs)] font-[var(--bb-font-weight-semibold)] uppercase tracking-[var(--bb-tracking-widest)] text-[color:var(--bb-color-text-muted)] mb-3">
+          Day Indicators
+        </h4>
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              IN
+            </span>
+            <span className="text-[var(--bb-text-sm)] text-[color:var(--bb-color-text-primary)]">Check-in day</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="w-1 h-4 rounded-full bg-emerald-500 shrink-0" />
-            <span className="text-[color:var(--bb-color-text-primary)]">Checked In</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-1 h-4 rounded-full bg-orange-500 shrink-0" />
-            <span className="text-[color:var(--bb-color-text-primary)]">Checkout Today</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-1 h-4 rounded-full bg-red-500 shrink-0" />
-            <span className="text-[color:var(--bb-color-text-primary)]">Overdue</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-1 h-4 rounded-full bg-purple-500 shrink-0" />
-            <span className="text-[color:var(--bb-color-text-primary)]">No Show</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-1 h-4 rounded-full bg-gray-400 shrink-0" />
-            <span className="text-[color:var(--bb-color-text-primary)]">Pending / Checked Out</span>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-500/10 text-orange-600 dark:text-orange-400">
+              OUT
+            </span>
+            <span className="text-[var(--bb-text-sm)] text-[color:var(--bb-color-text-primary)]">Checkout day</span>
           </div>
         </div>
       </div>
 
       {/* Interactions */}
       <div>
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] mb-3">
-          Interactions
+        <h4 className="text-[var(--bb-text-2xs)] font-[var(--bb-font-weight-semibold)] uppercase tracking-[var(--bb-tracking-widest)] text-[color:var(--bb-color-text-muted)] mb-3">
+          Quick Actions
         </h4>
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <Plus className="h-4 w-4 text-[color:var(--bb-color-text-muted)] shrink-0" />
-            <span className="text-[color:var(--bb-color-text-muted)]">Add booking on empty day</span>
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[color:var(--bb-color-bg-elevated)]">
+              <Plus className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+            </div>
+            <span className="text-[var(--bb-text-sm)] text-[color:var(--bb-color-text-muted)]">Click empty day to add</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div
-              className="w-4 h-4 rounded shrink-0"
-              style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
-            />
-            <span className="text-[color:var(--bb-color-text-muted)]">Today (highlighted)</span>
+          <div className="flex items-center gap-3">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-500/10">
+              <Calendar className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
+            <span className="text-[var(--bb-text-sm)] text-[color:var(--bb-color-text-muted)]">Today is highlighted</span>
           </div>
-          <div className="flex items-center gap-2">
-            <PawPrint className="h-4 w-4 text-[color:var(--bb-color-text-muted)] shrink-0" />
-            <span className="text-[color:var(--bb-color-text-muted)]">Click card for details</span>
+          <div className="flex items-center gap-3">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[color:var(--bb-color-accent-soft)]">
+              <PawPrint className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
+            </div>
+            <span className="text-[var(--bb-text-sm)] text-[color:var(--bb-color-text-muted)]">Click card for details</span>
           </div>
         </div>
       </div>
@@ -1131,52 +1189,77 @@ const WeeklyCalendarView = ({
     <div className="flex-1 flex flex-col">
       {/* Weekly Grid */}
       <div className="flex-1 rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
-        {/* Day Headers */}
+        {/* Day Headers - Enhanced with clear hierarchy */}
         <div
-          className="grid gap-px border-b"
+          className="grid border-b"
           style={{
             gridTemplateColumns: `repeat(${dateRange.length}, 1fr)`,
             borderColor: 'var(--bb-color-border-subtle)',
-            backgroundColor: 'var(--bb-color-border-subtle)'
           }}
         >
           {dateRange.map((date, idx) => {
             const isTodayDate = tz.isToday(date);
             const dateStr = date.toISOString().split('T')[0];
             const dayData = bookingsByDate[dateStr] || { count: 0 };
+            const isFirstCol = idx === 0;
+            const isLastCol = idx === dateRange.length - 1;
 
             return (
               <div
                 key={idx}
-                className="p-3 text-center"
+                className={cn(
+                  'py-4 px-3 text-center relative transition-all',
+                  // Vertical separator lines between columns
+                  !isLastCol && 'border-r',
+                  // Today gets special gradient background and glow
+                  isTodayDate && 'bg-gradient-to-b from-amber-500/15 via-amber-500/10 to-amber-500/5 dark:from-amber-500/20 dark:via-amber-500/15 dark:to-amber-500/5',
+                  isTodayDate && 'shadow-[inset_0_0_20px_rgba(251,191,36,0.1)] dark:shadow-[inset_0_0_30px_rgba(251,191,36,0.15)]'
+                )}
                 style={{
-                  backgroundColor: isTodayDate ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-elevated)',
+                  backgroundColor: !isTodayDate ? 'var(--bb-color-bg-elevated)' : undefined,
+                  borderColor: 'var(--bb-color-border-subtle)',
                 }}
               >
+                {/* Today indicator pill at top */}
+                {isTodayDate && (
+                  <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-b-md bg-amber-500 text-[10px] font-bold uppercase tracking-wider text-white shadow-md">
+                    Today
+                  </div>
+                )}
+
+                {/* Weekday name - smaller, above */}
                 <div className={cn(
-                  'text-xs font-medium uppercase',
-                  isTodayDate ? 'text-[color:var(--bb-color-text-primary)]' : 'text-[color:var(--bb-color-text-muted)]'
+                  'text-[var(--bb-text-2xs)] font-[var(--bb-font-weight-semibold)] uppercase tracking-[var(--bb-tracking-widest)] mb-1',
+                  isTodayDate ? 'text-amber-600 dark:text-amber-400' : 'text-[color:var(--bb-color-text-muted)]'
                 )}>
                   {tz.formatDate(date, { weekday: 'short' })}
                 </div>
+
+                {/* Date number - Large and prominent */}
                 <div className={cn(
-                  'text-2xl font-bold',
-                  isTodayDate ? 'text-[color:var(--bb-color-accent-text)]' : 'text-[color:var(--bb-color-text-primary)]'
+                  'text-[var(--bb-text-3xl)] font-[var(--bb-font-weight-bold)] leading-none tabular-nums',
+                  isTodayDate ? 'text-amber-600 dark:text-amber-400' : 'text-[color:var(--bb-color-text-primary)]'
                 )}>
                   {date.getDate()}
                 </div>
+
+                {/* Month - Small, muted */}
                 <div className={cn(
-                  'text-xs',
-                  isTodayDate ? 'text-[color:var(--bb-color-text-primary)]' : 'text-[color:var(--bb-color-text-muted)]'
+                  'text-[var(--bb-text-xs)] mt-0.5',
+                  isTodayDate ? 'text-amber-600/80 dark:text-amber-400/80' : 'text-[color:var(--bb-color-text-muted)]'
                 )}>
                   {tz.formatDate(date, { month: 'short' })}
                 </div>
+
+                {/* Booking count - More prominent with badge styling */}
                 {dayData.count > 0 && (
                   <div className={cn(
-                    'mt-1 text-xs font-medium',
-                    isTodayDate ? 'text-[color:var(--bb-color-accent-text)]' : 'text-[color:var(--bb-color-accent)]'
+                    'mt-2 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[var(--bb-text-xs)] font-[var(--bb-font-weight-semibold)] tabular-nums',
+                    isTodayDate
+                      ? 'bg-amber-500/20 text-amber-700 dark:bg-amber-500/30 dark:text-amber-300'
+                      : 'bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]'
                   )}>
-                    {dayData.count} booking{dayData.count !== 1 ? 's' : ''}
+                    {dayData.count}
                   </div>
                 )}
               </div>
@@ -1186,39 +1269,56 @@ const WeeklyCalendarView = ({
 
         {/* Booking Cards Grid */}
         <div
-          className="grid gap-px flex-1"
+          className="grid flex-1"
           style={{
             gridTemplateColumns: `repeat(${dateRange.length}, 1fr)`,
-            backgroundColor: 'var(--bb-color-border-subtle)',
             minHeight: '400px'
           }}
         >
           {dateRange.map((date, idx) => {
             const isTodayDate = tz.isToday(date);
+            const isLastCol = idx === dateRange.length - 1;
             const dayBookings = getBookingsForDate(date);
 
             return (
               <div
                 key={idx}
-                className="p-2 flex flex-col gap-1.5 overflow-y-auto"
+                className={cn(
+                  'p-3 flex flex-col gap-2 overflow-y-auto',
+                  // Vertical separator lines between columns
+                  !isLastCol && 'border-r',
+                  // Today column gets gradient background
+                  isTodayDate && 'bg-gradient-to-b from-amber-500/8 to-amber-500/3 dark:from-amber-500/12 dark:to-amber-500/5'
+                )}
                 tabIndex={0}
                 role="region"
                 aria-label={`Bookings for ${tz.formatShortDate(date)}`}
                 style={{
-                  backgroundColor: isTodayDate ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)',
+                  backgroundColor: !isTodayDate ? 'var(--bb-color-bg-body)' : undefined,
+                  borderColor: 'var(--bb-color-border-subtle)',
                   maxHeight: '500px'
                 }}
               >
                 {dayBookings.length === 0 ? (
+                  /* Empty day state - refined visual */
                   <div
-                    className="flex-1 flex items-center justify-center min-h-[100px] rounded-lg border-2 border-dashed cursor-pointer hover:border-[color:var(--bb-color-accent)] hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
-                    style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+                    className={cn(
+                      'flex-1 flex flex-col items-center justify-center min-h-[120px] rounded-xl border-2 border-dashed cursor-pointer transition-all group',
+                      'hover:border-[color:var(--bb-color-accent)] hover:bg-[color:var(--bb-color-bg-elevated)]',
+                      isTodayDate && 'border-amber-300/50 dark:border-amber-500/30'
+                    )}
+                    style={{ borderColor: !isTodayDate ? 'var(--bb-color-border-subtle)' : undefined }}
                     onClick={onNewBooking}
                   >
-                    <div className="text-center">
-                      <Plus className="h-5 w-5 mx-auto mb-1 text-[color:var(--bb-color-text-muted)]" />
-                      <span className="text-xs text-[color:var(--bb-color-text-muted)]">Add booking</span>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--bb-color-bg-elevated)] group-hover:bg-[color:var(--bb-color-accent-soft)] transition-colors mb-2">
+                      <Plus className="h-5 w-5 text-[color:var(--bb-color-text-muted)] group-hover:text-[color:var(--bb-color-accent)] transition-colors" />
                     </div>
+                    <span className="text-[var(--bb-text-xs)] text-[color:var(--bb-color-text-muted)] group-hover:text-[color:var(--bb-color-accent)] transition-colors font-medium">
+                      Add booking
+                    </span>
+                    <span className="text-[var(--bb-text-2xs)] text-[color:var(--bb-color-text-muted)] mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      Click to create
+                    </span>
                   </div>
                 ) : (
                   dayBookings.map((booking) => {
@@ -1241,6 +1341,20 @@ const WeeklyCalendarView = ({
                       return colors[status] || colors.PENDING;
                     };
 
+                    // Get subtle tint color for card background
+                    const getStatusTint = (status) => {
+                      const tints = {
+                        PENDING: 'bg-gray-500/5 dark:bg-gray-400/5',
+                        CONFIRMED: 'bg-blue-500/5 dark:bg-blue-400/5',
+                        CHECKED_IN: 'bg-emerald-500/5 dark:bg-emerald-400/5',
+                        CHECKED_OUT: 'bg-gray-500/5 dark:bg-gray-400/5',
+                        CANCELLED: 'bg-red-500/5 dark:bg-red-400/5',
+                        OVERDUE: 'bg-red-500/8 dark:bg-red-400/8',
+                        NO_SHOW: 'bg-purple-500/5 dark:bg-purple-400/5',
+                      };
+                      return tints[status] || tints.PENDING;
+                    };
+
                     const primaryColor = getStatusBorderColor(booking.displayStatus);
                     // For checkout, use orange/amber
                     const checkoutColor = '#f97316'; // orange-500
@@ -1249,15 +1363,21 @@ const WeeklyCalendarView = ({
                       <div
                         key={booking.id}
                         className={cn(
-                          'rounded-lg p-2.5 cursor-pointer transition-all hover:shadow-md border-l-4',
+                          // Card base - more generous padding, stronger border
+                          'rounded-xl p-3.5 cursor-pointer transition-all border',
+                          'hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/20 hover:scale-[1.02]',
+                          'border-l-[5px]', // Thicker left border for visibility
+                          // Subtle background tint based on status
+                          getStatusTint(booking.displayStatus),
                           // Only use solid border class if NOT split border
                           !hasBothActions && statusConfig.borderColor
                         )}
                         style={{
                           backgroundColor: 'var(--bb-color-bg-elevated)',
-                          // Split border: use borderLeftColor with gradient workaround
+                          borderColor: 'var(--bb-color-border-subtle)',
+                          borderLeftColor: hasBothActions ? 'transparent' : undefined,
+                          // Split border: use gradient for check-in/check-out same day
                           ...(hasBothActions && {
-                            borderLeftColor: 'transparent',
                             backgroundImage: `linear-gradient(var(--bb-color-bg-elevated), var(--bb-color-bg-elevated)), linear-gradient(to bottom, ${primaryColor} 50%, ${checkoutColor} 50%)`,
                             backgroundOrigin: 'padding-box, border-box',
                             backgroundClip: 'padding-box, border-box',
@@ -1265,17 +1385,38 @@ const WeeklyCalendarView = ({
                         }}
                         onClick={() => onBookingClick(booking)}
                       >
-                        <div className="flex items-start justify-between gap-2">
+                        {/* Pet info row */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[color:var(--bb-color-accent-soft)]">
+                            <PawPrint className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
+                          </div>
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5">
-                              <PawPrint className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--bb-color-text-muted)]" />
-                              <span className="font-medium text-sm truncate text-[color:var(--bb-color-text-primary)]">{booking.petName}</span>
+                            <div className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-text-sm)] truncate text-[color:var(--bb-color-text-primary)]">
+                              {booking.petName}
                             </div>
-                            <p className="text-xs text-[color:var(--bb-color-text-muted)] truncate mt-0.5">{booking.ownerName}</p>
+                            <p className="text-[var(--bb-text-xs)] text-[color:var(--bb-color-text-muted)] truncate">
+                              {booking.ownerName}
+                            </p>
                           </div>
                         </div>
-                        <div className="mt-1.5">
-                          <span className="text-[10px] text-[color:var(--bb-color-text-muted)]">{booking.serviceName}</span>
+
+                        {/* Service + action indicators */}
+                        <div className="mt-2 flex items-center justify-between gap-2">
+                          <span className="text-[var(--bb-text-2xs)] text-[color:var(--bb-color-text-muted)] uppercase tracking-wide">
+                            {booking.serviceName}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            {isCheckIn && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                                IN
+                              </span>
+                            )}
+                            {isCheckOut && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                                OUT
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
