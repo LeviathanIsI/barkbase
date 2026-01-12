@@ -4002,104 +4002,508 @@ const ReviewsTab = ({ staff }) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const MessagesTab = ({ staff }) => {
-  const conversations = staff.slice(0, 4).map((s, i) => ({
-    id: i,
-    name: s.name || s.email,
-    lastMessage: ['See you tomorrow!', 'Thanks for covering my shift', 'Meeting at 3pm?', 'Done with feeding rounds'][i],
-    time: ['2m', '15m', '1h', '3h'][i],
-    unread: i === 0 ? 2 : 0,
-  }));
+  const [selectedConversation, setSelectedConversation] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [messageText, setMessageText] = useState('');
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [showNewMessageModal, setShowNewMessageModal] = useState(false);
+  const [showConversationMenu, setShowConversationMenu] = useState(false);
+
+  // Status types
+  const statusConfig = {
+    online: { label: 'Online', color: 'bg-emerald-500', textColor: 'text-emerald-500' },
+    away: { label: 'Away', color: 'bg-amber-500', textColor: 'text-amber-500' },
+    busy: { label: 'Busy', color: 'bg-red-500', textColor: 'text-red-500' },
+    offline: { label: 'Offline', color: 'bg-gray-400', textColor: 'text-gray-400' },
+  };
+
+  // Mock conversations with more detail
+  const conversations = [
+    {
+      id: 0,
+      type: 'direct',
+      name: staff[0]?.name || 'Josh Bradford',
+      role: staff[0]?.role || 'Owner',
+      status: 'online',
+      lastMessage: 'See you tomorrow!',
+      time: '2m',
+      unread: 2,
+      isTyping: false,
+      lastSeen: null,
+    },
+    {
+      id: 1,
+      type: 'direct',
+      name: staff[1]?.name || 'Sarah Miller',
+      role: staff[1]?.role || 'Manager',
+      status: 'away',
+      lastMessage: 'Thanks for covering my shift',
+      time: '15m',
+      unread: 0,
+      isTyping: false,
+      lastSeen: '10 min ago',
+    },
+    {
+      id: 2,
+      type: 'group',
+      name: 'Morning Shift Team',
+      members: 4,
+      status: 'online',
+      lastMessage: 'Meeting at 3pm?',
+      lastSender: staff[2]?.name?.split(' ')[0] || 'Mike',
+      time: '1h',
+      unread: 0,
+      isTyping: true,
+      typingUser: 'Sarah',
+    },
+    {
+      id: 3,
+      type: 'direct',
+      name: staff[3]?.name || 'Emily Chen',
+      role: staff[3]?.role || 'Groomer',
+      status: 'offline',
+      lastMessage: 'Done with feeding rounds',
+      time: '3h',
+      unread: 0,
+      isTyping: false,
+      lastSeen: '2 hours ago',
+    },
+    {
+      id: 4,
+      type: 'broadcast',
+      name: 'Staff Announcements',
+      lastMessage: 'Schedule changes for next week',
+      time: 'Yesterday',
+      unread: 0,
+      isTyping: false,
+    },
+  ];
+
+  // Mock messages for selected conversation
+  const messages = [
+    { id: 1, sender: 'them', text: 'Hey, can you cover my shift tomorrow?', time: '10:30 AM', read: true },
+    { id: 2, sender: 'me', text: 'Sure, no problem! What time?', time: '10:32 AM', read: true, delivered: true },
+    { id: 3, sender: 'them', text: '8 AM to 2 PM. Thanks so much!', time: '10:35 AM', read: true },
+    { id: 4, sender: 'me', text: "I've got you covered. See you tomorrow!", time: '10:36 AM', read: true, delivered: true },
+    { id: 5, sender: 'them', text: 'See you tomorrow!', time: '10:38 AM', read: false },
+  ];
+
+  const activeConv = conversations[selectedConversation];
+  const roleColor = ROLE_COLOR_MAP[activeConv?.role] || ROLE_COLOR_MAP['default'];
+
+  // Filter conversations by search
+  const filteredConversations = conversations.filter(conv =>
+    conv.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Quick actions for shift sharing
+  const quickActions = [
+    { icon: Calendar, label: 'Share Shift', action: () => setMessageText('[Shift Details]') },
+    { icon: CheckCircle, label: 'Request Coverage', action: () => setMessageText('Can anyone cover my shift on ') },
+  ];
 
   return (
     <div className="space-y-5">
-      {/* Quick Actions */}
-      <div className="flex gap-3">
-        <Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" />New Message</Button>
-        <Button variant="outline" size="sm"><Send className="h-3.5 w-3.5 mr-1.5" />Staff Broadcast</Button>
+      {/* Header with actions */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--bb-color-text-primary)]">Team Messages</h2>
+          <p className="text-sm text-[var(--bb-color-text-muted)]">Internal team communication and announcements</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowBroadcastModal(true)}>
+            <Zap className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
+            Staff Broadcast
+          </Button>
+          <Button size="sm" onClick={() => setShowNewMessageModal(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            New Message
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Conversation List */}
-        <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden">
-          <div className="p-3 border-b border-border">
+        {/* Conversation List - Enhanced */}
+        <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl overflow-hidden shadow-sm">
+          {/* Search */}
+          <div className="p-3 border-b border-[var(--bb-color-border-subtle)]">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--bb-color-text-muted)]" />
               <input
                 type="text"
                 placeholder="Search conversations..."
-                className="w-full pl-9 pr-3 py-2 bg-surface border-0 rounded-lg text-sm focus:outline-none"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 bg-[var(--bb-color-bg-elevated)] border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]/30 text-[var(--bb-color-text-primary)] placeholder:text-[var(--bb-color-text-muted)]"
               />
             </div>
           </div>
-          <div className="divide-y divide-border">
-            {conversations.map(conv => (
-              <button key={conv.id} className="w-full p-3 text-left hover:bg-surface/50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                    {conv.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-text">{conv.name}</span>
-                      <span className="text-xs text-muted">{conv.time}</span>
-                    </div>
-                    <p className="text-xs text-muted truncate">{conv.lastMessage}</p>
-                  </div>
-                  {conv.unread > 0 && (
-                    <span className="h-5 w-5 flex items-center justify-center rounded-full bg-primary text-white text-xs">
-                      {conv.unread}
-                    </span>
+
+          {/* Conversation tabs */}
+          <div className="flex border-b border-[var(--bb-color-border-subtle)]">
+            <button className="flex-1 px-3 py-2 text-xs font-medium text-[var(--bb-color-accent)] border-b-2 border-[var(--bb-color-accent)]">
+              All
+            </button>
+            <button className="flex-1 px-3 py-2 text-xs font-medium text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)]">
+              Direct
+            </button>
+            <button className="flex-1 px-3 py-2 text-xs font-medium text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)]">
+              Groups
+            </button>
+          </div>
+
+          {/* Conversations */}
+          <div className="divide-y divide-[var(--bb-color-border-subtle)] max-h-[400px] overflow-y-auto">
+            {filteredConversations.map((conv) => {
+              const isSelected = selectedConversation === conv.id;
+              const convRoleColor = ROLE_COLOR_MAP[conv.role] || ROLE_COLOR_MAP['default'];
+              const initials = conv.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => setSelectedConversation(conv.id)}
+                  className={cn(
+                    "w-full p-3 text-left transition-colors",
+                    isSelected
+                      ? "bg-[var(--bb-color-accent-soft)] border-l-2 border-l-[var(--bb-color-accent)]"
+                      : "hover:bg-[var(--bb-color-bg-elevated)]/50"
                   )}
-                </div>
-              </button>
-            ))}
+                >
+                  <div className="flex items-center gap-3">
+                    {/* Avatar with status */}
+                    <div className="relative flex-shrink-0">
+                      {conv.type === 'group' ? (
+                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                          <Users className="h-5 w-5 text-white" />
+                        </div>
+                      ) : conv.type === 'broadcast' ? (
+                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                          <Zap className="h-5 w-5 text-white" />
+                        </div>
+                      ) : (
+                        <div className={`h-10 w-10 rounded-xl ${convRoleColor.bg} flex items-center justify-center`}>
+                          <span className="text-xs font-bold text-white">{initials}</span>
+                        </div>
+                      )}
+                      {/* Status indicator */}
+                      {conv.type === 'direct' && (
+                        <span className={cn(
+                          "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[var(--bb-color-bg-surface)]",
+                          statusConfig[conv.status].color
+                        )} />
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className={cn(
+                            "text-sm font-medium truncate",
+                            isSelected ? "text-[var(--bb-color-accent)]" : "text-[var(--bb-color-text-primary)]",
+                            conv.unread > 0 && "font-semibold"
+                          )}>
+                            {conv.name}
+                          </span>
+                          {conv.type === 'group' && (
+                            <span className="text-[10px] text-[var(--bb-color-text-muted)]">({conv.members})</span>
+                          )}
+                        </div>
+                        <span className={cn(
+                          "text-[10px]",
+                          conv.unread > 0 ? "text-[var(--bb-color-accent)] font-medium" : "text-[var(--bb-color-text-muted)]"
+                        )}>
+                          {conv.time}
+                        </span>
+                      </div>
+
+                      {/* Message preview or typing indicator */}
+                      {conv.isTyping ? (
+                        <p className="text-xs text-[var(--bb-color-accent)] flex items-center gap-1">
+                          <span className="flex gap-0.5">
+                            <span className="w-1 h-1 rounded-full bg-[var(--bb-color-accent)] animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-1 h-1 rounded-full bg-[var(--bb-color-accent)] animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-1 h-1 rounded-full bg-[var(--bb-color-accent)] animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </span>
+                          {conv.typingUser} is typing...
+                        </p>
+                      ) : (
+                        <p className={cn(
+                          "text-xs truncate",
+                          conv.unread > 0 ? "text-[var(--bb-color-text-primary)] font-medium" : "text-[var(--bb-color-text-muted)]"
+                        )}>
+                          {conv.type === 'group' && conv.lastSender && `${conv.lastSender}: `}
+                          {conv.lastMessage}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Unread badge */}
+                    {conv.unread > 0 && (
+                      <span className="h-5 min-w-[20px] px-1.5 flex items-center justify-center rounded-full bg-[var(--bb-color-accent)] text-white text-[10px] font-bold">
+                        {conv.unread}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Message Area */}
-        <div className="lg:col-span-2 bg-white dark:bg-surface-primary border border-border rounded-lg flex flex-col h-[400px]">
-          <div className="p-4 border-b border-border flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white text-sm font-semibold">
-                {conversations[0]?.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+        {/* Message Area - Enhanced */}
+        <div className="lg:col-span-2 bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl flex flex-col h-[500px] shadow-sm overflow-hidden">
+          {/* Header */}
+          <div className="p-4 border-b border-[var(--bb-color-border-subtle)] bg-gradient-to-r from-[var(--bb-color-bg-elevated)]/50 to-transparent">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {/* Avatar */}
+                {activeConv?.type === 'group' ? (
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/20">
+                    <Users className="h-5 w-5 text-white" />
+                  </div>
+                ) : activeConv?.type === 'broadcast' ? (
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-md shadow-amber-500/20">
+                    <Zap className="h-5 w-5 text-white" />
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <div className={`h-10 w-10 rounded-xl ${roleColor.bg} flex items-center justify-center shadow-md`}>
+                      <span className="text-xs font-bold text-white">
+                        {activeConv?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                      </span>
+                    </div>
+                    <span className={cn(
+                      "absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[var(--bb-color-bg-surface)]",
+                      statusConfig[activeConv?.status || 'offline'].color
+                    )} />
+                  </div>
+                )}
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-[var(--bb-color-text-primary)]">{activeConv?.name}</span>
+                    {activeConv?.type === 'group' && (
+                      <span className="text-xs text-[var(--bb-color-text-muted)]">{activeConv?.members} members</span>
+                    )}
+                  </div>
+                  {activeConv?.type === 'direct' && (
+                    <p className={cn("text-xs", statusConfig[activeConv?.status || 'offline'].textColor)}>
+                      {activeConv?.status === 'online' ? 'Online' :
+                       activeConv?.status === 'away' ? 'Away' :
+                       activeConv?.status === 'busy' ? 'Busy' :
+                       `Last seen ${activeConv?.lastSeen || 'recently'}`}
+                    </p>
+                  )}
+                  {activeConv?.type === 'group' && (
+                    <p className="text-xs text-[var(--bb-color-text-muted)]">
+                      {activeConv?.isTyping ? `${activeConv?.typingUser} is typing...` : 'Active now'}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-text">{conversations[0]?.name}</p>
-                <p className="text-xs text-green-500">Online</p>
+
+              {/* Header actions */}
+              <div className="flex items-center gap-1">
+                <button className="p-2 text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-elevated)] rounded-lg transition-colors">
+                  <Phone className="h-4 w-4" />
+                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowConversationMenu(!showConversationMenu)}
+                    className="p-2 text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-elevated)] rounded-lg transition-colors"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+
+                  {/* Dropdown menu */}
+                  {showConversationMenu && (
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)] rounded-xl shadow-lg py-1 z-10">
+                      <button className="w-full px-4 py-2 text-left text-sm text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-surface)] flex items-center gap-2">
+                        <User className="h-4 w-4" /> View Profile
+                      </button>
+                      <button className="w-full px-4 py-2 text-left text-sm text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-surface)] flex items-center gap-2">
+                        <Pause className="h-4 w-4" /> Mute Notifications
+                      </button>
+                      <button className="w-full px-4 py-2 text-left text-sm text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-surface)] flex items-center gap-2">
+                        <Search className="h-4 w-4" /> Search in Chat
+                      </button>
+                      <div className="border-t border-[var(--bb-color-border-subtle)] my-1" />
+                      <button className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2">
+                        <Trash2 className="h-4 w-4" /> Delete Conversation
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-            <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
           </div>
-          <div className="flex-1 p-4 overflow-y-auto">
+
+          {/* Messages */}
+          <div className="flex-1 p-4 overflow-y-auto bg-[var(--bb-color-bg-elevated)]/20">
             <div className="space-y-4">
-              <div className="flex justify-start">
-                <div className="bg-surface rounded-lg px-3 py-2 max-w-[70%]">
-                  <p className="text-sm text-text">Hey, can you cover my shift tomorrow?</p>
-                  <p className="text-xs text-muted mt-1">10:30 AM</p>
-                </div>
+              {/* Date separator */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-[var(--bb-color-border-subtle)]" />
+                <span className="text-[10px] text-[var(--bb-color-text-muted)] font-medium">Today</span>
+                <div className="flex-1 h-px bg-[var(--bb-color-border-subtle)]" />
               </div>
-              <div className="flex justify-end">
-                <div className="bg-primary text-white rounded-lg px-3 py-2 max-w-[70%]">
-                  <p className="text-sm">Sure, no problem! What time?</p>
-                  <p className="text-xs opacity-70 mt-1">10:32 AM</p>
+
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={cn("flex", msg.sender === 'me' ? "justify-end" : "justify-start")}
+                >
+                  <div className={cn(
+                    "max-w-[70%] rounded-2xl px-4 py-2.5",
+                    msg.sender === 'me'
+                      ? "bg-gradient-to-br from-[var(--bb-color-accent)] to-[var(--bb-color-accent)]/90 text-white rounded-br-md"
+                      : "bg-[var(--bb-color-bg-surface)] text-[var(--bb-color-text-primary)] rounded-bl-md border border-[var(--bb-color-border-subtle)]"
+                  )}>
+                    <p className="text-sm">{msg.text}</p>
+                    <div className={cn(
+                      "flex items-center gap-1 mt-1",
+                      msg.sender === 'me' ? "justify-end" : "justify-start"
+                    )}>
+                      <span className={cn(
+                        "text-[10px]",
+                        msg.sender === 'me' ? "text-white/70" : "text-[var(--bb-color-text-muted)]"
+                      )}>
+                        {msg.time}
+                      </span>
+                      {/* Read receipt */}
+                      {msg.sender === 'me' && (
+                        <span className="text-white/70">
+                          {msg.read ? (
+                            <CheckCircle className="h-3 w-3" />
+                          ) : msg.delivered ? (
+                            <Check className="h-3 w-3" />
+                          ) : (
+                            <Clock className="h-3 w-3" />
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="flex justify-start">
-                <div className="bg-surface rounded-lg px-3 py-2 max-w-[70%]">
-                  <p className="text-sm text-text">8 AM to 2 PM. Thanks so much!</p>
-                  <p className="text-xs text-muted mt-1">10:35 AM</p>
+              ))}
+
+              {/* Typing indicator in messages */}
+              {activeConv?.isTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-[var(--bb-color-bg-surface)] rounded-2xl rounded-bl-md px-4 py-3 border border-[var(--bb-color-border-subtle)]">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 rounded-full bg-[var(--bb-color-text-muted)] animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-[var(--bb-color-text-muted)] animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-[var(--bb-color-text-muted)] animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
-          <div className="p-4 border-t border-border">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Type a message..."
-                className="flex-1 px-3 py-2 bg-surface border-0 rounded-lg text-sm focus:outline-none"
-              />
-              <Button size="sm"><Send className="h-4 w-4" /></Button>
+
+          {/* Quick actions */}
+          <div className="px-4 py-2 border-t border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)]/30 flex items-center gap-2">
+            {quickActions.map((action, i) => (
+              <button
+                key={i}
+                onClick={action.action}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-medium text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-accent)] hover:bg-[var(--bb-color-accent-soft)] rounded-lg transition-colors"
+              >
+                <action.icon className="h-3 w-3" />
+                {action.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Message input */}
+          <div className="p-4 border-t border-[var(--bb-color-border-subtle)]">
+            <div className="flex items-center gap-2">
+              {/* Attachment button */}
+              <button className="p-2 text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-elevated)] rounded-lg transition-colors">
+                <Plus className="h-5 w-5" />
+              </button>
+
+              {/* Input */}
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  placeholder="Type a message..."
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]/30 focus:border-[var(--bb-color-accent)] text-[var(--bb-color-text-primary)] placeholder:text-[var(--bb-color-text-muted)]"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && messageText.trim()) {
+                      // Send message
+                      setMessageText('');
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Send button */}
+              <Button
+                size="sm"
+                disabled={!messageText.trim()}
+                className={cn(
+                  "px-4",
+                  !messageText.trim() && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Broadcast Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-md shadow-emerald-500/20">
+              <MessageSquare className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <div className="text-xl font-bold text-[var(--bb-color-text-primary)]">{conversations.filter(c => c.unread > 0).reduce((sum, c) => sum + c.unread, 0)}</div>
+              <div className="text-xs text-[var(--bb-color-text-muted)]">Unread Messages</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/20">
+              <Users className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <div className="text-xl font-bold text-[var(--bb-color-text-primary)]">{conversations.filter(c => c.type === 'group').length}</div>
+              <div className="text-xs text-[var(--bb-color-text-muted)]">Group Chats</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-md shadow-amber-500/20">
+              <Zap className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <div className="text-xl font-bold text-[var(--bb-color-text-primary)]">3</div>
+              <div className="text-xs text-[var(--bb-color-text-muted)]">Broadcasts Sent</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-md shadow-purple-500/20">
+              <CheckCircle className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <div className="text-xl font-bold text-[var(--bb-color-text-primary)]">{conversations.filter(c => c.type === 'direct' && c.status === 'online').length}</div>
+              <div className="text-xs text-[var(--bb-color-text-muted)]">Staff Online</div>
             </div>
           </div>
         </div>
