@@ -4517,53 +4517,984 @@ const MessagesTab = ({ staff }) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const AnalyticsTab = ({ staff, stats }) => {
-  const metrics = [
-    { icon: Percent, label: 'Utilization', value: '78%', trend: '+5%', trendType: 'positive', subtitle: 'This month' },
-    { icon: Clock, label: 'Shift Adherence', value: '94%', trend: '+2%', trendType: 'positive', subtitle: 'On-time rate' },
-    { icon: Zap, label: 'Efficiency', value: '87%', subtitle: 'Task completion' },
-    { icon: Target, label: 'Avg Tasks/Shift', value: '6.2', trend: '+0.5', trendType: 'positive' },
-    { icon: Calendar, label: 'PTO Usage', value: '12 days', subtitle: 'Team total' },
-    { icon: Clock, label: 'Total Hours', value: '342h', subtitle: 'This week' },
-    { icon: DollarSign, label: 'Labor Cost', value: '$8,550', subtitle: 'This week' },
-    { icon: TrendingUp, label: 'Productivity', value: '+12%', trend: 'vs last month', trendType: 'positive' },
+  const [timePeriod, setTimePeriod] = useState('week');
+  const [selectedMetric, setSelectedMetric] = useState(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // Time period options
+  const timePeriods = [
+    { id: 'week', label: 'This Week' },
+    { id: 'month', label: 'This Month' },
+    { id: 'quarter', label: 'This Quarter' },
+    { id: 'year', label: 'This Year' },
   ];
+
+  // Period-adjusted metrics with targets
+  const getMetricsForPeriod = (period) => {
+    const multipliers = { week: 1, month: 4, quarter: 13, year: 52 };
+    const m = multipliers[period];
+    return {
+      utilization: { value: 78, target: 85, trend: 5, unit: '%' },
+      adherence: { value: 94, target: 95, trend: 2, unit: '%' },
+      efficiency: { value: 87, target: 90, trend: 3, unit: '%' },
+      tasksPerShift: { value: 6.2, target: 7, trend: 0.5, unit: '' },
+      ptoUsage: { value: Math.round(12 * (m / 4)), budget: Math.round(15 * (m / 4)), unit: 'days' },
+      totalHours: { value: Math.round(342 * m), scheduled: Math.round(360 * m), unit: 'h' },
+      laborCost: { value: Math.round(8550 * m), budget: Math.round(9000 * m), unit: '$' },
+      productivity: { value: 12, prevPeriod: 8, trend: 4, unit: '%' },
+    };
+  };
+
+  const periodMetrics = getMetricsForPeriod(timePeriod);
+
+  // Performance metrics (Row 1)
+  const performanceMetrics = [
+    {
+      icon: Percent,
+      label: 'Utilization',
+      value: `${periodMetrics.utilization.value}%`,
+      target: periodMetrics.utilization.target,
+      trend: `+${periodMetrics.utilization.trend}%`,
+      trendType: 'positive',
+      status: periodMetrics.utilization.value >= periodMetrics.utilization.target ? 'success' :
+              periodMetrics.utilization.value >= periodMetrics.utilization.target - 5 ? 'warning' : 'error',
+      description: 'Staff scheduled hours vs available capacity',
+      key: 'utilization',
+    },
+    {
+      icon: Clock,
+      label: 'Shift Adherence',
+      value: `${periodMetrics.adherence.value}%`,
+      target: periodMetrics.adherence.target,
+      trend: `+${periodMetrics.adherence.trend}%`,
+      trendType: 'positive',
+      status: periodMetrics.adherence.value >= 95 ? 'success' :
+              periodMetrics.adherence.value >= 90 ? 'warning' : 'error',
+      description: 'On-time clock-in rate',
+      key: 'adherence',
+    },
+    {
+      icon: Zap,
+      label: 'Efficiency',
+      value: `${periodMetrics.efficiency.value}%`,
+      target: periodMetrics.efficiency.target,
+      trend: `+${periodMetrics.efficiency.trend}%`,
+      trendType: 'positive',
+      status: periodMetrics.efficiency.value >= 90 ? 'success' :
+              periodMetrics.efficiency.value >= 80 ? 'warning' : 'error',
+      description: 'Task completion during shifts',
+      key: 'efficiency',
+    },
+    {
+      icon: Target,
+      label: 'Avg Tasks/Shift',
+      value: periodMetrics.tasksPerShift.value.toFixed(1),
+      target: periodMetrics.tasksPerShift.target,
+      trend: `+${periodMetrics.tasksPerShift.trend}`,
+      trendType: 'positive',
+      status: periodMetrics.tasksPerShift.value >= periodMetrics.tasksPerShift.target ? 'success' : 'warning',
+      description: 'Average tasks completed per shift',
+      key: 'tasksPerShift',
+    },
+  ];
+
+  // Operational metrics (Row 2)
+  const operationalMetrics = [
+    {
+      icon: Calendar,
+      label: 'PTO Usage',
+      value: `${periodMetrics.ptoUsage.value} days`,
+      budget: periodMetrics.ptoUsage.budget,
+      budgetLabel: 'budget',
+      status: periodMetrics.ptoUsage.value <= periodMetrics.ptoUsage.budget * 0.8 ? 'success' :
+              periodMetrics.ptoUsage.value <= periodMetrics.ptoUsage.budget ? 'warning' : 'error',
+      description: 'Team time off consumed',
+      key: 'ptoUsage',
+    },
+    {
+      icon: Clock,
+      label: 'Total Hours',
+      value: `${periodMetrics.totalHours.value.toLocaleString()}h`,
+      scheduled: periodMetrics.totalHours.scheduled,
+      scheduledLabel: 'scheduled',
+      percent: Math.round((periodMetrics.totalHours.value / periodMetrics.totalHours.scheduled) * 100),
+      status: 'info',
+      description: `${staff.length} staff members`,
+      key: 'totalHours',
+    },
+    {
+      icon: DollarSign,
+      label: 'Labor Cost',
+      value: `$${periodMetrics.laborCost.value.toLocaleString()}`,
+      budget: periodMetrics.laborCost.budget,
+      budgetLabel: 'budget',
+      percent: Math.round((periodMetrics.laborCost.value / periodMetrics.laborCost.budget) * 100),
+      status: periodMetrics.laborCost.value <= periodMetrics.laborCost.budget * 0.95 ? 'success' :
+              periodMetrics.laborCost.value <= periodMetrics.laborCost.budget ? 'warning' : 'error',
+      description: 'Total wages + benefits',
+      key: 'laborCost',
+    },
+    {
+      icon: TrendingUp,
+      label: 'Productivity',
+      value: `+${periodMetrics.productivity.value}%`,
+      trend: `+${periodMetrics.productivity.trend}% vs prior`,
+      trendType: 'positive',
+      status: periodMetrics.productivity.value >= 10 ? 'success' :
+              periodMetrics.productivity.value >= 0 ? 'warning' : 'error',
+      description: 'Output improvement vs last period',
+      key: 'productivity',
+    },
+  ];
+
+  // Attendance trend data (7 days or 30 days based on period)
+  const attendanceTrends = timePeriod === 'week' ? [
+    { day: 'Mon', rate: 96, late: 1, absent: 0 },
+    { day: 'Tue', rate: 92, late: 2, absent: 1 },
+    { day: 'Wed', rate: 100, late: 0, absent: 0 },
+    { day: 'Thu', rate: 88, late: 1, absent: 2 },
+    { day: 'Fri', rate: 94, late: 1, absent: 1 },
+    { day: 'Sat', rate: 90, late: 2, absent: 1 },
+    { day: 'Sun', rate: 95, late: 1, absent: 0 },
+  ] : [
+    { day: 'Week 1', rate: 94, late: 4, absent: 2 },
+    { day: 'Week 2', rate: 91, late: 6, absent: 3 },
+    { day: 'Week 3', rate: 96, late: 2, absent: 1 },
+    { day: 'Week 4', rate: 93, late: 5, absent: 2 },
+  ];
+
+  // Labor cost trend data
+  const laborCostTrends = timePeriod === 'week' ? [
+    { period: 'Mon', actual: 1200, budget: 1300 },
+    { period: 'Tue', actual: 1350, budget: 1300 },
+    { period: 'Wed', actual: 1180, budget: 1200 },
+    { period: 'Thu', actual: 1420, budget: 1400 },
+    { period: 'Fri', actual: 1500, budget: 1400 },
+    { period: 'Sat', actual: 1100, budget: 1200 },
+    { period: 'Sun', actual: 800, budget: 800 },
+  ] : [
+    { period: 'Week 1', actual: 8200, budget: 9000 },
+    { period: 'Week 2', actual: 8800, budget: 9000 },
+    { period: 'Week 3', actual: 8550, budget: 9000 },
+    { period: 'Week 4', actual: 9100, budget: 9000 },
+  ];
+
+  // Hours by day of week
+  const hoursByDayOfWeek = [
+    { day: 'Mon', hours: 52, scheduled: 56 },
+    { day: 'Tue', hours: 48, scheduled: 48 },
+    { day: 'Wed', hours: 56, scheduled: 56 },
+    { day: 'Thu', hours: 50, scheduled: 52 },
+    { day: 'Fri', hours: 54, scheduled: 56 },
+    { day: 'Sat', hours: 44, scheduled: 48 },
+    { day: 'Sun', hours: 38, scheduled: 40 },
+  ];
+
+  // Utilization by role
+  const utilizationByRole = [
+    { role: 'Manager', utilization: 92, hours: 80, color: ROLE_COLOR_MAP['Manager']?.bg || 'bg-orange-500' },
+    { role: 'Groomer', utilization: 85, hours: 120, color: ROLE_COLOR_MAP['Groomer']?.bg || 'bg-pink-500' },
+    { role: 'Kennel Tech', utilization: 78, hours: 160, color: ROLE_COLOR_MAP['Kennel Tech']?.bg || 'bg-blue-500' },
+    { role: 'Trainer', utilization: 70, hours: 40, color: 'bg-gradient-to-br from-teal-500 to-teal-600' },
+  ];
+
+  // Hours by staff with more detail
+  const staffHoursData = staff.slice(0, 6).map((s, i) => {
+    const scheduled = 40 - (i % 3) * 5;
+    const actual = scheduled - Math.floor(Math.random() * 4);
+    const overtime = i === 0 ? 4 : i === 2 ? 2 : 0;
+    return {
+      ...s,
+      scheduled,
+      actual,
+      overtime,
+      efficiency: Math.round((actual / scheduled) * 100),
+    };
+  });
+
+  // AI-powered insights
+  const insights = [
+    {
+      type: 'warning',
+      icon: AlertTriangle,
+      title: 'Understaffing Alert',
+      message: 'Tuesdays consistently have 15% more late arrivals. Consider adding buffer staff.',
+      action: 'View Schedule',
+      priority: 'high',
+    },
+    {
+      type: 'success',
+      icon: TrendingUp,
+      title: 'Efficiency Improving',
+      message: 'Task completion rate up 8% this month. Top performer: Sarah Miller.',
+      action: 'View Details',
+      priority: 'medium',
+    },
+    {
+      type: 'info',
+      icon: DollarSign,
+      title: 'Labor Cost Optimization',
+      message: 'Weekend shifts are 12% under budget. Consider reallocating hours to busy weekdays.',
+      action: 'Adjust Schedule',
+      priority: 'medium',
+    },
+    {
+      type: 'warning',
+      icon: Calendar,
+      title: 'PTO Clustering',
+      message: '3 staff members requested time off for the same week next month.',
+      action: 'Review Requests',
+      priority: 'high',
+    },
+  ];
+
+  // Status color mapping
+  const statusColors = {
+    success: { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-800' },
+    warning: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-800' },
+    error: { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-600 dark:text-red-400', border: 'border-red-200 dark:border-red-800' },
+    info: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-200 dark:border-blue-800' },
+  };
+
+  // Metric card with target indicator
+  const MetricCard = ({ metric, onClick }) => {
+    const colors = statusColors[metric.status] || statusColors.info;
+    const Icon = metric.icon;
+
+    return (
+      <button
+        onClick={() => onClick?.(metric)}
+        className={cn(
+          "bg-[var(--bb-color-bg-surface)] border rounded-xl p-4 text-left transition-all hover:shadow-md hover:-translate-y-0.5 group w-full",
+          colors.border
+        )}
+      >
+        <div className="flex items-start justify-between mb-3">
+          <div className={cn(
+            "h-10 w-10 rounded-xl flex items-center justify-center shadow-md",
+            metric.status === 'success' && "bg-gradient-to-br from-emerald-500 to-emerald-600",
+            metric.status === 'warning' && "bg-gradient-to-br from-amber-500 to-amber-600",
+            metric.status === 'error' && "bg-gradient-to-br from-red-500 to-red-600",
+            metric.status === 'info' && "bg-gradient-to-br from-blue-500 to-blue-600"
+          )}>
+            <Icon className="h-5 w-5 text-white" />
+          </div>
+          {metric.trend && (
+            <span className={cn(
+              "text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1",
+              metric.trendType === 'positive' ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" :
+              metric.trendType === 'negative' ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400" :
+              "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
+            )}>
+              {metric.trendType === 'positive' ? <TrendingUp className="h-3 w-3" /> :
+               metric.trendType === 'negative' ? <TrendingDown className="h-3 w-3" /> : null}
+              {metric.trend}
+            </span>
+          )}
+        </div>
+
+        <div className="mb-2">
+          <div className="text-2xl font-bold text-[var(--bb-color-text-primary)] group-hover:text-[var(--bb-color-accent)]">
+            {metric.value}
+          </div>
+          <div className="text-sm font-medium text-[var(--bb-color-text-secondary)]">{metric.label}</div>
+        </div>
+
+        {/* Target/Budget indicator */}
+        {(metric.target || metric.budget || metric.scheduled) && (
+          <div className="mt-3 pt-3 border-t border-[var(--bb-color-border-subtle)]">
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-[var(--bb-color-text-muted)]">
+                {metric.budgetLabel || metric.scheduledLabel || 'Target'}: {metric.budget || metric.scheduled || metric.target}{metric.budget ? '' : metric.scheduled ? 'h' : '%'}
+              </span>
+              {metric.percent && (
+                <span className={cn("font-medium", colors.text)}>
+                  {metric.percent}%
+                </span>
+              )}
+            </div>
+            <div className="h-1.5 bg-[var(--bb-color-bg-elevated)] rounded-full overflow-hidden">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all",
+                  metric.status === 'success' && "bg-emerald-500",
+                  metric.status === 'warning' && "bg-amber-500",
+                  metric.status === 'error' && "bg-red-500",
+                  metric.status === 'info' && "bg-blue-500"
+                )}
+                style={{ width: `${Math.min(metric.percent || (parseFloat(metric.value) / (metric.target || 100) * 100), 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Description */}
+        <p className="text-[10px] text-[var(--bb-color-text-muted)] mt-2">{metric.description}</p>
+      </button>
+    );
+  };
+
+  // Mini bar chart component
+  const MiniBarChart = ({ data, valueKey, maxValue, color = 'bg-blue-500', height = 'h-24' }) => {
+    const max = maxValue || Math.max(...data.map(d => d[valueKey]));
+    return (
+      <div className={cn("flex items-end gap-1", height)}>
+        {data.map((item, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center">
+            <div
+              className={cn("w-full rounded-t transition-all hover:opacity-80", color)}
+              style={{ height: `${(item[valueKey] / max) * 100}%`, minHeight: '4px' }}
+            />
+            <span className="text-[9px] text-[var(--bb-color-text-muted)] mt-1">{item.day || item.period}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // Mini line chart component
+  const MiniLineChart = ({ data, valueKey, height = 80 }) => {
+    const max = Math.max(...data.map(d => d[valueKey]));
+    const min = Math.min(...data.map(d => d[valueKey]));
+    const range = max - min || 1;
+    const points = data.map((d, i) => ({
+      x: (i / (data.length - 1)) * 100,
+      y: 100 - ((d[valueKey] - min) / range) * 80 - 10,
+    }));
+    const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+
+    return (
+      <div className="relative" style={{ height }}>
+        <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {/* Grid lines */}
+          <line x1="0" y1="25" x2="100" y2="25" stroke="var(--bb-color-border-subtle)" strokeWidth="0.5" strokeDasharray="2" />
+          <line x1="0" y1="50" x2="100" y2="50" stroke="var(--bb-color-border-subtle)" strokeWidth="0.5" strokeDasharray="2" />
+          <line x1="0" y1="75" x2="100" y2="75" stroke="var(--bb-color-border-subtle)" strokeWidth="0.5" strokeDasharray="2" />
+
+          {/* Line */}
+          <path d={pathD} fill="none" stroke="var(--bb-color-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+
+          {/* Points */}
+          {points.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r="3" fill="var(--bb-color-accent)" />
+          ))}
+        </svg>
+
+        {/* Labels */}
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between">
+          {data.map((d, i) => (
+            <span key={i} className="text-[9px] text-[var(--bb-color-text-muted)]">{d.day || d.period}</span>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-5">
-      {/* KPI Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {metrics.map((kpi, i) => (
-          <KPITile key={i} {...kpi} />
-        ))}
+      {/* Header with time period and export */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--bb-color-text-primary)]">Workforce Analytics</h2>
+          <p className="text-sm text-[var(--bb-color-text-muted)]">Performance insights and operational metrics</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Time period selector */}
+          <div className="flex items-center bg-[var(--bb-color-bg-elevated)] rounded-lg p-0.5">
+            {timePeriods.map((period) => (
+              <button
+                key={period.id}
+                onClick={() => setTimePeriod(period.id)}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
+                  timePeriod === period.id
+                    ? "bg-[var(--bb-color-accent)] text-white shadow-sm"
+                    : "text-[var(--bb-color-text-secondary)] hover:text-[var(--bb-color-text-primary)]"
+                )}
+              >
+                {period.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Export button */}
+          <div className="relative">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+            >
+              <Download className="h-3.5 w-3.5 mr-1.5" />
+              Export
+              <ChevronDown className="h-3.5 w-3.5 ml-1.5" />
+            </Button>
+
+            {showExportMenu && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)] rounded-xl shadow-lg py-1 z-10">
+                <button className="w-full px-4 py-2 text-left text-sm text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-surface)] flex items-center gap-2">
+                  <FileText className="h-4 w-4" /> Export to PDF
+                </button>
+                <button className="w-full px-4 py-2 text-left text-sm text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-surface)] flex items-center gap-2">
+                  <Download className="h-4 w-4" /> Export to CSV
+                </button>
+                <button className="w-full px-4 py-2 text-left text-sm text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-surface)] flex items-center gap-2">
+                  <Mail className="h-4 w-4" /> Email Report
+                </button>
+                <div className="border-t border-[var(--bb-color-border-subtle)] my-1" />
+                <button className="w-full px-4 py-2 text-left text-sm text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-surface)] flex items-center gap-2">
+                  <Settings className="h-4 w-4" /> Schedule Reports
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-          <SectionHeader icon={BarChart3} title="Hours by Staff" subtitle="This week" />
-          <div className="space-y-3 mt-4">
-            {staff.slice(0, 4).map((s, i) => (
-              <div key={i}>
-                <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="text-text">{s.name || s.email}</span>
-                  <span className="text-muted">{40 - i * 5}h</span>
+      {/* Performance Metrics - Row 1 */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
+            <Activity className="h-3.5 w-3.5 text-white" />
+          </div>
+          <span className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Performance Metrics</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {performanceMetrics.map((metric, i) => (
+            <MetricCard key={i} metric={metric} onClick={setSelectedMetric} />
+          ))}
+        </div>
+      </div>
+
+      {/* Operational Metrics - Row 2 */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="h-6 w-6 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+            <BarChart3 className="h-3.5 w-3.5 text-white" />
+          </div>
+          <span className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Operational Metrics</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {operationalMetrics.map((metric, i) => (
+            <MetricCard key={i} metric={metric} onClick={setSelectedMetric} />
+          ))}
+        </div>
+      </div>
+
+      {/* AI Insights Panel */}
+      <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200 dark:border-purple-800/50 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-md shadow-purple-500/20">
+              <Zap className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">AI-Powered Insights</h3>
+              <p className="text-[10px] text-[var(--bb-color-text-muted)]">Actionable recommendations based on your data</p>
+            </div>
+          </div>
+          <span className="text-[10px] text-purple-600 dark:text-purple-400 font-medium px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 rounded-full">
+            {insights.filter(i => i.priority === 'high').length} high priority
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {insights.map((insight, i) => {
+            const colors = statusColors[insight.type] || statusColors.info;
+            return (
+              <div
+                key={i}
+                className={cn(
+                  "bg-[var(--bb-color-bg-surface)] rounded-lg p-3 border transition-all hover:shadow-sm cursor-pointer",
+                  colors.border
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={cn(
+                    "h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                    colors.bg
+                  )}>
+                    <insight.icon className={cn("h-4 w-4", colors.text)} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">{insight.title}</span>
+                      {insight.priority === 'high' && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded">
+                          HIGH
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-[var(--bb-color-text-muted)] line-clamp-2">{insight.message}</p>
+                    <button className="text-[10px] font-medium text-[var(--bb-color-accent)] hover:underline mt-1.5">
+                      {insight.action} →
+                    </button>
+                  </div>
                 </div>
-                <ProgressBar value={(40 - i * 5) / 45 * 100} color="primary" showLabel={false} />
               </div>
-            ))}
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Charts Row - Attendance & Labor Cost */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Attendance Trends */}
+        <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-md shadow-emerald-500/20">
+                <Activity className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Attendance Trends</h3>
+                <p className="text-[10px] text-[var(--bb-color-text-muted)]">{timePeriod === 'week' ? 'Daily breakdown' : 'Weekly breakdown'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-[10px]">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                On Time
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                Late
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-red-500" />
+                Absent
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {attendanceTrends.map((day, i) => {
+              const onTime = 100 - ((day.late + day.absent) / (staff.length || 4) * 100);
+              return (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="text-xs text-[var(--bb-color-text-muted)] w-12">{day.day}</span>
+                  <div className="flex-1 h-6 bg-[var(--bb-color-bg-elevated)] rounded-lg overflow-hidden flex">
+                    <div
+                      className="h-full bg-emerald-500 transition-all"
+                      style={{ width: `${day.rate}%` }}
+                    />
+                    <div
+                      className="h-full bg-amber-500 transition-all"
+                      style={{ width: `${(day.late / (staff.length || 4)) * 100}%` }}
+                    />
+                    <div
+                      className="h-full bg-red-500 transition-all"
+                      style={{ width: `${(day.absent / (staff.length || 4)) * 100}%` }}
+                    />
+                  </div>
+                  <span className={cn(
+                    "text-xs font-medium w-12 text-right",
+                    day.rate >= 95 ? "text-emerald-600 dark:text-emerald-400" :
+                    day.rate >= 90 ? "text-amber-600 dark:text-amber-400" :
+                    "text-red-600 dark:text-red-400"
+                  )}>
+                    {day.rate}%
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Summary stats */}
+          <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--bb-color-border-subtle)]">
+            <div className="text-center">
+              <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                {Math.round(attendanceTrends.reduce((sum, d) => sum + d.rate, 0) / attendanceTrends.length)}%
+              </div>
+              <div className="text-[10px] text-[var(--bb-color-text-muted)]">Avg Attendance</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-bold text-amber-600 dark:text-amber-400">
+                {attendanceTrends.reduce((sum, d) => sum + d.late, 0)}
+              </div>
+              <div className="text-[10px] text-[var(--bb-color-text-muted)]">Total Late</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-bold text-red-600 dark:text-red-400">
+                {attendanceTrends.reduce((sum, d) => sum + d.absent, 0)}
+              </div>
+              <div className="text-[10px] text-[var(--bb-color-text-muted)]">Total Absent</div>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-          <SectionHeader icon={Activity} title="Attendance Trends" subtitle="Last 30 days" />
-          <div className="h-40 bg-surface/50 rounded-lg flex items-center justify-center">
+        {/* Labor Cost Trends */}
+        <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/20">
+                <DollarSign className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Labor Cost vs Budget</h3>
+                <p className="text-[10px] text-[var(--bb-color-text-muted)]">{timePeriod === 'week' ? 'Daily breakdown' : 'Weekly breakdown'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-[10px]">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                Actual
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
+                Budget
+              </span>
+            </div>
+          </div>
+
+          <div className="h-32 flex items-end gap-2">
+            {laborCostTrends.map((item, i) => {
+              const maxVal = Math.max(...laborCostTrends.map(d => Math.max(d.actual, d.budget)));
+              const isOverBudget = item.actual > item.budget;
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                  <div className="w-full flex items-end justify-center gap-0.5 h-24">
+                    {/* Actual bar */}
+                    <div
+                      className={cn(
+                        "w-3 rounded-t transition-all",
+                        isOverBudget ? "bg-red-500" : "bg-blue-500"
+                      )}
+                      style={{ height: `${(item.actual / maxVal) * 100}%` }}
+                      title={`Actual: $${item.actual.toLocaleString()}`}
+                    />
+                    {/* Budget bar */}
+                    <div
+                      className="w-3 rounded-t bg-gray-200 dark:bg-gray-700 transition-all"
+                      style={{ height: `${(item.budget / maxVal) * 100}%` }}
+                      title={`Budget: $${item.budget.toLocaleString()}`}
+                    />
+                  </div>
+                  <span className="text-[9px] text-[var(--bb-color-text-muted)]">{item.period}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Summary */}
+          <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--bb-color-border-subtle)]">
             <div className="text-center">
-              <Activity className="h-8 w-8 text-muted mx-auto mb-2" />
-              <p className="text-xs text-muted">Attendance chart</p>
+              <div className="text-lg font-bold text-[var(--bb-color-text-primary)]">
+                ${laborCostTrends.reduce((sum, d) => sum + d.actual, 0).toLocaleString()}
+              </div>
+              <div className="text-[10px] text-[var(--bb-color-text-muted)]">Total Actual</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg font-bold text-[var(--bb-color-text-muted)]">
+                ${laborCostTrends.reduce((sum, d) => sum + d.budget, 0).toLocaleString()}
+              </div>
+              <div className="text-[10px] text-[var(--bb-color-text-muted)]">Total Budget</div>
+            </div>
+            <div className="text-center">
+              {(() => {
+                const totalActual = laborCostTrends.reduce((sum, d) => sum + d.actual, 0);
+                const totalBudget = laborCostTrends.reduce((sum, d) => sum + d.budget, 0);
+                const variance = totalBudget - totalActual;
+                const isUnder = variance >= 0;
+                return (
+                  <>
+                    <div className={cn(
+                      "text-lg font-bold",
+                      isUnder ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                    )}>
+                      {isUnder ? '-' : '+'}${Math.abs(variance).toLocaleString()}
+                    </div>
+                    <div className="text-[10px] text-[var(--bb-color-text-muted)]">
+                      {isUnder ? 'Under Budget' : 'Over Budget'}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Second Row - Hours by Staff & Utilization by Role */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Hours by Staff */}
+        <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md shadow-violet-500/20">
+                <Users className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Hours by Staff</h3>
+                <p className="text-[10px] text-[var(--bb-color-text-muted)]">Scheduled vs Actual with overtime</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 text-[10px]">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                Actual
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-amber-500" />
+                Overtime
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {staffHoursData.map((s, i) => {
+              const roleColor = ROLE_COLOR_MAP[s.role] || ROLE_COLOR_MAP['default'];
+              const initials = (s.name || s.email || '??').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+              const hasOvertime = s.overtime > 0;
+
+              return (
+                <div key={i} className="group">
+                  <div className="flex items-center gap-3 mb-1.5">
+                    <div className={`h-7 w-7 rounded-lg ${roleColor.bg} flex items-center justify-center flex-shrink-0`}>
+                      <span className="text-[10px] font-bold text-white">{initials}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-[var(--bb-color-text-primary)] truncate">
+                          {s.name || s.email}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-[var(--bb-color-text-muted)]">
+                            {s.actual}h / {s.scheduled}h
+                          </span>
+                          {hasOvertime && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded">
+                              +{s.overtime}h OT
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="ml-10 h-2 bg-[var(--bb-color-bg-elevated)] rounded-full overflow-hidden flex">
+                    <div
+                      className="h-full bg-blue-500 transition-all"
+                      style={{ width: `${(s.actual / s.scheduled) * 100}%` }}
+                    />
+                    {hasOvertime && (
+                      <div
+                        className="h-full bg-amber-500 transition-all"
+                        style={{ width: `${(s.overtime / s.scheduled) * 100}%` }}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Utilization by Role */}
+        <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-md shadow-teal-500/20">
+                <PieChart className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Utilization by Role</h3>
+                <p className="text-[10px] text-[var(--bb-color-text-muted)]">Capacity usage across departments</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {utilizationByRole.map((role, i) => {
+              const roleColor = ROLE_COLOR_MAP[role.role] || ROLE_COLOR_MAP['default'];
+              return (
+                <div key={i}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className={`h-6 w-6 rounded-lg ${roleColor.bg} flex items-center justify-center`}>
+                        <Briefcase className="h-3 w-3 text-white" />
+                      </div>
+                      <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">{role.role}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-[var(--bb-color-text-muted)]">{role.hours}h</span>
+                      <span className={cn(
+                        "text-sm font-bold",
+                        role.utilization >= 85 ? "text-emerald-600 dark:text-emerald-400" :
+                        role.utilization >= 70 ? "text-amber-600 dark:text-amber-400" :
+                        "text-red-600 dark:text-red-400"
+                      )}>
+                        {role.utilization}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="h-3 bg-[var(--bb-color-bg-elevated)] rounded-full overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        role.utilization >= 85 ? "bg-emerald-500" :
+                        role.utilization >= 70 ? "bg-amber-500" :
+                        "bg-red-500"
+                      )}
+                      style={{ width: `${role.utilization}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Average utilization */}
+          <div className="mt-4 pt-3 border-t border-[var(--bb-color-border-subtle)] flex items-center justify-between">
+            <span className="text-xs text-[var(--bb-color-text-muted)]">Average Utilization</span>
+            <span className="text-lg font-bold text-[var(--bb-color-text-primary)]">
+              {Math.round(utilizationByRole.reduce((sum, r) => sum + r.utilization, 0) / utilizationByRole.length)}%
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Hours by Day of Week */}
+      <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-md shadow-orange-500/20">
+              <Calendar className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Hours by Day of Week</h3>
+              <p className="text-[10px] text-[var(--bb-color-text-muted)]">Identify staffing patterns and gaps</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 text-[10px]">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-[var(--bb-color-accent)]" />
+              Worked
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600" />
+              Scheduled
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-7 gap-3">
+          {hoursByDayOfWeek.map((day, i) => {
+            const percent = Math.round((day.hours / day.scheduled) * 100);
+            const isUnder = day.hours < day.scheduled * 0.9;
+            const isOver = day.hours > day.scheduled;
+
+            return (
+              <div key={i} className="text-center">
+                <div className="text-xs font-medium text-[var(--bb-color-text-muted)] mb-2">{day.day}</div>
+                <div className="relative h-24 bg-[var(--bb-color-bg-elevated)] rounded-lg overflow-hidden mb-2">
+                  {/* Scheduled (background) */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 bg-gray-200 dark:bg-gray-700 transition-all"
+                    style={{ height: `${(day.scheduled / 60) * 100}%` }}
+                  />
+                  {/* Actual (foreground) */}
+                  <div
+                    className={cn(
+                      "absolute bottom-0 left-0 right-0 transition-all",
+                      isOver ? "bg-amber-500" : isUnder ? "bg-red-400" : "bg-[var(--bb-color-accent)]"
+                    )}
+                    style={{ height: `${(day.hours / 60) * 100}%` }}
+                  />
+                </div>
+                <div className="text-sm font-bold text-[var(--bb-color-text-primary)]">{day.hours}h</div>
+                <div className="text-[10px] text-[var(--bb-color-text-muted)]">/ {day.scheduled}h</div>
+                {isUnder && (
+                  <div className="text-[9px] text-red-500 font-medium mt-0.5">-{day.scheduled - day.hours}h</div>
+                )}
+                {isOver && (
+                  <div className="text-[9px] text-amber-500 font-medium mt-0.5">+{day.hours - day.scheduled}h</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Metric Detail Modal */}
+      {selectedMetric && (
+        <Modal
+          open={!!selectedMetric}
+          onClose={() => setSelectedMetric(null)}
+          title={`${selectedMetric.label} Details`}
+          className="max-w-lg"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className={cn(
+                "h-14 w-14 rounded-xl flex items-center justify-center shadow-lg",
+                selectedMetric.status === 'success' && "bg-gradient-to-br from-emerald-500 to-emerald-600",
+                selectedMetric.status === 'warning' && "bg-gradient-to-br from-amber-500 to-amber-600",
+                selectedMetric.status === 'error' && "bg-gradient-to-br from-red-500 to-red-600",
+                selectedMetric.status === 'info' && "bg-gradient-to-br from-blue-500 to-blue-600"
+              )}>
+                <selectedMetric.icon className="h-7 w-7 text-white" />
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-[var(--bb-color-text-primary)]">{selectedMetric.value}</div>
+                <p className="text-sm text-[var(--bb-color-text-muted)]">{selectedMetric.description}</p>
+              </div>
+            </div>
+
+            {(selectedMetric.target || selectedMetric.budget) && (
+              <div className="bg-[var(--bb-color-bg-elevated)] rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-[var(--bb-color-text-secondary)]">
+                    {selectedMetric.budgetLabel || 'Target'}
+                  </span>
+                  <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">
+                    {selectedMetric.budget || selectedMetric.target}{selectedMetric.budget ? '' : '%'}
+                  </span>
+                </div>
+                <div className="h-2 bg-[var(--bb-color-bg-surface)] rounded-full overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      selectedMetric.status === 'success' && "bg-emerald-500",
+                      selectedMetric.status === 'warning' && "bg-amber-500",
+                      selectedMetric.status === 'error' && "bg-red-500",
+                      selectedMetric.status === 'info' && "bg-blue-500"
+                    )}
+                    style={{ width: `${Math.min(parseFloat(selectedMetric.value) / (selectedMetric.target || selectedMetric.budget || 100) * 100, 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-[var(--bb-color-bg-elevated)] rounded-lg p-3 text-center">
+                <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                  {selectedMetric.trend || '+0%'}
+                </div>
+                <div className="text-xs text-[var(--bb-color-text-muted)]">vs Last Period</div>
+              </div>
+              <div className="bg-[var(--bb-color-bg-elevated)] rounded-lg p-3 text-center">
+                <div className="text-lg font-bold text-[var(--bb-color-text-primary)]">
+                  {selectedMetric.target || selectedMetric.budget || '-'}
+                </div>
+                <div className="text-xs text-[var(--bb-color-text-muted)]">
+                  {selectedMetric.budgetLabel || 'Target'}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" size="sm" className="flex-1">
+                <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
+                View History
+              </Button>
+              <Button size="sm" className="flex-1">
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+                Export Data
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
