@@ -8,6 +8,7 @@ import { useSearchParams } from 'react-router-dom';
 import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
 import {
   Users,
+  User,
   UserPlus,
   Calendar,
   Clock,
@@ -2897,103 +2898,429 @@ const DefaultScheduleForm = ({ staff, existingSchedules, editingSchedule, onSubm
 
 const TasksTab = ({ staff }) => {
   const [selectedStaff, setSelectedStaff] = useState('all');
+  const [selectedTasks, setSelectedTasks] = useState([]);
+  const [groupBy, setGroupBy] = useState('none'); // none, assignee, status, priority
+  const [showAssignModal, setShowAssignModal] = useState(false);
 
-  // Mock task data
+  // Mock task data with more details
   const tasks = [
-    { id: 1, title: 'Morning feeding rounds', assignee: staff[0]?.name || 'Staff', status: 'overdue', priority: 'high', due: '8:00 AM' },
-    { id: 2, title: 'Clean Run A1-A5', assignee: staff[1]?.name || 'Staff', status: 'in-progress', priority: 'medium', due: '10:00 AM' },
-    { id: 3, title: 'Medication for Max', assignee: staff[0]?.name || 'Staff', status: 'pending', priority: 'high', due: '12:00 PM' },
-    { id: 4, title: 'Grooming appointment', assignee: staff[2]?.name || 'Staff', status: 'completed', priority: 'low', due: '2:00 PM' },
+    { id: 1, title: 'Morning feeding rounds', assignee: staff[0]?.name || 'Staff', assigneeId: staff[0]?.id, status: 'overdue', priority: 'high', due: '8:00 AM', dueDate: 'Today', description: 'Feed all dogs in kennels A1-A10' },
+    { id: 2, title: 'Clean Run A1-A5', assignee: staff[1]?.name || 'Staff', assigneeId: staff[1]?.id, status: 'in-progress', priority: 'medium', due: '10:00 AM', dueDate: 'Today', description: 'Deep clean and sanitize runs' },
+    { id: 3, title: 'Medication for Max', assignee: staff[0]?.name || 'Staff', assigneeId: staff[0]?.id, status: 'pending', priority: 'high', due: '12:00 PM', dueDate: 'Today', description: 'Administer antibiotics with food' },
+    { id: 4, title: 'Grooming appointment', assignee: staff[2]?.name || 'Staff', assigneeId: staff[2]?.id, status: 'completed', priority: 'low', due: '2:00 PM', dueDate: 'Today', description: 'Full groom for Bella' },
+    { id: 5, title: 'Evening walk schedule', assignee: staff[1]?.name || 'Staff', assigneeId: staff[1]?.id, status: 'pending', priority: 'medium', due: '4:00 PM', dueDate: 'Today', description: 'Walk dogs in groups' },
+    { id: 6, title: 'Update pet records', assignee: staff[0]?.name || 'Staff', assigneeId: staff[0]?.id, status: 'overdue', priority: 'low', due: '9:00 AM', dueDate: 'Yesterday', description: 'Enter vaccination records' },
   ];
 
-  const workloadData = staff.slice(0, 4).map(s => ({
-    name: s.name || s.email || 'Staff',
-    tasks: Math.floor(Math.random() * 8) + 2,
-    completed: Math.floor(Math.random() * 5),
-  }));
+  // Workload data with capacity
+  const maxCapacity = 8; // Max recommended tasks per staff per day
+  const workloadData = staff.slice(0, 4).map((s, idx) => {
+    const staffTasks = tasks.filter(t => t.assignee === (s.name || s.email));
+    const assignedCount = staffTasks.length;
+    const completedCount = staffTasks.filter(t => t.status === 'completed').length;
+    const overdueCount = staffTasks.filter(t => t.status === 'overdue').length;
+    const inProgressCount = staffTasks.filter(t => t.status === 'in-progress').length;
+
+    return {
+      id: s.id || s.recordId || idx,
+      name: s.name || s.email || 'Staff',
+      role: s.role || 'Staff',
+      assigned: assignedCount || Math.floor(Math.random() * 6) + 2,
+      completed: completedCount || Math.floor(Math.random() * 3),
+      overdue: overdueCount || (idx === 0 ? 2 : 0),
+      inProgress: inProgressCount || (idx === 1 ? 1 : 0),
+      capacity: maxCapacity,
+    };
+  });
+
+  // Calculate stats
+  const stats = {
+    overdue: tasks.filter(t => t.status === 'overdue').length,
+    pending: tasks.filter(t => t.status === 'pending').length,
+    inProgress: tasks.filter(t => t.status === 'in-progress').length,
+    completed: tasks.filter(t => t.status === 'completed').length,
+    total: tasks.length,
+    avgPerStaff: (tasks.length / Math.max(staff.length, 1)).toFixed(1),
+  };
+
+  // Filter tasks
+  const filteredTasks = selectedStaff === 'all'
+    ? tasks
+    : tasks.filter(t => t.assignee === selectedStaff);
+
+  // Group tasks
+  const groupedTasks = useMemo(() => {
+    if (groupBy === 'none') return { 'All Tasks': filteredTasks };
+
+    return filteredTasks.reduce((acc, task) => {
+      const key = groupBy === 'assignee' ? task.assignee
+                : groupBy === 'status' ? task.status
+                : task.priority;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(task);
+      return acc;
+    }, {});
+  }, [filteredTasks, groupBy]);
+
+  // Handle task selection
+  const toggleTaskSelection = (taskId) => {
+    setSelectedTasks(prev =>
+      prev.includes(taskId)
+        ? prev.filter(id => id !== taskId)
+        : [...prev, taskId]
+    );
+  };
+
+  const toggleAllTasks = () => {
+    if (selectedTasks.length === filteredTasks.length) {
+      setSelectedTasks([]);
+    } else {
+      setSelectedTasks(filteredTasks.map(t => t.id));
+    }
+  };
+
+  // Priority colors for left border
+  const priorityColors = {
+    high: 'border-l-red-500',
+    medium: 'border-l-amber-500',
+    low: 'border-l-slate-400',
+  };
+
+  // Status config
+  const statusConfig = {
+    overdue: { label: 'Overdue', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-900/30', icon: AlertTriangle },
+    'in-progress': { label: 'In Progress', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30', icon: Activity },
+    pending: { label: 'Pending', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30', icon: Clock },
+    completed: { label: 'Completed', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30', icon: CheckCircle },
+  };
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left: Summary & Charts */}
         <div className="space-y-4">
-          {/* Workload Balance */}
-          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-            <SectionHeader icon={PieChart} title="Workload Balance" subtitle="Tasks per staff" />
-            <div className="space-y-3">
-              {workloadData.map((s, i) => (
-                <div key={i}>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-text">{s.name}</span>
-                    <span className="text-muted">{s.completed}/{s.tasks}</span>
-                  </div>
-                  <ProgressBar value={(s.completed / s.tasks) * 100} color={s.completed === s.tasks ? 'success' : 'primary'} showLabel={false} />
+          {/* Workload Balance - Enhanced */}
+          <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl overflow-hidden shadow-sm">
+            <div className="p-4 border-b border-[var(--bb-color-border-subtle)] bg-gradient-to-r from-[var(--bb-color-bg-elevated)]/50 to-transparent">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md shadow-purple-500/20">
+                  <BarChart3 className="h-5 w-5 text-white" />
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-2 gap-3">
-            <KPITile icon={AlertTriangle} label="Overdue" value="2" subtitle="Need attention" />
-            <KPITile icon={Clock} label="Pending" value="5" subtitle="Today" />
-            <KPITile icon={CheckCircle} label="Completed" value="12" subtitle="Today" />
-            <KPITile icon={Target} label="Avg/Staff" value="4.5" subtitle="Tasks" />
-          </div>
-        </div>
-
-        {/* Right: Task List */}
-        <div className="lg:col-span-2">
-          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg">
-            <div className="p-4 border-b border-border flex items-center justify-between">
-              <div className="min-w-[160px]">
-                <StyledSelect
-                  options={[
-                    { value: 'all', label: 'All Staff' },
-                    ...staff.map((s, i) => ({ value: s.name || s.email, label: s.name || s.email }))
-                  ]}
-                  value={selectedStaff}
-                  onChange={(opt) => setSelectedStaff(opt?.value || 'all')}
-                  isClearable={false}
-                  isSearchable={true}
-                />
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Workload Balance</h3>
+                  <p className="text-xs text-[var(--bb-color-text-muted)]">Task distribution across team</p>
+                </div>
               </div>
-              <Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" />Assign Task</Button>
             </div>
-            <div className="divide-y divide-border">
-              {tasks.map(task => (
-                <div key={task.id} className="p-4 hover:bg-surface/50 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3">
-                      <input type="checkbox" checked={task.status === 'completed'} readOnly className="mt-1 rounded" />
-                      <div>
-                        <p className={cn('text-sm font-medium', task.status === 'completed' ? 'line-through text-muted' : 'text-text')}>
-                          {task.title}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-muted">
-                          <span>{task.assignee}</span>
-                          <span>•</span>
-                          <span>Due {task.due}</span>
+
+            <div className="p-4 space-y-4">
+              {workloadData.map((s) => {
+                const loadPercent = (s.assigned / s.capacity) * 100;
+                const isOverloaded = loadPercent > 100;
+                const isNearCapacity = loadPercent >= 75 && loadPercent <= 100;
+                const completionPercent = s.assigned > 0 ? (s.completed / s.assigned) * 100 : 0;
+                const roleColor = ROLE_COLOR_MAP[s.role] || ROLE_COLOR_MAP['default'];
+                const initials = s.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+                return (
+                  <div key={s.id} className="group">
+                    <div className="flex items-center gap-3 mb-2">
+                      {/* Avatar */}
+                      <div className={`h-8 w-8 rounded-lg ${roleColor.bg} flex items-center justify-center flex-shrink-0`}>
+                        <span className="text-[10px] font-bold text-white">{initials}</span>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-[var(--bb-color-text-primary)] truncate">{s.name}</span>
+                          <div className="flex items-center gap-2">
+                            {/* Task count with context */}
+                            <span className={cn(
+                              "text-xs font-semibold",
+                              isOverloaded ? "text-red-600 dark:text-red-400" :
+                              isNearCapacity ? "text-amber-600 dark:text-amber-400" :
+                              "text-[var(--bb-color-text-secondary)]"
+                            )}>
+                              {s.assigned} / {s.capacity} tasks
+                            </span>
+                            {isOverloaded && (
+                              <span className="flex items-center gap-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-900/30 rounded text-red-600 dark:text-red-400 text-[10px] font-medium">
+                                <AlertTriangle className="h-3 w-3" />
+                                Overloaded
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Progress bar showing assigned vs capacity */}
+                        <div className="mt-1.5 h-2 bg-[var(--bb-color-bg-elevated)] rounded-full overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full transition-all",
+                              isOverloaded ? "bg-gradient-to-r from-red-500 to-red-600" :
+                              isNearCapacity ? "bg-gradient-to-r from-amber-500 to-amber-600" :
+                              "bg-gradient-to-r from-emerald-500 to-emerald-600"
+                            )}
+                            style={{ width: `${Math.min(loadPercent, 100)}%` }}
+                          />
+                        </div>
+
+                        {/* Mini stats */}
+                        <div className="flex items-center gap-3 mt-1.5 text-[10px]">
+                          {s.completed > 0 && (
+                            <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+                              <CheckCircle className="h-3 w-3" /> {s.completed} done
+                            </span>
+                          )}
+                          {s.inProgress > 0 && (
+                            <span className="text-blue-600 dark:text-blue-400 flex items-center gap-0.5">
+                              <Activity className="h-3 w-3" /> {s.inProgress} active
+                            </span>
+                          )}
+                          {s.overdue > 0 && (
+                            <span className="text-red-600 dark:text-red-400 flex items-center gap-0.5">
+                              <AlertTriangle className="h-3 w-3" /> {s.overdue} overdue
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={task.status === 'overdue' ? 'danger' : task.status === 'completed' ? 'success' : task.status === 'in-progress' ? 'info' : 'warning'}
-                        size="sm"
-                      >
-                        {task.status}
-                      </Badge>
-                      <Badge
-                        variant={task.priority === 'high' ? 'danger' : task.priority === 'medium' ? 'warning' : 'neutral'}
-                        size="sm"
-                      >
-                        {task.priority}
-                      </Badge>
-                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Quick Stats - Enhanced with variants */}
+          <div className="grid grid-cols-2 gap-3">
+            <KPITile
+              icon={AlertTriangle}
+              label="Overdue"
+              value={stats.overdue.toString()}
+              subtitle="Need attention"
+              variant="warning"
+            />
+            <KPITile
+              icon={Clock}
+              label="Pending"
+              value={stats.pending.toString()}
+              subtitle="Awaiting start"
+              variant="default"
+            />
+            <KPITile
+              icon={Activity}
+              label="In Progress"
+              value={stats.inProgress.toString()}
+              subtitle="Being worked on"
+              variant="primary"
+            />
+            <KPITile
+              icon={CheckCircle}
+              label="Completed"
+              value={stats.completed.toString()}
+              subtitle="Today"
+              variant="success"
+            />
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+            <h4 className="text-xs font-semibold text-[var(--bb-color-text-muted)] uppercase tracking-wider mb-3">Quick Actions</h4>
+            <div className="space-y-2">
+              <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-elevated)] rounded-lg transition-colors text-left">
+                <RefreshCw className="h-4 w-4 text-[var(--bb-color-accent)]" />
+                <span>Rebalance Workload</span>
+              </button>
+              <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-left">
+                <AlertTriangle className="h-4 w-4" />
+                <span>View All Overdue ({stats.overdue})</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Task List - Enhanced */}
+        <div className="lg:col-span-2">
+          <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl overflow-hidden shadow-sm">
+            {/* Header with filters */}
+            <div className="p-4 border-b border-[var(--bb-color-border-subtle)] bg-gradient-to-r from-[var(--bb-color-bg-elevated)]/50 to-transparent">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  {/* Staff filter */}
+                  <div className="min-w-[160px]">
+                    <StyledSelect
+                      options={[
+                        { value: 'all', label: 'All Staff' },
+                        ...staff.map((s) => ({ value: s.name || s.email, label: s.name || s.email }))
+                      ]}
+                      value={selectedStaff}
+                      onChange={(opt) => setSelectedStaff(opt?.value || 'all')}
+                      isClearable={false}
+                      isSearchable={true}
+                    />
+                  </div>
+
+                  {/* Group by */}
+                  <div className="min-w-[140px]">
+                    <StyledSelect
+                      options={[
+                        { value: 'none', label: 'No Grouping' },
+                        { value: 'assignee', label: 'By Assignee' },
+                        { value: 'status', label: 'By Status' },
+                        { value: 'priority', label: 'By Priority' },
+                      ]}
+                      value={groupBy}
+                      onChange={(opt) => setGroupBy(opt?.value || 'none')}
+                      isClearable={false}
+                      isSearchable={false}
+                    />
                   </div>
                 </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Bulk actions */}
+                  {selectedTasks.length > 0 && (
+                    <div className="flex items-center gap-2 mr-2 px-3 py-1.5 bg-[var(--bb-color-accent-soft)] rounded-lg">
+                      <span className="text-xs font-medium text-[var(--bb-color-accent)]">{selectedTasks.length} selected</span>
+                      <button className="text-xs text-[var(--bb-color-accent)] hover:underline">Reassign</button>
+                      <button className="text-xs text-emerald-600 hover:underline">Complete</button>
+                      <button
+                        onClick={() => setSelectedTasks([])}
+                        className="text-xs text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)]"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  <Button size="sm" onClick={() => setShowAssignModal(true)}>
+                    <Plus className="h-3.5 w-3.5 mr-1.5" />
+                    Assign Task
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Select all row */}
+            <div className="px-4 py-2 border-b border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)]/30 flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={selectedTasks.length === filteredTasks.length && filteredTasks.length > 0}
+                onChange={toggleAllTasks}
+                className="rounded border-[var(--bb-color-border-subtle)]"
+              />
+              <span className="text-xs text-[var(--bb-color-text-muted)]">
+                {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {/* Task list */}
+            <div className="divide-y divide-[var(--bb-color-border-subtle)] max-h-[500px] overflow-y-auto">
+              {Object.entries(groupedTasks).map(([group, groupTasks]) => (
+                <div key={group}>
+                  {/* Group header */}
+                  {groupBy !== 'none' && (
+                    <div className="px-4 py-2 bg-[var(--bb-color-bg-elevated)]/50 sticky top-0 z-10">
+                      <span className="text-xs font-semibold text-[var(--bb-color-text-secondary)] uppercase tracking-wide">
+                        {group} ({groupTasks.length})
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Tasks */}
+                  {groupTasks.map(task => {
+                    const isSelected = selectedTasks.includes(task.id);
+                    const statusInfo = statusConfig[task.status];
+                    const StatusIcon = statusInfo.icon;
+
+                    return (
+                      <div
+                        key={task.id}
+                        className={cn(
+                          "relative px-4 py-3 hover:bg-[var(--bb-color-bg-surface)] transition-colors cursor-pointer border-l-4",
+                          priorityColors[task.priority],
+                          isSelected && "bg-[var(--bb-color-accent-soft)]/30",
+                          task.status === 'overdue' && "bg-red-50/50 dark:bg-red-900/10"
+                        )}
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Checkbox */}
+                          <input
+                            type="checkbox"
+                            checked={isSelected || task.status === 'completed'}
+                            onChange={() => task.status !== 'completed' && toggleTaskSelection(task.id)}
+                            className="mt-0.5 rounded border-[var(--bb-color-border-subtle)]"
+                          />
+
+                          {/* Task content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <p className={cn(
+                                  'text-sm font-medium',
+                                  task.status === 'completed'
+                                    ? 'line-through text-[var(--bb-color-text-muted)]'
+                                    : 'text-[var(--bb-color-text-primary)]'
+                                )}>
+                                  {task.title}
+                                </p>
+
+                                {/* Meta info */}
+                                <div className="flex items-center gap-3 mt-1 text-xs text-[var(--bb-color-text-muted)]">
+                                  <span className="flex items-center gap-1">
+                                    <User className="h-3 w-3" />
+                                    {task.assignee}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {task.dueDate === 'Today' ? `Due ${task.due}` : `${task.dueDate} ${task.due}`}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Status badge only (priority shown via border) */}
+                              <div className={cn(
+                                "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium",
+                                statusInfo.bg, statusInfo.color
+                              )}>
+                                <StatusIcon className="h-3 w-3" />
+                                {statusInfo.label}
+                              </div>
+                            </div>
+
+                            {/* Quick actions on hover */}
+                            <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {task.status === 'overdue' && (
+                                <button className="text-[10px] text-red-600 dark:text-red-400 hover:underline flex items-center gap-1">
+                                  <Clock className="h-3 w-3" /> Extend Deadline
+                                </button>
+                              )}
+                              {task.status !== 'completed' && (
+                                <button className="text-[10px] text-[var(--bb-color-accent)] hover:underline flex items-center gap-1">
+                                  <RefreshCw className="h-3 w-3" /> Reassign
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Actions menu */}
+                          <button className="p-1 text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-elevated)] rounded transition-colors">
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               ))}
+
+              {filteredTasks.length === 0 && (
+                <div className="p-8 text-center">
+                  <CheckCircle className="h-10 w-10 text-emerald-500/50 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-[var(--bb-color-text-primary)]">All caught up!</p>
+                  <p className="text-xs text-[var(--bb-color-text-muted)] mt-1">No tasks match your current filters</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
