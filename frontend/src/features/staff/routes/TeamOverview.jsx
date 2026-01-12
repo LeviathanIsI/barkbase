@@ -1575,12 +1575,13 @@ const ScheduleTab = ({ staff }) => {
         <div className="flex items-center gap-6">
           <span className="text-xs font-semibold text-[var(--bb-color-text-muted)] uppercase tracking-wider">Roles</span>
           <div className="flex items-center gap-4 flex-wrap">
-            {(staffRoles && staffRoles.length > 0 ? staffRoles : []).map((role) => {
-              const roleColor = ROLE_COLOR_MAP[role.name] || ROLE_COLOR_MAP['default'];
+            {(staffRoles && staffRoles.length > 0 ? staffRoles : ['Owner', 'Manager', 'Kennel Tech', 'Groomer']).map((roleName) => {
+              // staffRoles is an array of strings, not objects
+              const roleColor = ROLE_COLOR_MAP[roleName] || ROLE_COLOR_MAP['default'];
               return (
-                <div key={role.id || role.name} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--bb-color-bg-elevated)]/50 hover:bg-[var(--bb-color-bg-elevated)] transition-colors cursor-default">
+                <div key={roleName} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--bb-color-bg-elevated)]/50 hover:bg-[var(--bb-color-bg-elevated)] transition-colors cursor-default">
                   <div className={`h-4 w-4 rounded shadow-sm ${roleColor.bg}`} />
-                  <span className="text-xs font-medium text-[var(--bb-color-text-primary)]">{role.name}</span>
+                  <span className="text-xs font-medium text-[var(--bb-color-text-primary)]">{roleName}</span>
                 </div>
               );
             })}
