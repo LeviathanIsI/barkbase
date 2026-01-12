@@ -702,10 +702,10 @@ const EmptyConversationList = ({ onNewConversation }) => (
 
 const EmptyChatPane = ({ onNewConversation }) => (
   <div className="flex flex-col items-center justify-center h-full px-6 bg-gradient-to-b from-[color:var(--bb-color-bg-body)] to-transparent">
-    <div className="relative mb-8">
-      {/* Animated rings */}
-      <div className="absolute inset-0 rounded-full border-2 border-dashed border-[color:var(--bb-color-accent)]/20 animate-[spin_30s_linear_infinite] scale-[2]" />
-      <div className="absolute inset-0 rounded-full border-2 border-dashed border-[color:var(--bb-color-accent)]/10 animate-[spin_20s_linear_infinite_reverse] scale-[2.5]" />
+    <div className="relative mb-8 h-24 w-24">
+      {/* Animated rings - contained within parent */}
+      <div className="absolute inset-[-12px] rounded-full border-2 border-dashed border-[color:var(--bb-color-accent)]/20 animate-[spin_30s_linear_infinite]" />
+      <div className="absolute inset-[-24px] rounded-full border-2 border-dashed border-[color:var(--bb-color-accent)]/10 animate-[spin_20s_linear_infinite_reverse]" />
 
       {/* Main icon */}
       <div className="relative h-24 w-24 rounded-full bg-gradient-to-br from-[color:var(--bb-color-accent)]/10 to-purple-500/10 flex items-center justify-center">
