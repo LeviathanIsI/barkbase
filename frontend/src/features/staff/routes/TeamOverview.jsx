@@ -85,151 +85,429 @@ import { useStaffRoleOptions, useDefaultRole, getRoleColor } from '@/lib/useStaf
 // SHARED COMPONENTS
 // ═══════════════════════════════════════════════════════════════════════════
 
-// KPI Tile
-const KPITile = ({ icon: Icon, label, value, subtitle, trend, trendType, onClick }) => (
-  <button
-    onClick={onClick}
-    className="text-left bg-white dark:bg-surface-primary border border-border rounded-lg p-3 transition-all hover:shadow-sm hover:border-primary/20 w-full"
-  >
-    <div className="flex items-start justify-between mb-1">
-      <div className="flex items-center gap-2">
-        {Icon && <Icon className="h-3.5 w-3.5 text-muted" />}
-        <span className="text-xs text-muted uppercase tracking-wide">{label}</span>
-      </div>
-      {trend && (
-        <div className={cn(
-          'flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded',
-          trendType === 'positive' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-          trendType === 'negative' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-          'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-        )}>
-          {trendType === 'positive' ? <TrendingUp className="h-3 w-3" /> : 
-           trendType === 'negative' ? <TrendingDown className="h-3 w-3" /> : null}
-          {trend}
-        </div>
-      )}
-    </div>
-    <p className="text-xl font-bold text-text">{value}</p>
-    {subtitle && <p className="text-xs text-muted mt-0.5">{subtitle}</p>}
-  </button>
-);
+// KPI Tile with gradient icons and visual hierarchy
+const KPITile = ({ icon: Icon, label, value, subtitle, trend, trendType, onClick, variant = 'default', live = false }) => {
+  const variantStyles = {
+    default: {
+      container: 'bg-white dark:bg-surface-primary border-[var(--bb-color-border-subtle)]',
+      iconBg: 'bg-gray-100 dark:bg-gray-800',
+      icon: 'text-gray-600 dark:text-gray-400',
+    },
+    primary: {
+      container: 'bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-950/20 border-blue-200/60 dark:border-blue-800/40',
+      iconBg: 'bg-gradient-to-br from-blue-500 to-blue-600 shadow-md shadow-blue-500/20',
+      icon: 'text-white',
+      value: 'text-blue-900 dark:text-blue-100',
+    },
+    success: {
+      container: 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/30 dark:to-emerald-950/20 border-emerald-200/60 dark:border-emerald-800/40',
+      iconBg: 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/20',
+      icon: 'text-white',
+      value: 'text-emerald-900 dark:text-emerald-100',
+    },
+    warning: {
+      container: 'bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/30 dark:to-amber-950/20 border-amber-200/60 dark:border-amber-800/40',
+      iconBg: 'bg-gradient-to-br from-amber-500 to-amber-600 shadow-md shadow-amber-500/20',
+      icon: 'text-white',
+      value: 'text-amber-900 dark:text-amber-100',
+    },
+    purple: {
+      container: 'bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-950/20 border-purple-200/60 dark:border-purple-800/40',
+      iconBg: 'bg-gradient-to-br from-purple-500 to-purple-600 shadow-md shadow-purple-500/20',
+      icon: 'text-white',
+      value: 'text-purple-900 dark:text-purple-100',
+    },
+    live: {
+      container: 'bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/30 dark:to-green-950/20 border-green-200/60 dark:border-green-800/40',
+      iconBg: 'bg-gradient-to-br from-green-500 to-green-600 shadow-md shadow-green-500/20',
+      icon: 'text-white',
+      value: 'text-green-900 dark:text-green-100',
+    },
+  };
 
-// Filter Toolbar
-const FilterToolbar = ({ searchTerm, onSearchChange, filters, children }) => (
-  <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3 mb-5">
+  const styles = variantStyles[variant] || variantStyles.default;
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'relative text-left border rounded-xl p-4 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 w-full overflow-hidden',
+        styles.container
+      )}
+    >
+      {/* Subtle gradient overlay */}
+      {variant !== 'default' && (
+        <div className="absolute inset-0 bg-gradient-to-r from-white/40 to-transparent dark:from-white/5 pointer-events-none" />
+      )}
+
+      <div className="relative flex items-start gap-3">
+        {/* Icon container */}
+        <div className={cn(
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+          styles.iconBg
+        )}>
+          {Icon && <Icon className={cn('h-5 w-5', styles.icon)} />}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <span className="text-[0.7rem] font-semibold uppercase tracking-wider text-[var(--bb-color-text-muted)]">{label}</span>
+            {live && (
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                <span className="text-[0.65rem] font-medium text-green-600 dark:text-green-400 uppercase">Live</span>
+              </div>
+            )}
+            {trend && !live && (
+              <div className={cn(
+                'flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full',
+                trendType === 'positive' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                trendType === 'negative' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+              )}>
+                {trendType === 'positive' ? <TrendingUp className="h-3 w-3" /> :
+                 trendType === 'negative' ? <TrendingDown className="h-3 w-3" /> : null}
+                {trend}
+              </div>
+            )}
+          </div>
+          <p className={cn('text-2xl font-bold leading-tight', styles.value || 'text-[var(--bb-color-text-primary)]')}>{value}</p>
+          {subtitle && <p className="text-xs text-[var(--bb-color-text-muted)] mt-0.5">{subtitle}</p>}
+        </div>
+      </div>
+    </button>
+  );
+};
+
+// Filter Toolbar with polished styling
+const FilterToolbar = ({ searchTerm, onSearchChange, filters, children, viewMode, onViewModeChange }) => (
+  <div className="bg-white dark:bg-surface-primary border border-[var(--bb-color-border-subtle)] rounded-xl p-4 mb-5 shadow-sm">
     <div className="flex flex-wrap items-center gap-3">
+      {/* Search input */}
       <div className="relative flex-1 min-w-[200px] max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--bb-color-text-muted)]" />
         <input
           type="text"
           placeholder="Search staff..."
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full pl-9 pr-3 py-2 bg-surface border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="w-full pl-10 pr-4 py-2.5 bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]/30 focus:border-[var(--bb-color-accent)] transition-all placeholder:text-[var(--bb-color-text-muted)]"
         />
       </div>
-      {filters}
-      <div className="ml-auto flex items-center gap-2">
+
+      {/* Filters */}
+      <div className="flex items-center gap-2">
+        {filters}
+      </div>
+
+      {/* View toggle and actions */}
+      <div className="ml-auto flex items-center gap-3">
+        {/* View mode toggle */}
+        {onViewModeChange && (
+          <div className="flex items-center bg-[var(--bb-color-bg-surface)] rounded-lg p-1 border border-[var(--bb-color-border-subtle)]">
+            <button
+              onClick={() => onViewModeChange('grid')}
+              className={cn(
+                'p-1.5 rounded-md transition-all',
+                viewMode === 'grid'
+                  ? 'bg-[var(--bb-color-accent)] text-white shadow-sm'
+                  : 'text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)]'
+              )}
+              title="Grid view"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => onViewModeChange('list')}
+              className={cn(
+                'p-1.5 rounded-md transition-all',
+                viewMode === 'list'
+                  ? 'bg-[var(--bb-color-accent)] text-white shadow-sm'
+                  : 'text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)]'
+              )}
+              title="List view"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {children}
       </div>
     </div>
   </div>
 );
 
-// Staff Card (Grid View)
-const StaffCard = ({ member, onViewProfile, onAssignTask, onMessage }) => {
-  const initials = member.name 
+// Role color mapping
+const ROLE_COLOR_MAP = {
+  'Owner': { bg: 'bg-gradient-to-br from-purple-500 to-purple-600', text: 'text-purple-700 dark:text-purple-300', badge: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800' },
+  'Manager': { bg: 'bg-gradient-to-br from-orange-500 to-orange-600', text: 'text-orange-700 dark:text-orange-300', badge: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800' },
+  'Groomer': { bg: 'bg-gradient-to-br from-pink-500 to-pink-600', text: 'text-pink-700 dark:text-pink-300', badge: 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 border-pink-200 dark:border-pink-800' },
+  'Kennel Tech': { bg: 'bg-gradient-to-br from-blue-500 to-blue-600', text: 'text-blue-700 dark:text-blue-300', badge: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800' },
+  'Trainer': { bg: 'bg-gradient-to-br from-emerald-500 to-emerald-600', text: 'text-emerald-700 dark:text-emerald-300', badge: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' },
+  'Receptionist': { bg: 'bg-gradient-to-br from-cyan-500 to-cyan-600', text: 'text-cyan-700 dark:text-cyan-300', badge: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800' },
+  'default': { bg: 'bg-gradient-to-br from-slate-500 to-slate-600', text: 'text-slate-700 dark:text-slate-300', badge: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700' },
+};
+
+const getRoleColors = (role) => {
+  return ROLE_COLOR_MAP[role] || ROLE_COLOR_MAP.default;
+};
+
+// Staff Card (Grid View) - Enhanced with better visual hierarchy
+const StaffCard = ({ member, onViewProfile, onAssignTask, onMessage, onMenuClick }) => {
+  const initials = member.name
     ? member.name.split(' ').map(n => n[0]).join('').toUpperCase()
     : member.email?.[0]?.toUpperCase() || '?';
 
   const statusConfig = {
-    'clocked-in': { label: 'Clocked In', variant: 'success', icon: CheckCircle },
-    'scheduled': { label: 'Scheduled', variant: 'info', icon: Calendar },
-    'on-break': { label: 'On Break', variant: 'warning', icon: Coffee },
-    'off': { label: 'Off Today', variant: 'neutral', icon: XCircle },
-    'pto': { label: 'PTO', variant: 'accent', icon: Calendar },
+    'clocked-in': { label: 'Clocked In', color: 'bg-emerald-500', textColor: 'text-emerald-700 dark:text-emerald-300', bgColor: 'bg-emerald-50 dark:bg-emerald-900/20', icon: CheckCircle, dot: 'bg-emerald-500' },
+    'scheduled': { label: 'Scheduled', color: 'bg-blue-500', textColor: 'text-blue-700 dark:text-blue-300', bgColor: 'bg-blue-50 dark:bg-blue-900/20', icon: Calendar, dot: 'bg-blue-500' },
+    'on-break': { label: 'On Break', color: 'bg-amber-500', textColor: 'text-amber-700 dark:text-amber-300', bgColor: 'bg-amber-50 dark:bg-amber-900/20', icon: Coffee, dot: 'bg-amber-500' },
+    'off': { label: 'Off Today', color: 'bg-gray-400', textColor: 'text-gray-600 dark:text-gray-400', bgColor: 'bg-gray-50 dark:bg-gray-800/50', icon: XCircle, dot: 'bg-gray-400' },
+    'pto': { label: 'PTO', color: 'bg-purple-500', textColor: 'text-purple-700 dark:text-purple-300', bgColor: 'bg-purple-50 dark:bg-purple-900/20', icon: Calendar, dot: 'bg-purple-500' },
   };
 
   const status = statusConfig[member.status] || statusConfig.off;
   const StatusIcon = status.icon;
+  const roleColors = getRoleColors(member.role || member.title);
 
   return (
-    <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4 hover:shadow-md hover:border-primary/20 transition-all">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-            {initials}
+    <div className="group relative bg-white dark:bg-surface-primary border border-[var(--bb-color-border-subtle)] rounded-xl overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 hover:border-[var(--bb-color-accent)]">
+      {/* Status indicator bar at top */}
+      <div className={cn('absolute top-0 left-0 right-0 h-1', status.color)} />
+
+      <div className="p-4 pt-5">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            {/* Avatar with role-based gradient */}
+            <div className={cn(
+              'h-11 w-11 rounded-xl flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 shadow-md',
+              roleColors.bg
+            )}>
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <h4 className="text-sm font-semibold text-[var(--bb-color-text-primary)] truncate group-hover:text-[var(--bb-color-accent)] transition-colors">
+                {member.name || member.email || 'Staff Member'}
+              </h4>
+              {/* Role badge with color coding */}
+              <span className={cn(
+                'inline-flex items-center px-2 py-0.5 rounded-md text-[0.65rem] font-semibold uppercase tracking-wide border mt-1',
+                roleColors.badge
+              )}>
+                {member.role || member.title || 'Staff'}
+              </span>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h4 className="text-sm font-semibold text-text truncate">
-              {member.name || member.email || 'Staff Member'}
-            </h4>
-            <p className="text-xs text-muted truncate">{member.role || member.title || 'Staff'}</p>
+          <button
+            onClick={(e) => { e.stopPropagation(); onMenuClick?.(member); }}
+            className="p-1.5 text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-surface)] rounded-lg transition-colors"
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Status badge with dot indicator */}
+        <div className="mb-3">
+          <div className={cn(
+            'inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium',
+            status.bgColor
+          )}>
+            <span className={cn('w-2 h-2 rounded-full', status.dot, member.status === 'clocked-in' && 'animate-pulse')} />
+            <span className={status.textColor}>{status.label}</span>
           </div>
         </div>
-        <button className="p-1 text-muted hover:text-text rounded">
-          <MoreVertical className="h-4 w-4" />
-        </button>
-      </div>
 
-      {/* Status */}
-      <div className="mb-3">
-        <Badge variant={status.variant} size="sm" className="gap-1">
-          <StatusIcon className="h-3 w-3" />
-          {status.label}
-        </Badge>
-      </div>
-
-      {/* Contact */}
-      <div className="space-y-1.5 mb-3 text-xs text-muted">
-        {member.email && (
-          <div className="flex items-center gap-2 truncate">
-            <Mail className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{member.email}</span>
-          </div>
-        )}
-        {member.phone && (
-          <div className="flex items-center gap-2">
-            <Phone className="h-3 w-3 flex-shrink-0" />
-            <span>{member.phone}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Next Shift */}
-      {member.nextShift && (
-        <div className="text-xs text-muted mb-3 py-2 px-2 bg-surface rounded">
-          <span className="font-medium">Next:</span> {member.nextShift}
+        {/* Contact info */}
+        <div className="space-y-2 mb-3">
+          {member.email && (
+            <div className="flex items-center gap-2 text-xs text-[var(--bb-color-text-muted)] truncate">
+              <div className="h-6 w-6 rounded-md bg-[var(--bb-color-bg-surface)] flex items-center justify-center flex-shrink-0">
+                <Mail className="h-3 w-3" />
+              </div>
+              <span className="truncate">{member.email}</span>
+            </div>
+          )}
+          {member.phone && (
+            <div className="flex items-center gap-2 text-xs text-[var(--bb-color-text-muted)]">
+              <div className="h-6 w-6 rounded-md bg-[var(--bb-color-bg-surface)] flex items-center justify-center flex-shrink-0">
+                <Phone className="h-3 w-3" />
+              </div>
+              <span>{member.phone}</span>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Actions */}
-      <div className="flex gap-2 pt-2 border-t border-border">
-        <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => onViewProfile(member)}>
-          Profile
-        </Button>
-        <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => onAssignTask(member)}>
-          Task
-        </Button>
-        <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => onMessage(member)}>
-          <MessageSquare className="h-3 w-3 mr-1" />
-          Message
-        </Button>
+        {/* Next Shift */}
+        {member.nextShift && (
+          <div className="flex items-center gap-2 text-xs mb-3 py-2 px-3 bg-[var(--bb-color-bg-surface)] rounded-lg border border-[var(--bb-color-border-subtle)]">
+            <Clock className="h-3.5 w-3.5 text-[var(--bb-color-accent)]" />
+            <span className="text-[var(--bb-color-text-muted)]">Next:</span>
+            <span className="font-medium text-[var(--bb-color-text-primary)]">{member.nextShift}</span>
+          </div>
+        )}
+
+        {/* Quick Actions - Icon + Text buttons */}
+        <div className="flex gap-2 pt-3 border-t border-[var(--bb-color-border-subtle)]">
+          <button
+            onClick={() => onViewProfile(member)}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[var(--bb-color-text-secondary)] bg-[var(--bb-color-bg-surface)] hover:bg-[var(--bb-color-accent-soft)] hover:text-[var(--bb-color-accent)] rounded-lg border border-[var(--bb-color-border-subtle)] hover:border-[var(--bb-color-accent)] transition-all"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Profile
+          </button>
+          <button
+            onClick={() => onAssignTask(member)}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[var(--bb-color-text-secondary)] bg-[var(--bb-color-bg-surface)] hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-600 dark:hover:text-amber-400 rounded-lg border border-[var(--bb-color-border-subtle)] hover:border-amber-300 dark:hover:border-amber-700 transition-all"
+          >
+            <Target className="h-3.5 w-3.5" />
+            Assign
+          </button>
+          <button
+            onClick={() => onMessage(member)}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[var(--bb-color-text-secondary)] bg-[var(--bb-color-bg-surface)] hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg border border-[var(--bb-color-border-subtle)] hover:border-blue-300 dark:hover:border-blue-700 transition-all"
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            Message
+          </button>
+        </div>
       </div>
     </div>
   );
 };
 
-// Empty State
-const EmptyState = ({ icon: Icon, title, subtitle, action }) => (
-  <div className="text-center py-12">
-    <div className="h-16 w-16 rounded-full bg-surface flex items-center justify-center mx-auto mb-4">
-      <Icon className="h-8 w-8 text-muted" />
+// Staff Row (List View) - Compact row for list display
+const StaffRow = ({ member, onViewProfile, onAssignTask, onMessage, onMenuClick }) => {
+  const initials = member.name
+    ? member.name.split(' ').map(n => n[0]).join('').toUpperCase()
+    : member.email?.[0]?.toUpperCase() || '?';
+
+  const statusConfig = {
+    'clocked-in': { label: 'Clocked In', dot: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-300' },
+    'scheduled': { label: 'Scheduled', dot: 'bg-blue-500', text: 'text-blue-700 dark:text-blue-300' },
+    'on-break': { label: 'On Break', dot: 'bg-amber-500', text: 'text-amber-700 dark:text-amber-300' },
+    'off': { label: 'Off Today', dot: 'bg-gray-400', text: 'text-gray-600 dark:text-gray-400' },
+    'pto': { label: 'PTO', dot: 'bg-purple-500', text: 'text-purple-700 dark:text-purple-300' },
+  };
+
+  const status = statusConfig[member.status] || statusConfig.off;
+  const roleColors = getRoleColors(member.role || member.title);
+
+  return (
+    <div className="group flex items-center gap-4 p-3 bg-white dark:bg-surface-primary border border-[var(--bb-color-border-subtle)] rounded-xl hover:shadow-md hover:border-[var(--bb-color-accent)] transition-all">
+      {/* Avatar */}
+      <div className={cn(
+        'h-10 w-10 rounded-xl flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 shadow-md',
+        roleColors.bg
+      )}>
+        {initials}
+      </div>
+
+      {/* Name & Role */}
+      <div className="min-w-0 flex-1">
+        <h4 className="text-sm font-semibold text-[var(--bb-color-text-primary)] truncate group-hover:text-[var(--bb-color-accent)] transition-colors">
+          {member.name || member.email || 'Staff Member'}
+        </h4>
+        <span className={cn(
+          'inline-flex items-center px-1.5 py-0.5 rounded text-[0.6rem] font-semibold uppercase tracking-wide border',
+          roleColors.badge
+        )}>
+          {member.role || member.title || 'Staff'}
+        </span>
+      </div>
+
+      {/* Status */}
+      <div className="flex items-center gap-2 min-w-[100px]">
+        <span className={cn('w-2 h-2 rounded-full', status.dot, member.status === 'clocked-in' && 'animate-pulse')} />
+        <span className={cn('text-xs font-medium', status.text)}>{status.label}</span>
+      </div>
+
+      {/* Contact */}
+      <div className="hidden md:flex items-center gap-4 min-w-[200px]">
+        {member.email && (
+          <div className="flex items-center gap-1.5 text-xs text-[var(--bb-color-text-muted)]">
+            <Mail className="h-3 w-3" />
+            <span className="truncate max-w-[120px]">{member.email}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Next Shift */}
+      <div className="hidden lg:block min-w-[120px]">
+        {member.nextShift ? (
+          <div className="flex items-center gap-1.5 text-xs">
+            <Clock className="h-3 w-3 text-[var(--bb-color-accent)]" />
+            <span className="text-[var(--bb-color-text-primary)] font-medium">{member.nextShift}</span>
+          </div>
+        ) : (
+          <span className="text-xs text-[var(--bb-color-text-muted)]">-</span>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onViewProfile(member)}
+          className="p-2 text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-accent)] hover:bg-[var(--bb-color-accent-soft)] rounded-lg transition-colors"
+          title="View Profile"
+        >
+          <Eye className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => onAssignTask(member)}
+          className="p-2 text-[var(--bb-color-text-muted)] hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
+          title="Assign Task"
+        >
+          <Target className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => onMessage(member)}
+          className="p-2 text-[var(--bb-color-text-muted)] hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+          title="Send Message"
+        >
+          <MessageSquare className="h-4 w-4" />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onMenuClick?.(member); }}
+          className="p-2 text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-surface)] rounded-lg transition-colors"
+          title="More actions"
+        >
+          <MoreVertical className="h-4 w-4" />
+        </button>
+      </div>
     </div>
-    <h3 className="font-medium text-text mb-1">{title}</h3>
-    <p className="text-sm text-muted mb-4 max-w-sm mx-auto">{subtitle}</p>
-    {action}
+  );
+};
+
+// Empty State with animated icon
+const EmptyState = ({ icon: Icon, title, subtitle, action }) => (
+  <div className="bg-white dark:bg-surface-primary border border-[var(--bb-color-border-subtle)] rounded-xl">
+    <div className="text-center py-16 px-6">
+      {/* Animated icon container */}
+      <div className="relative inline-block mb-6">
+        <div className="absolute inset-0 animate-ping">
+          <div className="h-16 w-16 rounded-full bg-blue-200/50 dark:bg-blue-800/30" />
+        </div>
+        <div className="relative h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30 mx-auto">
+          <Icon className="h-8 w-8 text-white" />
+        </div>
+        <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center">
+          <Plus className="h-3 w-3 text-white" />
+        </div>
+      </div>
+
+      <h3 className="text-xl font-bold text-[var(--bb-color-text-primary)] mb-2">{title}</h3>
+      <p className="text-sm text-[var(--bb-color-text-muted)] mb-6 max-w-md mx-auto">{subtitle}</p>
+      {action}
+    </div>
   </div>
 );
 
@@ -307,6 +585,7 @@ const OverviewTab = ({ staff, stats, onViewProfile, onAddStaff }) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [upcomingShifts, setUpcomingShifts] = useState({});
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
 
   // Fetch upcoming shifts to compute "Next:" for each staff member
   useEffect(() => {
@@ -375,79 +654,119 @@ const OverviewTab = ({ staff, stats, onViewProfile, onAddStaff }) => {
     });
   }, [staff, searchTerm, statusFilter, roleFilter]);
 
-  const kpis = [
+  // Row 1: Team Counts (static metrics)
+  const teamCountKpis = [
     {
       icon: Users,
       label: 'Total Staff',
       value: stats.totalStaff,
-      subtitle: stats.newThisMonth > 0 ? `+${stats.newThisMonth} this month` : 'Total count',
+      subtitle: stats.newThisMonth > 0 ? `+${stats.newThisMonth} this month` : 'Team members',
       trend: stats.newThisMonth > 0 ? `+${stats.newThisMonth}` : null,
       trendType: stats.newThisMonth > 0 ? 'positive' : null,
+      variant: 'primary',
     },
-    { icon: CheckCircle, label: 'Active', value: stats.loggedIn || 0, subtitle: 'Logged in now' },
-    { icon: Briefcase, label: 'Roles', value: stats.roles, subtitle: 'Defined roles' },
-    { icon: Target, label: 'Avg Tasks', value: stats.avgTasksPerStaff || 0, subtitle: 'Per staff today' },
-    { icon: Clock, label: 'Clocked In', value: stats.clockedIn || 0, subtitle: 'Working now' },
-    { icon: Calendar, label: 'On Schedule', value: stats.scheduled || 0, subtitle: 'Today' },
-    { icon: Coffee, label: 'On PTO', value: stats.onPto || 0, subtitle: 'Time off' },
+    { icon: CheckCircle, label: 'Active', value: stats.loggedIn || 0, subtitle: 'Logged in now', variant: 'success' },
+    { icon: Briefcase, label: 'Roles', value: stats.roles, subtitle: 'Defined roles', variant: 'purple' },
+    { icon: Target, label: 'Avg Tasks', value: stats.avgTasksPerStaff || 0, subtitle: 'Per staff today', variant: 'default' },
+  ];
+
+  // Row 2: Operational Status (real-time metrics)
+  const operationalKpis = [
+    { icon: Clock, label: 'Clocked In', value: stats.clockedIn || 0, subtitle: 'Working now', variant: 'live', live: true },
+    { icon: Calendar, label: 'On Schedule', value: stats.scheduled || 0, subtitle: 'Scheduled today', variant: 'success' },
+    { icon: Coffee, label: 'On Break', value: stats.onBreak || 0, subtitle: 'Currently on break', variant: 'warning' },
+    { icon: Calendar, label: 'On PTO', value: stats.onPto || 0, subtitle: 'Time off today', variant: 'purple' },
   ];
 
   return (
     <div className="space-y-5">
-      {/* KPI Grid - 2 rows × 4 columns */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {kpis.map((kpi, i) => (
-          <KPITile key={i} {...kpi} />
-        ))}
+      {/* Row 1: Team Counts */}
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--bb-color-text-muted)] mb-3 flex items-center gap-2">
+          <Users className="h-3.5 w-3.5" />
+          Team Overview
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {teamCountKpis.map((kpi, i) => (
+            <KPITile key={i} {...kpi} />
+          ))}
+        </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <FilterToolbar searchTerm={searchTerm} onSearchChange={setSearchTerm} filters={
-        <>
-          <div className="min-w-[130px]">
-            <StyledSelect
-              options={[
-                { value: 'all', label: 'All Status' },
-                { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' },
-                { value: 'clocked-in', label: 'Clocked In' },
-              ]}
-              value={statusFilter}
-              onChange={(opt) => setStatusFilter(opt?.value || 'all')}
-              isClearable={false}
-              isSearchable={false}
-            />
-          </div>
-          <div className="min-w-[130px]">
-            <StyledSelect
-              options={[
-                { value: 'all', label: 'All Roles' },
-                ...roles.map(role => ({ value: role, label: role }))
-              ]}
-              value={roleFilter}
-              onChange={(opt) => setRoleFilter(opt?.value || 'all')}
-              isClearable={false}
-              isSearchable={false}
-            />
-          </div>
-        </>
-      }>
-        <span className="text-sm text-muted">{filteredStaff.length} staff</span>
+      {/* Row 2: Operational Status */}
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--bb-color-text-muted)] mb-3 flex items-center gap-2">
+          <Activity className="h-3.5 w-3.5" />
+          Today's Status
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {operationalKpis.map((kpi, i) => (
+            <KPITile key={i} {...kpi} />
+          ))}
+        </div>
+      </div>
+
+      {/* Filter Toolbar with View Toggle */}
+      <FilterToolbar
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        filters={
+          <>
+            <div className="min-w-[130px]">
+              <StyledSelect
+                options={[
+                  { value: 'all', label: 'All Status' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                  { value: 'clocked-in', label: 'Clocked In' },
+                ]}
+                value={statusFilter}
+                onChange={(opt) => setStatusFilter(opt?.value || 'all')}
+                isClearable={false}
+                isSearchable={false}
+              />
+            </div>
+            <div className="min-w-[130px]">
+              <StyledSelect
+                options={[
+                  { value: 'all', label: 'All Roles' },
+                  ...roles.map(role => ({ value: role, label: role }))
+                ]}
+                value={roleFilter}
+                onChange={(opt) => setRoleFilter(opt?.value || 'all')}
+                isClearable={false}
+                isSearchable={false}
+              />
+            </div>
+          </>
+        }
+      >
+        <span className="text-sm text-[var(--bb-color-text-muted)] font-medium">{filteredStaff.length} staff</span>
         <Button variant="outline" size="sm">
           <Download className="h-3.5 w-3.5 mr-1.5" />
           Export
         </Button>
       </FilterToolbar>
 
-      {/* Staff Directory Grid - 3 columns */}
+      {/* Staff Directory - Grid or List View */}
       {filteredStaff.length === 0 ? (
         <EmptyState
           icon={Users}
-          title="No staff members found"
-          subtitle={staff.length === 0 ? "Add your first team member to get started" : "Try adjusting your filters"}
-          action={staff.length === 0 && <Button onClick={onAddStaff}><UserPlus className="h-4 w-4 mr-1.5" />Add Staff</Button>}
+          title={staff.length === 0 ? "Build Your Team" : "No staff members found"}
+          subtitle={staff.length === 0
+            ? "Add team members to manage schedules, assign tasks, and track performance"
+            : "Try adjusting your search or filters to find staff members"}
+          action={staff.length === 0 && (
+            <Button onClick={onAddStaff} size="lg" className="shadow-lg shadow-[var(--bb-color-accent)]/20">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add Your First Team Member
+            </Button>
+          )}
         />
-      ) : (
+      ) : viewMode === 'grid' ? (
+        /* Grid View */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredStaff.map((member, i) => {
             const staffId = member.id || member.recordId;
@@ -458,11 +777,34 @@ const OverviewTab = ({ staff, stats, onViewProfile, onAddStaff }) => {
                 member={{
                   ...member,
                   status: member.isActive === false ? 'off' : (member.status || 'scheduled'),
-                  nextShift: nextShift || null, // null hides the field entirely if no upcoming shift
+                  nextShift: nextShift || null,
                 }}
                 onViewProfile={onViewProfile}
                 onAssignTask={() => {}}
                 onMessage={() => {}}
+                onMenuClick={() => {}}
+              />
+            );
+          })}
+        </div>
+      ) : (
+        /* List View */
+        <div className="space-y-2">
+          {filteredStaff.map((member, i) => {
+            const staffId = member.id || member.recordId;
+            const nextShift = upcomingShifts[staffId]?.formatted;
+            return (
+              <StaffRow
+                key={staffId || i}
+                member={{
+                  ...member,
+                  status: member.isActive === false ? 'off' : (member.status || 'scheduled'),
+                  nextShift: nextShift || null,
+                }}
+                onViewProfile={onViewProfile}
+                onAssignTask={() => {}}
+                onMessage={() => {}}
+                onMenuClick={() => {}}
               />
             );
           })}
