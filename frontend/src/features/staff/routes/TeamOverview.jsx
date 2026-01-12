@@ -5,7 +5,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { format, addDays, startOfWeek } from 'date-fns';
+import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
 import {
   Users,
   UserPlus,
@@ -1367,6 +1367,10 @@ const ScheduleTab = ({ staff }) => {
   // Check if schedule is published (would come from API)
   const isPublished = weeklyData?.isPublished || false;
   const publishedAt = weeklyData?.publishedAt;
+
+  // Calculate today's index in the week (for highlighting)
+  const today = new Date();
+  const todayIndex = weekDays.findIndex(day => isSameDay(day, today));
 
   return (
     <div className="space-y-5">
