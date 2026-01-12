@@ -1571,19 +1571,16 @@ const ScheduleTab = ({ staff }) => {
       </div>
 
       {/* Role Legend - Enhanced */}
-      <div className="bg-white dark:bg-surface-primary rounded-xl border border-[var(--bb-color-border-subtle)] p-3">
+      <div className="bg-[var(--bb-color-bg-surface)] rounded-xl border border-[var(--bb-color-border-subtle)] p-3">
         <div className="flex items-center gap-6">
           <span className="text-xs font-semibold text-[var(--bb-color-text-muted)] uppercase tracking-wider">Roles</span>
           <div className="flex items-center gap-4 flex-wrap">
-            {staffRoles.map((role) => {
-              const color = getRoleColor(staffRoles, role.name);
+            {(staffRoles && staffRoles.length > 0 ? staffRoles : []).map((role) => {
+              const roleColor = ROLE_COLOR_MAP[role.name] || ROLE_COLOR_MAP['default'];
               return (
-                <div key={role.id} className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-[var(--bb-color-bg-surface)] transition-colors cursor-default">
-                  <div
-                    className="h-4 w-4 rounded shadow-sm"
-                    style={{ backgroundColor: color }}
-                  />
-                  <span className="text-xs font-medium text-[var(--bb-color-text-secondary)]">{role.name}</span>
+                <div key={role.id || role.name} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[var(--bb-color-bg-elevated)]/50 hover:bg-[var(--bb-color-bg-elevated)] transition-colors cursor-default">
+                  <div className={`h-4 w-4 rounded shadow-sm ${roleColor.bg}`} />
+                  <span className="text-xs font-medium text-[var(--bb-color-text-primary)]">{role.name}</span>
                 </div>
               );
             })}
@@ -1603,16 +1600,16 @@ const ScheduleTab = ({ staff }) => {
 
       {/* Schedule Grid - Enhanced */}
       {loading ? (
-        <div className="bg-white dark:bg-surface-primary rounded-xl border border-[var(--bb-color-border-subtle)] p-16">
+        <div className="bg-[var(--bb-color-bg-surface)] rounded-xl border border-[var(--bb-color-border-subtle)] p-16">
           <div className="flex flex-col items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-[var(--bb-color-accent)] mb-3" />
             <span className="text-sm text-[var(--bb-color-text-muted)]">Loading schedule...</span>
           </div>
         </div>
       ) : (
-        <div className="bg-white dark:bg-surface-primary rounded-xl border border-[var(--bb-color-border-subtle)] overflow-hidden shadow-sm">
+        <div className="bg-[var(--bb-color-bg-surface)] rounded-xl border border-[var(--bb-color-border-subtle)] overflow-hidden shadow-sm">
           {/* Grid Header - Enhanced */}
-          <div className="grid grid-cols-8 border-b border-[var(--bb-color-border-subtle)] bg-gradient-to-r from-gray-50 to-gray-100/50 dark:from-gray-800/50 dark:to-gray-900/30">
+          <div className="grid grid-cols-8 border-b border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)]">
             <div className="p-3 border-r border-[var(--bb-color-border-subtle)]">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-[var(--bb-color-text-muted)]" />
