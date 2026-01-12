@@ -88,43 +88,81 @@ const METHOD_CONFIG = {
   wire: { label: 'Wire', icon: Wallet },
 };
 
-// KPI Tile Component
-const KPITile = ({ icon: Icon, label, value, subtext, trend, trendType, onClick, size = 'normal' }) => (
-  <button
-    onClick={onClick}
-    className={cn(
-      'text-left bg-white dark:bg-surface-primary border border-border rounded-lg transition-all hover:border-primary/30 hover:shadow-sm',
-      size === 'large' ? 'p-4' : 'p-3'
-    )}
-  >
-    <div className="flex items-start justify-between">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <Icon className={cn('text-muted', size === 'large' ? 'h-4 w-4' : 'h-3.5 w-3.5')} />
-          <span className="text-xs text-muted uppercase tracking-wide">{label}</span>
+// KPI Tile Component with enhanced visual hierarchy
+const KPITile = ({ icon: Icon, label, value, subtext, trend, trendType, onClick, size = 'normal', variant = 'default', urgent = false }) => {
+  // Variant-based styling for visual hierarchy
+  const variantStyles = {
+    primary: 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-800/10 border-emerald-200 dark:border-emerald-800/50',
+    warning: 'bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10 border-amber-200 dark:border-amber-800/50',
+    danger: 'bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 border-red-200 dark:border-red-800/50',
+    default: 'bg-white dark:bg-surface-primary border-border',
+  };
+
+  const iconStyles = {
+    primary: 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white',
+    warning: 'bg-gradient-to-br from-amber-500 to-amber-600 text-white',
+    danger: 'bg-gradient-to-br from-red-500 to-red-600 text-white',
+    default: 'bg-[var(--bb-color-bg-surface)] text-[var(--bb-color-text-muted)]',
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'relative text-left border rounded-xl transition-all hover:shadow-md hover:-translate-y-0.5',
+        variantStyles[variant] || variantStyles.default,
+        size === 'large' ? 'p-5' : 'p-4',
+        urgent && 'ring-2 ring-red-400/50 dark:ring-red-500/30 animate-pulse'
+      )}
+    >
+      {/* Urgency glow overlay */}
+      {urgent && (
+        <div className="absolute inset-0 rounded-xl bg-red-500/5 animate-pulse pointer-events-none" />
+      )}
+
+      <div className="flex items-start justify-between relative">
+        <div className="flex items-start gap-3">
+          {/* Enhanced icon container */}
+          <div className={cn(
+            'rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm',
+            iconStyles[variant] || iconStyles.default,
+            size === 'large' ? 'h-10 w-10' : 'h-8 w-8'
+          )}>
+            <Icon className={cn(size === 'large' ? 'h-5 w-5' : 'h-4 w-4')} />
+          </div>
+
+          <div>
+            <span className="text-xs text-[var(--bb-color-text-muted)] uppercase tracking-wide font-medium">
+              {label}
+            </span>
+            <p className={cn(
+              'font-bold text-[var(--bb-color-text-primary)] mt-0.5',
+              size === 'large' ? 'text-2xl' : 'text-xl'
+            )}>
+              {value}
+            </p>
+            {subtext && (
+              <p className="text-xs text-[var(--bb-color-text-muted)] mt-1">{subtext}</p>
+            )}
+          </div>
         </div>
-        <p className={cn('font-semibold text-text', size === 'large' ? 'text-2xl' : 'text-lg')}>
-          {value}
-        </p>
-        {subtext && (
-          <p className="text-xs text-muted mt-0.5">{subtext}</p>
+
+        {trend && (
+          <div className={cn(
+            'flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full',
+            trendType === 'positive' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' :
+            trendType === 'negative' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' :
+            'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+          )}>
+            {trendType === 'positive' ? <TrendingUp className="h-3 w-3" /> :
+             trendType === 'negative' ? <TrendingDown className="h-3 w-3" /> : null}
+            {trend}
+          </div>
         )}
       </div>
-      {trend && (
-        <div className={cn(
-          'flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded',
-          trendType === 'positive' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-          trendType === 'negative' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-          'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-        )}>
-          {trendType === 'positive' ? <TrendingUp className="h-3 w-3" /> : 
-           trendType === 'negative' ? <TrendingDown className="h-3 w-3" /> : null}
-          {trend}
-        </div>
-      )}
-    </div>
-  </button>
-);
+    </button>
+  );
+};
 
 // Transaction Row Component
 const TransactionRow = ({ payment, isSelected, onSelect, onClick, onCustomerClick }) => {
@@ -887,68 +925,110 @@ const PaymentsSidebar = ({ payments, stats, onRecordPayment, onExport, periodTog
 
   return (
     <div className="space-y-4">
-      {/* Revenue Breakdown Card */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <PieChart className="h-4 w-4 text-muted" />
-          <h3 className="text-sm font-medium text-text">Revenue Breakdown</h3>
+      {/* Revenue Breakdown Card with Donut Chart */}
+      <div className="bg-white dark:bg-surface-primary border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-[var(--bb-color-accent)] to-purple-600 flex items-center justify-center">
+            <PieChart className="h-4 w-4 text-white" />
+          </div>
+          <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Revenue Breakdown</h3>
         </div>
 
-        {/* Simple horizontal bar chart */}
-        <div className="space-y-3">
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-muted flex items-center gap-1.5">
-                <CreditCard className="h-3 w-3" />
-                Card
-              </span>
-              <span className="text-text font-medium">${cardAmount.toLocaleString()}</span>
-            </div>
-            <div className="h-2 bg-surface rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all"
-                style={{ width: `${cardPercent}%` }}
+        {/* Donut Chart Visualization */}
+        <div className="flex items-center gap-4 mb-4">
+          <div className="relative h-24 w-24 flex-shrink-0">
+            <svg viewBox="0 0 36 36" className="h-24 w-24 transform -rotate-90">
+              {/* Background circle */}
+              <circle
+                cx="18"
+                cy="18"
+                r="15.91549430918954"
+                fill="transparent"
+                stroke="var(--bb-color-bg-surface)"
+                strokeWidth="3"
               />
+              {/* Card segment */}
+              <circle
+                cx="18"
+                cy="18"
+                r="15.91549430918954"
+                fill="transparent"
+                stroke="var(--bb-color-accent)"
+                strokeWidth="3"
+                strokeDasharray={`${cardPercent} ${100 - cardPercent}`}
+                strokeDashoffset="0"
+                className="transition-all duration-500"
+              />
+              {/* Cash segment */}
+              <circle
+                cx="18"
+                cy="18"
+                r="15.91549430918954"
+                fill="transparent"
+                stroke="#10B981"
+                strokeWidth="3"
+                strokeDasharray={`${cashPercent} ${100 - cashPercent}`}
+                strokeDashoffset={`-${cardPercent}`}
+                className="transition-all duration-500"
+              />
+            </svg>
+            {/* Center total */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-lg font-bold text-[var(--bb-color-text-primary)]">
+                ${totalRevenue >= 1000 ? `${(totalRevenue / 1000).toFixed(1)}k` : totalRevenue.toLocaleString()}
+              </span>
+              <span className="text-[10px] text-[var(--bb-color-text-muted)] uppercase">Total</span>
             </div>
           </div>
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span className="text-muted flex items-center gap-1.5">
-                <Banknote className="h-3 w-3" />
-                Cash
-              </span>
-              <span className="text-text font-medium">${cashAmount.toLocaleString()}</span>
-            </div>
-            <div className="h-2 bg-surface rounded-full overflow-hidden">
-              <div
-                className="h-full bg-green-500 rounded-full transition-all"
-                style={{ width: `${cashPercent}%` }}
-              />
-            </div>
-          </div>
-        </div>
 
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-          <span className="text-xs text-muted">Total</span>
-          <span className="text-sm font-semibold text-text">${totalRevenue.toLocaleString()}</span>
+          {/* Legend */}
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-sm bg-[var(--bb-color-accent)]" />
+                <span className="text-xs text-[var(--bb-color-text-muted)]">Card</span>
+              </div>
+              <span className="text-sm font-semibold text-[var(--bb-color-text-primary)]">${cardAmount.toLocaleString()}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-3 rounded-sm bg-emerald-500" />
+                <span className="text-xs text-[var(--bb-color-text-muted)]">Cash</span>
+              </div>
+              <span className="text-sm font-semibold text-[var(--bb-color-text-primary)]">${cashAmount.toLocaleString()}</span>
+            </div>
+            {100 - cardPercent - cashPercent > 0 && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 rounded-sm bg-[var(--bb-color-bg-surface)]" />
+                  <span className="text-xs text-[var(--bb-color-text-muted)]">Other</span>
+                </div>
+                <span className="text-sm font-medium text-[var(--bb-color-text-muted)]">
+                  ${((totalRevenue - cardAmount - cashAmount) || 0).toLocaleString()}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* This Week / This Month Toggle Card */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-        <div className="flex items-center justify-between mb-3">
+      {/* Quick Stats Card - Enhanced */}
+      <div className="bg-white dark:bg-surface-primary border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-muted" />
-            <h3 className="text-sm font-medium text-text">Quick Stats</h3>
+            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+              <Activity className="h-4 w-4 text-white" />
+            </div>
+            <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Quick Stats</h3>
           </div>
-          <div className="flex bg-surface rounded-lg p-0.5">
+          <div className="flex bg-[var(--bb-color-bg-surface)] rounded-lg p-1">
             <button
               onClick={() => onPeriodToggle('week')}
               className={cn(
-                'px-2 py-1 text-xs rounded-md transition-colors',
+                'px-3 py-1 text-xs font-medium rounded-md transition-all',
                 periodToggle === 'week'
-                  ? 'bg-white dark:bg-surface-primary text-text shadow-sm'
-                  : 'text-muted hover:text-text'
+                  ? 'bg-white dark:bg-surface-primary text-[var(--bb-color-text-primary)] shadow-sm'
+                  : 'text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)]'
               )}
             >
               Week
@@ -956,10 +1036,10 @@ const PaymentsSidebar = ({ payments, stats, onRecordPayment, onExport, periodTog
             <button
               onClick={() => onPeriodToggle('month')}
               className={cn(
-                'px-2 py-1 text-xs rounded-md transition-colors',
+                'px-3 py-1 text-xs font-medium rounded-md transition-all',
                 periodToggle === 'month'
-                  ? 'bg-white dark:bg-surface-primary text-text shadow-sm'
-                  : 'text-muted hover:text-text'
+                  ? 'bg-white dark:bg-surface-primary text-[var(--bb-color-text-primary)] shadow-sm'
+                  : 'text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)]'
               )}
             >
               Month
@@ -967,117 +1047,150 @@ const PaymentsSidebar = ({ payments, stats, onRecordPayment, onExport, periodTog
           </div>
         </div>
 
+        {/* Main metric */}
+        <div className="mb-4 p-3 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-[var(--bb-color-text-muted)] mb-0.5">Collected</p>
+              <p className="text-2xl font-bold text-[var(--bb-color-text-primary)]">
+                ${periodStats.collected.toLocaleString()}
+              </p>
+            </div>
+            {periodStats.change !== 0 && (
+              <div className={cn(
+                'flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold',
+                periodStats.change > 0
+                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+              )}>
+                {periodStats.change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                {Math.abs(periodStats.change).toFixed(0)}%
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Secondary metrics */}
         <div className="space-y-3">
           <div className="flex justify-between items-center">
-            <span className="text-xs text-muted">Collected</span>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-text">${periodStats.collected.toLocaleString()}</span>
-              {periodStats.change !== 0 && (
-                <span className={cn(
-                  'text-xs flex items-center gap-0.5',
-                  periodStats.change > 0 ? 'text-green-600' : 'text-red-600'
-                )}>
-                  {periodStats.change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                  {Math.abs(periodStats.change).toFixed(0)}%
-                </span>
-              )}
-            </div>
+            <span className="text-xs text-[var(--bb-color-text-muted)]">Transactions</span>
+            <span className="text-sm font-semibold text-[var(--bb-color-text-primary)]">{periodStats.transactions}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-xs text-muted">Transactions</span>
-            <span className="text-sm font-medium text-text">{periodStats.transactions}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-muted">Avg Transaction</span>
-            <span className="text-sm font-medium text-text">${periodStats.avgTransaction.toFixed(2)}</span>
+            <span className="text-xs text-[var(--bb-color-text-muted)]">Avg Transaction</span>
+            <span className="text-sm font-semibold text-[var(--bb-color-text-primary)]">${periodStats.avgTransaction.toFixed(2)}</span>
           </div>
         </div>
       </div>
 
-      {/* Recent Payouts Card */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-        <div className="flex items-center justify-between mb-3">
+      {/* Recent Payouts Card - Enhanced */}
+      <div className="bg-white dark:bg-surface-primary border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-muted" />
-            <h3 className="text-sm font-medium text-text">Recent Payouts</h3>
+            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+              <Wallet className="h-4 w-4 text-white" />
+            </div>
+            <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Recent Payouts</h3>
           </div>
-          <button className="text-xs text-primary hover:underline">
+          <button className="text-xs font-medium text-[var(--bb-color-accent)] hover:underline">
             View All
           </button>
         </div>
 
         <div className="space-y-2">
-          {recentPayouts.map(payout => (
+          {recentPayouts.map((payout, index) => (
             <div
               key={payout.id}
-              className="flex items-center justify-between p-2 bg-surface rounded-lg"
+              className={cn(
+                'flex items-center justify-between p-3 rounded-lg transition-colors',
+                'bg-[var(--bb-color-bg-surface)] hover:bg-[var(--bb-color-bg-elevated)]',
+                index === 0 && 'ring-1 ring-emerald-200 dark:ring-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-900/10'
+              )}
             >
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                  <CheckCircle className="h-3 w-3 text-green-600" />
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  'h-8 w-8 rounded-full flex items-center justify-center',
+                  index === 0
+                    ? 'bg-emerald-100 dark:bg-emerald-900/30'
+                    : 'bg-[var(--bb-color-bg-elevated)]'
+                )}>
+                  <CheckCircle className={cn(
+                    'h-4 w-4',
+                    index === 0 ? 'text-emerald-600' : 'text-[var(--bb-color-text-muted)]'
+                  )} />
                 </div>
-                <span className="text-xs text-muted">
-                  {format(payout.date, 'MMM d')}
-                </span>
+                <div>
+                  <span className="text-sm font-semibold text-[var(--bb-color-text-primary)]">
+                    ${payout.amount.toLocaleString()}
+                  </span>
+                  <p className="text-xs text-[var(--bb-color-text-muted)]">
+                    {format(payout.date, 'MMM d, yyyy')}
+                  </p>
+                </div>
               </div>
-              <span className="text-sm font-medium text-text">${payout.amount.toLocaleString()}</span>
+              <Badge variant="success" size="sm">Paid</Badge>
             </div>
           ))}
         </div>
 
         <button
-          className="w-full mt-3 pt-3 border-t border-border flex items-center justify-center gap-1.5 text-xs text-primary hover:underline"
+          className="w-full mt-4 py-2 rounded-lg bg-[var(--bb-color-bg-surface)] hover:bg-[var(--bb-color-bg-elevated)] flex items-center justify-center gap-2 text-sm font-medium text-[var(--bb-color-text-secondary)] transition-colors"
           onClick={() => window.open('https://dashboard.stripe.com', '_blank')}
         >
-          <ExternalLink className="h-3 w-3" />
-          Open Stripe Dashboard
+          <ExternalLink className="h-4 w-4" />
+          Stripe Dashboard
         </button>
       </div>
 
-      {/* Quick Actions Card */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Zap className="h-4 w-4 text-muted" />
-          <h3 className="text-sm font-medium text-text">Quick Actions</h3>
+      {/* Quick Actions Card - Enhanced */}
+      <div className="bg-white dark:bg-surface-primary border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+            <Zap className="h-4 w-4 text-white" />
+          </div>
+          <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Quick Actions</h3>
         </div>
 
-        <div className="space-y-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-start"
+        <div className="grid grid-cols-2 gap-2">
+          <button
             onClick={onRecordPayment}
+            className="flex flex-col items-center gap-2 p-3 rounded-lg bg-[var(--bb-color-bg-surface)] hover:bg-[var(--bb-color-bg-elevated)] transition-colors group"
           >
-            <Plus className="h-3.5 w-3.5 mr-2" />
-            Record Payment
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-start"
+            <div className="h-8 w-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Plus className="h-4 w-4 text-emerald-600" />
+            </div>
+            <span className="text-xs font-medium text-[var(--bb-color-text-secondary)]">Record</span>
+          </button>
+
+          <button
             onClick={() => toast.info('View Outstanding coming soon')}
+            className="flex flex-col items-center gap-2 p-3 rounded-lg bg-[var(--bb-color-bg-surface)] hover:bg-[var(--bb-color-bg-elevated)] transition-colors group"
           >
-            <Clock className="h-3.5 w-3.5 mr-2" />
-            View Outstanding
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-start"
+            <div className="h-8 w-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Clock className="h-4 w-4 text-amber-600" />
+            </div>
+            <span className="text-xs font-medium text-[var(--bb-color-text-secondary)]">Outstanding</span>
+          </button>
+
+          <button
             onClick={onExport}
+            className="flex flex-col items-center gap-2 p-3 rounded-lg bg-[var(--bb-color-bg-surface)] hover:bg-[var(--bb-color-bg-elevated)] transition-colors group"
           >
-            <Download className="h-3.5 w-3.5 mr-2" />
-            Export Report
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full justify-start"
+            <div className="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Download className="h-4 w-4 text-blue-600" />
+            </div>
+            <span className="text-xs font-medium text-[var(--bb-color-text-secondary)]">Export</span>
+          </button>
+
+          <button
             onClick={() => toast.info('Reconciliation coming soon')}
+            className="flex flex-col items-center gap-2 p-3 rounded-lg bg-[var(--bb-color-bg-surface)] hover:bg-[var(--bb-color-bg-elevated)] transition-colors group"
           >
-            <RefreshCw className="h-3.5 w-3.5 mr-2" />
-            Reconcile
-          </Button>
+            <div className="h-8 w-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+              <RefreshCw className="h-4 w-4 text-purple-600" />
+            </div>
+            <span className="text-xs font-medium text-[var(--bb-color-text-secondary)]">Reconcile</span>
+          </button>
         </div>
       </div>
     </div>
@@ -1390,66 +1503,71 @@ const Payments = () => {
       {/* Tab Content */}
       {currentView === 'overview' && (
         <>
-          {/* Tier 1: KPI Tiles */}
-          <div className="space-y-3">
-            {/* Row 1: Big metrics */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Tier 1: KPI Tiles - Financial Command Center */}
+          <div className="space-y-4">
+            {/* Row 1: Primary Revenue Metrics */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <KPITile
                 icon={DollarSign}
                 label="Revenue Collected"
                 value={`$${stats.revenueCollected.toLocaleString()}`}
-                subtext="YTD"
+                subtext="Year to date"
                 trend="+15%"
                 trendType="positive"
                 size="large"
+                variant="primary"
               />
               <KPITile
                 icon={CreditCard}
-                label="Processed (Card/Online)"
+                label="Card Payments"
                 value={`$${stats.processedAmount.toLocaleString()}`}
                 subtext={`${stats.capturedCount} transactions`}
                 size="large"
               />
               <KPITile
                 icon={Clock}
-                label="Pending / Outstanding"
+                label="Outstanding"
                 value={`$${stats.pendingAmount.toLocaleString()}`}
                 subtext={`${stats.pendingCount} awaiting`}
-                trend={stats.pendingCount > 0 ? 'Action needed' : null}
+                trend={stats.pendingCount > 0 ? 'Needs attention' : null}
                 trendType={stats.pendingCount > 0 ? 'negative' : null}
                 size="large"
+                variant={stats.pendingCount > 0 ? 'warning' : 'default'}
+                urgent={stats.pendingCount > 5}
               />
               <KPITile
                 icon={Wallet}
-                label="Payouts"
+                label="Next Payout"
                 value="$0"
-                subtext="Next payout: —"
+                subtext="Stripe balance"
                 size="large"
               />
             </div>
 
-            {/* Row 2: Operational metrics */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Row 2: Health & Performance Metrics */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <KPITile
                 icon={Percent}
                 label="Success Rate"
                 value={`${stats.successRate}%`}
                 trend={stats.successRate >= 95 ? 'Excellent' : stats.successRate >= 90 ? 'Good' : 'Review'}
                 trendType={stats.successRate >= 95 ? 'positive' : stats.successRate >= 90 ? 'neutral' : 'negative'}
+                variant={stats.successRate >= 95 ? 'primary' : stats.successRate < 90 ? 'danger' : 'default'}
               />
               <KPITile
                 icon={RotateCcw}
                 label="Refunds"
                 value={`$${stats.refundedAmount.toLocaleString()}`}
-                subtext={`${stats.refundedCount} refunds`}
+                subtext={`${stats.refundedCount} processed`}
               />
               <KPITile
                 icon={AlertTriangle}
                 label="Chargebacks"
-                value={stats.chargebacks}
+                value={stats.chargebacks.toString()}
                 subtext="This month"
-                trend={stats.chargebacks === 0 ? 'Clean' : null}
+                trend={stats.chargebacks === 0 ? 'Clean record' : null}
                 trendType={stats.chargebacks === 0 ? 'positive' : 'negative'}
+                variant={stats.chargebacks > 0 ? 'danger' : 'default'}
               />
               <KPITile
                 icon={Receipt}
@@ -1465,68 +1583,151 @@ const Payments = () => {
       {/* Overview Tab - Processor Status and Outstanding */}
       {currentView === 'overview' && (
         <>
-          {/* Tier 2: Processor Status */}
-          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-            <div className="flex items-center justify-between">
+          {/* Tier 2: Processor Status - Enhanced Banner */}
+          <div className={cn(
+            'relative overflow-hidden rounded-xl border transition-all',
+            isProcessorConnected
+              ? 'bg-gradient-to-r from-emerald-50 via-emerald-50/50 to-teal-50 dark:from-emerald-900/20 dark:via-emerald-900/10 dark:to-teal-900/10 border-emerald-200 dark:border-emerald-800/50'
+              : 'bg-gradient-to-r from-amber-50 via-amber-50/50 to-orange-50 dark:from-amber-900/20 dark:via-amber-900/10 dark:to-orange-900/10 border-amber-200 dark:border-amber-800/50'
+          )}>
+            {/* Subtle pattern overlay */}
+            <div className="absolute inset-0 opacity-5">
+              <div className="absolute inset-0" style={{
+                backgroundImage: 'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)',
+                backgroundSize: '24px 24px'
+              }} />
+            </div>
+
+            <div className="relative flex items-center justify-between p-5">
               <div className="flex items-center gap-4">
+                {/* Enhanced processor icon */}
                 <div className={cn(
-                  'h-10 w-10 rounded-lg flex items-center justify-center',
-                  isProcessorConnected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-amber-100 dark:bg-amber-900/30'
+                  'h-12 w-12 rounded-xl flex items-center justify-center shadow-sm',
+                  isProcessorConnected
+                    ? 'bg-gradient-to-br from-emerald-500 to-teal-600'
+                    : 'bg-gradient-to-br from-amber-500 to-orange-600'
                 )}>
                   {isProcessorConnected ? (
-                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <CheckCircle className="h-6 w-6 text-white" />
                   ) : (
-                    <AlertCircle className="h-5 w-5 text-amber-600" />
+                    <Zap className="h-6 w-6 text-white" />
                   )}
                 </div>
+
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className="font-medium text-text">
-                      {isProcessorConnected ? `Connected: ${processorStatus.name}` : 'Payment Processor'}
+                    <p className={cn(
+                      'font-semibold text-lg',
+                      isProcessorConnected ? 'text-emerald-800 dark:text-emerald-200' : 'text-amber-800 dark:text-amber-200'
+                    )}>
+                      {isProcessorConnected ? processorStatus.name : 'Payment Processor'}
                     </p>
-                    <Badge variant={isProcessorConnected ? 'success' : 'warning'} size="sm">
-                      {isProcessorConnected ? 'Active' : 'Not Connected'}
+                    <Badge
+                      variant={isProcessorConnected ? 'success' : 'warning'}
+                      size="sm"
+                      className="font-medium"
+                    >
+                      {isProcessorConnected ? 'Connected' : 'Setup Required'}
                     </Badge>
                   </div>
-                  <p className="text-xs text-muted">
+                  <p className="text-sm text-[var(--bb-color-text-muted)] mt-0.5">
                     {isProcessorConnected
-                      ? `Last sync: ${format(processorStatus.lastSync, 'MMM d, h:mm a')} • Processing smoothly`
-                      : 'Connect a payment processor to accept payments'}
+                      ? `Last sync: ${format(processorStatus.lastSync, 'MMM d, h:mm a')} • All systems operational`
+                      : 'Connect Stripe to accept credit cards and online payments'}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
+
+              <div className="flex items-center gap-6">
                 {isProcessorConnected && (
-                  <div className="text-right">
-                    <p className="text-xs text-muted">Your rate</p>
-                    <p className="text-sm font-medium text-text">{processorStatus.rate}</p>
-                  </div>
+                  <>
+                    {/* Processing rate */}
+                    <div className="text-right">
+                      <p className="text-xs text-[var(--bb-color-text-muted)] uppercase tracking-wide">Processing Rate</p>
+                      <p className="text-lg font-semibold text-[var(--bb-color-text-primary)]">{processorStatus.rate}</p>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="h-10 w-px bg-emerald-200 dark:bg-emerald-700/50" />
+
+                    {/* Quick access link */}
+                    <button
+                      onClick={() => window.open('https://dashboard.stripe.com', '_blank')}
+                      className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400 hover:underline"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Dashboard
+                    </button>
+                  </>
                 )}
-                <Button variant="outline" size="sm" onClick={() => setShowStripeSettings(true)}>
-                  {isProcessorConnected ? 'Manage' : 'Connect Processor'}
+
+                <Button
+                  variant={isProcessorConnected ? 'outline' : 'primary'}
+                  size="sm"
+                  onClick={() => setShowStripeSettings(true)}
+                  className={isProcessorConnected ? '' : 'shadow-md'}
+                >
+                  <Settings className="h-4 w-4 mr-1.5" />
+                  {isProcessorConnected ? 'Settings' : 'Connect Stripe'}
                 </Button>
               </div>
             </div>
           </div>
 
-          {/* Outstanding Section */}
+          {/* Outstanding Section - Enhanced Urgency */}
           {outstandingItems.length > 0 && (
-            <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg">
+            <div className={cn(
+              'relative overflow-hidden rounded-xl border transition-all',
+              'bg-gradient-to-r from-red-50 via-red-50/80 to-orange-50 dark:from-red-900/20 dark:via-red-900/15 dark:to-orange-900/10',
+              'border-red-200 dark:border-red-800/50',
+              outstandingItems.length > 3 && 'ring-2 ring-red-400/30 dark:ring-red-500/20'
+            )}>
+              {/* Urgent pulse indicator */}
+              {outstandingItems.length > 3 && (
+                <div className="absolute top-2 right-2">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+                  </span>
+                </div>
+              )}
+
               <button
                 onClick={() => setShowOutstanding(!showOutstanding)}
-                className="w-full flex items-center justify-between p-3"
+                className="w-full flex items-center justify-between p-4"
               >
                 <div className="flex items-center gap-3">
-                  <AlertTriangle className="h-5 w-5 text-red-500" />
-                  <span className="font-medium text-red-700 dark:text-red-300">
-                    {outstandingItems.length} Outstanding / Failed Payments
-                  </span>
-                  <Badge variant="danger" size="sm">${outstandingItems.reduce((sum, i) => sum + parseFloat(i.amount), 0).toFixed(2)}</Badge>
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center shadow-sm">
+                    <AlertTriangle className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <span className="font-semibold text-red-800 dark:text-red-200">
+                      {outstandingItems.length} Payments Need Attention
+                    </span>
+                    <p className="text-xs text-red-600/80 dark:text-red-300/70">
+                      Failed or pending transactions
+                    </p>
+                  </div>
                 </div>
-                {showOutstanding ? <ChevronUp className="h-4 w-4 text-red-500" /> : <ChevronDown className="h-4 w-4 text-red-500" />}
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <span className="text-xl font-bold text-red-700 dark:text-red-300">
+                      ${outstandingItems.reduce((sum, i) => sum + parseFloat(i.amount), 0).toFixed(2)}
+                    </span>
+                    <p className="text-xs text-red-600/70 dark:text-red-400/70">Total outstanding</p>
+                  </div>
+                  <div className={cn(
+                    'h-8 w-8 rounded-full flex items-center justify-center transition-transform',
+                    'bg-red-100 dark:bg-red-900/30',
+                    showOutstanding && 'rotate-180'
+                  )}>
+                    <ChevronDown className="h-4 w-4 text-red-600 dark:text-red-400" />
+                  </div>
+                </div>
               </button>
+
               {showOutstanding && (
-                <div className="px-3 pb-3 space-y-1">
+                <div className="px-4 pb-4 space-y-2">
                   {outstandingItems.map(item => (
                     <OutstandingRow
                       key={item.id}
@@ -1534,6 +1735,12 @@ const Payments = () => {
                       onRetry={() => toast.info('Retry payment functionality coming soon')}
                     />
                   ))}
+                  <button
+                    onClick={() => setCurrentView('outstanding')}
+                    className="w-full mt-2 py-2 text-sm font-medium text-red-700 dark:text-red-300 hover:underline"
+                  >
+                    View all outstanding payments →
+                  </button>
                 </div>
               )}
             </div>
@@ -1664,25 +1871,46 @@ const Payments = () => {
                   <p className="text-sm text-muted">{error.message}</p>
                 </div>
               ) : filteredPayments.length === 0 ? (
-                <div className="p-12 text-center">
-                  <div className="h-16 w-16 rounded-full bg-surface flex items-center justify-center mx-auto mb-4">
-                    <DollarSign className="h-8 w-8 text-muted" />
+                <div className="p-16 text-center">
+                  {/* Animated empty state icon */}
+                  <div className="relative h-24 w-24 mx-auto mb-6">
+                    {/* Animated rings */}
+                    <div className="absolute inset-[-8px] rounded-full border-2 border-dashed border-emerald-300/30 dark:border-emerald-600/20 animate-[spin_20s_linear_infinite]" />
+                    <div className="absolute inset-[-16px] rounded-full border-2 border-dashed border-emerald-300/20 dark:border-emerald-600/10 animate-[spin_30s_linear_infinite_reverse]" />
+
+                    {/* Main icon */}
+                    <div className="relative h-24 w-24 rounded-2xl bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/20 flex items-center justify-center shadow-lg">
+                      <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md">
+                        <DollarSign className="h-7 w-7 text-white" />
+                      </div>
+                    </div>
                   </div>
-                  <h3 className="font-medium text-text mb-1">
-                    {payments.length === 0 ? 'No transactions yet' : 'No matching transactions'}
+
+                  <h3 className="text-lg font-semibold text-[var(--bb-color-text-primary)] mb-2">
+                    {payments.length === 0 ? 'Ready to Process Payments' : 'No Matching Transactions'}
                   </h3>
-                  <p className="text-sm text-muted mb-4">
+                  <p className="text-sm text-[var(--bb-color-text-muted)] mb-6 max-w-sm mx-auto">
                     {payments.length === 0
-                      ? 'Transactions will appear here once payments are processed'
-                      : 'Try adjusting your filters'}
+                      ? 'Start accepting payments from your customers. Transactions will appear here as they\'re processed.'
+                      : 'No transactions match your current filters. Try adjusting your search criteria.'}
                   </p>
+
                   {payments.length === 0 ? (
-                    <Button size="sm" onClick={() => setShowManualPayment(true)}>
-                      <Plus className="h-4 w-4 mr-1.5" />
-                      Record Payment
-                    </Button>
+                    <div className="flex items-center justify-center gap-3">
+                      <Button onClick={() => setShowManualPayment(true)}>
+                        <Plus className="h-4 w-4 mr-1.5" />
+                        Record Payment
+                      </Button>
+                      {!isProcessorConnected && (
+                        <Button variant="outline" onClick={() => setShowStripeSettings(true)}>
+                          <CreditCard className="h-4 w-4 mr-1.5" />
+                          Connect Stripe
+                        </Button>
+                      )}
+                    </div>
                   ) : (
-                    <Button variant="outline" size="sm" onClick={clearFilters}>
+                    <Button variant="outline" onClick={clearFilters}>
+                      <X className="h-4 w-4 mr-1.5" />
                       Clear Filters
                     </Button>
                   )}
