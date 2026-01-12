@@ -61,6 +61,7 @@ import {
   Repeat2,
   Info,
   RotateCcw,
+  Sun,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/card';
@@ -1362,130 +1363,292 @@ const ScheduleTab = ({ staff }) => {
     setDraggedShift(null);
   };
 
-  return (
-    <div className="space-y-4">
-      {/* Schedule Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setSelectedWeek(addDays(selectedWeek, -7))}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-medium text-text min-w-[180px] text-center">
-            {format(weekDays[0], 'MMM d')} - {format(weekDays[6], 'MMM d, yyyy')}
-          </span>
-          <Button variant="outline" size="sm" onClick={() => setSelectedWeek(addDays(selectedWeek, 7))}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setSelectedWeek(startOfWeek(new Date(), { weekStartsOn: 0 }))}>
-            Today
-          </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Role Filter */}
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="h-8 px-2 text-xs bg-surface border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50"
-          >
-            <option value="all">All Roles</option>
-            {staffRoles.map((role) => (
-              <option key={role.id} value={role.name}>{role.name}</option>
-            ))}
-          </select>
-          <Button variant="outline" size="sm" onClick={handleCloneWeek} disabled={isCloning}>
-            {isCloning ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
-            Clone Week
-          </Button>
-          <Button variant="outline" size="sm" onClick={handlePublishSchedule} disabled={isPublishing}>
-            {isPublishing ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
-            Publish Schedule
-          </Button>
-        </div>
-      </div>
+  // Check if schedule is published (would come from API)
+  const isPublished = weeklyData?.isPublished || false;
+  const publishedAt = weeklyData?.publishedAt;
 
-      {/* Coverage Bar */}
-      <div className="bg-surface rounded-lg border border-border p-3">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-muted">Daily Coverage</span>
-          <div className="flex items-center gap-3 text-[10px] text-muted">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" /> Fully Staffed</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Minimal</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500" /> Understaffed</span>
-          </div>
-        </div>
-        <div className="grid grid-cols-8 gap-1">
-          <div className="col-span-1" /> {/* Empty for staff column alignment */}
-          {coverage.map((cov, i) => (
-            <div
-              key={i}
-              className="flex flex-col items-center group relative cursor-help"
-              title={`${cov.dayName}: ${cov.count} staff scheduled / ${cov.needed} needed`}
+  return (
+    <div className="space-y-5">
+      {/* Schedule Header - Enhanced */}
+      <div className="bg-white dark:bg-surface-primary border border-[var(--bb-color-border-subtle)] rounded-xl p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          {/* Week Navigation */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSelectedWeek(addDays(selectedWeek, -7))}
+              className="p-2 rounded-lg border border-[var(--bb-color-border-subtle)] text-[var(--bb-color-text-secondary)] hover:bg-[var(--bb-color-bg-surface)] hover:text-[var(--bb-color-text-primary)] transition-colors"
             >
-              <div className={`h-2.5 w-full rounded-full transition-all ${
-                cov.status === 'green' ? 'bg-green-500' :
-                cov.status === 'yellow' ? 'bg-amber-500' : 'bg-red-500'
-              } group-hover:brightness-110`} />
-              <span className="text-[10px] text-muted mt-1">
-                {cov.count} / {cov.needed}
-              </span>
-              {/* Tooltip */}
-              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                <div className="bg-gray-900 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap">
-                  {cov.dayName}: {cov.count} staff / {cov.needed} needed
-                </div>
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+
+            <div className="text-center min-w-[200px]">
+              <div className="flex items-center justify-center gap-2">
+                <Calendar className="h-4 w-4 text-[var(--bb-color-accent)]" />
+                <span className="text-sm font-semibold text-[var(--bb-color-text-primary)]">
+                  {format(weekDays[0], 'MMM d')} - {format(weekDays[6], 'MMM d, yyyy')}
+                </span>
+              </div>
+              {/* Publish status */}
+              <div className="flex items-center justify-center gap-2 mt-1">
+                {isPublished ? (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[0.65rem] font-medium rounded-full">
+                    <CheckCircle className="h-3 w-3" />
+                    Published
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-[0.65rem] font-medium rounded-full">
+                    <AlertCircle className="h-3 w-3" />
+                    Draft
+                  </span>
+                )}
               </div>
             </div>
-          ))}
+
+            <button
+              onClick={() => setSelectedWeek(addDays(selectedWeek, 7))}
+              className="p-2 rounded-lg border border-[var(--bb-color-border-subtle)] text-[var(--bb-color-text-secondary)] hover:bg-[var(--bb-color-bg-surface)] hover:text-[var(--bb-color-text-primary)] transition-colors"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+
+            <button
+              onClick={() => setSelectedWeek(startOfWeek(new Date(), { weekStartsOn: 0 }))}
+              className="px-3 py-2 text-xs font-medium text-[var(--bb-color-accent)] hover:bg-[var(--bb-color-accent-soft)] rounded-lg transition-colors"
+            >
+              Today
+            </button>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-3">
+            {/* Role Filter */}
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="h-9 px-3 text-xs bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]/30 focus:border-[var(--bb-color-accent)] transition-all"
+            >
+              <option value="all">All Roles</option>
+              {staffRoles.map((role) => (
+                <option key={role.id} value={role.name}>{role.name}</option>
+              ))}
+            </select>
+
+            <button
+              onClick={handleCloneWeek}
+              disabled={isCloning}
+              className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-[var(--bb-color-text-secondary)] bg-[var(--bb-color-bg-surface)] hover:bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)] rounded-lg transition-colors disabled:opacity-50"
+            >
+              {isCloning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
+              Clone Week
+            </button>
+
+            <button
+              onClick={handlePublishSchedule}
+              disabled={isPublishing || isPublished}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg transition-all shadow-sm",
+                isPublished
+                  ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                  : "bg-gradient-to-r from-[var(--bb-color-accent)] to-[var(--bb-color-accent-hover)] text-white hover:shadow-md disabled:opacity-50"
+              )}
+            >
+              {isPublishing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : isPublished ? (
+                <CheckCircle className="h-3.5 w-3.5" />
+              ) : (
+                <Send className="h-3.5 w-3.5" />
+              )}
+              {isPublished ? 'Published' : 'Publish Schedule'}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-4 text-xs text-muted">
-        <span className="font-medium">Roles:</span>
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded bg-blue-500" />
-          <span>Kennel Tech</span>
+      {/* Coverage Bar - Enhanced */}
+      <div className="bg-white dark:bg-surface-primary rounded-xl border border-[var(--bb-color-border-subtle)] p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md shadow-blue-500/20">
+              <BarChart3 className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Daily Coverage</h3>
+              <p className="text-[0.65rem] text-[var(--bb-color-text-muted)]">Staff scheduled vs. required</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 text-xs">
+            <span className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 dark:bg-emerald-900/20 rounded-md">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span className="text-emerald-700 dark:text-emerald-400 font-medium">Fully Staffed</span>
+            </span>
+            <span className="flex items-center gap-1.5 px-2 py-1 bg-amber-50 dark:bg-amber-900/20 rounded-md">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+              <span className="text-amber-700 dark:text-amber-400 font-medium">Minimal</span>
+            </span>
+            <span className="flex items-center gap-1.5 px-2 py-1 bg-red-50 dark:bg-red-900/20 rounded-md">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-red-700 dark:text-red-400 font-medium">Understaffed</span>
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded bg-purple-500" />
-          <span>Groomer</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded bg-orange-500" />
-          <span>Manager</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded bg-emerald-500" />
-          <span>Trainer</span>
+
+        <div className="grid grid-cols-8 gap-2">
+          <div className="col-span-1" /> {/* Empty for staff column alignment */}
+          {coverage.map((cov, i) => {
+            const isToday = format(weekDays[i], 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+            return (
+              <div
+                key={i}
+                className={cn(
+                  "flex flex-col items-center group relative p-2 rounded-lg transition-all cursor-help",
+                  isToday && "bg-[var(--bb-color-accent-soft)] ring-2 ring-[var(--bb-color-accent)]/30"
+                )}
+              >
+                {/* Day label */}
+                <span className={cn(
+                  "text-[0.65rem] font-medium mb-1.5",
+                  isToday ? "text-[var(--bb-color-accent)]" : "text-[var(--bb-color-text-muted)]"
+                )}>
+                  {format(weekDays[i], 'EEE')}
+                </span>
+
+                {/* Coverage bar */}
+                <div className={cn(
+                  "h-3 w-full rounded-full transition-all relative overflow-hidden",
+                  cov.status === 'green' ? 'bg-emerald-500 shadow-sm shadow-emerald-500/30' :
+                  cov.status === 'yellow' ? 'bg-amber-500 shadow-sm shadow-amber-500/30' :
+                  'bg-red-500 shadow-sm shadow-red-500/30'
+                )}>
+                  {/* Shine effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent" />
+                  {cov.status === 'red' && (
+                    <div className="absolute inset-0 animate-pulse bg-red-400/50" />
+                  )}
+                </div>
+
+                {/* Count */}
+                <span className={cn(
+                  "text-xs font-semibold mt-1.5",
+                  cov.status === 'green' ? 'text-emerald-700 dark:text-emerald-400' :
+                  cov.status === 'yellow' ? 'text-amber-700 dark:text-amber-400' :
+                  'text-red-700 dark:text-red-400'
+                )}>
+                  {cov.count}/{cov.needed}
+                </span>
+
+                {/* Enhanced Tooltip */}
+                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+                  <div className="bg-gray-900 text-white text-xs px-3 py-2 rounded-lg shadow-xl whitespace-nowrap">
+                    <div className="font-semibold mb-1">{cov.dayName}</div>
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "w-2 h-2 rounded-full",
+                        cov.status === 'green' ? 'bg-emerald-400' :
+                        cov.status === 'yellow' ? 'bg-amber-400' : 'bg-red-400'
+                      )} />
+                      <span>{cov.count} scheduled / {cov.needed} needed</span>
+                    </div>
+                    {cov.status === 'red' && (
+                      <div className="mt-1 text-red-300 text-[0.65rem]">
+                        Needs {cov.needed - cov.count} more staff
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full">
+                      <div className="border-4 border-transparent border-t-gray-900" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Schedule Grid */}
+      {/* Role Legend - Enhanced */}
+      <div className="bg-white dark:bg-surface-primary rounded-xl border border-[var(--bb-color-border-subtle)] p-3">
+        <div className="flex items-center gap-6">
+          <span className="text-xs font-semibold text-[var(--bb-color-text-muted)] uppercase tracking-wider">Roles</span>
+          <div className="flex items-center gap-4 flex-wrap">
+            {staffRoles.map((role) => {
+              const color = getRoleColor(staffRoles, role.name);
+              return (
+                <div key={role.id} className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-[var(--bb-color-bg-surface)] transition-colors cursor-default">
+                  <div
+                    className="h-4 w-4 rounded shadow-sm"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="text-xs font-medium text-[var(--bb-color-text-secondary)]">{role.name}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="ml-auto flex items-center gap-3 border-l border-[var(--bb-color-border-subtle)] pl-4">
+            <div className="flex items-center gap-1.5 text-xs text-[var(--bb-color-text-muted)]">
+              <div className="h-3 w-6 rounded border-2 border-dashed border-gray-400" />
+              <span>Auto-generated</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-[var(--bb-color-text-muted)]">
+              <div className="h-3 w-6 rounded border-2 border-solid border-gray-400 bg-gray-200 dark:bg-gray-700" />
+              <span>Manual/Edited</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Schedule Grid - Enhanced */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted" />
+        <div className="bg-white dark:bg-surface-primary rounded-xl border border-[var(--bb-color-border-subtle)] p-16">
+          <div className="flex flex-col items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-[var(--bb-color-accent)] mb-3" />
+            <span className="text-sm text-[var(--bb-color-text-muted)]">Loading schedule...</span>
+          </div>
         </div>
       ) : (
-        <div className="bg-surface rounded-lg border border-border overflow-hidden">
-          {/* Grid Header */}
-          <div className="grid grid-cols-8 border-b border-border bg-surface-alt/30">
-            <div className="p-3 text-xs font-medium text-muted border-r border-border">
-              Staff Member
+        <div className="bg-white dark:bg-surface-primary rounded-xl border border-[var(--bb-color-border-subtle)] overflow-hidden shadow-sm">
+          {/* Grid Header - Enhanced */}
+          <div className="grid grid-cols-8 border-b border-[var(--bb-color-border-subtle)] bg-gradient-to-r from-gray-50 to-gray-100/50 dark:from-gray-800/50 dark:to-gray-900/30">
+            <div className="p-3 border-r border-[var(--bb-color-border-subtle)]">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-[var(--bb-color-text-muted)]" />
+                <span className="text-xs font-semibold text-[var(--bb-color-text-secondary)] uppercase tracking-wide">Staff</span>
+              </div>
             </div>
             {weekDays.map((day, i) => {
               const isToday = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+              const cov = coverage[i];
               return (
                 <div
                   key={i}
-                  className={`p-3 text-center border-r border-border last:border-r-0 ${
-                    isToday ? 'bg-primary/10' : ''
-                  }`}
+                  className={cn(
+                    "p-3 text-center border-r border-[var(--bb-color-border-subtle)] last:border-r-0 transition-colors",
+                    isToday && "bg-[var(--bb-color-accent)]/10 relative"
+                  )}
                 >
-                  <div className={`text-xs font-medium ${isToday ? 'text-primary' : 'text-muted'}`}>
+                  {/* Today indicator */}
+                  {isToday && (
+                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-[var(--bb-color-accent)]" />
+                  )}
+                  <div className={cn(
+                    "text-[0.65rem] font-semibold uppercase tracking-wide",
+                    isToday ? "text-[var(--bb-color-accent)]" : "text-[var(--bb-color-text-muted)]"
+                  )}>
                     {format(day, 'EEE')}
                   </div>
-                  <div className={`text-sm font-semibold ${isToday ? 'text-primary' : 'text-text'}`}>
+                  <div className={cn(
+                    "text-lg font-bold",
+                    isToday ? "text-[var(--bb-color-accent)]" : "text-[var(--bb-color-text-primary)]"
+                  )}>
                     {format(day, 'd')}
+                  </div>
+                  {/* Mini coverage indicator in header */}
+                  <div className={cn(
+                    "mt-1 text-[0.6rem] font-medium px-1.5 py-0.5 rounded-full inline-block",
+                    cov?.status === 'green' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' :
+                    cov?.status === 'yellow' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' :
+                    'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                  )}>
+                    {cov?.count || 0}/{cov?.needed || 2}
                   </div>
                 </div>
               );
@@ -1496,35 +1659,50 @@ const ScheduleTab = ({ staff }) => {
           {filteredShifts.map((staffRow) => {
             const weeklyHours = getStaffWeeklyHours(staffRow.shifts);
             const hasOvertime = weeklyHours > 40;
+            const roleColor = ROLE_COLOR_MAP[staffRow.role] || ROLE_COLOR_MAP['default'];
+            const initials = staffRow.staffName?.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || '??';
 
             return (
               <div
                 key={staffRow.staffId}
-                className="grid grid-cols-8 border-b border-border last:border-b-0 hover:bg-surface-alt/20 transition-colors"
+                className="grid grid-cols-8 border-b border-[var(--bb-color-border-subtle)] last:border-b-0 hover:bg-[var(--bb-color-bg-surface)]/50 transition-colors group/row"
               >
-                {/* Staff Name Column */}
-                <div className="p-3 border-r border-border flex items-center gap-2">
+                {/* Staff Name Column - Enhanced with avatar and role badge */}
+                <div className="p-3 border-r border-[var(--bb-color-border-subtle)] flex items-center gap-3">
+                  {/* Role-colored avatar */}
+                  <div className={`h-9 w-9 rounded-lg ${roleColor.bg} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                    <span className="text-xs font-bold text-white">{initials}</span>
+                  </div>
+
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-text truncate">
-                      {staffRow.staffName}
-                    </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted">{staffRow.role}</span>
+                      <span className="text-sm font-semibold text-[var(--bb-color-text-primary)] truncate">
+                        {staffRow.staffName}
+                      </span>
+                      {hasOvertime && (
+                        <div
+                          className="flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 rounded text-amber-600 dark:text-amber-400"
+                          title={`${weeklyHours.toFixed(1)}h - Overtime warning`}
+                        >
+                          <AlertCircle className="h-3 w-3" />
+                          <span className="text-[10px] font-medium">{weeklyHours.toFixed(0)}h</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${roleColor.badge}`}>
+                        {staffRow.role}
+                      </span>
                       <button
                         onClick={() => handleOpenWeekSchedule(staffRow)}
-                        className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
+                        className="text-[10px] text-[var(--bb-color-accent)] hover:text-[var(--bb-color-accent)]/80 flex items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity"
                         title="Schedule entire week"
                       >
-                        <Calendar className="h-3 w-3" />
-                        <span>Schedule Week</span>
+                        <Calendar className="h-2.5 w-2.5" />
+                        <span>Week</span>
                       </button>
                     </div>
                   </div>
-                  {hasOvertime && (
-                    <div className="text-amber-500" title={`${weeklyHours.toFixed(1)}h - Overtime warning`}>
-                      <AlertCircle className="h-4 w-4" />
-                    </div>
-                  )}
                 </div>
 
                 {/* Day Cells */}
@@ -1532,6 +1710,7 @@ const ScheduleTab = ({ staff }) => {
                   const isDropTarget = dragOverCell?.staffId === staffRow.staffId &&
                                       dragOverCell?.dayIndex === dayIndex;
                   const hasShift = shift.start && shift.end;
+                  const isToday = dayIndex === todayIndex;
 
                   // Determine shift visual state
                   const isAutoGenerated = shift.source === 'default' && !shift.isOverride;
@@ -1549,18 +1728,19 @@ const ScheduleTab = ({ staff }) => {
                   else if (isSick) overrideColorClass = SHIFT_STATE_STYLES.overrideSick;
                   else if (isDayOff) overrideColorClass = SHIFT_STATE_STYLES.overrideDayOff;
 
-                  // Border style
+                  // Border style for auto-generated
                   const borderStyle = isAutoGenerated
-                    ? 'border-dashed border-2 border-white/50'
-                    : 'border-solid border';
+                    ? 'border-dashed border-2 border-white/40'
+                    : 'border border-white/20';
 
                   return (
                     <div
                       key={dayIndex}
-                      className={`relative min-h-[60px] p-1.5 border-r border-border last:border-r-0
-                        transition-all group cursor-pointer
-                        ${isDropTarget ? 'bg-primary/20 ring-2 ring-primary ring-inset' : ''}
-                        ${!hasShift ? 'hover:bg-surface-alt/40' : ''}
+                      className={`relative min-h-[72px] p-1.5 border-r border-[var(--bb-color-border-subtle)] last:border-r-0
+                        transition-all group/cell cursor-pointer
+                        ${isToday ? 'bg-[var(--bb-color-accent)]/5' : ''}
+                        ${isDropTarget ? 'bg-[var(--bb-color-accent)]/20 ring-2 ring-[var(--bb-color-accent)] ring-inset' : ''}
+                        ${!hasShift && !isDropTarget ? 'hover:bg-[var(--bb-color-bg-surface)]' : ''}
                       `}
                       onClick={() => !hasShift && handleAddShift(staffRow.staffId, shift.date)}
                       onDragOver={(e) => handleDragOver(e, staffRow.staffId, dayIndex)}
@@ -1568,7 +1748,7 @@ const ScheduleTab = ({ staff }) => {
                       onDrop={(e) => handleDrop(e, staffRow.staffId, dayIndex)}
                     >
                       {hasShift ? (
-                        /* Shift Block */
+                        /* Shift Block - Enhanced with better styling */
                         <div
                           draggable
                           onDragStart={(e) => handleDragStart(e, staffRow.staffId, shift, dayIndex)}
@@ -1578,44 +1758,60 @@ const ScheduleTab = ({ staff }) => {
                             handleEditShift(staffRow.staffId, shift);
                           }}
                           style={overrideColorClass ? {} : roleColorStyle}
-                          className={`h-full rounded-md px-2 py-1.5 text-white
+                          className={`h-full rounded-lg px-2.5 py-2 text-white
                             cursor-grab active:cursor-grabbing ${borderStyle}
                             ${overrideColorClass}
-                            hover:brightness-110 transition-all shadow-sm
-                            flex flex-col justify-center relative`}
+                            hover:scale-[1.02] hover:shadow-lg transition-all shadow-md
+                            flex flex-col justify-center relative group/shift`}
                         >
                           {/* Status indicator badge */}
                           {isAutoGenerated && (
                             <div
-                              className="absolute -top-1 -right-1 w-4 h-4 bg-white/90 rounded-full flex items-center justify-center shadow-sm"
+                              className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-md border border-slate-100"
                               title="Auto-generated from default schedule"
                             >
-                              <Repeat2 className="h-2.5 w-2.5 text-slate-600" />
+                              <Repeat2 className="h-3 w-3 text-slate-500" />
                             </div>
                           )}
                           {isOverride && !isPto && !isSick && !isDayOff && (
                             <div
-                              className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center shadow-sm"
+                              className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center shadow-md"
                               title="Edited override"
                             >
-                              <Edit3 className="h-2 w-2 text-white" />
+                              <Edit3 className="h-2.5 w-2.5 text-white" />
                             </div>
                           )}
 
-                          {/* Time display */}
-                          <div className="text-xs font-semibold leading-tight">
+                          {/* Time display - larger and bolder */}
+                          <div className="text-[11px] font-bold leading-tight tracking-tight">
                             {formatShiftTime(shift.start)} - {formatShiftTime(shift.end)}
                           </div>
 
                           {/* Role or override label */}
-                          <div className="text-[10px] opacity-90 truncate font-medium">
-                            {isPto ? 'PTO' : isSick ? 'Sick' : isDayOff ? 'Off' : (shift.role || staffRow.role)}
+                          <div className="text-[10px] opacity-80 truncate font-medium mt-0.5 flex items-center gap-1">
+                            {isPto ? (
+                              <><Sun className="h-2.5 w-2.5" /> PTO</>
+                            ) : isSick ? (
+                              <><AlertCircle className="h-2.5 w-2.5" /> Sick</>
+                            ) : isDayOff ? (
+                              <>Off</>
+                            ) : (
+                              shift.role || staffRow.role
+                            )}
+                          </div>
+
+                          {/* Edit hint on hover */}
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg opacity-0 group-hover/shift:opacity-100 transition-opacity">
+                            <Edit3 className="h-4 w-4 text-white" />
                           </div>
                         </div>
                       ) : (
-                        /* Empty Cell - Show + on hover */
-                        <div className="h-full flex items-center justify-center">
-                          <Plus className="h-5 w-5 text-muted/0 group-hover:text-muted/60 transition-colors" />
+                        /* Empty Cell - Better empty state */
+                        <div className="h-full flex items-center justify-center rounded-lg border-2 border-dashed border-transparent group-hover/cell:border-[var(--bb-color-border-subtle)] transition-colors">
+                          <div className="flex flex-col items-center gap-0.5 opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                            <Plus className="h-5 w-5 text-[var(--bb-color-text-muted)]" />
+                            <span className="text-[9px] text-[var(--bb-color-text-muted)]">Add shift</span>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1627,17 +1823,22 @@ const ScheduleTab = ({ staff }) => {
         </div>
       )}
 
-      {/* Default Schedules Section */}
-      <div className="mt-8 bg-surface rounded-lg border border-border overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-border bg-surface-alt/30">
-          <div>
-            <h3 className="text-sm font-semibold text-text flex items-center gap-2">
-              <RefreshCw className="h-4 w-4 text-primary" />
-              Default Schedules
-            </h3>
-            <p className="text-xs text-muted mt-0.5">
-              Staff with recurring weekly schedules auto-populate unless overridden
-            </p>
+      {/* Default Schedules Section - Enhanced with gradient header */}
+      <div className="mt-8 bg-[var(--bb-color-bg-surface)] rounded-xl border border-[var(--bb-color-border-subtle)] overflow-hidden shadow-sm">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--bb-color-border-subtle)] bg-gradient-to-r from-[var(--bb-color-bg-elevated)]/50 to-transparent">
+          <div className="flex items-center gap-3">
+            {/* Gradient icon container */}
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/20">
+              <RefreshCw className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">
+                Default Schedules
+              </h3>
+              <p className="text-xs text-[var(--bb-color-text-muted)]">
+                Recurring weekly schedules auto-populate unless overridden
+              </p>
+            </div>
           </div>
           <Button size="sm" onClick={handleAddDefaultSchedule}>
             <Plus className="h-3.5 w-3.5 mr-1.5" />
@@ -1646,13 +1847,21 @@ const ScheduleTab = ({ staff }) => {
         </div>
 
         {defaultSchedules.length === 0 ? (
-          <div className="p-8 text-center">
-            <RefreshCw className="h-8 w-8 text-muted/40 mx-auto mb-3" />
-            <p className="text-sm text-muted">No default schedules configured</p>
-            <p className="text-xs text-muted/70 mt-1">
-              Add a default schedule to automatically populate shifts each week
+          <div className="p-10 text-center">
+            {/* Animated icon */}
+            <div className="relative mx-auto w-16 h-16 mb-4">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-2xl animate-pulse"></div>
+              <div className="absolute inset-2 bg-[var(--bb-color-bg-elevated)] rounded-xl flex items-center justify-center">
+                <RefreshCw className="h-7 w-7 text-[var(--bb-color-text-muted)]" />
+              </div>
+            </div>
+            <h4 className="text-sm font-semibold text-[var(--bb-color-text-primary)] mb-1">
+              No default schedules configured
+            </h4>
+            <p className="text-xs text-[var(--bb-color-text-muted)] max-w-xs mx-auto mb-4">
+              Set up recurring weekly schedules to automatically populate shifts each week, saving time on manual entry.
             </p>
-            <Button variant="outline" size="sm" className="mt-4" onClick={handleAddDefaultSchedule}>
+            <Button variant="outline" size="sm" onClick={handleAddDefaultSchedule}>
               <Plus className="h-3.5 w-3.5 mr-1.5" />
               Add Default Schedule
             </Button>
@@ -1661,71 +1870,82 @@ const ScheduleTab = ({ staff }) => {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-border bg-surface-alt/20">
-                  <th className="text-left text-xs font-medium text-muted p-3 w-48">Staff Member</th>
-                  <th className="text-center text-xs font-medium text-muted p-2 w-20">Sun</th>
-                  <th className="text-center text-xs font-medium text-muted p-2 w-20">Mon</th>
-                  <th className="text-center text-xs font-medium text-muted p-2 w-20">Tue</th>
-                  <th className="text-center text-xs font-medium text-muted p-2 w-20">Wed</th>
-                  <th className="text-center text-xs font-medium text-muted p-2 w-20">Thu</th>
-                  <th className="text-center text-xs font-medium text-muted p-2 w-20">Fri</th>
-                  <th className="text-center text-xs font-medium text-muted p-2 w-20">Sat</th>
-                  <th className="text-right text-xs font-medium text-muted p-3 w-32">Actions</th>
+                <tr className="border-b border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)]/30">
+                  <th className="text-left text-xs font-semibold text-[var(--bb-color-text-secondary)] p-3 w-52">Staff Member</th>
+                  <th className="text-center text-xs font-medium text-[var(--bb-color-text-muted)] p-2 w-20">Sun</th>
+                  <th className="text-center text-xs font-medium text-[var(--bb-color-text-muted)] p-2 w-20">Mon</th>
+                  <th className="text-center text-xs font-medium text-[var(--bb-color-text-muted)] p-2 w-20">Tue</th>
+                  <th className="text-center text-xs font-medium text-[var(--bb-color-text-muted)] p-2 w-20">Wed</th>
+                  <th className="text-center text-xs font-medium text-[var(--bb-color-text-muted)] p-2 w-20">Thu</th>
+                  <th className="text-center text-xs font-medium text-[var(--bb-color-text-muted)] p-2 w-20">Fri</th>
+                  <th className="text-center text-xs font-medium text-[var(--bb-color-text-muted)] p-2 w-20">Sat</th>
+                  <th className="text-right text-xs font-medium text-[var(--bb-color-text-muted)] p-3 w-32">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {defaultSchedules.map((schedule) => {
                   const staffMember = staff.find(s => (s.id || s.recordId) === schedule.staffId);
                   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                  const roleColor = ROLE_COLOR_MAP[schedule.defaultRole || staffMember?.role] || ROLE_COLOR_MAP['default'];
+                  const initials = (staffMember?.name || schedule.staffName || '??').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
                   return (
-                    <tr key={schedule.id} className="border-b border-border last:border-b-0 hover:bg-surface-alt/20">
+                    <tr key={schedule.id} className="border-b border-[var(--bb-color-border-subtle)] last:border-b-0 hover:bg-[var(--bb-color-bg-surface)]/50 transition-colors group">
                       <td className="p-3">
-                        <div className="text-sm font-medium text-text">
-                          {staffMember?.name || schedule.staffName || 'Unknown'}
-                        </div>
-                        <div className="text-xs text-muted uppercase">
-                          {schedule.defaultRole || staffMember?.role || 'Staff'}
+                        <div className="flex items-center gap-3">
+                          {/* Role-colored avatar */}
+                          <div className={`h-8 w-8 rounded-lg ${roleColor.bg} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                            <span className="text-[10px] font-bold text-white">{initials}</span>
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-[var(--bb-color-text-primary)]">
+                              {staffMember?.name || schedule.staffName || 'Unknown'}
+                            </div>
+                            <div className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${roleColor.badge} inline-block`}>
+                              {schedule.defaultRole || staffMember?.role || 'Staff'}
+                            </div>
+                          </div>
                         </div>
                       </td>
                       {days.map((day) => {
                         const daySchedule = schedule.schedule?.[day];
+                        const dayRoleColor = daySchedule?.role ? (ROLE_COLOR_MAP[daySchedule.role] || ROLE_COLOR_MAP['default']) : roleColor;
                         return (
                           <td key={day} className="p-2 text-center">
                             {daySchedule ? (
-                              <div className="text-xs">
-                                <div className="font-medium text-text">
+                              <div className={`text-xs py-1.5 px-2 rounded-lg ${dayRoleColor.badge}`}>
+                                <div className="font-semibold text-[var(--bb-color-text-primary)]">
                                   {formatShiftTime(daySchedule.start)}-{formatShiftTime(daySchedule.end)}
                                 </div>
-                                <div className="text-muted text-[10px] uppercase">
+                                <div className="text-[10px] text-[var(--bb-color-text-muted)] uppercase">
                                   {daySchedule.role?.substring(0, 3) || ''}
                                 </div>
                               </div>
                             ) : (
-                              <span className="text-xs text-muted/50">OFF</span>
+                              <span className="text-xs text-[var(--bb-color-text-muted)]/50 font-medium">OFF</span>
                             )}
                           </td>
                         );
                       })}
                       <td className="p-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => handleApplyDefaultToWeek(schedule)}
-                            className="p-1.5 text-muted hover:text-primary transition-colors"
+                            className="p-1.5 rounded-lg text-[var(--bb-color-text-muted)] hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors"
                             title="Apply to current week"
                           >
                             <Play className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleEditDefaultSchedule(schedule)}
-                            className="p-1.5 text-muted hover:text-primary transition-colors"
+                            className="p-1.5 rounded-lg text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-accent)] hover:bg-[var(--bb-color-accent-soft)] transition-colors"
                             title="Edit default schedule"
                           >
                             <Edit3 className="h-4 w-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteDefaultSchedule(schedule.id)}
-                            className="p-1.5 text-muted hover:text-red-500 transition-colors"
+                            className="p-1.5 rounded-lg text-[var(--bb-color-text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
                             title="Delete default schedule"
                           >
                             <Trash2 className="h-4 w-4" />
