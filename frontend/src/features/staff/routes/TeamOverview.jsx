@@ -3462,74 +3462,535 @@ const TimeClockTab = ({ staff }) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const ReviewsTab = ({ staff }) => {
-  const metrics = staff.slice(0, 4).map((s, i) => ({
-    name: s.name || s.email,
-    attendance: 95 - i * 5,
-    taskCompletion: 92 - i * 3,
-    satisfaction: 4.5 - i * 0.3,
-    punctuality: 90 - i * 8,
-  }));
+  const [timePeriod, setTimePeriod] = useState('30');
+  const [showAddReview, setShowAddReview] = useState(false);
+  const [selectedStaffForReview, setSelectedStaffForReview] = useState(null);
+
+  // Performance thresholds
+  const thresholds = {
+    excellent: 95,
+    good: 90,
+    acceptable: 80,
+    concerning: 70,
+  };
+
+  // Mock metrics with trends and history
+  const metrics = staff.slice(0, 5).map((s, i) => {
+    const attendance = 95 - i * 7;
+    const taskCompletion = 92 - i * 5;
+    const satisfaction = 4.5 - i * 0.4;
+    const punctuality = 93 - i * 10;
+
+    return {
+      id: s.id || s.recordId || i,
+      name: s.name || s.email || 'Staff',
+      role: s.role || 'Staff',
+      attendance,
+      attendanceTrend: i === 0 ? 3 : i === 2 ? -5 : i === 3 ? -12 : 1,
+      taskCompletion,
+      taskCompletionTrend: i === 1 ? -3 : i === 3 ? -8 : 2,
+      satisfaction,
+      satisfactionTrend: i === 0 ? 0.2 : i === 2 ? -0.3 : 0,
+      punctuality,
+      punctualityTrend: i === 0 ? 5 : i === 3 ? -15 : 2,
+      reviewCount: 3 - Math.min(i, 2),
+      lastReviewDate: i === 0 ? '2 days ago' : i === 1 ? '1 week ago' : '2 weeks ago',
+      // Flag concerning metrics
+      hasConcerns: attendance < thresholds.acceptable || taskCompletion < thresholds.acceptable || punctuality < thresholds.acceptable,
+    };
+  });
+
+  // Calculate team averages
+  const teamAverages = {
+    attendance: Math.round(metrics.reduce((sum, m) => sum + m.attendance, 0) / metrics.length),
+    taskCompletion: Math.round(metrics.reduce((sum, m) => sum + m.taskCompletion, 0) / metrics.length),
+    satisfaction: (metrics.reduce((sum, m) => sum + m.satisfaction, 0) / metrics.length).toFixed(1),
+    punctuality: Math.round(metrics.reduce((sum, m) => sum + m.punctuality, 0) / metrics.length),
+  };
+
+  // Recent reviews
+  const recentReviews = [
+    { id: 1, staffName: staff[0]?.name || 'Staff', reviewer: 'Manager', rating: 4.5, type: 'Monthly Review', date: '2 days ago', summary: 'Excellent work ethic and team collaboration. Consistently exceeds expectations.' },
+    { id: 2, staffName: staff[1]?.name || 'Staff', reviewer: 'Manager', rating: 4.0, type: 'Performance Check', date: '5 days ago', summary: 'Good progress on assigned tasks. Could improve punctuality.' },
+    { id: 3, staffName: staff[2]?.name || 'Staff', reviewer: 'Team Lead', rating: 3.5, type: 'Improvement Plan', date: '1 week ago', summary: 'Needs to focus on task completion rates. Showing improvement in attendance.' },
+  ];
+
+  // Performance alerts
+  const alerts = metrics.filter(m => m.hasConcerns).map(m => {
+    const issues = [];
+    if (m.attendance < thresholds.acceptable) issues.push(`Attendance at ${m.attendance}%`);
+    if (m.taskCompletion < thresholds.acceptable) issues.push(`Task completion at ${m.taskCompletion}%`);
+    if (m.punctuality < thresholds.acceptable) issues.push(`Punctuality at ${m.punctuality}%`);
+    return { ...m, issues };
+  });
+
+  // Get performance level
+  const getPerformanceLevel = (value, type = 'percent') => {
+    if (type === 'rating') {
+      if (value >= 4.5) return { level: 'excellent', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' };
+      if (value >= 4.0) return { level: 'good', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30' };
+      if (value >= 3.5) return { level: 'acceptable', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30' };
+      return { level: 'concerning', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-900/30' };
+    }
+    if (value >= thresholds.excellent) return { level: 'excellent', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/30' };
+    if (value >= thresholds.good) return { level: 'good', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/30' };
+    if (value >= thresholds.acceptable) return { level: 'acceptable', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/30' };
+    return { level: 'concerning', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-900/30' };
+  };
+
+  // Mini sparkline component (simplified visual)
+  const MiniTrend = ({ values, positive }) => {
+    // Simulate trend direction with simple visual
+    const isUp = positive;
+    return (
+      <div className="flex items-end gap-0.5 h-4">
+        {[0.3, 0.5, 0.4, 0.6, 0.5, 0.7, isUp ? 0.9 : 0.3].map((h, i) => (
+          <div
+            key={i}
+            className={cn(
+              "w-1 rounded-sm transition-all",
+              isUp ? "bg-emerald-400" : "bg-red-400"
+            )}
+            style={{ height: `${h * 100}%` }}
+          />
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-5">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KPITile icon={CheckCircle} label="Avg Attendance" value="94%" trend="+2%" trendType="positive" />
-        <KPITile icon={Target} label="Task Completion" value="89%" trend="-1%" trendType="negative" />
-        <KPITile icon={Star} label="Avg Rating" value="4.3" subtitle="Out of 5" />
-        <KPITile icon={Clock} label="Punctuality" value="91%" trend="+3%" trendType="positive" />
+      {/* Header with actions */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--bb-color-text-primary)]">Performance Reviews</h2>
+          <p className="text-sm text-[var(--bb-color-text-muted)]">Track team performance and conduct reviews</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm">
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            Export Report
+          </Button>
+          <Button size="sm" onClick={() => setShowAddReview(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            Add Review
+          </Button>
+        </div>
       </div>
 
-      {/* Performance Table */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden">
-        <div className="p-4 border-b border-border flex items-center justify-between">
-          <SectionHeader icon={Award} title="30-Day Performance" />
-          <Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" />Add Review</Button>
+      {/* KPIs - Enhanced with thresholds and sparklines */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Attendance */}
+        <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+          <div className="flex items-start justify-between mb-3">
+            <div className={cn(
+              "h-10 w-10 rounded-xl flex items-center justify-center shadow-md",
+              getPerformanceLevel(teamAverages.attendance).bg
+            )}>
+              <CheckCircle className={cn("h-5 w-5", getPerformanceLevel(teamAverages.attendance).color)} />
+            </div>
+            <MiniTrend positive={true} />
+          </div>
+          <div className="text-2xl font-bold text-[var(--bb-color-text-primary)]">{teamAverages.attendance}%</div>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-xs text-[var(--bb-color-text-muted)]">Avg Attendance</span>
+            <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+              <TrendingUp className="h-3 w-3" /> +2%
+            </span>
+          </div>
+          <div className="mt-2 pt-2 border-t border-[var(--bb-color-border-subtle)]">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-[var(--bb-color-text-muted)]">Target: {thresholds.good}%</span>
+              <span className={cn(
+                "font-medium",
+                teamAverages.attendance >= thresholds.good ? "text-emerald-600" : "text-amber-600"
+              )}>
+                {teamAverages.attendance >= thresholds.good ? 'On Track' : 'Below Target'}
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-surface border-b border-border">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted uppercase">Staff</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-muted uppercase">Attendance</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-muted uppercase">Task Completion</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-muted uppercase">Rating</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-muted uppercase">Punctuality</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-muted uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.map((m, i) => (
-                <tr key={i} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 text-sm font-medium text-text">{m.name}</td>
-                  <td className="px-4 py-3 text-center">
-                    <Badge variant={m.attendance >= 90 ? 'success' : m.attendance >= 80 ? 'warning' : 'danger'} size="sm">
-                      {m.attendance}%
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <Badge variant={m.taskCompletion >= 90 ? 'success' : m.taskCompletion >= 80 ? 'warning' : 'danger'} size="sm">
-                      {m.taskCompletion}%
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500" />
-                      <span className="text-sm text-text">{m.satisfaction.toFixed(1)}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <Badge variant={m.punctuality >= 90 ? 'success' : m.punctuality >= 80 ? 'warning' : 'danger'} size="sm">
-                      {m.punctuality}%
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Button variant="ghost" size="sm">View Details</Button>
-                  </td>
-                </tr>
+
+        {/* Task Completion */}
+        <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+          <div className="flex items-start justify-between mb-3">
+            <div className={cn(
+              "h-10 w-10 rounded-xl flex items-center justify-center shadow-md",
+              getPerformanceLevel(teamAverages.taskCompletion).bg
+            )}>
+              <Target className={cn("h-5 w-5", getPerformanceLevel(teamAverages.taskCompletion).color)} />
+            </div>
+            <MiniTrend positive={false} />
+          </div>
+          <div className="text-2xl font-bold text-[var(--bb-color-text-primary)]">{teamAverages.taskCompletion}%</div>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-xs text-[var(--bb-color-text-muted)]">Task Completion</span>
+            <span className="text-xs text-red-600 dark:text-red-400 flex items-center gap-0.5">
+              <TrendingDown className="h-3 w-3" /> -1%
+            </span>
+          </div>
+          <div className="mt-2 pt-2 border-t border-[var(--bb-color-border-subtle)]">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-[var(--bb-color-text-muted)]">Target: {thresholds.good}%</span>
+              <span className={cn(
+                "font-medium",
+                teamAverages.taskCompletion >= thresholds.good ? "text-emerald-600" : "text-amber-600"
+              )}>
+                {teamAverages.taskCompletion >= thresholds.good ? 'On Track' : 'Below Target'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Rating */}
+        <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+          <div className="flex items-start justify-between mb-3">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-md shadow-amber-500/20">
+              <Star className="h-5 w-5 text-white fill-white" />
+            </div>
+            <div className="flex items-center gap-0.5">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                  key={star}
+                  className={cn(
+                    "h-3 w-3",
+                    star <= Math.round(parseFloat(teamAverages.satisfaction))
+                      ? "text-amber-400 fill-amber-400"
+                      : "text-gray-300"
+                  )}
+                />
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-[var(--bb-color-text-primary)]">{teamAverages.satisfaction}</div>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-xs text-[var(--bb-color-text-muted)]">Avg Rating</span>
+            <span className="text-xs text-[var(--bb-color-text-secondary)]">out of 5</span>
+          </div>
+          <div className="mt-2 pt-2 border-t border-[var(--bb-color-border-subtle)]">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-[var(--bb-color-text-muted)]">From manager reviews</span>
+              <span className="font-medium text-emerald-600">{recentReviews.length} reviews</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Punctuality */}
+        <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+          <div className="flex items-start justify-between mb-3">
+            <div className={cn(
+              "h-10 w-10 rounded-xl flex items-center justify-center shadow-md",
+              getPerformanceLevel(teamAverages.punctuality).bg
+            )}>
+              <Clock className={cn("h-5 w-5", getPerformanceLevel(teamAverages.punctuality).color)} />
+            </div>
+            <MiniTrend positive={true} />
+          </div>
+          <div className="text-2xl font-bold text-[var(--bb-color-text-primary)]">{teamAverages.punctuality}%</div>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-xs text-[var(--bb-color-text-muted)]">Punctuality</span>
+            <span className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+              <TrendingUp className="h-3 w-3" /> +3%
+            </span>
+          </div>
+          <div className="mt-2 pt-2 border-t border-[var(--bb-color-border-subtle)]">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-[var(--bb-color-text-muted)]">Target: {thresholds.good}%</span>
+              <span className={cn(
+                "font-medium",
+                teamAverages.punctuality >= thresholds.good ? "text-emerald-600" : "text-amber-600"
+              )}>
+                {teamAverages.punctuality >= thresholds.good ? 'On Track' : 'Below Target'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Performance Alerts */}
+      {alerts.length > 0 && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-md shadow-red-500/20 flex-shrink-0">
+              <AlertTriangle className="h-5 w-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-red-800 dark:text-red-200">Performance Alerts</h3>
+              <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">{alerts.length} staff member{alerts.length > 1 ? 's' : ''} need attention</p>
+              <div className="mt-3 space-y-2">
+                {alerts.map((alert) => (
+                  <div key={alert.id} className="flex items-center justify-between bg-white dark:bg-[var(--bb-color-bg-surface)] rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-[var(--bb-color-text-primary)]">{alert.name}</span>
+                      <span className="text-xs text-red-600 dark:text-red-400">
+                        {alert.issues.join(' • ')}
+                      </span>
+                    </div>
+                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30">
+                      Schedule Review
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Performance Table - 2 cols */}
+        <div className="lg:col-span-2">
+          <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl overflow-hidden shadow-sm">
+            <div className="p-4 border-b border-[var(--bb-color-border-subtle)] bg-gradient-to-r from-[var(--bb-color-bg-elevated)]/50 to-transparent">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-md shadow-amber-500/20">
+                    <Award className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Team Performance</h3>
+                    <p className="text-xs text-[var(--bb-color-text-muted)]">Individual metrics and trends</p>
+                  </div>
+                </div>
+
+                {/* Time period selector */}
+                <div className="min-w-[140px]">
+                  <StyledSelect
+                    options={[
+                      { value: '7', label: 'Last 7 Days' },
+                      { value: '30', label: 'Last 30 Days' },
+                      { value: '90', label: 'Last 90 Days' },
+                      { value: '365', label: 'This Year' },
+                    ]}
+                    value={timePeriod}
+                    onChange={(opt) => setTimePeriod(opt?.value || '30')}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-[var(--bb-color-bg-elevated)]/30 border-b border-[var(--bb-color-border-subtle)]">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--bb-color-text-secondary)] uppercase tracking-wide">Staff</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-[var(--bb-color-text-muted)] uppercase">Attendance</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-[var(--bb-color-text-muted)] uppercase">Tasks</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-[var(--bb-color-text-muted)] uppercase">Rating</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-[var(--bb-color-text-muted)] uppercase">Punctuality</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-[var(--bb-color-text-muted)] uppercase">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metrics.map((m) => {
+                    const roleColor = ROLE_COLOR_MAP[m.role] || ROLE_COLOR_MAP['default'];
+                    const initials = m.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+                    return (
+                      <tr
+                        key={m.id}
+                        className={cn(
+                          "border-b border-[var(--bb-color-border-subtle)] last:border-0 hover:bg-[var(--bb-color-bg-surface)]/50 transition-colors",
+                          m.hasConcerns && "bg-red-50/50 dark:bg-red-900/10"
+                        )}
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`h-8 w-8 rounded-lg ${roleColor.bg} flex items-center justify-center flex-shrink-0`}>
+                              <span className="text-[10px] font-bold text-white">{initials}</span>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-[var(--bb-color-text-primary)]">{m.name}</span>
+                                {m.hasConcerns && (
+                                  <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                                )}
+                              </div>
+                              <span className="text-[10px] text-[var(--bb-color-text-muted)]">{m.reviewCount} reviews • Last: {m.lastReviewDate}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="inline-flex flex-col items-center">
+                            <span className={cn(
+                              "text-sm font-semibold px-2 py-0.5 rounded",
+                              getPerformanceLevel(m.attendance).bg,
+                              getPerformanceLevel(m.attendance).color
+                            )}>
+                              {m.attendance}%
+                            </span>
+                            {m.attendanceTrend !== 0 && (
+                              <span className={cn(
+                                "text-[10px] mt-0.5 flex items-center gap-0.5",
+                                m.attendanceTrend > 0 ? "text-emerald-600" : "text-red-600"
+                              )}>
+                                {m.attendanceTrend > 0 ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+                                {Math.abs(m.attendanceTrend)}%
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="inline-flex flex-col items-center">
+                            <span className={cn(
+                              "text-sm font-semibold px-2 py-0.5 rounded",
+                              getPerformanceLevel(m.taskCompletion).bg,
+                              getPerformanceLevel(m.taskCompletion).color
+                            )}>
+                              {m.taskCompletion}%
+                            </span>
+                            {m.taskCompletionTrend !== 0 && (
+                              <span className={cn(
+                                "text-[10px] mt-0.5 flex items-center gap-0.5",
+                                m.taskCompletionTrend > 0 ? "text-emerald-600" : "text-red-600"
+                              )}>
+                                {m.taskCompletionTrend > 0 ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+                                {Math.abs(m.taskCompletionTrend)}%
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="inline-flex flex-col items-center">
+                            <div className="flex items-center gap-1">
+                              <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
+                              <span className="text-sm font-semibold text-[var(--bb-color-text-primary)]">{m.satisfaction.toFixed(1)}</span>
+                            </div>
+                            {m.satisfactionTrend !== 0 && (
+                              <span className={cn(
+                                "text-[10px] mt-0.5 flex items-center gap-0.5",
+                                m.satisfactionTrend > 0 ? "text-emerald-600" : "text-red-600"
+                              )}>
+                                {m.satisfactionTrend > 0 ? '+' : ''}{m.satisfactionTrend.toFixed(1)}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="inline-flex flex-col items-center">
+                            <span className={cn(
+                              "text-sm font-semibold px-2 py-0.5 rounded",
+                              getPerformanceLevel(m.punctuality).bg,
+                              getPerformanceLevel(m.punctuality).color
+                            )}>
+                              {m.punctuality}%
+                            </span>
+                            {m.punctualityTrend !== 0 && (
+                              <span className={cn(
+                                "text-[10px] mt-0.5 flex items-center gap-0.5",
+                                m.punctualityTrend > 0 ? "text-emerald-600" : "text-red-600"
+                              )}>
+                                {m.punctualityTrend > 0 ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
+                                {Math.abs(m.punctualityTrend)}%
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedStaffForReview(m);
+                                setShowAddReview(true);
+                              }}
+                            >
+                              <Plus className="h-3.5 w-3.5 mr-1" />
+                              Review
+                            </Button>
+                            <Button variant="ghost" size="sm">
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Legend */}
+            <div className="px-4 py-3 border-t border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)]/20">
+              <div className="flex items-center gap-4 text-[10px]">
+                <span className="text-[var(--bb-color-text-muted)]">Performance levels:</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Excellent (≥95%)</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Good (90-94%)</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Acceptable (80-89%)</span>
+                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> Needs Improvement (&lt;80%)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Reviews - 1 col */}
+        <div className="space-y-4">
+          {/* Recent Reviews */}
+          <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl overflow-hidden shadow-sm">
+            <div className="p-4 border-b border-[var(--bb-color-border-subtle)] bg-gradient-to-r from-[var(--bb-color-bg-elevated)]/50 to-transparent">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/20">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--bb-color-text-primary)]">Recent Reviews</h3>
+                  <p className="text-xs text-[var(--bb-color-text-muted)]">Latest performance feedback</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-[var(--bb-color-border-subtle)]">
+              {recentReviews.map((review) => (
+                <div key={review.id} className="p-4 hover:bg-[var(--bb-color-bg-surface)]/50 transition-colors cursor-pointer">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <span className="text-sm font-semibold text-[var(--bb-color-text-primary)]">{review.staffName}</span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] px-1.5 py-0.5 bg-[var(--bb-color-bg-elevated)] text-[var(--bb-color-text-muted)] rounded">{review.type}</span>
+                        <span className="text-[10px] text-[var(--bb-color-text-muted)]">{review.date}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-0.5">
+                      <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                      <span className="text-sm font-semibold text-[var(--bb-color-text-primary)]">{review.rating}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-[var(--bb-color-text-muted)] line-clamp-2">{review.summary}</p>
+                  <div className="mt-2 text-[10px] text-[var(--bb-color-text-muted)]">
+                    By {review.reviewer}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-3 border-t border-[var(--bb-color-border-subtle)]">
+              <Button variant="ghost" size="sm" className="w-full">
+                View All Reviews
+              </Button>
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)] rounded-xl p-4">
+            <h4 className="text-xs font-semibold text-[var(--bb-color-text-muted)] uppercase tracking-wider mb-3">Review Stats</h4>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--bb-color-text-secondary)]">Reviews This Month</span>
+                <span className="text-sm font-semibold text-[var(--bb-color-text-primary)]">{recentReviews.length}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--bb-color-text-secondary)]">Pending Reviews</span>
+                <span className="text-sm font-semibold text-amber-600">2</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--bb-color-text-secondary)]">Improvement Plans</span>
+                <span className="text-sm font-semibold text-red-600">{alerts.length}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
