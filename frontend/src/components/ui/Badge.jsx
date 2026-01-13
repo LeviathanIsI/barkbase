@@ -119,33 +119,46 @@ const badgeVariants = cva(
           'border border-violet-300 dark:border-violet-600',
         ],
 
-        // Solid variants - high emphasis
+        // Solid variants - high emphasis with glow effects
         'solid-success': [
           'bg-emerald-500 dark:bg-emerald-600',
           'text-white',
           'border border-emerald-500 dark:border-emerald-600',
-          'shadow-sm shadow-emerald-500/20',
+          'shadow-sm shadow-emerald-500/25',
+          'hover:shadow-[0_0_16px_rgba(16,185,129,0.4)]',
         ],
 
         'solid-warning': [
           'bg-amber-500 dark:bg-amber-600',
           'text-white',
           'border border-amber-500 dark:border-amber-600',
-          'shadow-sm shadow-amber-500/20',
+          'shadow-sm shadow-amber-500/25',
+          'hover:shadow-[0_0_16px_rgba(245,158,11,0.4)]',
         ],
 
         'solid-danger': [
           'bg-red-500 dark:bg-red-600',
           'text-white',
           'border border-red-500 dark:border-red-600',
-          'shadow-sm shadow-red-500/20',
+          'shadow-sm shadow-red-500/25',
+          'hover:shadow-[0_0_16px_rgba(239,68,68,0.4)]',
         ],
 
         'solid-info': [
           'bg-blue-500 dark:bg-blue-600',
           'text-white',
           'border border-blue-500 dark:border-blue-600',
-          'shadow-sm shadow-blue-500/20',
+          'shadow-sm shadow-blue-500/25',
+          'hover:shadow-[0_0_16px_rgba(59,130,246,0.4)]',
+        ],
+
+        // Solid purple - premium variant
+        'solid-purple': [
+          'bg-violet-500 dark:bg-violet-600',
+          'text-white',
+          'border border-violet-500 dark:border-violet-600',
+          'shadow-sm shadow-violet-500/25',
+          'hover:shadow-[0_0_16px_rgba(139,92,246,0.4)]',
         ],
 
         // Backward compatibility aliases
@@ -243,6 +256,7 @@ const dotColors = {
   'solid-warning': 'bg-white',
   'solid-danger': 'bg-white',
   'solid-info': 'bg-white',
+  'solid-purple': 'bg-white',
 };
 
 /**

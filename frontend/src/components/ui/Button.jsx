@@ -9,60 +9,63 @@ import { cva } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  // Base styles - Enterprise foundation with token-based design
+  // Base styles - Enterprise foundation with token-based design + premium transitions
   [
     'inline-flex items-center justify-center gap-[var(--bb-space-2)]',
-    'rounded-md',
+    'rounded-lg',
     'text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)]',
-    'transition-colors duration-150',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)] focus-visible:ring-offset-0',
+    'transition-all duration-200 ease-out',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)] focus-visible:ring-offset-2',
     'disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed',
   ],
   {
     variants: {
       variant: {
-        // Primary - Accent color, high emphasis
+        // Primary - Accent color with hover glow
         primary: [
           'bg-[var(--bb-color-accent)] text-[var(--bb-color-text-on-accent)]',
-          'hover:bg-[var(--bb-color-accent)]/90',
-          'active:bg-[var(--bb-color-accent)]/80',
+          'shadow-sm',
+          'hover:bg-[var(--bb-color-accent)]/90 hover:shadow-[0_4px_20px_rgba(245,158,11,0.3)]',
+          'active:bg-[var(--bb-color-accent)]/80 active:scale-[0.98]',
         ],
 
-        // Secondary - Surface background, medium emphasis
+        // Secondary - Surface background with border glow on hover
         secondary: [
           'bg-[var(--bb-color-bg-surface)] text-[var(--bb-color-text-primary)]',
           'border border-[var(--bb-color-border-subtle)]',
-          'hover:bg-[var(--bb-color-bg-elevated)]',
-          'active:bg-[var(--bb-color-bg-elevated)]',
+          'shadow-sm',
+          'hover:bg-[var(--bb-color-bg-elevated)] hover:border-[var(--bb-color-border-strong)] hover:shadow-md',
+          'active:bg-[var(--bb-color-bg-elevated)] active:scale-[0.98]',
         ],
 
-        // Outline - Border only, medium emphasis
+        // Outline - Border only with accent glow on hover
         outline: [
           'bg-transparent text-[var(--bb-color-text-primary)]',
           'border border-[var(--bb-color-border-subtle)]',
-          'hover:border-[var(--bb-color-accent)] hover:text-[var(--bb-color-accent)]',
-          'active:bg-[var(--bb-color-accent-soft)]',
+          'hover:border-[var(--bb-color-accent)] hover:text-[var(--bb-color-accent)] hover:shadow-[0_0_0_1px_var(--bb-color-accent)]',
+          'active:bg-[var(--bb-color-accent-soft)] active:scale-[0.98]',
         ],
 
-        // Subtle - Muted background, low emphasis
+        // Subtle - Muted background with smooth transitions
         subtle: [
           'bg-[var(--bb-color-bg-elevated)] text-[var(--bb-color-text-primary)]',
           'hover:bg-[var(--bb-color-border-subtle)]',
-          'active:bg-[var(--bb-color-border-strong)]',
+          'active:bg-[var(--bb-color-border-strong)] active:scale-[0.98]',
         ],
 
-        // Destructive - For delete/remove actions
+        // Destructive - Red with danger glow on hover
         destructive: [
           'bg-[var(--bb-color-status-negative)] text-white',
-          'hover:bg-[var(--bb-color-status-negative)]/90',
-          'active:bg-[var(--bb-color-status-negative)]/80',
+          'shadow-sm',
+          'hover:bg-[var(--bb-color-status-negative)]/90 hover:shadow-[0_4px_20px_rgba(239,68,68,0.3)]',
+          'active:bg-[var(--bb-color-status-negative)]/80 active:scale-[0.98]',
         ],
 
-        // Ghost - Minimal, no background
+        // Ghost - Minimal with smooth hover
         ghost: [
           'bg-transparent text-[var(--bb-color-text-primary)]',
           'hover:bg-[var(--bb-color-bg-elevated)]',
-          'active:bg-[var(--bb-color-border-subtle)]',
+          'active:bg-[var(--bb-color-border-subtle)] active:scale-[0.98]',
         ],
 
         // Link - Text button style
@@ -73,25 +76,34 @@ const buttonVariants = cva(
           'p-0 h-auto',
         ],
 
-        // Success - For positive actions
+        // Success - Green with success glow on hover
         success: [
           'bg-[var(--bb-color-status-positive)] text-white',
-          'hover:bg-[var(--bb-color-status-positive)]/90',
-          'active:bg-[var(--bb-color-status-positive)]/80',
+          'shadow-sm',
+          'hover:bg-[var(--bb-color-status-positive)]/90 hover:shadow-[0_4px_20px_rgba(16,185,129,0.3)]',
+          'active:bg-[var(--bb-color-status-positive)]/80 active:scale-[0.98]',
         ],
 
-        // Tertiary - Text only with hover background (backward compat)
+        // Tertiary - Text only with hover background
         tertiary: [
           'bg-transparent text-[var(--bb-color-accent)]',
           'hover:bg-[var(--bb-color-accent-soft)]',
-          'active:bg-[var(--bb-color-accent-soft)]',
+          'active:bg-[var(--bb-color-accent-soft)] active:scale-[0.98]',
         ],
 
-        // Ghost Dark - For use on dark backgrounds (backward compat)
+        // Ghost Dark - For use on dark/gradient backgrounds
         'ghost-dark': [
           'bg-transparent text-white',
           'hover:bg-white/10',
-          'active:bg-white/20',
+          'active:bg-white/20 active:scale-[0.98]',
+        ],
+
+        // Premium - Purple gradient for special actions
+        premium: [
+          'bg-gradient-to-r from-[var(--bb-color-accent-purple)] to-[var(--bb-color-accent-cyan)] text-white',
+          'shadow-sm',
+          'hover:shadow-[var(--bb-glow-purple)]',
+          'active:scale-[0.98]',
         ],
       },
       size: {

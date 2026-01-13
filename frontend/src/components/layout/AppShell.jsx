@@ -49,11 +49,34 @@ const AppShell = () => {
         <Topbar onToggleSidebar={() => setMobileSidebarOpen(true)} />
         <GlobalKeyboardShortcuts />
         <main
-          className="flex-1 max-w-full overflow-x-hidden"
-          style={{ backgroundColor: 'var(--bb-color-bg-body)' }}
+          className="flex-1 max-w-full overflow-x-hidden relative"
+          style={{
+            background: 'var(--bb-page-gradient)',
+          }}
         >
+          {/* Atmospheric accent gradient overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'var(--bb-page-gradient-accent)',
+            }}
+            aria-hidden="true"
+          />
+          {/* Subtle grid pattern overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              opacity: 'var(--bb-grid-pattern-opacity)',
+              backgroundImage: `
+                linear-gradient(to right, currentColor 1px, transparent 1px),
+                linear-gradient(to bottom, currentColor 1px, transparent 1px)
+              `,
+              backgroundSize: 'var(--bb-grid-pattern-size) var(--bb-grid-pattern-size)',
+            }}
+            aria-hidden="true"
+          />
           {/* Global content rail - wide layout for SaaS app with comfortable side padding */}
-          <div className="w-full max-w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-6 min-w-0">
+          <div className="relative w-full max-w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-6 min-w-0">
             <Outlet />
           </div>
         </main>

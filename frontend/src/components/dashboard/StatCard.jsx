@@ -4,7 +4,7 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
 
 /**
  * Hero stat card for dashboard metrics
- * Shows a single KPI with optional trend and icon
+ * Premium design with glass effect, glow on hover, and gradient icons
  *
  * enterprise pattern: Max 5 of these on any dashboard
  *
@@ -15,6 +15,7 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
  * @param {string} trendDirection - 'up' | 'down' | 'neutral'
  * @param {string} status - 'success' | 'warning' | 'error' | 'neutral'
  * @param {function} onClick - Optional click handler
+ * @param {boolean} glow - Enable glow effect based on status
  *
  * @example
  * <StatCard
@@ -23,6 +24,7 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
  *   icon={LogIn}
  *   trend="+3 from yesterday"
  *   trendDirection="up"
+ *   glow
  * />
  */
 export function StatCard({
@@ -34,42 +36,65 @@ export function StatCard({
   status = 'neutral',
   onClick,
   loading = false,
+  glow = false,
   className,
 }) {
+  // Status-based text colors
   const statusColors = {
-    success: 'text-[var(--color-success)] dark:text-[var(--color-success)]',
-    warning: 'text-[var(--color-warning)] dark:text-[var(--color-warning)]',
-    error: 'text-[var(--color-error)] dark:text-[var(--color-error)]',
-    neutral: 'text-[var(--text-primary)]',
+    success: 'text-emerald-600 dark:text-emerald-400',
+    warning: 'text-amber-600 dark:text-amber-400',
+    error: 'text-red-600 dark:text-red-400',
+    neutral: 'text-[var(--bb-color-text-primary)]',
   };
 
+  // Trend indicator colors
   const trendColors = {
-    up: 'text-[var(--color-success)]',
-    down: 'text-[var(--color-error)]',
-    neutral: 'text-[var(--text-tertiary)]',
+    up: 'text-emerald-600 dark:text-emerald-400',
+    down: 'text-red-600 dark:text-red-400',
+    neutral: 'text-[var(--bb-color-text-muted)]',
+  };
+
+  // Icon background gradients
+  const iconGradients = {
+    success: 'from-emerald-500 to-teal-400',
+    warning: 'from-amber-500 to-orange-400',
+    error: 'from-red-500 to-rose-400',
+    neutral: 'from-slate-500 to-slate-400',
+  };
+
+  // Glow effects on hover
+  const glowEffects = {
+    success: 'hover:shadow-[0_0_24px_rgba(16,185,129,0.25)]',
+    warning: 'hover:shadow-[0_0_24px_rgba(245,158,11,0.25)]',
+    error: 'hover:shadow-[0_0_24px_rgba(239,68,68,0.25)]',
+    neutral: 'hover:shadow-lg',
   };
 
   return (
     <div
       onClick={onClick}
       className={cn(
-        "rounded-lg border p-6 transition-all",
-        "bg-white dark:bg-[var(--surface-primary)]",
-        "border-gray-200 dark:border-[var(--border-light)]",
-        onClick && "cursor-pointer hover:border-primary-600 dark:hover:border-primary-600 hover:shadow-md",
+        // Base card styling - glass effect
+        "relative rounded-xl border p-6 transition-all duration-200",
+        "bg-[var(--bb-glass-bg)] backdrop-blur-sm",
+        "border-[var(--bb-color-border-subtle)]",
+        // Hover states
+        onClick && "cursor-pointer hover:border-[var(--bb-color-border-strong)]",
+        glow && glowEffects[status],
+        !glow && onClick && "hover:shadow-md",
         className
       )}
     >
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           {/* Label */}
-          <p className="text-sm font-medium text-[var(--text-secondary)] mb-2">
+          <p className="text-[var(--bb-font-size-sm)] font-medium text-[var(--bb-color-text-muted)] mb-2">
             {label}
           </p>
 
           {/* Value */}
           {loading ? (
-            <div className="h-8 w-20 bg-gray-200 dark:bg-[var(--bg-secondary)] rounded animate-pulse" />
+            <div className="h-9 w-24 bg-[var(--bb-color-bg-elevated)] rounded-lg animate-pulse" />
           ) : (
             <p className={cn(
               "text-3xl font-semibold tracking-tight",
@@ -82,23 +107,38 @@ export function StatCard({
           {/* Trend */}
           {trend && !loading && (
             <div className={cn(
-              "flex items-center gap-1 mt-2",
+              "flex items-center gap-1.5 mt-2",
               trendColors[trendDirection]
             )}>
-              {trendDirection === 'up' && <TrendingUp className="w-3 h-3" />}
-              {trendDirection === 'down' && <TrendingDown className="w-3 h-3" />}
-              <span className="text-xs font-medium">{trend}</span>
+              {trendDirection === 'up' && <TrendingUp className="w-3.5 h-3.5" />}
+              {trendDirection === 'down' && <TrendingDown className="w-3.5 h-3.5" />}
+              <span className="text-[var(--bb-font-size-xs)] font-medium">{trend}</span>
             </div>
           )}
         </div>
 
-        {/* Icon */}
+        {/* Premium Icon with gradient background */}
         {Icon && (
-          <div className={cn(
-            "flex-shrink-0",
-            statusColors[status]
-          )}>
-            <Icon className="w-8 h-8 opacity-80" />
+          <div className="relative flex-shrink-0">
+            {/* Subtle glow behind icon */}
+            {glow && (
+              <div
+                className={cn(
+                  "absolute inset-0 rounded-xl blur-xl opacity-40",
+                  iconGradients[status]
+                )}
+                aria-hidden="true"
+              />
+            )}
+            <div
+              className={cn(
+                "relative flex items-center justify-center rounded-xl",
+                "w-12 h-12 bg-gradient-to-br shadow-sm",
+                iconGradients[status]
+              )}
+            >
+              <Icon className="w-6 h-6 text-white" strokeWidth={1.75} />
+            </div>
           </div>
         )}
       </div>

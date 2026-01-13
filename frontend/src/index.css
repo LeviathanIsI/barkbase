@@ -266,6 +266,105 @@ input:focus, select:focus, textarea:focus {
    ======================================== */
 
 @layer components {
+  /* ========================================
+     PREMIUM UI COMPONENTS
+     ======================================== */
+
+  /* Glass Card - Premium glassmorphism effect */
+  .glass-card {
+    background: var(--bb-glass-bg);
+    backdrop-filter: var(--bb-glass-blur);
+    -webkit-backdrop-filter: var(--bb-glass-blur);
+    border: 1px solid var(--bb-glass-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--bb-glass-shadow);
+  }
+
+  /* Feature Card - Premium feature/capability card */
+  .feature-card {
+    background: var(--bb-color-bg-surface);
+    border: 1px solid var(--bb-color-border-subtle);
+    border-radius: var(--radius-xl);
+    padding: var(--bb-space-5);
+    transition: all 0.2s ease;
+  }
+
+  .feature-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+    border-color: var(--bb-color-border-strong);
+  }
+
+  /* Stat Card with Glow - For attention-grabbing metrics */
+  .stat-card-glow {
+    position: relative;
+  }
+
+  .stat-card-glow::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .stat-card-glow:hover::before {
+    opacity: 1;
+  }
+
+  .stat-card-glow--warning::before {
+    box-shadow: var(--bb-glow-amber);
+  }
+
+  .stat-card-glow--danger::before {
+    box-shadow: var(--bb-glow-danger);
+  }
+
+  .stat-card-glow--success::before {
+    box-shadow: var(--bb-glow-success);
+  }
+
+  .stat-card-glow--purple::before {
+    box-shadow: var(--bb-glow-purple);
+  }
+
+  /* Premium Icon Container */
+  .premium-icon {
+    width: var(--bb-icon-bg-size);
+    height: var(--bb-icon-bg-size);
+    border-radius: var(--bb-icon-bg-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .premium-icon--glow::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    filter: blur(12px);
+    opacity: 0.4;
+    z-index: -1;
+  }
+
+  /* Gradient Text */
+  .gradient-text {
+    background: var(--bb-gradient-purple-cyan);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-text-amber {
+    background: var(--bb-gradient-amber-orange);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
   /* Professional Card */
   .card {
     background: var(--bg-primary);

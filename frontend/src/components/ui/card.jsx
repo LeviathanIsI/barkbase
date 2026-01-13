@@ -33,6 +33,10 @@ const cardVariants = cva(
         filled: 'border',
         // Ghost - minimal styling, used for grouping
         ghost: '',
+        // Glass - premium glassmorphism effect
+        glass: 'border backdrop-blur-sm shadow-[var(--bb-glass-shadow)]',
+        // Feature - premium feature card with enhanced styling
+        feature: 'border shadow-sm hover:shadow-lg hover:-translate-y-0.5',
       },
       size: {
         sm: 'rounded-[var(--radius-md,0.5rem)] p-[var(--bb-space-4,1rem)]',
@@ -101,9 +105,13 @@ const Card = React.forwardRef(({
       style={{
         backgroundColor: variant === 'ghost'
           ? 'transparent'
+          : variant === 'glass'
+          ? 'var(--bb-glass-bg)'
           : 'var(--bb-color-bg-surface)',
         borderColor: variant === 'ghost'
           ? 'transparent'
+          : variant === 'glass'
+          ? 'var(--bb-glass-border)'
           : 'var(--bb-color-border-subtle)',
         color: 'var(--bb-color-text-primary)',
       }}

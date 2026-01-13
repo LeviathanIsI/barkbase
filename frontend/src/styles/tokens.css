@@ -293,6 +293,48 @@
   --bb-color-purple: #7c3aed;
   --bb-color-purple-soft: rgba(124, 58, 237, 0.12);
 
+  /* ========================================
+     PREMIUM UI SYSTEM - Predictive Analytics Aesthetic
+     ======================================== */
+
+  /* Accent Colors - Purple/Cyan for premium features */
+  --bb-color-accent-purple: #8b5cf6;
+  --bb-color-accent-purple-soft: rgba(139, 92, 246, 0.12);
+  --bb-color-accent-cyan: #06b6d4;
+  --bb-color-accent-cyan-soft: rgba(6, 182, 212, 0.12);
+
+  /* Premium Gradients */
+  --bb-gradient-purple-cyan: linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%);
+  --bb-gradient-blue-purple: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  --bb-gradient-amber-orange: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+  --bb-gradient-emerald-teal: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
+  --bb-gradient-rose-pink: linear-gradient(135deg, #f43f5e 0%, #ec4899 100%);
+
+  /* Glass Card Effects - Light Mode */
+  --bb-glass-bg: rgba(255, 255, 255, 0.8);
+  --bb-glass-border: rgba(255, 255, 255, 0.2);
+  --bb-glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+  --bb-glass-blur: blur(10px);
+
+  /* Page Background - Atmospheric gradient (Light) */
+  --bb-page-gradient: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 50%, #f8fafc 100%);
+  --bb-page-gradient-accent: radial-gradient(ellipse at 50% 0%, rgba(139, 92, 246, 0.03) 0%, transparent 60%);
+
+  /* Grid Pattern Overlay */
+  --bb-grid-pattern-opacity: 0.02;
+  --bb-grid-pattern-size: 32px;
+
+  /* Glow Effects */
+  --bb-glow-purple: 0 0 30px rgba(139, 92, 246, 0.15);
+  --bb-glow-cyan: 0 0 30px rgba(6, 182, 212, 0.15);
+  --bb-glow-amber: 0 0 30px rgba(245, 158, 11, 0.2);
+  --bb-glow-success: 0 0 20px rgba(16, 185, 129, 0.15);
+  --bb-glow-danger: 0 0 20px rgba(239, 68, 68, 0.15);
+
+  /* Feature Card Icons */
+  --bb-icon-bg-size: 48px;
+  --bb-icon-bg-radius: 12px;
+
   /* Skeleton animation */
   --bb-color-skeleton-base: var(--bb-color-bg-elevated);
   --bb-color-skeleton-highlight: rgba(255, 255, 255, 0.5);
@@ -448,6 +490,43 @@
   /* Purple accent - Dark mode */
   --bb-color-purple: #a78bfa;
   --bb-color-purple-soft: rgba(167, 139, 250, 0.18);
+
+  /* ========================================
+     PREMIUM UI SYSTEM - Dark Mode
+     ======================================== */
+
+  /* Accent Colors - Purple/Cyan for premium features (brighter for dark mode) */
+  --bb-color-accent-purple: #a78bfa;
+  --bb-color-accent-purple-soft: rgba(167, 139, 250, 0.18);
+  --bb-color-accent-cyan: #22d3ee;
+  --bb-color-accent-cyan-soft: rgba(34, 211, 238, 0.18);
+
+  /* Premium Gradients - Brighter for dark mode */
+  --bb-gradient-purple-cyan: linear-gradient(135deg, #a78bfa 0%, #22d3ee 100%);
+  --bb-gradient-blue-purple: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+  --bb-gradient-amber-orange: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
+  --bb-gradient-emerald-teal: linear-gradient(135deg, #34d399 0%, #2dd4bf 100%);
+  --bb-gradient-rose-pink: linear-gradient(135deg, #fb7185 0%, #f472b6 100%);
+
+  /* Glass Card Effects - Dark Mode */
+  --bb-glass-bg: rgba(22, 25, 34, 0.8);
+  --bb-glass-border: rgba(255, 255, 255, 0.08);
+  --bb-glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+  --bb-glass-blur: blur(10px);
+
+  /* Page Background - Atmospheric gradient (Dark) */
+  --bb-page-gradient: linear-gradient(180deg, #0f1117 0%, #131620 50%, #0f1117 100%);
+  --bb-page-gradient-accent: radial-gradient(ellipse at 50% 0%, rgba(139, 92, 246, 0.08) 0%, transparent 60%);
+
+  /* Grid Pattern Overlay - More visible in dark mode */
+  --bb-grid-pattern-opacity: 0.03;
+
+  /* Glow Effects - Enhanced for dark mode */
+  --bb-glow-purple: 0 0 40px rgba(167, 139, 250, 0.25);
+  --bb-glow-cyan: 0 0 40px rgba(34, 211, 238, 0.25);
+  --bb-glow-amber: 0 0 40px rgba(251, 191, 36, 0.3);
+  --bb-glow-success: 0 0 30px rgba(52, 211, 153, 0.2);
+  --bb-glow-danger: 0 0 30px rgba(248, 113, 113, 0.2);
 
   /* Skeleton animation - Dark mode */
   --bb-color-skeleton-base: var(--bb-color-bg-elevated);
