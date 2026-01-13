@@ -33,8 +33,13 @@ const cardVariants = cva(
         filled: 'border',
         // Ghost - minimal styling, used for grouping
         ghost: '',
-        // Glass - premium glassmorphism effect
-        glass: 'border backdrop-blur-sm shadow-[var(--bb-glass-shadow)]',
+        // Glass - AGGRESSIVE premium glassmorphism effect
+        glass: [
+          'border',
+          'backdrop-blur-[20px]',
+          'shadow-[0_8px_32px_rgba(0,0,0,0.12),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+          'hover:shadow-[0_12px_40px_rgba(0,0,0,0.15),_inset_0_0_0_1px_rgba(255,255,255,0.15)]',
+        ],
         // Feature - premium feature card with enhanced styling
         feature: 'border shadow-sm hover:shadow-lg hover:-translate-y-0.5',
       },

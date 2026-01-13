@@ -52,82 +52,57 @@ import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 import SlideOutDrawer from '@/components/ui/SlideOutDrawer';
 
-// Stat Card Component - Matching Schedule/Run Assignment style with enhanced danger state
+// Stat Card Component - Premium Glass Treatment with Gradient Icons
 const StatCard = ({ icon: Icon, label, value, variant = 'primary', tooltip }) => {
-  const variantStyles = {
-    primary: {
-      bg: 'bg-blue-50 dark:bg-blue-900/20',
-      iconBg: 'bg-blue-100 dark:bg-blue-900/40',
-      icon: 'text-blue-600 dark:text-blue-400',
-      border: 'border-blue-200 dark:border-blue-800/50',
-      ring: '',
-      glow: '',
-      valueColor: 'text-[color:var(--bb-color-text-primary)]',
-    },
-    success: {
-      bg: 'bg-emerald-50 dark:bg-emerald-900/20',
-      iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
-      icon: 'text-emerald-600 dark:text-emerald-400',
-      border: 'border-emerald-200 dark:border-emerald-800/50',
-      ring: '',
-      glow: '',
-      valueColor: 'text-emerald-700 dark:text-emerald-300',
-    },
-    warning: {
-      bg: 'bg-amber-50 dark:bg-amber-900/20',
-      iconBg: 'bg-amber-100 dark:bg-amber-900/40',
-      icon: 'text-amber-600 dark:text-amber-400',
-      border: 'border-amber-200 dark:border-amber-800/50',
-      ring: 'ring-1 ring-amber-300 dark:ring-amber-700/50',
-      glow: '',
-      valueColor: 'text-amber-700 dark:text-amber-300',
-    },
-    danger: {
-      bg: 'bg-red-50 dark:bg-red-950/30',
-      iconBg: 'bg-red-100 dark:bg-red-900/60',
-      icon: 'text-red-600 dark:text-red-400',
-      border: 'border-red-300 dark:border-red-700/70',
-      ring: 'ring-2 ring-red-400/50 dark:ring-red-500/40',
-      glow: 'shadow-[0_0_15px_rgba(239,68,68,0.15)] dark:shadow-[0_0_20px_rgba(239,68,68,0.25)]',
-      valueColor: 'text-red-600 dark:text-red-400 font-extrabold',
-    },
+  // Gradient icon backgrounds
+  const iconGradients = {
+    primary: 'bg-gradient-to-br from-blue-500 to-cyan-500',
+    success: 'bg-gradient-to-br from-emerald-500 to-teal-500',
+    warning: 'bg-gradient-to-br from-amber-500 to-orange-500',
+    danger: 'bg-gradient-to-br from-red-500 to-rose-500',
   };
 
-  const styles = variantStyles[variant] || variantStyles.primary;
-  const isDanger = variant === 'danger';
+  const isDanger = variant === 'danger' && Number(value) > 0;
 
   return (
     <div
       className={cn(
-        'relative flex items-center gap-3 rounded-xl border p-4 transition-all duration-300',
-        styles.bg,
-        styles.border,
-        styles.ring,
-        styles.glow,
-        isDanger && 'animate-pulse-subtle'
+        'relative flex items-center gap-4 rounded-2xl border p-5 transition-all duration-300',
+        // Glass effect
+        'backdrop-blur-[16px]',
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]',
+        // Hover state
+        'hover:shadow-[0_12px_40px_rgba(0,0,0,0.12),_inset_0_0_0_1px_rgba(255,255,255,0.15)]',
+        // Danger glow
+        isDanger && 'ring-2 ring-red-400/40 shadow-[0_0_40px_rgba(239,68,68,0.25)]'
       )}
       title={tooltip}
-      style={isDanger ? { '--pulse-opacity': '0.6' } : undefined}
     >
-      {/* Danger indicator bar */}
-      {isDanger && (
-        <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-gradient-to-b from-red-500 to-red-600" />
-      )}
-      <div className={cn(
-        'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform',
-        styles.iconBg,
-        isDanger && 'scale-110'
-      )}>
-        <Icon className={cn('h-5 w-5', styles.icon, isDanger && 'h-6 w-6')} />
+      {/* Premium gradient icon with glow */}
+      <div className="relative">
+        <div
+          className={cn(
+            'absolute inset-0 rounded-xl blur-xl opacity-40',
+            iconGradients[variant]
+          )}
+          aria-hidden="true"
+        />
+        <div
+          className={cn(
+            'relative flex h-14 w-14 shrink-0 items-center justify-center rounded-xl shadow-lg',
+            iconGradients[variant]
+          )}
+        >
+          <Icon className="h-6 w-6 text-white" strokeWidth={1.75} />
+        </div>
       </div>
       <div className="min-w-0 text-left">
-        <p className={cn(
-          'text-[0.7rem] font-semibold uppercase tracking-wider',
-          isDanger ? 'text-red-600 dark:text-red-400' : 'text-[color:var(--bb-color-text-muted)]'
-        )}>
+        <p className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
           {label}
         </p>
-        <p className={cn('text-2xl font-bold leading-tight', styles.valueColor)}>{value}</p>
+        <p className="text-2xl font-bold leading-tight text-[color:var(--bb-color-text-primary)]">{value}</p>
       </div>
     </div>
   );
@@ -460,19 +435,28 @@ const TaskCard = ({
   );
 };
 
-// Today's Summary Sidebar Card - Enhanced with larger icons and better visual grouping
+// Today's Summary Sidebar Card - Premium Glass Treatment
 const TodaysSummary = ({ categoryCounts, taskTypes }) => {
   const totalTasks = categoryCounts.all || 0;
 
   return (
     <div
-      className="rounded-xl border p-5"
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+      className={cn(
+        'rounded-2xl border p-5 transition-all duration-200',
+        'backdrop-blur-[16px]',
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+      )}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-[color:var(--bb-color-accent-soft)] flex items-center justify-center">
-            <BarChart3 className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
+          {/* Premium gradient icon with glow */}
+          <div className="relative">
+            <div className="absolute inset-0 rounded-xl blur-xl opacity-40 bg-gradient-to-br from-violet-500 to-purple-600" aria-hidden="true" />
+            <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
+              <BarChart3 className="h-5 w-5 text-white" strokeWidth={1.75} />
+            </div>
           </div>
           <div>
             <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Today's Summary</h3>
@@ -519,7 +503,7 @@ const TodaysSummary = ({ categoryCounts, taskTypes }) => {
   );
 };
 
-// Staff Workload Sidebar Card - Shows actual staff names
+// Staff Workload Sidebar Card - Premium Glass Treatment with Gradient Progress Bars
 const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
   const staffList = Array.isArray(staff) ? staff : (staff?.data || []);
 
@@ -566,11 +550,22 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
 
   return (
     <div
-      className="rounded-xl border p-4"
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+      className={cn(
+        'rounded-2xl border p-4 transition-all duration-200',
+        'backdrop-blur-[16px]',
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+      )}
     >
-      <div className="flex items-center gap-2 mb-3">
-        <Users className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+      <div className="flex items-center gap-2.5 mb-4">
+        {/* Premium gradient icon */}
+        <div className="relative">
+          <div className="absolute inset-0 rounded-lg blur-lg opacity-40 bg-gradient-to-br from-blue-500 to-cyan-500" aria-hidden="true" />
+          <div className="relative h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
+            <Users className="h-4 w-4 text-white" strokeWidth={1.75} />
+          </div>
+        </div>
         <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Staff Workload</h3>
       </div>
 
@@ -639,7 +634,7 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
   );
 };
 
-// Quick Add Task Sidebar Card - Primary action zone
+// Quick Add Task Sidebar Card - Premium Glass Treatment with Gradient Accent
 const QuickAddTask = ({ taskTypes, priorityConfig, pets, staff, onCreateTask, isCreating }) => {
   const [form, setForm] = useState({
     type: 'FEEDING',
@@ -689,12 +684,23 @@ const QuickAddTask = ({ taskTypes, priorityConfig, pets, staff, onCreateTask, is
 
   return (
     <div
-      className="rounded-xl border p-5"
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+      className={cn(
+        'rounded-2xl border p-5 transition-all duration-200',
+        'backdrop-blur-[16px]',
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]',
+        // Subtle purple glow for primary action
+        'ring-1 ring-violet-400/20 shadow-[0_0_30px_rgba(139,92,246,0.1)]'
+      )}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <div className="h-8 w-8 rounded-lg bg-[color:var(--bb-color-accent-soft)] flex items-center justify-center">
-          <Zap className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
+      <div className="flex items-center gap-2.5 mb-4">
+        {/* Premium gradient icon with glow */}
+        <div className="relative">
+          <div className="absolute inset-0 rounded-xl blur-xl opacity-50 bg-gradient-to-br from-amber-500 to-orange-500" aria-hidden="true" />
+          <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
+            <Zap className="h-5 w-5 text-white" strokeWidth={1.75} />
+          </div>
         </div>
         <div>
           <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Quick Add Task</h3>

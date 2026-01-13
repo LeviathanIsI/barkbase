@@ -88,68 +88,97 @@ const METHOD_CONFIG = {
   wire: { label: 'Wire', icon: Wallet },
 };
 
-// KPI Tile Component with enhanced visual hierarchy
+// KPI Tile Component - PREMIUM glass with gradient icons and glow effects
 const KPITile = ({ icon: Icon, label, value, subtext, trend, trendType, onClick, size = 'normal', variant = 'default', urgent = false }) => {
-  // Variant-based styling for visual hierarchy
-  const variantStyles = {
-    primary: 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-800/10 border-emerald-200 dark:border-emerald-800/50',
-    warning: 'bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10 border-amber-200 dark:border-amber-800/50',
-    danger: 'bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-800/10 border-red-200 dark:border-red-800/50',
-    default: 'bg-white dark:bg-surface-primary border-border',
+  // Gradient icon backgrounds for premium look
+  const iconGradients = {
+    primary: 'from-emerald-500 to-teal-500',
+    warning: 'from-amber-500 to-orange-500',
+    danger: 'from-red-500 to-rose-500',
+    default: 'from-slate-500 to-slate-600',
   };
 
-  const iconStyles = {
-    primary: 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white',
-    warning: 'bg-gradient-to-br from-amber-500 to-amber-600 text-white',
-    danger: 'bg-gradient-to-br from-red-500 to-red-600 text-white',
-    default: 'bg-[var(--bb-color-bg-surface)] text-[var(--bb-color-text-muted)]',
+  // Glow effects on hover by variant
+  const glowEffects = {
+    primary: 'hover:shadow-[0_0_35px_rgba(16,185,129,0.25)]',
+    warning: 'hover:shadow-[0_0_35px_rgba(245,158,11,0.3)]',
+    danger: 'hover:shadow-[0_0_40px_rgba(239,68,68,0.3)]',
+    default: 'hover:shadow-[0_12px_40px_rgba(0,0,0,0.15)]',
+  };
+
+  // Value colors by variant
+  const valueColors = {
+    primary: 'text-emerald-700 dark:text-emerald-300',
+    warning: 'text-amber-700 dark:text-amber-300',
+    danger: 'text-red-600 dark:text-red-400',
+    default: 'text-[var(--bb-color-text-primary)]',
   };
 
   return (
     <button
       onClick={onClick}
       className={cn(
-        'relative text-left border rounded-xl transition-all hover:shadow-md hover:-translate-y-0.5',
-        variantStyles[variant] || variantStyles.default,
-        size === 'large' ? 'p-5' : 'p-4',
-        urgent && 'ring-2 ring-red-400/50 dark:ring-red-500/30 animate-pulse'
+        // Glass card base
+        'relative text-left rounded-2xl border transition-all duration-300',
+        'backdrop-blur-[16px]',
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        // Shadow with inset glow
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]',
+        // Hover effects
+        'hover:-translate-y-1',
+        glowEffects[variant] || glowEffects.default,
+        // Size
+        size === 'large' ? 'p-6' : 'p-5',
+        // Urgent state
+        urgent && 'ring-2 ring-red-400/50 shadow-[0_0_40px_rgba(239,68,68,0.3)]'
       )}
     >
-      {/* Urgency glow overlay */}
+      {/* Urgency pulse glow overlay */}
       {urgent && (
-        <div className="absolute inset-0 rounded-xl bg-red-500/5 animate-pulse pointer-events-none" />
+        <div className="absolute inset-0 rounded-2xl bg-red-500/5 animate-pulse pointer-events-none" />
       )}
 
-      <div className="flex items-start justify-between relative">
-        <div className="flex items-start gap-3">
-          {/* Enhanced icon container */}
-          <div className={cn(
-            'rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm',
-            iconStyles[variant] || iconStyles.default,
-            size === 'large' ? 'h-10 w-10' : 'h-8 w-8'
-          )}>
-            <Icon className={cn(size === 'large' ? 'h-5 w-5' : 'h-4 w-4')} />
+      <div className="flex items-start justify-between relative gap-4">
+        <div className="flex items-start gap-4">
+          {/* Premium gradient icon with glow */}
+          <div className="relative flex-shrink-0">
+            <div
+              className={cn(
+                'absolute inset-0 rounded-xl blur-xl opacity-40 bg-gradient-to-br',
+                iconGradients[variant] || iconGradients.default
+              )}
+              aria-hidden="true"
+            />
+            <div className={cn(
+              'relative rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br',
+              iconGradients[variant] || iconGradients.default,
+              size === 'large' ? 'h-14 w-14' : 'h-12 w-12'
+            )}>
+              <Icon className={cn('text-white', size === 'large' ? 'h-7 w-7' : 'h-6 w-6')} strokeWidth={1.75} />
+            </div>
           </div>
 
           <div>
-            <span className="text-xs text-[var(--bb-color-text-muted)] uppercase tracking-wide font-medium">
+            <span className="text-[0.7rem] text-[var(--bb-color-text-muted)] uppercase tracking-widest font-semibold">
               {label}
             </span>
             <p className={cn(
-              'font-bold text-[var(--bb-color-text-primary)] mt-0.5',
-              size === 'large' ? 'text-2xl' : 'text-xl'
+              'font-bold tracking-tight mt-0.5',
+              valueColors[variant] || valueColors.default,
+              size === 'large' ? 'text-3xl' : 'text-2xl'
             )}>
               {value}
             </p>
             {subtext && (
-              <p className="text-xs text-[var(--bb-color-text-muted)] mt-1">{subtext}</p>
+              <p className="text-xs text-[var(--bb-color-text-muted)] mt-1.5">{subtext}</p>
             )}
           </div>
         </div>
 
         {trend && (
           <div className={cn(
-            'flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full',
+            'flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full',
             trendType === 'positive' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' :
             trendType === 'negative' ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' :
             'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'

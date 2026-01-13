@@ -754,7 +754,7 @@ const Bookings = () => {
   );
 };
 
-// Legend Sidebar Component - Always visible sidebar with legend info
+// Legend Sidebar Component - Always visible sidebar with legend info (Premium Glass Treatment)
 const LegendSidebar = () => {
   const legendItems = [
     { color: 'bg-blue-500', label: 'Confirmed', description: 'Booking is confirmed' },
@@ -767,16 +767,21 @@ const LegendSidebar = () => {
 
   return (
     <div
-      className="rounded-2xl border p-5 sticky top-24"
-      style={{
-        backgroundColor: 'var(--bb-color-bg-surface)',
-        borderColor: 'var(--bb-color-border-subtle)'
-      }}
+      className={cn(
+        'rounded-2xl border p-5 sticky top-24 transition-all duration-200',
+        'backdrop-blur-[16px]',
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+      )}
     >
-      {/* Header */}
-      <div className="flex items-center gap-2.5 mb-5 pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[color:var(--bb-color-bg-elevated)]">
-          <Info className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
+      {/* Header with Gradient Icon */}
+      <div className="flex items-center gap-2.5 mb-5 pb-4 border-b border-[var(--bb-glass-border)]">
+        <div className="relative">
+          <div className="absolute inset-0 rounded-xl blur-xl opacity-40 bg-gradient-to-br from-indigo-500 to-blue-600" aria-hidden="true" />
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 shadow-lg">
+            <Info className="h-5 w-5 text-white" strokeWidth={1.75} />
+          </div>
         </div>
         <div>
           <h3 className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-text-base)] text-[color:var(--bb-color-text-primary)]">
@@ -890,8 +895,14 @@ const MonthCalendarView = ({
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Calendar Grid */}
-      <div className="flex-1 rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
+      {/* Calendar Grid - Premium Glass Container */}
+      <div className={cn(
+        'flex-1 rounded-2xl border overflow-hidden transition-all duration-200',
+        'backdrop-blur-[12px]',
+        'bg-[var(--bb-glass-bg)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+      )} style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
         {/* Weekday Headers */}
         <div className="grid grid-cols-7 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
           {WEEKDAYS.map((day) => (
@@ -1187,8 +1198,14 @@ const WeeklyCalendarView = ({
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Weekly Grid */}
-      <div className="flex-1 rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
+      {/* Weekly Grid - Premium Glass Container */}
+      <div className={cn(
+        'flex-1 rounded-2xl border overflow-hidden transition-all duration-200',
+        'backdrop-blur-[12px]',
+        'bg-[var(--bb-glass-bg)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+      )} style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
         {/* Day Headers - Enhanced with clear hierarchy */}
         <div
           className="grid border-b"

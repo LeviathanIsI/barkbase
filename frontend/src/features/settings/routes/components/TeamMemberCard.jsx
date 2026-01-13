@@ -4,7 +4,7 @@ import { useTimezoneUtils } from '@/lib/timezone';
 import Avatar from '@/components/ui/Avatar';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/cn';
 
 const TeamMemberCard = ({ member, isSelected, onSelect, onEdit, onDelete }) => {
   const tz = useTimezoneUtils();
@@ -25,7 +25,18 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit, onDelete }) => {
   const totalPermissions = Object.keys(member.permissions || {}).length;
 
   return (
-    <Card className="relative p-3 hover:shadow-md transition-shadow">
+    <div
+      className={cn(
+        'relative p-4 rounded-2xl border transition-all duration-300',
+        // Glass effect
+        'backdrop-blur-[16px]',
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]',
+        'hover:shadow-[0_12px_40px_rgba(0,0,0,0.12),_inset_0_0_0_1px_rgba(255,255,255,0.15)]',
+        'hover:-translate-y-0.5'
+      )}
+    >
       {/* Selection + Menu Row */}
       <div className="flex items-center justify-between mb-2">
         <input
@@ -101,7 +112,7 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit, onDelete }) => {
           </Button>
         </div>
       </div>
-    </Card>
+    </div>
   );
 };
 

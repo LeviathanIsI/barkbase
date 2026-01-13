@@ -1856,17 +1856,21 @@ const ColumnsDropdown = ({ columns, visibleColumns, columnOrder, onToggle, onReo
   );
 };
 
-// Empty State Component - Full Width
+// Empty State Component - Full Width with Premium Hero Treatment
 const EmptyState = ({ hasFilters, onClearFilters, onAddPet }) => (
-  <div className="flex-1 flex flex-col items-center justify-center py-24" style={{ backgroundColor: 'var(--bb-color-bg-body)' }}>
-    <div className="flex h-20 w-20 items-center justify-center rounded-full mb-6" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-      <PawPrint className="h-10 w-10 text-[color:var(--bb-color-text-muted)]" />
+  <div className="flex-1 flex flex-col items-center justify-center py-24 rounded-2xl border backdrop-blur-[16px] bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)] shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]">
+    {/* Premium gradient icon with glow */}
+    <div className="relative mb-8">
+      <div className="absolute inset-0 rounded-3xl blur-2xl opacity-40 bg-gradient-to-br from-violet-500 to-purple-600" aria-hidden="true" />
+      <div className="relative flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-xl">
+        <PawPrint className="h-12 w-12 text-white" strokeWidth={1.5} />
+      </div>
     </div>
-    <h3 className="text-xl font-semibold text-[color:var(--bb-color-text-primary)] mb-2">{hasFilters ? 'No pets match your filters' : 'No pets yet'}</h3>
-    <p className="text-sm text-[color:var(--bb-color-text-muted)] mb-8 max-w-md text-center">{hasFilters ? 'Try adjusting your search or filters to find what you\'re looking for' : 'Get started by adding your first pet to the system'}</p>
+    <h3 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)] mb-3">{hasFilters ? 'No pets match your filters' : 'No pets yet'}</h3>
+    <p className="text-base text-[color:var(--bb-color-text-muted)] mb-8 max-w-md text-center">{hasFilters ? 'Try adjusting your search or filters to find what you\'re looking for' : 'Get started by adding your first pet to the system'}</p>
     <div className="flex gap-3">
       {hasFilters && <Button variant="outline" size="lg" onClick={onClearFilters}>Clear filters</Button>}
-      <Button size="lg" onClick={onAddPet}><Plus className="h-4 w-4 mr-2" />Add Pet</Button>
+      <Button size="lg" onClick={onAddPet} className="shadow-lg hover:shadow-xl transition-shadow"><Plus className="h-4 w-4 mr-2" />Add Pet</Button>
     </div>
   </div>
 );

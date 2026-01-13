@@ -87,44 +87,50 @@ const EXAMPLE_WORKFLOWS = [
   },
 ];
 
-// Stat Card Component
+// Stat Card Component - Premium Glass Treatment with Gradient Icons
 const StatCard = ({ icon: Icon, label, value, variant = 'default', subtext }) => {
-  const variants = {
-    default: {
-      bg: 'bg-[color:var(--bb-color-bg-surface)]',
-      iconBg: 'bg-[color:var(--bb-color-accent-soft)]',
-      iconColor: 'text-[color:var(--bb-color-accent)]',
-      border: 'border-[color:var(--bb-color-border-subtle)]',
-    },
-    success: {
-      bg: 'bg-emerald-50 dark:bg-emerald-950/20',
-      iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
-      iconColor: 'text-emerald-600 dark:text-emerald-400',
-      border: 'border-emerald-200 dark:border-emerald-800/50',
-    },
-    warning: {
-      bg: 'bg-amber-50 dark:bg-amber-950/20',
-      iconBg: 'bg-amber-100 dark:bg-amber-900/40',
-      iconColor: 'text-amber-600 dark:text-amber-400',
-      border: 'border-amber-200 dark:border-amber-800/50',
-    },
-    danger: {
-      bg: 'bg-red-50 dark:bg-red-950/20',
-      iconBg: 'bg-red-100 dark:bg-red-900/40',
-      iconColor: 'text-red-600 dark:text-red-400',
-      border: 'border-red-200 dark:border-red-800/50',
-    },
+  // Gradient icon backgrounds
+  const iconGradients = {
+    default: 'bg-gradient-to-br from-violet-500 to-purple-600',
+    success: 'bg-gradient-to-br from-emerald-500 to-teal-500',
+    warning: 'bg-gradient-to-br from-amber-500 to-orange-500',
+    danger: 'bg-gradient-to-br from-red-500 to-rose-500',
   };
 
-  const styles = variants[variant] || variants.default;
-
   return (
-    <div className={cn('flex items-center gap-3 rounded-xl border p-4', styles.bg, styles.border)}>
-      <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center', styles.iconBg)}>
-        <Icon className={cn('h-5 w-5', styles.iconColor)} />
+    <div
+      className={cn(
+        'relative flex items-center gap-4 rounded-2xl border p-5 transition-all duration-300',
+        // Glass effect
+        'backdrop-blur-[16px]',
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]',
+        'hover:shadow-[0_12px_40px_rgba(0,0,0,0.12),_inset_0_0_0_1px_rgba(255,255,255,0.15)]',
+        // Danger glow for failed stats
+        variant === 'danger' && value > 0 && 'ring-2 ring-red-400/40 shadow-[0_0_40px_rgba(239,68,68,0.25)]'
+      )}
+    >
+      {/* Premium gradient icon with glow */}
+      <div className="relative">
+        <div
+          className={cn(
+            'absolute inset-0 rounded-xl blur-xl opacity-40',
+            iconGradients[variant]
+          )}
+          aria-hidden="true"
+        />
+        <div
+          className={cn(
+            'relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-lg',
+            iconGradients[variant]
+          )}
+        >
+          <Icon className="h-5 w-5 text-white" strokeWidth={1.75} />
+        </div>
       </div>
       <div>
-        <p className="text-xs font-medium uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
           {label}
         </p>
         <p className="text-xl font-bold text-[color:var(--bb-color-text-primary)]">{value}</p>
@@ -506,23 +512,34 @@ export default function Workflows() {
                 </div>
               </div>
 
-              {/* Features List */}
-              <div className="rounded-xl border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)] p-6">
+              {/* Features List - Premium Glass Treatment */}
+              <div
+                className={cn(
+                  'rounded-2xl border p-6 transition-all duration-200',
+                  'backdrop-blur-[16px]',
+                  'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+                  'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+                  'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+                )}
+              >
                 <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] mb-4">
                   What can workflows do?
                 </h3>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {[
-                    { icon: Mail, label: 'Send automated emails', desc: 'Confirmations, reminders, follow-ups' },
-                    { icon: Bell, label: 'Send SMS notifications', desc: 'Text updates to owners' },
-                    { icon: CheckSquare, label: 'Create tasks', desc: 'Assign follow-up work to staff' },
-                    { icon: Clock, label: 'Schedule actions', desc: 'Wait for the right time' },
-                    { icon: GitBranch, label: 'Branch on conditions', desc: 'If/then logic paths' },
-                    { icon: Zap, label: 'Trigger on events', desc: 'Bookings, check-ins, payments' },
+                    { icon: Mail, label: 'Send automated emails', desc: 'Confirmations, reminders, follow-ups', gradient: 'from-blue-500 to-cyan-500' },
+                    { icon: Bell, label: 'Send SMS notifications', desc: 'Text updates to owners', gradient: 'from-violet-500 to-purple-600' },
+                    { icon: CheckSquare, label: 'Create tasks', desc: 'Assign follow-up work to staff', gradient: 'from-emerald-500 to-teal-500' },
+                    { icon: Clock, label: 'Schedule actions', desc: 'Wait for the right time', gradient: 'from-amber-500 to-orange-500' },
+                    { icon: GitBranch, label: 'Branch on conditions', desc: 'If/then logic paths', gradient: 'from-rose-500 to-pink-500' },
+                    { icon: Zap, label: 'Trigger on events', desc: 'Bookings, check-ins, payments', gradient: 'from-indigo-500 to-blue-500' },
                   ].map((feature, i) => (
                     <div key={i} className="flex items-start gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-[color:var(--bb-color-bg-elevated)] flex items-center justify-center flex-shrink-0">
-                        <feature.icon className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+                      <div className="relative flex-shrink-0">
+                        <div className={cn('absolute inset-0 rounded-lg blur-lg opacity-40 bg-gradient-to-br', feature.gradient)} aria-hidden="true" />
+                        <div className={cn('relative h-9 w-9 rounded-lg bg-gradient-to-br flex items-center justify-center shadow-lg', feature.gradient)}>
+                          <feature.icon className="h-4 w-4 text-white" strokeWidth={1.75} />
+                        </div>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">

@@ -97,39 +97,35 @@ const INCIDENT_TYPES = {
   OTHER: { label: 'Other', color: 'text-gray-500', bg: 'bg-gray-50 dark:bg-gray-900/20' },
 };
 
-// Stat Card Component - Enhanced with urgent danger state
+// Stat Card Component - PREMIUM with glass effect and gradient icons
 const StatCard = ({ icon: Icon, label, value, variant = 'primary', tooltip, urgent = false }) => {
+  // Gradient icon backgrounds for premium look
+  const iconGradients = {
+    primary: 'bg-gradient-to-br from-blue-500 to-cyan-500',
+    success: 'bg-gradient-to-br from-emerald-500 to-teal-500',
+    warning: 'bg-gradient-to-br from-amber-500 to-orange-500',
+    danger: 'bg-gradient-to-br from-red-500 to-rose-500',
+  };
+
   const variantStyles = {
     primary: {
-      bg: 'bg-blue-50 dark:bg-blue-900/20',
-      iconBg: 'bg-blue-100 dark:bg-blue-900/40',
-      icon: 'text-blue-600 dark:text-blue-400',
-      border: 'border-blue-200 dark:border-blue-800/50',
-      valueColor: 'text-[color:var(--bb-color-text-primary)]',
+      valueColor: 'text-blue-700 dark:text-blue-300',
+      glow: 'hover:shadow-[0_0_30px_rgba(59,130,246,0.2)]',
     },
     success: {
-      bg: 'bg-emerald-50 dark:bg-emerald-900/20',
-      iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
-      icon: 'text-emerald-600 dark:text-emerald-400',
-      border: 'border-emerald-200 dark:border-emerald-800/50',
       valueColor: 'text-emerald-700 dark:text-emerald-300',
+      glow: 'hover:shadow-[0_0_30px_rgba(16,185,129,0.2)]',
     },
     warning: {
-      bg: 'bg-amber-50 dark:bg-amber-900/20',
-      iconBg: 'bg-amber-100 dark:bg-amber-900/40',
-      icon: 'text-amber-600 dark:text-amber-400',
-      border: 'border-amber-200 dark:border-amber-800/50',
-      ring: 'ring-1 ring-amber-300 dark:ring-amber-700/50',
       valueColor: 'text-amber-700 dark:text-amber-300',
+      ring: 'ring-1 ring-amber-400/30 dark:ring-amber-500/30',
+      glow: 'hover:shadow-[0_0_30px_rgba(245,158,11,0.25)]',
     },
     danger: {
-      bg: 'bg-red-50 dark:bg-red-950/30',
-      iconBg: 'bg-red-100 dark:bg-red-900/50',
-      icon: 'text-red-600 dark:text-red-400',
-      border: 'border-red-300 dark:border-red-700/70',
-      ring: 'ring-2 ring-red-400/50 dark:ring-red-500/40',
-      glow: 'shadow-[0_0_20px_rgba(239,68,68,0.25)] dark:shadow-[0_0_25px_rgba(239,68,68,0.35)]',
       valueColor: 'text-red-600 dark:text-red-400',
+      ring: 'ring-2 ring-red-400/40 dark:ring-red-500/40',
+      urgentGlow: 'shadow-[0_0_40px_rgba(239,68,68,0.35)] dark:shadow-[0_0_50px_rgba(239,68,68,0.4)]',
+      glow: 'hover:shadow-[0_0_35px_rgba(239,68,68,0.3)]',
     },
   };
 
@@ -140,42 +136,63 @@ const StatCard = ({ icon: Icon, label, value, variant = 'primary', tooltip, urge
   return (
     <div
       className={cn(
-        'relative flex items-center gap-3 rounded-xl border p-4 transition-all duration-300',
-        styles.bg,
-        styles.border,
+        // Glass card base
+        'relative flex items-center gap-4 rounded-2xl border p-5 transition-all duration-300',
+        'backdrop-blur-[16px]',
+        // Glass background and border
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        // Shadow with inset glow
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]',
+        // Ring for warning/danger
         styles.ring,
-        showUrgent && styles.glow
+        // Hover glow
+        styles.glow,
+        // Urgent danger glow
+        showUrgent && styles.urgentGlow
       )}
       title={tooltip}
     >
       {/* Urgent indicator bar */}
       {showUrgent && (
-        <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-gradient-to-b from-red-500 to-red-600" />
+        <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl bg-gradient-to-b from-red-500 via-red-600 to-rose-600" />
       )}
 
       {/* Pulse indicator for urgent */}
       {showUrgent && (
-        <div className="absolute -top-1 -right-1 h-3 w-3">
+        <div className="absolute -top-1.5 -right-1.5 h-4 w-4">
           <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 animate-ping" />
-          <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+          <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-white dark:border-gray-900" />
         </div>
       )}
 
-      <div className={cn(
-        'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform',
-        styles.iconBg,
-        showUrgent && 'scale-110'
-      )}>
-        <Icon className={cn('h-5 w-5', styles.icon, showUrgent && 'h-6 w-6')} />
+      {/* Premium gradient icon */}
+      <div className="relative">
+        {/* Icon glow effect */}
+        <div
+          className={cn(
+            'absolute inset-0 rounded-xl blur-xl opacity-40',
+            iconGradients[variant]
+          )}
+          aria-hidden="true"
+        />
+        <div className={cn(
+          'relative flex h-14 w-14 shrink-0 items-center justify-center rounded-xl shadow-lg transition-transform',
+          iconGradients[variant],
+          showUrgent && 'scale-110 animate-pulse'
+        )}>
+          <Icon className={cn('h-6 w-6 text-white', showUrgent && 'h-7 w-7')} strokeWidth={1.75} />
+        </div>
       </div>
+
       <div className="min-w-0 text-left">
         <p className={cn(
-          'text-[0.7rem] font-semibold uppercase tracking-wider',
+          'text-[0.7rem] font-semibold uppercase tracking-widest',
           showUrgent ? 'text-red-600 dark:text-red-400' : 'text-[color:var(--bb-color-text-muted)]'
         )}>
           {label}
         </p>
-        <p className={cn('text-2xl font-bold leading-tight', styles.valueColor)}>{value}</p>
+        <p className={cn('text-3xl font-bold leading-tight tracking-tight', styles.valueColor)}>{value}</p>
       </div>
     </div>
   );
@@ -281,7 +298,7 @@ const SeverityDropdown = ({ value, onChange, disabled }) => {
   );
 };
 
-// Incident Summary Sidebar Card - Enhanced with visual bars and empty state
+// Incident Summary Sidebar Card - PREMIUM glass effect with visual bars
 const IncidentSummary = ({ incidents }) => {
   const statusCounts = useMemo(() => {
     const counts = { OPEN: 0, INVESTIGATING: 0, RESOLVED: 0, CLOSED: 0 };
@@ -296,13 +313,21 @@ const IncidentSummary = ({ incidents }) => {
 
   return (
     <div
-      className="rounded-xl border p-5"
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+      className={cn(
+        'rounded-2xl border p-5 backdrop-blur-[16px]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+      )}
+      style={{ backgroundColor: 'var(--bb-glass-bg)', borderColor: 'var(--bb-glass-border)' }}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-[color:var(--bb-color-accent-soft)] flex items-center justify-center">
-            <BarChart3 className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
+          {/* Gradient icon background */}
+          <div className="relative">
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 blur-lg opacity-40" />
+            <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
+              <BarChart3 className="h-5 w-5 text-white" strokeWidth={1.75} />
+            </div>
           </div>
           <div>
             <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Status Overview</h3>
@@ -360,7 +385,7 @@ const IncidentSummary = ({ incidents }) => {
   );
 };
 
-// By Severity Sidebar Card - Enhanced with visual weight for critical
+// By Severity Sidebar Card - PREMIUM glass with warning glow for critical
 const SeverityBreakdown = ({ incidents }) => {
   const severityCounts = useMemo(() => {
     const counts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 };
@@ -376,20 +401,26 @@ const SeverityBreakdown = ({ incidents }) => {
   return (
     <div
       className={cn(
-        'rounded-xl border p-5 transition-all',
-        hasCritical && 'ring-2 ring-red-400/50 border-red-300 dark:border-red-700'
+        'rounded-2xl border p-5 backdrop-blur-[16px] transition-all',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]',
+        hasCritical && 'ring-2 ring-red-400/50 shadow-[0_0_40px_rgba(239,68,68,0.2)]'
       )}
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: hasCritical ? undefined : 'var(--bb-color-border-subtle)' }}
+      style={{ backgroundColor: 'var(--bb-glass-bg)', borderColor: hasCritical ? 'rgba(239,68,68,0.4)' : 'var(--bb-glass-border)' }}
     >
       <div className="flex items-center gap-2.5 mb-4">
-        <div className={cn(
-          'h-8 w-8 rounded-lg flex items-center justify-center',
-          hasCritical ? 'bg-red-100 dark:bg-red-900/40' : 'bg-amber-100 dark:bg-amber-900/30'
-        )}>
-          <AlertTriangle className={cn(
-            'h-4 w-4',
-            hasCritical ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'
+        {/* Gradient icon with glow */}
+        <div className="relative">
+          <div className={cn(
+            'absolute inset-0 rounded-xl blur-lg opacity-40',
+            hasCritical ? 'bg-gradient-to-br from-red-500 to-rose-600' : 'bg-gradient-to-br from-amber-500 to-orange-500'
           )} />
+          <div className={cn(
+            'relative h-10 w-10 rounded-xl flex items-center justify-center shadow-lg',
+            hasCritical ? 'bg-gradient-to-br from-red-500 to-rose-600' : 'bg-gradient-to-br from-amber-500 to-orange-500'
+          )}>
+            <AlertTriangle className="h-5 w-5 text-white" strokeWidth={1.75} />
+          </div>
         </div>
         <div>
           <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">By Severity</h3>
@@ -450,7 +481,7 @@ const SeverityBreakdown = ({ incidents }) => {
   );
 };
 
-// By Type Sidebar Card - Enhanced with better grid layout
+// By Type Sidebar Card - PREMIUM glass with grid layout
 const TypeBreakdown = ({ incidents }) => {
   const typeCounts = useMemo(() => {
     const counts = {};
@@ -469,12 +500,20 @@ const TypeBreakdown = ({ incidents }) => {
 
   return (
     <div
-      className="rounded-xl border p-5"
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+      className={cn(
+        'rounded-2xl border p-5 backdrop-blur-[16px]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+      )}
+      style={{ backgroundColor: 'var(--bb-glass-bg)', borderColor: 'var(--bb-glass-border)' }}
     >
       <div className="flex items-center gap-2.5 mb-4">
-        <div className="h-8 w-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
-          <Info className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+        {/* Gradient icon */}
+        <div className="relative">
+          <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 blur-lg opacity-40" />
+          <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg">
+            <Info className="h-5 w-5 text-white" strokeWidth={1.75} />
+          </div>
         </div>
         <div>
           <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">By Type</h3>
@@ -512,7 +551,7 @@ const TypeBreakdown = ({ incidents }) => {
   );
 };
 
-// Quick Report Sidebar Card - Enhanced with collapsible design
+// Quick Report Sidebar Card - PREMIUM glass with collapsible design
 const QuickReport = ({ pets, onSubmit, isSubmitting }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [form, setForm] = useState({
@@ -543,8 +582,12 @@ const QuickReport = ({ pets, onSubmit, isSubmitting }) => {
 
   return (
     <div
-      className="rounded-xl border overflow-hidden"
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+      className={cn(
+        'rounded-2xl border overflow-hidden backdrop-blur-[16px]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+      )}
+      style={{ backgroundColor: 'var(--bb-glass-bg)', borderColor: 'var(--bb-glass-border)' }}
     >
       {/* Header - clickable to expand/collapse */}
       <button

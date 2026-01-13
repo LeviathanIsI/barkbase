@@ -310,26 +310,29 @@
   --bb-gradient-emerald-teal: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
   --bb-gradient-rose-pink: linear-gradient(135deg, #f43f5e 0%, #ec4899 100%);
 
-  /* Glass Card Effects - Light Mode */
-  --bb-glass-bg: rgba(255, 255, 255, 0.8);
-  --bb-glass-border: rgba(255, 255, 255, 0.2);
-  --bb-glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
-  --bb-glass-blur: blur(10px);
+  /* Glass Card Effects - Light Mode (AGGRESSIVE glassmorphism) */
+  --bb-glass-bg: rgba(255, 255, 255, 0.65);
+  --bb-glass-bg-strong: rgba(255, 255, 255, 0.75);
+  --bb-glass-border: rgba(255, 255, 255, 0.5);
+  --bb-glass-border-glow: rgba(255, 255, 255, 0.8);
+  --bb-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 0 1px rgba(255, 255, 255, 0.5) inset;
+  --bb-glass-blur: 16px;
 
-  /* Page Background - Atmospheric gradient (Light) */
-  --bb-page-gradient: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 50%, #f8fafc 100%);
-  --bb-page-gradient-accent: radial-gradient(ellipse at 50% 0%, rgba(139, 92, 246, 0.03) 0%, transparent 60%);
+  /* Page Background - Atmospheric gradient (Light) - more visible */
+  --bb-page-gradient: linear-gradient(180deg, #f8fafc 0%, #eef2f7 50%, #f8fafc 100%);
+  --bb-page-gradient-accent: radial-gradient(ellipse at 50% 0%, rgba(139, 92, 246, 0.06) 0%, transparent 70%);
 
-  /* Grid Pattern Overlay */
-  --bb-grid-pattern-opacity: 0.02;
+  /* Grid Pattern Overlay - more visible */
+  --bb-grid-pattern-opacity: 0.04;
   --bb-grid-pattern-size: 32px;
 
-  /* Glow Effects */
-  --bb-glow-purple: 0 0 30px rgba(139, 92, 246, 0.15);
-  --bb-glow-cyan: 0 0 30px rgba(6, 182, 212, 0.15);
-  --bb-glow-amber: 0 0 30px rgba(245, 158, 11, 0.2);
-  --bb-glow-success: 0 0 20px rgba(16, 185, 129, 0.15);
-  --bb-glow-danger: 0 0 20px rgba(239, 68, 68, 0.15);
+  /* Glow Effects - AGGRESSIVE for visibility */
+  --bb-glow-purple: 0 0 40px rgba(139, 92, 246, 0.25), 0 0 80px rgba(139, 92, 246, 0.1);
+  --bb-glow-cyan: 0 0 40px rgba(6, 182, 212, 0.25), 0 0 80px rgba(6, 182, 212, 0.1);
+  --bb-glow-amber: 0 0 40px rgba(245, 158, 11, 0.35), 0 0 80px rgba(245, 158, 11, 0.15);
+  --bb-glow-success: 0 0 30px rgba(16, 185, 129, 0.3), 0 0 60px rgba(16, 185, 129, 0.1);
+  --bb-glow-danger: 0 0 30px rgba(239, 68, 68, 0.35), 0 0 60px rgba(239, 68, 68, 0.15);
+  --bb-glow-warning: 0 0 30px rgba(245, 158, 11, 0.35), 0 0 60px rgba(245, 158, 11, 0.15);
 
   /* Feature Card Icons */
   --bb-icon-bg-size: 48px;
@@ -508,25 +511,28 @@
   --bb-gradient-emerald-teal: linear-gradient(135deg, #34d399 0%, #2dd4bf 100%);
   --bb-gradient-rose-pink: linear-gradient(135deg, #fb7185 0%, #f472b6 100%);
 
-  /* Glass Card Effects - Dark Mode */
-  --bb-glass-bg: rgba(22, 25, 34, 0.8);
-  --bb-glass-border: rgba(255, 255, 255, 0.08);
-  --bb-glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
-  --bb-glass-blur: blur(10px);
+  /* Glass Card Effects - Dark Mode (AGGRESSIVE glassmorphism) */
+  --bb-glass-bg: rgba(22, 25, 38, 0.6);
+  --bb-glass-bg-strong: rgba(22, 25, 38, 0.75);
+  --bb-glass-border: rgba(255, 255, 255, 0.12);
+  --bb-glass-border-glow: rgba(255, 255, 255, 0.2);
+  --bb-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  --bb-glass-blur: 20px;
 
-  /* Page Background - Atmospheric gradient (Dark) */
-  --bb-page-gradient: linear-gradient(180deg, #0f1117 0%, #131620 50%, #0f1117 100%);
-  --bb-page-gradient-accent: radial-gradient(ellipse at 50% 0%, rgba(139, 92, 246, 0.08) 0%, transparent 60%);
+  /* Page Background - Atmospheric gradient (Dark) - more dramatic */
+  --bb-page-gradient: linear-gradient(180deg, #0a0c12 0%, #111420 30%, #0f1218 100%);
+  --bb-page-gradient-accent: radial-gradient(ellipse at 50% 0%, rgba(139, 92, 246, 0.12) 0%, transparent 70%);
 
   /* Grid Pattern Overlay - More visible in dark mode */
-  --bb-grid-pattern-opacity: 0.03;
+  --bb-grid-pattern-opacity: 0.05;
 
-  /* Glow Effects - Enhanced for dark mode */
-  --bb-glow-purple: 0 0 40px rgba(167, 139, 250, 0.25);
-  --bb-glow-cyan: 0 0 40px rgba(34, 211, 238, 0.25);
-  --bb-glow-amber: 0 0 40px rgba(251, 191, 36, 0.3);
-  --bb-glow-success: 0 0 30px rgba(52, 211, 153, 0.2);
-  --bb-glow-danger: 0 0 30px rgba(248, 113, 113, 0.2);
+  /* Glow Effects - AGGRESSIVE for dark mode visibility */
+  --bb-glow-purple: 0 0 50px rgba(167, 139, 250, 0.35), 0 0 100px rgba(167, 139, 250, 0.15);
+  --bb-glow-cyan: 0 0 50px rgba(34, 211, 238, 0.35), 0 0 100px rgba(34, 211, 238, 0.15);
+  --bb-glow-amber: 0 0 50px rgba(251, 191, 36, 0.4), 0 0 100px rgba(251, 191, 36, 0.2);
+  --bb-glow-success: 0 0 40px rgba(52, 211, 153, 0.35), 0 0 80px rgba(52, 211, 153, 0.15);
+  --bb-glow-danger: 0 0 40px rgba(248, 113, 113, 0.4), 0 0 80px rgba(248, 113, 113, 0.2);
+  --bb-glow-warning: 0 0 40px rgba(251, 191, 36, 0.4), 0 0 80px rgba(251, 191, 36, 0.2);
 
   /* Skeleton animation - Dark mode */
   --bb-color-skeleton-base: var(--bb-color-bg-elevated);

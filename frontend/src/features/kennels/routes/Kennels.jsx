@@ -61,44 +61,48 @@ const getSizeBadge = (name) => {
   }
 };
 
-// Stat Card Component
+// Stat Card Component - Premium Glass Treatment with Gradient Icons
 const StatCard = ({ icon: Icon, label, value, subValue, variant = 'primary' }) => {
-  const variantStyles = {
-    primary: {
-      bg: 'bg-blue-50 dark:bg-blue-900/20',
-      iconBg: 'bg-blue-100 dark:bg-blue-900/40',
-      icon: 'text-blue-600 dark:text-blue-400',
-      border: 'border-blue-200 dark:border-blue-800/50',
-    },
-    success: {
-      bg: 'bg-emerald-50 dark:bg-emerald-900/20',
-      iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
-      icon: 'text-emerald-600 dark:text-emerald-400',
-      border: 'border-emerald-200 dark:border-emerald-800/50',
-    },
-    warning: {
-      bg: 'bg-amber-50 dark:bg-amber-900/20',
-      iconBg: 'bg-amber-100 dark:bg-amber-900/40',
-      icon: 'text-amber-600 dark:text-amber-400',
-      border: 'border-amber-200 dark:border-amber-800/50',
-    },
-    info: {
-      bg: 'bg-purple-50 dark:bg-purple-900/20',
-      iconBg: 'bg-purple-100 dark:bg-purple-900/40',
-      icon: 'text-purple-600 dark:text-purple-400',
-      border: 'border-purple-200 dark:border-purple-800/50',
-    },
+  // Gradient icon backgrounds
+  const iconGradients = {
+    primary: 'bg-gradient-to-br from-blue-500 to-cyan-500',
+    success: 'bg-gradient-to-br from-emerald-500 to-teal-500',
+    warning: 'bg-gradient-to-br from-amber-500 to-orange-500',
+    info: 'bg-gradient-to-br from-violet-500 to-purple-600',
   };
 
-  const styles = variantStyles[variant] || variantStyles.primary;
-
   return (
-    <div className={cn('relative flex items-center gap-3 rounded-xl border p-4', styles.bg, styles.border)}>
-      <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', styles.iconBg)}>
-        <Icon className={cn('h-5 w-5', styles.icon)} />
+    <div
+      className={cn(
+        'relative flex items-center gap-4 rounded-2xl border p-5 transition-all duration-300',
+        // Glass effect
+        'backdrop-blur-[16px]',
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]',
+        'hover:shadow-[0_12px_40px_rgba(0,0,0,0.12),_inset_0_0_0_1px_rgba(255,255,255,0.15)]'
+      )}
+    >
+      {/* Premium gradient icon with glow */}
+      <div className="relative">
+        <div
+          className={cn(
+            'absolute inset-0 rounded-xl blur-xl opacity-40',
+            iconGradients[variant]
+          )}
+          aria-hidden="true"
+        />
+        <div
+          className={cn(
+            'relative flex h-14 w-14 shrink-0 items-center justify-center rounded-xl shadow-lg',
+            iconGradients[variant]
+          )}
+        >
+          <Icon className="h-6 w-6 text-white" strokeWidth={1.75} />
+        </div>
       </div>
       <div className="min-w-0 text-left">
-        <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
           {label}
         </p>
         <p className="text-2xl font-bold text-[color:var(--bb-color-text-primary)] leading-tight">{value}</p>
@@ -530,7 +534,7 @@ const BuildingFloorSection = ({ title, kennels, onKennelClick, selectedKennelId,
   );
 };
 
-// Capacity Overview Sidebar Card - Enhanced with SVG circular gauge
+// Capacity Overview Sidebar Card - Premium Glass Treatment with SVG circular gauge
 const CapacityOverview = ({ stats }) => {
   const utilizationPercent = stats.totalCapacity > 0
     ? Math.round((stats.occupied / stats.totalCapacity) * 100)
@@ -554,12 +558,21 @@ const CapacityOverview = ({ stats }) => {
 
   return (
     <div
-      className="rounded-xl border p-5"
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+      className={cn(
+        'rounded-2xl border p-5 transition-all duration-200',
+        'backdrop-blur-[16px]',
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+      )}
     >
       <div className="flex items-center gap-2.5 mb-4">
-        <div className="h-8 w-8 rounded-lg bg-[color:var(--bb-color-accent-soft)] flex items-center justify-center">
-          <Activity className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
+        {/* Premium gradient icon with glow */}
+        <div className="relative">
+          <div className="absolute inset-0 rounded-xl blur-xl opacity-40 bg-gradient-to-br from-emerald-500 to-teal-500" aria-hidden="true" />
+          <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg">
+            <Activity className="h-5 w-5 text-white" strokeWidth={1.75} />
+          </div>
         </div>
         <div>
           <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Capacity Overview</h3>
@@ -617,7 +630,7 @@ const CapacityOverview = ({ stats }) => {
   );
 };
 
-// By Building Sidebar Card - Enhanced with visual feedback and progress bars
+// By Building Sidebar Card - Premium Glass Treatment with progress bars
 const BuildingBreakdown = ({ kennels, onJumpToSection }) => {
   const buildingStats = useMemo(() => {
     const stats = {};
@@ -637,12 +650,21 @@ const BuildingBreakdown = ({ kennels, onJumpToSection }) => {
 
   return (
     <div
-      className="rounded-xl border p-5"
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+      className={cn(
+        'rounded-2xl border p-5 transition-all duration-200',
+        'backdrop-blur-[16px]',
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+      )}
     >
       <div className="flex items-center gap-2.5 mb-4">
-        <div className="h-8 w-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-          <Building className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+        {/* Premium gradient icon with glow */}
+        <div className="relative">
+          <div className="absolute inset-0 rounded-xl blur-xl opacity-40 bg-gradient-to-br from-violet-500 to-purple-600" aria-hidden="true" />
+          <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <Building className="h-5 w-5 text-white" strokeWidth={1.75} />
+          </div>
         </div>
         <div>
           <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">By Location</h3>
@@ -716,7 +738,7 @@ const BuildingBreakdown = ({ kennels, onJumpToSection }) => {
   );
 };
 
-// By Type Sidebar Card
+// By Type Sidebar Card - Premium Glass Treatment
 const TypeBreakdown = ({ kennels }) => {
   const typeStats = useMemo(() => {
     const stats = {};
@@ -736,11 +758,22 @@ const TypeBreakdown = ({ kennels }) => {
 
   return (
     <div
-      className="rounded-xl border p-4"
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+      className={cn(
+        'rounded-2xl border p-4 transition-all duration-200',
+        'backdrop-blur-[16px]',
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+      )}
     >
-      <div className="flex items-center gap-2 mb-3">
-        <Layers className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+      <div className="flex items-center gap-2.5 mb-4">
+        {/* Premium gradient icon */}
+        <div className="relative">
+          <div className="absolute inset-0 rounded-lg blur-lg opacity-40 bg-gradient-to-br from-blue-500 to-indigo-500" aria-hidden="true" />
+          <div className="relative h-9 w-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-lg">
+            <Layers className="h-4 w-4 text-white" strokeWidth={1.75} />
+          </div>
+        </div>
         <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">By Type</h3>
       </div>
 
@@ -767,15 +800,28 @@ const TypeBreakdown = ({ kennels }) => {
   );
 };
 
-// Quick Actions Sidebar Card
+// Quick Actions Sidebar Card - Premium Glass Treatment
 const QuickActions = ({ onAddKennel, navigate }) => {
   return (
     <div
-      className="rounded-xl border p-4"
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+      className={cn(
+        'rounded-2xl border p-4 transition-all duration-200',
+        'backdrop-blur-[16px]',
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]',
+        // Subtle accent glow for primary action area
+        'ring-1 ring-violet-400/20 shadow-[0_0_30px_rgba(139,92,246,0.1)]'
+      )}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <TrendingUp className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+      <div className="flex items-center gap-2.5 mb-4">
+        {/* Premium gradient icon */}
+        <div className="relative">
+          <div className="absolute inset-0 rounded-lg blur-lg opacity-50 bg-gradient-to-br from-amber-500 to-orange-500" aria-hidden="true" />
+          <div className="relative h-9 w-9 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg">
+            <TrendingUp className="h-4 w-4 text-white" strokeWidth={1.75} />
+          </div>
+        </div>
         <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Quick Actions</h3>
       </div>
 
@@ -798,7 +844,7 @@ const QuickActions = ({ onAddKennel, navigate }) => {
   );
 };
 
-// Legend Component - Collapsible Sidebar Card with compact mode
+// Legend Component - Premium Glass with collapsible mode
 const MapLegend = () => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -812,17 +858,26 @@ const MapLegend = () => {
 
   return (
     <div
-      className="rounded-xl border overflow-hidden"
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+      className={cn(
+        'rounded-2xl border overflow-hidden transition-all duration-200',
+        'backdrop-blur-[16px]',
+        'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+        'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+        'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+      )}
     >
       {/* Header - clickable to expand */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-4 text-left hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
+        className="w-full flex items-center justify-between p-4 text-left hover:bg-white/20 dark:hover:bg-white/5 transition-colors"
       >
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-            <Map className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+          {/* Premium gradient icon */}
+          <div className="relative">
+            <div className="absolute inset-0 rounded-lg blur-lg opacity-40 bg-gradient-to-br from-slate-500 to-slate-600" aria-hidden="true" />
+            <div className="relative h-9 w-9 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg">
+              <Map className="h-4 w-4 text-white" strokeWidth={1.75} />
+            </div>
           </div>
           <div>
             <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Legend</h3>

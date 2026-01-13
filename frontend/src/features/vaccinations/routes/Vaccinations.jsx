@@ -1152,26 +1152,30 @@ const ListSkeleton = () => {
   );
 };
 
-// Empty State Component
+// Empty State Component with Premium Hero Treatment
 const EmptyState = ({ type, onClearFilters }) => (
-  <div className="flex-1 flex flex-col items-center justify-center py-16 rounded-xl border" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
-    <div className="flex h-16 w-16 items-center justify-center rounded-full mb-4" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-      <Shield className="h-8 w-8 text-[color:var(--bb-color-text-muted)]" />
+  <div className="flex-1 flex flex-col items-center justify-center py-20 rounded-2xl border backdrop-blur-[16px] bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)] shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]">
+    {/* Premium gradient icon with glow */}
+    <div className="relative mb-8">
+      <div className="absolute inset-0 rounded-3xl blur-2xl opacity-40 bg-gradient-to-br from-emerald-500 to-teal-500" aria-hidden="true" />
+      <div className="relative flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-500 shadow-xl">
+        <Shield className="h-12 w-12 text-white" strokeWidth={1.5} />
+      </div>
     </div>
     {type === 'no-data' ? (
       <>
-        <h3 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)] mb-2">No vaccination records yet</h3>
-        <p className="text-sm text-[color:var(--bb-color-text-muted)] text-center max-w-md">
+        <h3 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)] mb-3">No vaccination records yet</h3>
+        <p className="text-base text-[color:var(--bb-color-text-muted)] text-center max-w-md">
           Add vaccinations from individual pet profiles. This page shows all vaccination records across your facility.
         </p>
       </>
     ) : (
       <>
-        <h3 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)] mb-2">No vaccinations match these filters</h3>
-        <p className="text-sm text-[color:var(--bb-color-text-muted)] mb-4 text-center max-w-md">
+        <h3 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)] mb-3">No vaccinations match these filters</h3>
+        <p className="text-base text-[color:var(--bb-color-text-muted)] mb-6 text-center max-w-md">
           Try adjusting your search or filters to find what you're looking for.
         </p>
-        <Button variant="outline" onClick={onClearFilters}>Clear Filters</Button>
+        <Button variant="outline" size="lg" onClick={onClearFilters} className="shadow-lg">Clear Filters</Button>
       </>
     )}
   </div>

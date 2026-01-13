@@ -175,7 +175,7 @@ const Avatar = ({ name, size = 'md', className, isOnline, channel }) => {
   );
 };
 
-// Enhanced Stats Bar Component
+// Enhanced Stats Bar Component - Premium Glass Treatment with Gradient Icons
 const StatsBar = ({ conversations }) => {
   const stats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -195,86 +195,66 @@ const StatsBar = ({ conversations }) => {
       label: 'Total Conversations',
       value: stats.total,
       icon: MessageCircle,
-      variant: 'default',
+      gradient: 'from-violet-500 to-purple-600',
     },
     {
       label: 'Unread',
       value: stats.unread,
       icon: Inbox,
-      variant: stats.unread > 0 ? 'danger' : 'default',
+      gradient: 'from-red-500 to-rose-500',
       urgent: stats.unread > 0,
     },
     {
       label: 'Needs Reply',
       value: stats.needsReply,
       icon: Reply,
-      variant: stats.needsReply > 0 ? 'warning' : 'default',
+      gradient: 'from-amber-500 to-orange-500',
       urgent: stats.needsReply > 0,
     },
     {
       label: 'Sent Today',
       value: stats.sentToday,
       icon: SendIcon,
-      variant: 'success',
+      gradient: 'from-emerald-500 to-teal-500',
     },
   ];
-
-  const variantStyles = {
-    default: {
-      bg: 'bg-[color:var(--bb-color-bg-surface)]',
-      iconBg: 'bg-[color:var(--bb-color-accent-soft)]',
-      iconColor: 'text-[color:var(--bb-color-accent)]',
-      border: 'border-[color:var(--bb-color-border-subtle)]',
-    },
-    success: {
-      bg: 'bg-emerald-50 dark:bg-emerald-950/20',
-      iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
-      iconColor: 'text-emerald-600 dark:text-emerald-400',
-      border: 'border-emerald-200 dark:border-emerald-800/50',
-    },
-    warning: {
-      bg: 'bg-amber-50 dark:bg-amber-950/20',
-      iconBg: 'bg-amber-100 dark:bg-amber-900/40',
-      iconColor: 'text-amber-600 dark:text-amber-400',
-      border: 'border-amber-200 dark:border-amber-800/50',
-      glow: 'shadow-[0_0_15px_rgba(245,158,11,0.2)]',
-    },
-    danger: {
-      bg: 'bg-red-50 dark:bg-red-950/20',
-      iconBg: 'bg-red-100 dark:bg-red-900/40',
-      iconColor: 'text-red-600 dark:text-red-400',
-      border: 'border-red-200 dark:border-red-800/50',
-      glow: 'shadow-[0_0_15px_rgba(239,68,68,0.2)]',
-    },
-  };
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
       {statItems.map((stat, idx) => {
-        const styles = variantStyles[stat.variant];
         return (
           <div
             key={idx}
             className={cn(
-              'relative rounded-xl border p-4 transition-all',
-              styles.bg,
-              styles.border,
-              stat.urgent && styles.glow
+              'relative rounded-2xl border p-4 transition-all duration-300',
+              // Glass effect
+              'backdrop-blur-[16px]',
+              'bg-[var(--bb-glass-bg)] border-[var(--bb-glass-border)]',
+              'shadow-[0_8px_32px_rgba(0,0,0,0.08),_inset_0_0_0_1px_rgba(255,255,255,0.1)]',
+              'dark:shadow-[0_8px_32px_rgba(0,0,0,0.3),_inset_0_0_0_1px_rgba(255,255,255,0.05)]',
+              'hover:shadow-[0_12px_40px_rgba(0,0,0,0.12),_inset_0_0_0_1px_rgba(255,255,255,0.15)]',
+              // Urgent glow
+              stat.urgent && stat.value > 0 && stat.gradient.includes('red') && 'ring-2 ring-red-400/40 shadow-[0_0_35px_rgba(239,68,68,0.25)]',
+              stat.urgent && stat.value > 0 && stat.gradient.includes('amber') && 'ring-2 ring-amber-400/40 shadow-[0_0_35px_rgba(245,158,11,0.25)]'
             )}
           >
             {/* Urgent pulse indicator */}
             {stat.urgent && stat.value > 0 && (
               <div className="absolute -top-1.5 -right-1.5 h-4 w-4">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-current opacity-75 animate-ping" style={{ color: stat.variant === 'danger' ? '#ef4444' : '#f59e0b' }} />
-                <span className="relative inline-flex rounded-full h-4 w-4 items-center justify-center" style={{ backgroundColor: stat.variant === 'danger' ? '#ef4444' : '#f59e0b' }}>
+                <span className="absolute inline-flex h-full w-full rounded-full bg-current opacity-75 animate-ping" style={{ color: stat.gradient.includes('red') ? '#ef4444' : '#f59e0b' }} />
+                <span className="relative inline-flex rounded-full h-4 w-4 items-center justify-center" style={{ backgroundColor: stat.gradient.includes('red') ? '#ef4444' : '#f59e0b' }}>
                   <span className="text-[8px] font-bold text-white">!</span>
                 </span>
               </div>
             )}
 
             <div className="flex items-center gap-3">
-              <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center', styles.iconBg)}>
-                <stat.icon className={cn('h-5 w-5', styles.iconColor)} />
+              {/* Premium gradient icon with glow */}
+              <div className="relative">
+                <div className={cn('absolute inset-0 rounded-xl blur-xl opacity-40 bg-gradient-to-br', stat.gradient)} aria-hidden="true" />
+                <div className={cn('relative h-12 w-12 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-lg', stat.gradient)}>
+                  <stat.icon className="h-5 w-5 text-white" strokeWidth={1.75} />
+                </div>
               </div>
               <div>
                 <p className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">
