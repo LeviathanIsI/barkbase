@@ -35,6 +35,7 @@ import {
   Calendar,
   CalendarDays,
   CheckSquare,
+  ChevronDown,
   ChevronRight,
   Circle,
   CreditCard,
@@ -44,16 +45,22 @@ import {
   Gauge,
   GitMerge,
   Grid3X3,
+  HelpCircle,
   Info,
   Layers,
+  Lightbulb,
   ListFilter,
+  Monitor,
   PawPrint,
   Phone,
   PieChart as PieChartIcon,
+  Play,
   Plus,
   Redo2,
   RefreshCw,
   Search,
+  Smartphone,
+  Sparkles,
   Table2,
   TrendingUp,
   Undo2,
@@ -97,23 +104,151 @@ const DATA_SOURCES = [
   { value: 'staff', label: 'Staff', icon: UserCog, color: 'bg-rose-500' },
 ];
 
-// Chart types organized in 2 rows for icon grid
+// Chart types organized in 2 rows for icon grid with descriptions for beginners
 const CHART_TYPES = [
-  // Row 1
-  { value: 'line', label: 'Line', icon: Activity },
-  { value: 'bar', label: 'Bar', icon: BarChart3 },
-  { value: 'column', label: 'Column', icon: BarChart2 },
-  { value: 'area', label: 'Area', icon: TrendingUp },
-  { value: 'stacked', label: 'Stacked', icon: Layers },
-  { value: 'treemap', label: 'Treemap', icon: FolderTree },
+  // Row 1 - Common charts
+  { value: 'line', label: 'Line', icon: Activity, description: 'Show trends over time', category: 'common' },
+  { value: 'bar', label: 'Bar', icon: BarChart3, description: 'Compare categories', category: 'common' },
+  { value: 'column', label: 'Column', icon: BarChart2, description: 'Horizontal bar comparison', category: 'common' },
+  { value: 'area', label: 'Area', icon: TrendingUp, description: 'Volume trends over time', category: 'common' },
+  { value: 'stacked', label: 'Stacked', icon: Layers, description: 'Compare parts of a whole', category: 'common' },
+  { value: 'treemap', label: 'Treemap', icon: FolderTree, description: 'Hierarchical data sizes', category: 'advanced' },
   // Row 2
-  { value: 'pie', label: 'Pie', icon: PieChartIcon },
-  { value: 'donut', label: 'Donut', icon: Circle },
-  { value: 'table', label: 'Table', icon: Table2 },
-  { value: 'pivot', label: 'Pivot', icon: Grid3X3 },
-  { value: 'funnel', label: 'Funnel', icon: FilterIcon },
-  { value: 'sankey', label: 'Sankey', icon: GitMerge },
-  { value: 'gauge', label: 'Gauge', icon: Gauge },
+  { value: 'pie', label: 'Pie', icon: PieChartIcon, description: 'Show proportions', category: 'common' },
+  { value: 'donut', label: 'Donut', icon: Circle, description: 'Proportions with center', category: 'common' },
+  { value: 'table', label: 'Table', icon: Table2, description: 'Detailed data view', category: 'common' },
+  { value: 'pivot', label: 'Pivot', icon: Grid3X3, description: 'Cross-tabulate data', category: 'advanced' },
+  { value: 'funnel', label: 'Funnel', icon: FilterIcon, description: 'Stage progression', category: 'advanced' },
+  { value: 'sankey', label: 'Sankey', icon: GitMerge, description: 'Flow relationships', category: 'advanced' },
+  { value: 'gauge', label: 'Gauge', icon: Gauge, description: 'Single metric vs target', category: 'advanced' },
+];
+
+// Date range presets for quick selection
+const DATE_RANGE_PRESETS = [
+  { label: 'Today', getValue: () => {
+    const today = new Date().toISOString().split('T')[0];
+    return { startDate: today, endDate: today };
+  }},
+  { label: 'Yesterday', getValue: () => {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    return { startDate: yesterday, endDate: yesterday };
+  }},
+  { label: 'Last 7 days', getValue: () => {
+    const end = new Date().toISOString().split('T')[0];
+    const start = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+    return { startDate: start, endDate: end };
+  }},
+  { label: 'Last 30 days', getValue: () => {
+    const end = new Date().toISOString().split('T')[0];
+    const start = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+    return { startDate: start, endDate: end };
+  }},
+  { label: 'This month', getValue: () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const end = new Date().toISOString().split('T')[0];
+    return { startDate: start, endDate: end };
+  }},
+  { label: 'Last month', getValue: () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+    const end = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+    return { startDate: start, endDate: end };
+  }},
+  { label: 'This quarter', getValue: () => {
+    const now = new Date();
+    const quarter = Math.floor(now.getMonth() / 3);
+    const start = new Date(now.getFullYear(), quarter * 3, 1).toISOString().split('T')[0];
+    const end = new Date().toISOString().split('T')[0];
+    return { startDate: start, endDate: end };
+  }},
+  { label: 'This year', getValue: () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+    const end = new Date().toISOString().split('T')[0];
+    return { startDate: start, endDate: end };
+  }},
+];
+
+// Sample report templates for beginners
+const SAMPLE_REPORTS = [
+  {
+    id: 'revenue-by-service',
+    name: 'Revenue by Service',
+    description: 'See which services generate the most revenue',
+    icon: CreditCard,
+    color: '#10B981',
+    dataSource: 'bookings',
+    chartType: 'bar',
+    config: {
+      xAxis: 'service_name',
+      yAxis: 'total_price',
+    },
+  },
+  {
+    id: 'bookings-over-time',
+    name: 'Bookings Over Time',
+    description: 'Track booking trends by day or week',
+    icon: CalendarDays,
+    color: '#8B5CF6',
+    dataSource: 'bookings',
+    chartType: 'line',
+    config: {
+      xAxis: 'check_in_date',
+      yAxis: 'record_count',
+    },
+  },
+  {
+    id: 'pets-by-species',
+    name: 'Pets by Species',
+    description: 'Distribution of pets by type',
+    icon: PawPrint,
+    color: '#F59E0B',
+    dataSource: 'pets',
+    chartType: 'pie',
+    config: {
+      breakDownBy: 'species',
+      values: 'record_count',
+    },
+  },
+  {
+    id: 'top-customers',
+    name: 'Top Customers',
+    description: 'Your highest-value customers',
+    icon: Users,
+    color: '#3B82F6',
+    dataSource: 'owners',
+    chartType: 'table',
+    config: {
+      columns: ['name', 'total_spent', 'booking_count'],
+    },
+  },
+  {
+    id: 'staff-workload',
+    name: 'Staff Workload',
+    description: 'Bookings assigned per staff member',
+    icon: UserCog,
+    color: '#EC4899',
+    dataSource: 'staff',
+    chartType: 'column',
+    config: {
+      xAxis: 'staff_name',
+      yAxis: 'booking_count',
+    },
+  },
+  {
+    id: 'payment-methods',
+    name: 'Payment Methods',
+    description: 'How customers prefer to pay',
+    icon: CreditCard,
+    color: '#06B6D4',
+    dataSource: 'payments',
+    chartType: 'donut',
+    config: {
+      breakDownBy: 'payment_method',
+      values: 'amount',
+    },
+  },
 ];
 
 const AGGREGATION_OPTIONS = [
@@ -1184,6 +1319,22 @@ const CustomReportBuilder = () => {
   const [chartData, setChartData] = useState([]);
   const [error, setError] = useState(null);
 
+  // UI state for modals and mobile
+  const [showSampleReports, setShowSampleReports] = useState(false);
+  const [showGettingStarted, setShowGettingStarted] = useState(false);
+  const [showDatePresets, setShowDatePresets] = useState(false);
+  const [showAdvancedCharts, setShowAdvancedCharts] = useState(false);
+  const [hoveredChartType, setHoveredChartType] = useState(null);
+
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Fields from API
   const [fieldsConfig, setFieldsConfig] = useState({ dimensions: [], measures: [] });
   const [fieldsLoading, setFieldsLoading] = useState(false);
@@ -1569,8 +1720,165 @@ const CustomReportBuilder = () => {
   // Get current data source info
   const currentDataSource = DATA_SOURCES.find(ds => ds.value === dataSource);
 
+  // Apply sample report template
+  const applySampleReport = (sample) => {
+    setDataSource(sample.dataSource);
+    setChartType(sample.chartType);
+    setReportName(sample.name);
+    // Note: actual field application would require field lookup
+    setShowSampleReports(false);
+  };
+
+  // Mobile blocker
+  if (isMobile) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+        <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-6 shadow-lg shadow-violet-500/25">
+          <Monitor className="h-10 w-10 text-white" />
+        </div>
+        <h2 className="text-xl font-bold text-[var(--bb-color-text-primary)] mb-2">
+          Desktop Required
+        </h2>
+        <p className="text-[var(--bb-color-text-secondary)] max-w-sm mb-6">
+          The Report Builder requires a larger screen for the best experience.
+          Please use a desktop or laptop computer.
+        </p>
+        <div className="flex items-center gap-2 text-sm text-[var(--bb-color-text-muted)]">
+          <Smartphone className="h-4 w-4" />
+          <span>Current: Mobile device</span>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => navigate('/reports')}
+          className="mt-6"
+        >
+          Back to Reports
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-180px)] min-h-[600px] -mt-3">
+      {/* Sample Reports Modal */}
+      {showSampleReports && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowSampleReports(false)}>
+          <div className="bg-white dark:bg-[var(--bb-color-bg-surface)] rounded-xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-[var(--bb-color-border-subtle)] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                  <Lightbulb className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[var(--bb-color-text-primary)]">Sample Reports</h3>
+                  <p className="text-sm text-[var(--bb-color-text-muted)]">Start with a template to get inspired</p>
+                </div>
+              </div>
+              <button onClick={() => setShowSampleReports(false)} className="p-2 hover:bg-[var(--bb-color-bg-elevated)] rounded-lg">
+                <X className="h-5 w-5 text-[var(--bb-color-text-muted)]" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className="grid grid-cols-2 gap-4">
+                {SAMPLE_REPORTS.map((sample) => {
+                  const Icon = sample.icon;
+                  return (
+                    <button
+                      key={sample.id}
+                      onClick={() => applySampleReport(sample)}
+                      className="text-left p-4 rounded-xl border border-[var(--bb-color-border-subtle)] hover:border-[var(--bb-color-accent)] hover:shadow-md transition-all group"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: `${sample.color}20` }}
+                        >
+                          <Icon size={20} style={{ color: sample.color }} />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-[var(--bb-color-text-primary)] group-hover:text-[var(--bb-color-accent)]">
+                            {sample.name}
+                          </h4>
+                          <p className="text-sm text-[var(--bb-color-text-muted)] mt-0.5">
+                            {sample.description}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2 text-xs text-[var(--bb-color-text-muted)]">
+                            <span className="px-2 py-0.5 rounded bg-[var(--bb-color-bg-elevated)]">
+                              {CHART_TYPES.find(c => c.value === sample.chartType)?.label}
+                            </span>
+                            <span className="px-2 py-0.5 rounded bg-[var(--bb-color-bg-elevated)]">
+                              {DATA_SOURCES.find(d => d.value === sample.dataSource)?.label}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Getting Started Modal */}
+      {showGettingStarted && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowGettingStarted(false)}>
+          <div className="bg-white dark:bg-[var(--bb-color-bg-surface)] rounded-xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-[var(--bb-color-border-subtle)] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                  <HelpCircle className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[var(--bb-color-text-primary)]">How to Build a Report</h3>
+                  <p className="text-sm text-[var(--bb-color-text-muted)]">Quick guide for first-time users</p>
+                </div>
+              </div>
+              <button onClick={() => setShowGettingStarted(false)} className="p-2 hover:bg-[var(--bb-color-bg-elevated)] rounded-lg">
+                <X className="h-5 w-5 text-[var(--bb-color-text-muted)]" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {[
+                { step: 1, title: 'Choose Data Source', desc: 'Select what data you want to analyze (Bookings, Owners, Pets, etc.)', color: '#3B82F6' },
+                { step: 2, title: 'Pick Chart Type', desc: 'Choose how you want to visualize the data (Bar, Line, Pie, etc.)', color: '#8B5CF6' },
+                { step: 3, title: 'Drag Fields', desc: 'Drag dimensions to X-axis and measures to Y-axis', color: '#10B981' },
+                { step: 4, title: 'Add Filters', desc: 'Optionally filter to specific date ranges or conditions', color: '#F59E0B' },
+                { step: 5, title: 'Save & Export', desc: 'Save your report for later or export the data', color: '#EC4899' },
+              ].map((item) => (
+                <div key={item.step} className="flex items-start gap-4">
+                  <div
+                    className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold text-sm"
+                    style={{ backgroundColor: item.color }}
+                  >
+                    {item.step}
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-[var(--bb-color-text-primary)]">{item.title}</h4>
+                    <p className="text-sm text-[var(--bb-color-text-muted)]">{item.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="px-6 py-4 border-t border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)]/50 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setShowGettingStarted(false);
+                  setShowSampleReports(true);
+                }}
+                className="text-sm text-[var(--bb-color-accent)] hover:underline"
+              >
+                Or start with a sample report →
+              </button>
+              <Button variant="primary" size="sm" onClick={() => setShowGettingStarted(false)}>
+                Got it!
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Bar - enterprise style */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#1a2433] dark:bg-[#1a2433] border-b border-[#2d3e50]">
         <div className="flex items-center gap-3">
@@ -1606,12 +1914,21 @@ const CustomReportBuilder = () => {
           </button>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowGettingStarted(true)}
+            className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            title="How to use"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </button>
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setShowSampleReports(true)}
             className="h-8 px-3 border-white/20 text-white/80 hover:text-white hover:bg-white/10"
           >
-            Sample reports
+            <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+            Templates
           </Button>
           <Button
             variant="primary"
@@ -1794,80 +2111,88 @@ const CustomReportBuilder = () => {
                 </button>
               </div>
 
-              {/* Chart Type Grid - 4, 4, 5 layout */}
-              <div className="px-4 py-3 border-b border-border space-y-1">
-                {/* Row 1: 4 items */}
-                <div className="grid grid-cols-4 gap-1">
-                  {CHART_TYPES.slice(0, 4).map((ct) => (
-                    <button
-                      key={ct.value}
-                      onClick={() => setChartType(ct.value)}
-                      title={ct.label}
-                      className={cn(
-                        "flex flex-col items-center justify-center py-1.5 px-1 rounded-md transition-all",
-                        chartType === ct.value
-                          ? "bg-primary/10 text-primary ring-2 ring-primary/30"
-                          : "text-muted hover:bg-surface-hover hover:text-text"
+              {/* Chart Type Grid - with tooltips and categories */}
+              <div className="px-4 py-3 border-b border-border">
+                {/* Common charts - always visible */}
+                <div className="grid grid-cols-4 gap-1.5 mb-2">
+                  {CHART_TYPES.filter(ct => ct.category === 'common').slice(0, 8).map((ct) => (
+                    <div key={ct.value} className="relative group">
+                      <button
+                        onClick={() => setChartType(ct.value)}
+                        onMouseEnter={() => setHoveredChartType(ct.value)}
+                        onMouseLeave={() => setHoveredChartType(null)}
+                        className={cn(
+                          "w-full flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all",
+                          chartType === ct.value
+                            ? "bg-primary/10 text-primary ring-2 ring-primary/30"
+                            : "text-muted hover:bg-surface-hover hover:text-text"
+                        )}
+                      >
+                        <ct.icon className="h-5 w-5 mb-1" />
+                        <span className={cn(
+                          "text-[10px] leading-tight font-medium",
+                          chartType === ct.value ? "text-primary" : "text-muted"
+                        )}>
+                          {ct.label}
+                        </span>
+                      </button>
+                      {/* Tooltip on hover */}
+                      {hoveredChartType === ct.value && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-[10px] rounded-lg whitespace-nowrap z-20 shadow-lg">
+                          <div className="font-medium">{ct.label}</div>
+                          <div className="text-gray-300">{ct.description}</div>
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900" />
+                        </div>
                       )}
-                    >
-                      <ct.icon className="h-4.5 w-4.5 mb-0.5" />
-                      <span className={cn(
-                        "text-[10px] leading-tight",
-                        chartType === ct.value ? "text-primary" : "text-muted"
-                      )}>
-                        {ct.label}
-                      </span>
-                    </button>
+                    </div>
                   ))}
                 </div>
-                {/* Row 2: 4 items */}
-                <div className="grid grid-cols-4 gap-1">
-                  {CHART_TYPES.slice(4, 8).map((ct) => (
-                    <button
-                      key={ct.value}
-                      onClick={() => setChartType(ct.value)}
-                      title={ct.label}
-                      className={cn(
-                        "flex flex-col items-center justify-center py-1.5 px-1 rounded-md transition-all",
-                        chartType === ct.value
-                          ? "bg-primary/10 text-primary ring-2 ring-primary/30"
-                          : "text-muted hover:bg-surface-hover hover:text-text"
-                      )}
-                    >
-                      <ct.icon className="h-4.5 w-4.5 mb-0.5" />
-                      <span className={cn(
-                        "text-[10px] leading-tight",
-                        chartType === ct.value ? "text-primary" : "text-muted"
-                      )}>
-                        {ct.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                {/* Row 3: 5 items */}
-                <div className="grid grid-cols-5 gap-1">
-                  {CHART_TYPES.slice(8).map((ct) => (
-                    <button
-                      key={ct.value}
-                      onClick={() => setChartType(ct.value)}
-                      title={ct.label}
-                      className={cn(
-                        "flex flex-col items-center justify-center py-1.5 px-1 rounded-md transition-all",
-                        chartType === ct.value
-                          ? "bg-primary/10 text-primary ring-2 ring-primary/30"
-                          : "text-muted hover:bg-surface-hover hover:text-text"
-                      )}
-                    >
-                      <ct.icon className="h-4.5 w-4.5 mb-0.5" />
-                      <span className={cn(
-                        "text-[10px] leading-tight",
-                        chartType === ct.value ? "text-primary" : "text-muted"
-                      )}>
-                        {ct.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+
+                {/* Toggle for advanced charts */}
+                <button
+                  onClick={() => setShowAdvancedCharts(!showAdvancedCharts)}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs text-muted hover:text-text transition-colors"
+                >
+                  <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showAdvancedCharts && "rotate-180")} />
+                  {showAdvancedCharts ? 'Hide' : 'Show'} advanced charts
+                </button>
+
+                {/* Advanced charts - collapsible */}
+                {showAdvancedCharts && (
+                  <div className="grid grid-cols-5 gap-1.5 mt-2 pt-2 border-t border-border/50">
+                    {CHART_TYPES.filter(ct => ct.category === 'advanced').map((ct) => (
+                      <div key={ct.value} className="relative group">
+                        <button
+                          onClick={() => setChartType(ct.value)}
+                          onMouseEnter={() => setHoveredChartType(ct.value)}
+                          onMouseLeave={() => setHoveredChartType(null)}
+                          className={cn(
+                            "w-full flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all",
+                            chartType === ct.value
+                              ? "bg-primary/10 text-primary ring-2 ring-primary/30"
+                              : "text-muted hover:bg-surface-hover hover:text-text"
+                          )}
+                        >
+                          <ct.icon className="h-4 w-4 mb-0.5" />
+                          <span className={cn(
+                            "text-[9px] leading-tight",
+                            chartType === ct.value ? "text-primary" : "text-muted"
+                          )}>
+                            {ct.label}
+                          </span>
+                        </button>
+                        {/* Tooltip on hover */}
+                        {hoveredChartType === ct.value && (
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-[10px] rounded-lg whitespace-nowrap z-20 shadow-lg">
+                            <div className="font-medium">{ct.label}</div>
+                            <div className="text-gray-300">{ct.description}</div>
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Toolbar - Undo/Redo/Refresh */}
@@ -1950,22 +2275,79 @@ const CustomReportBuilder = () => {
 
                 {/* Date Range in Configure tab */}
                 <div className="mb-4 pt-2 border-t border-border/50">
-                  <div className="flex items-center gap-1.5 mb-1.5">
+                  <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-medium text-text">Date Range</span>
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowDatePresets(!showDatePresets)}
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-primary hover:bg-primary/5 rounded transition-colors"
+                      >
+                        Quick select
+                        <ChevronDown className={cn("h-3 w-3 transition-transform", showDatePresets && "rotate-180")} />
+                      </button>
+                      {/* Date Presets Dropdown */}
+                      {showDatePresets && (
+                        <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-surface-secondary rounded-lg border border-border shadow-lg z-20 py-1">
+                          {DATE_RANGE_PRESETS.map((preset, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                const range = preset.getValue();
+                                setDateRange(range);
+                                setShowDatePresets(false);
+                              }}
+                              className="w-full px-3 py-1.5 text-xs text-left text-text hover:bg-surface-hover transition-colors"
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                          <div className="border-t border-border/50 mt-1 pt-1">
+                            <button
+                              onClick={() => {
+                                setDateRange({ startDate: null, endDate: null });
+                                setShowDatePresets(false);
+                              }}
+                              className="w-full px-3 py-1.5 text-xs text-left text-muted hover:bg-surface-hover transition-colors"
+                            >
+                              Clear dates
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
+                  {/* Show selected preset or custom label */}
+                  {dateRange.startDate && (
+                    <div className="text-[10px] text-muted mb-2">
+                      {(() => {
+                        // Try to match a preset
+                        const matchedPreset = DATE_RANGE_PRESETS.find(p => {
+                          const range = p.getValue();
+                          return range.startDate === dateRange.startDate && range.endDate === dateRange.endDate;
+                        });
+                        return matchedPreset ? matchedPreset.label : 'Custom range';
+                      })()}
+                    </div>
+                  )}
                   <div className="flex gap-2">
-                    <input
-                      type="date"
-                      value={dateRange.startDate || ''}
-                      onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
-                      className="flex-1 px-3 py-2 text-xs bg-surface-secondary dark:bg-surface-primary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <input
-                      type="date"
-                      value={dateRange.endDate || ''}
-                      onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
-                      className="flex-1 px-3 py-2 text-xs bg-surface-secondary dark:bg-surface-primary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
+                    <div className="flex-1">
+                      <label className="text-[10px] text-muted mb-1 block">From</label>
+                      <input
+                        type="date"
+                        value={dateRange.startDate || ''}
+                        onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
+                        className="w-full px-3 py-2 text-xs bg-surface-secondary dark:bg-surface-primary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[10px] text-muted mb-1 block">To</label>
+                      <input
+                        type="date"
+                        value={dateRange.endDate || ''}
+                        onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
+                        className="w-full px-3 py-2 text-xs bg-surface-secondary dark:bg-surface-primary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
