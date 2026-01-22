@@ -83,13 +83,17 @@ import {
   LineChart,
   Pie,
   PieChart,
+  Rectangle,
   ResponsiveContainer,
+  Sankey,
   Scatter,
   ScatterChart,
   Tooltip,
+  Treemap,
   XAxis,
   YAxis,
 } from 'recharts';
+import { CHART_PREVIEW_CONFIG, PREVIEW_PIVOT, PREVIEW_SANKEY, PREVIEW_TREEMAP } from '../data/chartPreviewData';
 
 // =============================================================================
 // DATA SOURCE CONFIGURATION
@@ -2136,14 +2140,6 @@ const CustomReportBuilder = () => {
                           {ct.label}
                         </span>
                       </button>
-                      {/* Tooltip on hover */}
-                      {hoveredChartType === ct.value && (
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-[10px] rounded-lg whitespace-nowrap z-20 shadow-lg">
-                          <div className="font-medium">{ct.label}</div>
-                          <div className="text-gray-300">{ct.description}</div>
-                          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900" />
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -2181,14 +2177,6 @@ const CustomReportBuilder = () => {
                             {ct.label}
                           </span>
                         </button>
-                        {/* Tooltip on hover */}
-                        {hoveredChartType === ct.value && (
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-[10px] rounded-lg whitespace-nowrap z-20 shadow-lg">
-                            <div className="font-medium">{ct.label}</div>
-                            <div className="text-gray-300">{ct.description}</div>
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900" />
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -2498,7 +2486,208 @@ const CustomReportBuilder = () => {
               </div>
             )}
 
-            {!requirementsStatus.met ? (
+            {hoveredChartType && chartData.length === 0 ? (
+              // Chart type preview with sample data
+              <div className="h-full relative">
+                {/* Preview overlay label */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                  <div className="px-6 py-3 bg-black/60 backdrop-blur-sm rounded-xl border border-white/20 shadow-lg">
+                    <span className="text-white/90 text-lg font-medium tracking-wide">
+                      Preview
+                    </span>
+                  </div>
+                </div>
+                {/* Preview chart */}
+                {hoveredChartType === 'table' ? (
+                  <div className="overflow-auto max-h-full rounded-lg border border-border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-surface-secondary sticky top-0">
+                        <tr>
+                          {Object.keys(CHART_PREVIEW_CONFIG[hoveredChartType]?.data?.[0] || {}).map(key => (
+                            <th key={key} className="px-4 py-3 text-left font-medium text-muted uppercase text-xs tracking-wide border-b border-border">
+                              {key}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-surface-primary">
+                        {(CHART_PREVIEW_CONFIG[hoveredChartType]?.data || []).map((row, i) => (
+                          <tr key={i} className="border-b border-border hover:bg-surface-hover transition-colors">
+                            {Object.values(row).map((value, j) => (
+                              <td key={j} className="px-4 py-3 text-text">{value}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : hoveredChartType === 'pivot' ? (
+                  <div className="overflow-auto max-h-full rounded-lg border border-border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-surface-secondary sticky top-0">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-medium text-muted border-b border-r border-border">Service</th>
+                          {PREVIEW_PIVOT.columns.map(col => (
+                            <th key={col} className="px-4 py-3 text-center font-medium text-muted border-b border-border">{col}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-surface-primary">
+                        {PREVIEW_PIVOT.rows.map((row, i) => (
+                          <tr key={row} className="border-b border-border">
+                            <td className="px-4 py-3 font-medium text-text bg-surface-secondary border-r border-border">{row}</td>
+                            {PREVIEW_PIVOT.data[i].map((val, j) => (
+                              <td key={j} className="px-4 py-3 text-center text-text">{val}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    {hoveredChartType === 'bar' ? (
+                      <BarChart data={CHART_PREVIEW_CONFIG.bar.data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
+                        <XAxis dataKey="name" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
+                        <YAxis stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
+                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Legend />
+                        <Bar dataKey="value" fill={chartColorSequence[0]} radius={[4, 4, 0, 0]} name="Revenue" />
+                      </BarChart>
+                    ) : hoveredChartType === 'column' ? (
+                      <BarChart data={CHART_PREVIEW_CONFIG.column.data} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
+                        <XAxis type="number" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
+                        <YAxis dataKey="name" type="category" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} width={80} />
+                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Legend />
+                        <Bar dataKey="value" fill={chartColorSequence[0]} radius={[0, 4, 4, 0]} name="Revenue" />
+                      </BarChart>
+                    ) : hoveredChartType === 'line' ? (
+                      <LineChart data={CHART_PREVIEW_CONFIG.line.data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
+                        <XAxis dataKey="name" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
+                        <YAxis stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
+                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Legend />
+                        <Line type="monotone" dataKey="bookings" stroke={chartColorSequence[0]} strokeWidth={2} dot={{ fill: chartColorSequence[0], r: 4 }} name="Bookings" />
+                      </LineChart>
+                    ) : hoveredChartType === 'area' ? (
+                      <AreaChart data={CHART_PREVIEW_CONFIG.area.data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
+                        <XAxis dataKey="name" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
+                        <YAxis stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
+                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Legend />
+                        <Area type="monotone" dataKey="bookings" stroke={chartColorSequence[0]} fill={chartColorSequence[0]} fillOpacity={0.3} name="Bookings" />
+                      </AreaChart>
+                    ) : hoveredChartType === 'pie' ? (
+                      <PieChart>
+                        <Pie data={CHART_PREVIEW_CONFIG.pie.data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={140} label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`} labelLine={{ stroke: 'var(--bb-color-text-muted)' }}>
+                          {CHART_PREVIEW_CONFIG.pie.data.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={chartColorSequence[index % chartColorSequence.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Legend />
+                      </PieChart>
+                    ) : hoveredChartType === 'donut' ? (
+                      <PieChart>
+                        <Pie data={CHART_PREVIEW_CONFIG.donut.data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={80} outerRadius={140} label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`} labelLine={{ stroke: 'var(--bb-color-text-muted)' }}>
+                          {CHART_PREVIEW_CONFIG.donut.data.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={chartColorSequence[index % chartColorSequence.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Legend />
+                      </PieChart>
+                    ) : hoveredChartType === 'stacked' ? (
+                      <BarChart data={CHART_PREVIEW_CONFIG.stacked.data}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
+                        <XAxis dataKey="name" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
+                        <YAxis stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
+                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Legend />
+                        <Bar dataKey="dogs" stackId="a" fill={chartColorSequence[0]} name="Dogs" />
+                        <Bar dataKey="cats" stackId="a" fill={chartColorSequence[1]} name="Cats" />
+                        <Bar dataKey="other" stackId="a" fill={chartColorSequence[2]} name="Other" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    ) : hoveredChartType === 'funnel' ? (
+                      <BarChart data={CHART_PREVIEW_CONFIG.funnel.data} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
+                        <XAxis type="number" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
+                        <YAxis dataKey="name" type="category" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} width={80} />
+                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Legend />
+                        <Bar dataKey="value" fill={chartColorSequence[0]} radius={[0, 4, 4, 0]} name="Count" />
+                      </BarChart>
+                    ) : hoveredChartType === 'treemap' ? (
+                      <Treemap
+                        data={PREVIEW_TREEMAP}
+                        dataKey="size"
+                        nameKey="name"
+                        aspectRatio={4/3}
+                        stroke="var(--bb-color-chart-grid)"
+                        content={({ x, y, width, height, name, index }) => (
+                          <g>
+                            <Rectangle
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={height}
+                              fill={chartColorSequence[index % chartColorSequence.length]}
+                              stroke="var(--bb-color-surface-primary)"
+                              strokeWidth={2}
+                            />
+                            {width > 50 && height > 30 && (
+                              <text
+                                x={x + width / 2}
+                                y={y + height / 2}
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                                fill="#fff"
+                                fontSize={12}
+                                fontWeight={500}
+                              >
+                                {name}
+                              </text>
+                            )}
+                          </g>
+                        )}
+                      >
+                        <Tooltip contentStyle={tooltipContentStyle} />
+                      </Treemap>
+                    ) : hoveredChartType === 'sankey' ? (
+                      <Sankey
+                        data={PREVIEW_SANKEY}
+                        node={{
+                          stroke: 'var(--bb-color-chart-grid)',
+                          strokeWidth: 1,
+                          fill: chartColorSequence[0],
+                        }}
+                        link={{
+                          stroke: 'var(--bb-color-chart-grid)',
+                          strokeOpacity: 0.5,
+                        }}
+                        nodePadding={50}
+                        margin={{ top: 20, right: 100, bottom: 20, left: 100 }}
+                      >
+                        <Tooltip contentStyle={tooltipContentStyle} />
+                      </Sankey>
+                    ) : hoveredChartType === 'gauge' ? (
+                      <PieChart>
+                        <Pie data={[{ name: 'Value', value: 73 }, { name: 'Remaining', value: 27 }]} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={80} outerRadius={140} startAngle={180} endAngle={0}>
+                          <Cell fill={chartColorSequence[0]} />
+                          <Cell fill="var(--bb-color-chart-grid)" />
+                        </Pie>
+                        <Tooltip contentStyle={tooltipContentStyle} />
+                      </PieChart>
+                    ) : null}
+                  </ResponsiveContainer>
+                )}
+              </div>
+            ) : !requirementsStatus.met ? (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center max-w-md">
                   <div className="w-24 h-24 mx-auto mb-4 bg-surface-secondary rounded-full flex items-center justify-center">
