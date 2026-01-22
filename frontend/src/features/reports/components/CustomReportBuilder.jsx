@@ -2661,17 +2661,33 @@ const CustomReportBuilder = () => {
                     ) : hoveredChartType === 'sankey' ? (
                       <Sankey
                         data={PREVIEW_SANKEY}
-                        node={{
-                          stroke: 'var(--bb-color-chart-grid)',
-                          strokeWidth: 1,
-                          fill: chartColorSequence[0],
-                        }}
-                        link={{
-                          stroke: 'var(--bb-color-chart-grid)',
-                          strokeOpacity: 0.5,
-                        }}
-                        nodePadding={50}
-                        margin={{ top: 20, right: 100, bottom: 20, left: 100 }}
+                        nodeWidth={10}
+                        nodePadding={40}
+                        margin={{ top: 10, right: 10, bottom: 10, left: 10 }}
+                        link={{ stroke: chartColorSequence[0], strokeOpacity: 0.4 }}
+                        node={({ x, y, width, height, index, payload }) => (
+                          <g>
+                            <rect
+                              x={x}
+                              y={y}
+                              width={width}
+                              height={height}
+                              fill={chartColorSequence[index % chartColorSequence.length]}
+                              stroke="var(--bb-color-surface-primary)"
+                              strokeWidth={1}
+                            />
+                            <text
+                              x={index < 3 ? x - 6 : x + width + 6}
+                              y={y + height / 2}
+                              textAnchor={index < 3 ? 'end' : 'start'}
+                              dominantBaseline="middle"
+                              fill="var(--bb-color-text)"
+                              fontSize={11}
+                            >
+                              {payload.name}
+                            </text>
+                          </g>
+                        )}
                       >
                         <Tooltip contentStyle={tooltipContentStyle} />
                       </Sankey>
