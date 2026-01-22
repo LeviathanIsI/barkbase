@@ -2695,10 +2695,16 @@ const CustomReportBuilder = () => {
                       </Sankey>
                     ) : hoveredChartType === 'gauge' ? (
                       <PieChart>
-                        <Pie data={[{ name: 'Value', value: 73 }, { name: 'Remaining', value: 27 }]} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={80} outerRadius={140} startAngle={180} endAngle={0}>
+                        <Pie data={[{ name: 'Occupancy', value: 73 }, { name: 'Available', value: 27 }]} dataKey="value" nameKey="name" cx="50%" cy="60%" innerRadius={80} outerRadius={140} startAngle={180} endAngle={0}>
                           <Cell fill={chartColorSequence[0]} />
                           <Cell fill="var(--bb-color-chart-grid)" />
                         </Pie>
+                        <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" style={{ fill: 'var(--bb-color-text)' }} fontSize={36} fontWeight={600}>
+                          73%
+                        </text>
+                        <text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" style={{ fill: 'var(--bb-color-text-muted)' }} fontSize={14}>
+                          Occupancy
+                        </text>
                         <Tooltip contentStyle={tooltipContentStyle} />
                       </PieChart>
                     ) : null}
