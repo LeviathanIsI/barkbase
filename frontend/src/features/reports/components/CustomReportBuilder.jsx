@@ -2681,7 +2681,8 @@ const CustomReportBuilder = () => {
                               y={y + height / 2}
                               textAnchor={index < 3 ? 'end' : 'start'}
                               dominantBaseline="middle"
-                              fill="var(--bb-color-text)"
+                              className="fill-text-muted"
+                              style={{ fill: 'var(--bb-color-text-muted)' }}
                               fontSize={12}
                               fontWeight={500}
                             >
