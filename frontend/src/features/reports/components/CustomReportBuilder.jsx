@@ -2661,9 +2661,9 @@ const CustomReportBuilder = () => {
                     ) : hoveredChartType === 'sankey' ? (
                       <Sankey
                         data={PREVIEW_SANKEY}
-                        nodeWidth={10}
-                        nodePadding={40}
-                        margin={{ top: 10, right: 10, bottom: 10, left: 10 }}
+                        nodeWidth={12}
+                        nodePadding={30}
+                        margin={{ top: 20, right: 80, bottom: 20, left: 80 }}
                         link={{ stroke: chartColorSequence[0], strokeOpacity: 0.4 }}
                         node={({ x, y, width, height, index, payload }) => (
                           <g>
@@ -2677,12 +2677,13 @@ const CustomReportBuilder = () => {
                               strokeWidth={1}
                             />
                             <text
-                              x={index < 3 ? x - 6 : x + width + 6}
+                              x={index < 3 ? x - 8 : x + width + 8}
                               y={y + height / 2}
                               textAnchor={index < 3 ? 'end' : 'start'}
                               dominantBaseline="middle"
                               fill="var(--bb-color-text)"
-                              fontSize={11}
+                              fontSize={12}
+                              fontWeight={500}
                             >
                               {payload.name}
                             </text>
