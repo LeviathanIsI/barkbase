@@ -1367,7 +1367,8 @@ const CustomReportBuilder = () => {
         for (const source of dataSources) {
           const data = response.data?.data?.[source.id] || { dimensions: [], measures: [] };
           const isMultiSource = dataSources.length > 1;
-          const prefix = isMultiSource ? `${source.id}.` : '';
+          // Use '__' separator instead of '.' because Recharts interprets '.' as nested property access
+          const prefix = isMultiSource ? `${source.id}__` : '';
           const groupPrefix = isMultiSource ? `${DATA_SOURCES.find(ds => ds.value === source.id)?.label || source.id} - ` : '';
 
           // Map dimensions

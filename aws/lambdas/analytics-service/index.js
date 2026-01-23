@@ -1843,12 +1843,13 @@ async function handleCustomReportQuery(tenantId, body) {
     const DANGEROUS_PATTERNS = /[;'"\\(){}[\]<>|&$`!]/;
 
     /**
-     * Parse a field key that may be prefixed with source name (e.g., "bookings.status" or just "status")
+     * Parse a field key that may be prefixed with source name (e.g., "bookings__status" or just "status")
+     * Uses '__' separator instead of '.' because Recharts interprets '.' as nested property access
      * Returns { source, field } where source is the table alias and field is the column name
      */
     const parseFieldKey = (key) => {
-      if (key.includes('.')) {
-        const [source, field] = key.split('.', 2);
+      if (key.includes('__')) {
+        const [source, field] = key.split('__', 2);
         return { source, field };
       }
       return { source: null, field: key };
