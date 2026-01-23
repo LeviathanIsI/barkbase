@@ -1761,7 +1761,7 @@ const DATA_SOURCE_CONFIG = {
     idField: 'record_id',
     dimensions: {
       status: { column: 't.status', label: 'Status' },
-      payment_method: { column: 't.payment_method', label: 'Payment Method' },
+      method: { column: 't.method', label: 'Payment Method' },
       payment_date: { column: 'DATE(t.processed_at)', label: 'Payment Date' },
       payment_month: { column: "TO_CHAR(t.processed_at, 'YYYY-MM')", label: 'Payment Month' },
     },
