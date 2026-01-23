@@ -2096,35 +2096,6 @@ const CustomReportBuilder = () => {
             </div>
           </div>
 
-          {/* Browse Data Source Dropdown */}
-          <div className="px-3 py-2 border-b border-border">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted">Browse:</span>
-              <StyledSelect
-                options={DATA_SOURCES.map(ds => ({ value: ds.value, label: ds.label }))}
-                value={primaryDataSource}
-                onChange={(opt) => {
-                  const newSourceId = opt?.value || 'bookings';
-                  setDataSources(prev => {
-                    // If source already exists, just make it primary
-                    const existing = prev.find(s => s.id === newSourceId);
-                    if (existing) {
-                      return prev.map(s => ({ ...s, isPrimary: s.id === newSourceId }));
-                    }
-                    // Otherwise add it as primary
-                    return [
-                      { id: newSourceId, isPrimary: true },
-                      ...prev.map(s => ({ ...s, isPrimary: false })),
-                    ];
-                  });
-                }}
-                isClearable={false}
-                isSearchable={false}
-                className="flex-1"
-              />
-            </div>
-          </div>
-
           {/* Field Lists - Collapsible Groups */}
           <div className="flex-1 overflow-y-auto">
             {fieldsLoading ? (
