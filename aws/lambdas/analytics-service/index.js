@@ -333,6 +333,13 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // Report Associations - GET available associations for cross-object reporting
+    if (path === '/api/v1/analytics/reports/associations' || path === '/analytics/reports/associations') {
+      if (method === 'GET') {
+        return handleGetReportAssociations(queryParams);
+      }
+    }
+
     // Saved Reports - CRUD operations
     if (path === '/api/v1/analytics/reports/saved' || path === '/analytics/reports/saved') {
       if (method === 'GET') {
@@ -1577,6 +1584,97 @@ async function handleGenerateReport(tenantId, body) {
 // =============================================================================
 
 /**
+ * Entity associations map for cross-object reporting
+ * Defines how different data sources can be joined together
+ */
+const ENTITY_ASSOCIATIONS = {
+  bookings: {
+    owners: { type: 'INNER', join: 'INNER JOIN "Owner" owners ON owners.record_id = t.owner_id AND owners.tenant_id = t.tenant_id', via: 'owner_id' },
+    pets: { type: 'INNER', join: 'INNER JOIN "BookingPet" bp ON bp.booking_id = t.record_id INNER JOIN "Pet" pets ON pets.record_id = bp.pet_id AND pets.tenant_id = t.tenant_id', via: 'BookingPet' },
+    services: { type: 'INNER', join: 'INNER JOIN "Service" services ON services.record_id = t.service_id AND services.tenant_id = t.tenant_id', via: 'service_id' },
+  },
+  owners: {
+    pets: { type: 'INNER', join: 'INNER JOIN "PetOwner" po ON po.owner_id = t.record_id INNER JOIN "Pet" pets ON pets.record_id = po.pet_id AND pets.tenant_id = t.tenant_id', via: 'PetOwner' },
+    bookings: { type: 'LEFT', join: 'LEFT JOIN "Booking" bookings ON bookings.owner_id = t.record_id AND bookings.tenant_id = t.tenant_id', via: 'owner_id' },
+    payments: { type: 'LEFT', join: 'LEFT JOIN "Payment" payments ON payments.owner_id = t.record_id AND payments.tenant_id = t.tenant_id', via: 'owner_id' },
+  },
+  pets: {
+    owners: { type: 'INNER', join: 'INNER JOIN "PetOwner" po ON po.pet_id = t.record_id INNER JOIN "Owner" owners ON owners.record_id = po.owner_id AND owners.tenant_id = t.tenant_id', via: 'PetOwner' },
+    bookings: { type: 'LEFT', join: 'LEFT JOIN "BookingPet" bp ON bp.pet_id = t.record_id LEFT JOIN "Booking" bookings ON bookings.record_id = bp.booking_id AND bookings.tenant_id = t.tenant_id', via: 'BookingPet' },
+  },
+  services: {
+    bookings: { type: 'LEFT', join: 'LEFT JOIN "Booking" bookings ON bookings.service_id = t.record_id AND bookings.tenant_id = t.tenant_id', via: 'service_id' },
+  },
+  payments: {
+    owners: { type: 'INNER', join: 'INNER JOIN "Owner" owners ON owners.record_id = t.owner_id AND owners.tenant_id = t.tenant_id', via: 'owner_id' },
+    bookings: { type: 'LEFT', join: 'LEFT JOIN "Booking" bookings ON bookings.record_id = t.booking_id AND bookings.tenant_id = t.tenant_id', via: 'booking_id' },
+  },
+  staff: {},
+};
+
+/**
+ * Get available join paths from a primary source to other sources
+ */
+function getAvailableAssociations(primarySource, selectedSources = []) {
+  const associations = ENTITY_ASSOCIATIONS[primarySource] || {};
+  const available = [];
+  const unavailable = [];
+
+  const allSources = ['bookings', 'owners', 'pets', 'services', 'payments', 'staff'];
+
+  for (const source of allSources) {
+    if (source === primarySource) continue;
+
+    // Check if there's a direct association from primary to this source
+    if (associations[source]) {
+      available.push(source);
+    } else {
+      // Check reverse association
+      const reverseAssociations = ENTITY_ASSOCIATIONS[source] || {};
+      if (reverseAssociations[primarySource]) {
+        available.push(source);
+      } else {
+        unavailable.push(source);
+      }
+    }
+  }
+
+  return { available, unavailable };
+}
+
+/**
+ * Build join paths for selected sources
+ */
+function buildJoinPaths(primarySource, secondarySources) {
+  const paths = [];
+  const primaryAssociations = ENTITY_ASSOCIATIONS[primarySource] || {};
+
+  for (const source of secondarySources) {
+    if (primaryAssociations[source]) {
+      paths.push({
+        from: primarySource,
+        to: source,
+        ...primaryAssociations[source],
+      });
+    } else {
+      // Try reverse
+      const reverseAssociations = ENTITY_ASSOCIATIONS[source] || {};
+      if (reverseAssociations[primarySource]) {
+        paths.push({
+          from: source,
+          to: primarySource,
+          type: reverseAssociations[primarySource].type,
+          join: reverseAssociations[primarySource].join,
+          via: reverseAssociations[primarySource].via,
+        });
+      }
+    }
+  }
+
+  return paths;
+}
+
+/**
  * Data source configurations for custom reports
  * Defines available fields, dimensions, and measures for each data source
  */
@@ -1697,14 +1795,29 @@ async function handleCustomReportQuery(tenantId, body) {
   try {
     await getPoolAsync();
 
-    const { dataSource, dimensions = [], measures = [], filters = [], dateRange = {} } = body;
+    // Support both legacy single dataSource and new multi-source format
+    const {
+      dataSource,
+      dataSources = [],
+      primarySource,
+      dimensions = [],
+      measures = [],
+      filters = [],
+      dateRange = {},
+    } = body;
 
-    // Validate data source
-    const config = DATA_SOURCE_CONFIG[dataSource];
+    // Determine primary source - prefer explicit primarySource, then first in dataSources, then legacy dataSource
+    const primary = primarySource || (dataSources.length > 0 ? dataSources[0] : dataSource);
+    const secondarySources = dataSources.length > 0
+      ? dataSources.filter(s => s !== primary)
+      : [];
+
+    // Validate primary data source
+    const config = DATA_SOURCE_CONFIG[primary];
     if (!config) {
       return createResponse(400, {
         error: 'Bad Request',
-        message: `Invalid data source: ${dataSource}. Valid options: ${Object.keys(DATA_SOURCE_CONFIG).join(', ')}`,
+        message: `Invalid data source: ${primary}. Valid options: ${Object.keys(DATA_SOURCE_CONFIG).join(', ')}`,
       });
     }
 
@@ -1715,9 +1828,39 @@ async function handleCustomReportQuery(tenantId, body) {
     const params = [tenantId];
     let paramIndex = 2;
 
+    // Add cross-object joins for secondary sources
+    for (const secondarySource of secondarySources) {
+      const joinPaths = buildJoinPaths(primary, [secondarySource]);
+      for (const path of joinPaths) {
+        if (path.join) {
+          joins.add(path.join);
+        }
+      }
+    }
+
     // Add dimensions (group by columns)
     // Accept any valid column name - only reject SQL injection patterns
     const DANGEROUS_PATTERNS = /[;'"\\(){}[\]<>|&$`!]/;
+
+    /**
+     * Parse a field key that may be prefixed with source name (e.g., "bookings.status" or just "status")
+     * Returns { source, field } where source is the table alias and field is the column name
+     */
+    const parseFieldKey = (key) => {
+      if (key.includes('.')) {
+        const [source, field] = key.split('.', 2);
+        return { source, field };
+      }
+      return { source: null, field: key };
+    };
+
+    /**
+     * Get the table alias for a source
+     */
+    const getTableAlias = (source) => {
+      if (!source || source === primary) return 't';
+      return source; // Secondary sources use their name as alias
+    };
 
     for (const dimKey of dimensions) {
       // Check for SQL injection patterns
@@ -1728,16 +1871,20 @@ async function handleCustomReportQuery(tenantId, body) {
         });
       }
 
+      const { source, field } = parseFieldKey(dimKey);
+      const tableAlias = getTableAlias(source);
+      const sourceConfig = source && source !== primary ? DATA_SOURCE_CONFIG[source] : config;
+
       // Use hardcoded config if available (for computed columns), otherwise use column directly
-      const dim = config.dimensions[dimKey];
+      const dim = sourceConfig?.dimensions?.[field];
       if (dim) {
         selectParts.push(`${dim.column} as "${dimKey}"`);
         groupByParts.push(dim.column);
         if (dim.join) joins.add(dim.join);
       } else {
         // Dynamic column from SystemProperty - use column name directly
-        selectParts.push(`t.${dimKey} as "${dimKey}"`);
-        groupByParts.push(`t.${dimKey}`);
+        selectParts.push(`${tableAlias}.${field} as "${dimKey}"`);
+        groupByParts.push(`${tableAlias}.${field}`);
       }
     }
 
@@ -1754,15 +1901,20 @@ async function handleCustomReportQuery(tenantId, body) {
         });
       }
 
+      const { source, field } = parseFieldKey(measureKey);
+      const tableAlias = getTableAlias(source);
+      const sourceConfig = source && source !== primary ? DATA_SOURCE_CONFIG[source] : config;
+
       // Use hardcoded config if available, otherwise use column directly with COUNT
-      const measure = config.measures[measureKey];
+      const measure = sourceConfig?.measures?.[field];
       if (measure) {
         const agg = aggOverride || measure.agg;
         selectParts.push(`${agg}(${measure.column}) as "${measureKey}"`);
       } else {
-        // Dynamic measure - default to COUNT for record_count, otherwise SUM
-        const agg = aggOverride || (measureKey === 'record_count' ? 'COUNT' : 'SUM');
-        const column = measureKey === 'record_count' ? `t.${config.idField}` : `t.${measureKey}`;
+        // Dynamic measure - default to COUNT for record_count/count, otherwise SUM
+        const agg = aggOverride || (field === 'record_count' || field === 'count' ? 'COUNT' : 'SUM');
+        const idField = sourceConfig?.idField || 'record_id';
+        const column = (field === 'record_count' || field === 'count') ? `${tableAlias}.${idField}` : `${tableAlias}.${field}`;
         selectParts.push(`${agg}(${column}) as "${measureKey}"`);
       }
     }
@@ -1912,18 +2064,64 @@ const COMPUTED_DATE_FIELDS = [
 const MEASURE_FIELD_TYPES = ['number', 'currency'];
 
 /**
+ * Get available associations for cross-object reporting
+ */
+async function handleGetReportAssociations(queryParams) {
+  try {
+    const { primarySource, selectedSources } = queryParams;
+
+    if (!primarySource) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'primarySource is required',
+      });
+    }
+
+    const selected = selectedSources ? selectedSources.split(',').filter(Boolean) : [];
+    const { available, unavailable } = getAvailableAssociations(primarySource, selected);
+    const joinPaths = buildJoinPaths(primarySource, selected);
+
+    return createResponse(200, {
+      data: {
+        primarySource,
+        availableSources: available,
+        unavailableSources: unavailable,
+        joinPaths,
+      },
+      message: 'Associations retrieved successfully',
+    });
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Get report associations failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to get associations',
+    });
+  }
+}
+
+/**
  * Get report field definitions
  * Dynamically reads from SystemProperty + Property tables
+ * Supports multiple data sources via 'dataSources' query param (comma-separated)
  */
 async function handleGetReportFields(tenantId, queryParams) {
   try {
     await getPoolAsync();
-    const { dataSource } = queryParams;
+    // Support both single 'dataSource' and multiple 'dataSources' params (comma-separated)
+    const { dataSource, dataSources } = queryParams;
 
-    console.log('[REPORT-FIELDS] Request:', { dataSource, tenantId });
+    console.log('[REPORT-FIELDS] Request:', { dataSource, dataSources, tenantId });
 
     const result = {};
-    const sources = dataSource ? [dataSource] : Object.keys(DATA_SOURCE_TO_ENTITY);
+    // Determine which sources to fetch - prefer dataSources (comma-separated), fallback to single dataSource
+    let sources;
+    if (dataSources) {
+      sources = dataSources.split(',').filter(Boolean);
+    } else if (dataSource) {
+      sources = [dataSource];
+    } else {
+      sources = Object.keys(DATA_SOURCE_TO_ENTITY);
+    }
 
     for (const source of sources) {
       const entityType = DATA_SOURCE_TO_ENTITY[source];

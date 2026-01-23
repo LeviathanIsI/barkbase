@@ -94,6 +94,7 @@ import {
   YAxis,
 } from 'recharts';
 import { CHART_PREVIEW_CONFIG, PREVIEW_PIVOT, PREVIEW_SANKEY, PREVIEW_TREEMAP } from '../data/chartPreviewData';
+import EditDataSourcesModal from './EditDataSourcesModal';
 
 // =============================================================================
 // DATA SOURCE CONFIGURATION
@@ -1249,8 +1250,9 @@ const CustomReportBuilder = () => {
 
   // Report configuration state
   const [reportName, setReportName] = useState('Untitled Report');
-  const [dataSource, setDataSource] = useState('bookings');
+  const [dataSources, setDataSources] = useState([{ id: 'bookings', isPrimary: true }]);
   const [chartType, setChartType] = useState('bar');
+  const [showDataSourcesModal, setShowDataSourcesModal] = useState(false);
 
   // Dynamic zone values - keyed by zone name
   // Single zones store: { field } or null
@@ -1343,35 +1345,59 @@ const CustomReportBuilder = () => {
   const [fieldsConfig, setFieldsConfig] = useState({ dimensions: [], measures: [] });
   const [fieldsLoading, setFieldsLoading] = useState(false);
 
-  // Fetch fields when data source changes
+  // Get primary data source (for backwards compatibility)
+  const primaryDataSource = useMemo(() => {
+    const primary = dataSources.find(ds => ds.isPrimary);
+    return primary?.id || dataSources[0]?.id || 'bookings';
+  }, [dataSources]);
+
+  // Fetch fields when data sources change
   useEffect(() => {
     const fetchFields = async () => {
       setFieldsLoading(true);
       try {
-        const response = await apiClient.get(`/api/v1/analytics/reports/fields?dataSource=${dataSource}`);
+        // Request fields for all selected data sources
+        const sourceIds = dataSources.map(ds => ds.id).join(',');
+        const response = await apiClient.get(`/api/v1/analytics/reports/fields?dataSources=${sourceIds}`);
 
-        const data = response.data?.data?.[dataSource] || { dimensions: [], measures: [] };
+        // Combine fields from all sources, prefixing keys with source name for multi-source
+        const allDimensions = [];
+        const allMeasures = [];
 
-        // Map API response to expected format
-        const mappedFields = {
-          dimensions: (data.dimensions || []).map(d => ({
-            key: d.key,
-            label: d.label,
-            type: d.dataType || 'text',
-            group: d.group,
-            isComputed: d.isComputed,
-            options: d.options, // For enum fields
-          })),
-          measures: (data.measures || []).map(m => ({
-            key: m.key,
-            label: m.label,
-            type: m.dataType || 'number',
-            defaultAgg: m.defaultAggregation || 'COUNT',
-            group: m.group,
-            options: m.options, // For enum fields
-          })),
-        };
-        setFieldsConfig(mappedFields);
+        for (const source of dataSources) {
+          const data = response.data?.data?.[source.id] || { dimensions: [], measures: [] };
+          const isMultiSource = dataSources.length > 1;
+          const prefix = isMultiSource ? `${source.id}.` : '';
+          const groupPrefix = isMultiSource ? `${DATA_SOURCES.find(ds => ds.value === source.id)?.label || source.id} - ` : '';
+
+          // Map dimensions
+          (data.dimensions || []).forEach(d => {
+            allDimensions.push({
+              key: prefix + d.key,
+              label: d.label,
+              type: d.dataType || 'text',
+              group: groupPrefix + (d.group || 'Properties'),
+              isComputed: d.isComputed,
+              options: d.options,
+              sourceId: source.id,
+            });
+          });
+
+          // Map measures
+          (data.measures || []).forEach(m => {
+            allMeasures.push({
+              key: prefix + m.key,
+              label: m.label,
+              type: m.dataType || 'number',
+              defaultAgg: m.defaultAggregation || 'COUNT',
+              group: groupPrefix + (m.group || 'Metrics'),
+              options: m.options,
+              sourceId: source.id,
+            });
+          });
+        }
+
+        setFieldsConfig({ dimensions: allDimensions, measures: allMeasures });
       } catch (err) {
         console.error('[REPORT-BUILDER] Failed to fetch report fields:', err);
         // Keep existing fields on error
@@ -1381,7 +1407,7 @@ const CustomReportBuilder = () => {
     };
 
     fetchFields();
-  }, [dataSource]);
+  }, [dataSources]);
 
   // Global drag event listeners to track drag state and item
   useEffect(() => {
@@ -1503,13 +1529,16 @@ const CustomReportBuilder = () => {
     }
 
     return {
-      dataSource,
+      dataSources: dataSources.map(ds => ds.id),
+      primarySource: primaryDataSource,
+      // Legacy field for backwards compatibility
+      dataSource: primaryDataSource,
       dimensions,
       measures,
       filters: filters.filter(f => f.field && f.value),
       dateRange,
     };
-  }, [chartType, dataSource, zoneValues, filters, dateRange]);
+  }, [chartType, dataSources, primaryDataSource, zoneValues, filters, dateRange]);
 
   // Get requirements status
   const requirementsStatus = useMemo(() => checkMinimumRequirements(), [checkMinimumRequirements]);
@@ -1576,19 +1605,19 @@ const CustomReportBuilder = () => {
     requirementsStatus.met,
     autoRefresh,
     chartType,
-    dataSource,
+    JSON.stringify(dataSources),
     JSON.stringify(zoneValues),
     JSON.stringify(filters),
     dateRange.startDate,
     dateRange.endDate,
   ]);
 
-  // Reset selections when data source changes
+  // Reset selections when data sources change
   useEffect(() => {
     setZoneValues({});
     setFilters([]);
     setChartData([]);
-  }, [dataSource]);
+  }, [JSON.stringify(dataSources)]);
 
   // Get active zones for current chart type
   const activeZones = useMemo(() => {
@@ -1750,17 +1779,22 @@ const CustomReportBuilder = () => {
     };
   }, [breakdownField, chartData, nameKey, dataKey]);
 
-  // Get current data source info
-  const currentDataSource = DATA_SOURCES.find(ds => ds.value === dataSource);
+  // Get current data source info (primary source)
+  const currentDataSource = DATA_SOURCES.find(ds => ds.value === primaryDataSource);
 
   // Apply sample report template
   const applySampleReport = (sample) => {
-    setDataSource(sample.dataSource);
+    setDataSources([{ id: sample.dataSource, isPrimary: true }]);
     setChartType(sample.chartType);
     setReportName(sample.name);
     // Note: actual field application would require field lookup
     setShowSampleReports(false);
   };
+
+  // Handle data sources modal apply
+  const handleDataSourcesApply = useCallback((newSources) => {
+    setDataSources(newSources);
+  }, []);
 
   // Mobile blocker
   if (isMobile) {
@@ -1912,6 +1946,14 @@ const CustomReportBuilder = () => {
         </div>
       )}
 
+      {/* Edit Data Sources Modal */}
+      <EditDataSourcesModal
+        isOpen={showDataSourcesModal}
+        onClose={() => setShowDataSourcesModal(false)}
+        currentSources={dataSources}
+        onApply={handleDataSourcesApply}
+      />
+
       {/* Top Bar - enterprise style */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-[#1a2433] dark:bg-[#1a2433] border-b border-[#2d3e50]">
         <div className="flex items-center gap-3">
@@ -1980,7 +2022,10 @@ const CustomReportBuilder = () => {
         <div className="w-56 border-r border-border bg-white dark:bg-surface-secondary flex flex-col overflow-hidden">
           {/* Edit Data Sources Link */}
           <div className="px-3 py-2 border-b border-border">
-            <button className="text-xs text-primary hover:text-primary-dark flex items-center gap-1">
+            <button
+              onClick={() => setShowDataSourcesModal(true)}
+              className="text-xs text-primary hover:text-primary-dark flex items-center gap-1"
+            >
               Edit data sources
               <ChevronRight className="h-3 w-3" />
             </button>
@@ -1988,7 +2033,28 @@ const CustomReportBuilder = () => {
 
           {/* Data Source Count */}
           <div className="px-3 py-2 border-b border-border">
-            <p className="text-xs font-medium text-text">1 data source</p>
+            <p className="text-xs font-medium text-text">
+              {dataSources.length} data source{dataSources.length !== 1 ? 's' : ''}
+            </p>
+            {dataSources.length > 1 && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {dataSources.map(ds => {
+                  const sourceInfo = DATA_SOURCES.find(d => d.value === ds.id);
+                  return (
+                    <span
+                      key={ds.id}
+                      className={cn(
+                        "text-[10px] px-1.5 py-0.5 rounded",
+                        ds.isPrimary ? "bg-primary/20 text-primary" : "bg-surface-hover text-muted"
+                      )}
+                    >
+                      {sourceInfo?.label || ds.id}
+                      {ds.isPrimary && ' *'}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Search Across Sources */}
@@ -2014,8 +2080,22 @@ const CustomReportBuilder = () => {
               <span className="text-xs text-muted">Browse:</span>
               <StyledSelect
                 options={DATA_SOURCES.map(ds => ({ value: ds.value, label: ds.label }))}
-                value={dataSource}
-                onChange={(opt) => setDataSource(opt?.value || 'bookings')}
+                value={primaryDataSource}
+                onChange={(opt) => {
+                  const newSourceId = opt?.value || 'bookings';
+                  setDataSources(prev => {
+                    // If source already exists, just make it primary
+                    const existing = prev.find(s => s.id === newSourceId);
+                    if (existing) {
+                      return prev.map(s => ({ ...s, isPrimary: s.id === newSourceId }));
+                    }
+                    // Otherwise add it as primary
+                    return [
+                      { id: newSourceId, isPrimary: true },
+                      ...prev.map(s => ({ ...s, isPrimary: false })),
+                    ];
+                  });
+                }}
                 isClearable={false}
                 isSearchable={false}
                 className="flex-1"
