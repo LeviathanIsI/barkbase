@@ -1468,15 +1468,22 @@ const CustomReportBuilder = () => {
     for (const [zoneName, fieldConfig] of Object.entries(pendingSampleConfig)) {
       if (!fieldConfig) continue;
 
+      // Check if zone expects multiple values
+      const zoneDef = DROP_ZONE_DEFINITIONS[zoneName];
+      const isMultipleZone = zoneDef?.multiple === true;
+
       if (zoneName === 'columns' && Array.isArray(fieldConfig)) {
         // Table columns - array of fields
         newZoneValues.columns = fieldConfig.map(fc => findField(fc, true));
       } else if (zoneName === 'xAxis' || zoneName === 'breakDownBy' || zoneName === 'rows' || zoneName === 'category') {
         // Dimension zones
-        newZoneValues[zoneName] = findField(fieldConfig, true);
-      } else if (zoneName === 'yAxis' || zoneName === 'values') {
+        const field = findField(fieldConfig, true);
+        newZoneValues[zoneName] = isMultipleZone ? [field] : field;
+      } else if (zoneName === 'yAxis' || zoneName === 'values' || zoneName === 'value') {
         // Measure zones
-        newZoneValues[zoneName] = findField(fieldConfig, false);
+        const field = findField(fieldConfig, false);
+        // values zone has multiple: true, so wrap in array
+        newZoneValues[zoneName] = isMultipleZone ? [field] : field;
       }
     }
 
