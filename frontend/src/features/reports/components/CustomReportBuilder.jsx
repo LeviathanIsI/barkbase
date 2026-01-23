@@ -2581,7 +2581,7 @@ const CustomReportBuilder = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
                         <XAxis dataKey="name" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
                         <YAxis stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
-                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Tooltip contentStyle={tooltipContentStyle} cursor={false} />
                         <Legend />
                         <Bar dataKey="value" fill={chartColorSequence[0]} radius={[4, 4, 0, 0]} name="Revenue" />
                       </BarChart>
@@ -2590,7 +2590,7 @@ const CustomReportBuilder = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
                         <XAxis type="number" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
                         <YAxis dataKey="name" type="category" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} width={80} />
-                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Tooltip contentStyle={tooltipContentStyle} cursor={false} />
                         <Legend />
                         <Bar dataKey="value" fill={chartColorSequence[0]} radius={[0, 4, 4, 0]} name="Revenue" />
                       </BarChart>
@@ -2599,7 +2599,7 @@ const CustomReportBuilder = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
                         <XAxis dataKey="name" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
                         <YAxis stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
-                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Tooltip contentStyle={tooltipContentStyle} cursor={false} />
                         <Legend />
                         <Line type="monotone" dataKey="bookings" stroke={chartColorSequence[0]} strokeWidth={2} dot={{ fill: chartColorSequence[0], r: 4 }} name="Bookings" />
                       </LineChart>
@@ -2608,7 +2608,7 @@ const CustomReportBuilder = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
                         <XAxis dataKey="name" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
                         <YAxis stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
-                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Tooltip contentStyle={tooltipContentStyle} cursor={false} />
                         <Legend />
                         <Area type="monotone" dataKey="bookings" stroke={chartColorSequence[0]} fill={chartColorSequence[0]} fillOpacity={0.3} name="Bookings" />
                       </AreaChart>
@@ -2619,7 +2619,7 @@ const CustomReportBuilder = () => {
                             <Cell key={`cell-${index}`} fill={chartColorSequence[index % chartColorSequence.length]} />
                           ))}
                         </Pie>
-                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Tooltip contentStyle={tooltipContentStyle} cursor={false} />
                         <Legend />
                       </PieChart>
                     ) : hoveredChartType === 'donut' ? (
@@ -2629,7 +2629,7 @@ const CustomReportBuilder = () => {
                             <Cell key={`cell-${index}`} fill={chartColorSequence[index % chartColorSequence.length]} />
                           ))}
                         </Pie>
-                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Tooltip contentStyle={tooltipContentStyle} cursor={false} />
                         <Legend />
                       </PieChart>
                     ) : hoveredChartType === 'stacked' ? (
@@ -2637,7 +2637,7 @@ const CustomReportBuilder = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
                         <XAxis dataKey="name" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
                         <YAxis stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
-                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Tooltip contentStyle={tooltipContentStyle} cursor={false} />
                         <Legend />
                         <Bar dataKey="dogs" stackId="a" fill={chartColorSequence[0]} name="Dogs" />
                         <Bar dataKey="cats" stackId="a" fill={chartColorSequence[1]} name="Cats" />
@@ -2648,7 +2648,7 @@ const CustomReportBuilder = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
                         <XAxis type="number" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} />
                         <YAxis dataKey="name" type="category" stroke="var(--bb-color-chart-axis)" tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }} width={80} />
-                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Tooltip contentStyle={tooltipContentStyle} cursor={false} />
                         <Legend />
                         <Bar dataKey="value" fill={chartColorSequence[0]} radius={[0, 4, 4, 0]} name="Count" />
                       </BarChart>
@@ -2686,7 +2686,7 @@ const CustomReportBuilder = () => {
                           </g>
                         )}
                       >
-                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Tooltip contentStyle={tooltipContentStyle} cursor={false} />
                       </Treemap>
                     ) : hoveredChartType === 'sankey' ? (
                       <Sankey
@@ -2721,7 +2721,7 @@ const CustomReportBuilder = () => {
                           </g>
                         )}
                       >
-                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Tooltip contentStyle={tooltipContentStyle} cursor={false} />
                       </Sankey>
                     ) : hoveredChartType === 'gauge' ? (
                       <PieChart>
@@ -2729,7 +2729,7 @@ const CustomReportBuilder = () => {
                           <Cell fill={chartColorSequence[0]} />
                           <Cell fill="var(--bb-color-chart-grid)" />
                         </Pie>
-                        <Tooltip contentStyle={tooltipContentStyle} />
+                        <Tooltip contentStyle={tooltipContentStyle} cursor={false} />
                       </PieChart>
                     ) : null}
                   </ResponsiveContainer>
@@ -2821,6 +2821,7 @@ const CustomReportBuilder = () => {
                     <Tooltip
                       contentStyle={tooltipContentStyle}
                       formatter={(value) => formatValue(value, yAxis?.type)}
+                      cursor={false}
                     />
                     <Legend />
                     {breakdownValues.length > 0 ? (
@@ -2857,6 +2858,7 @@ const CustomReportBuilder = () => {
                     <Tooltip
                       contentStyle={tooltipContentStyle}
                       formatter={(value) => formatValue(value, yAxis?.type)}
+                      cursor={false}
                     />
                     <Legend />
                     {breakdownValues.length > 0 ? (
@@ -2893,6 +2895,7 @@ const CustomReportBuilder = () => {
                     <Tooltip
                       contentStyle={tooltipContentStyle}
                       formatter={(value) => formatValue(value, yAxis?.type)}
+                      cursor={false}
                     />
                     <Legend />
                     {breakdownValues.length > 0 ? (
@@ -2937,6 +2940,7 @@ const CustomReportBuilder = () => {
                     <Tooltip
                       contentStyle={tooltipContentStyle}
                       formatter={(value) => formatValue(value, yAxis?.type)}
+                      cursor={false}
                     />
                     <Legend />
                     {breakdownValues.length > 0 ? (
@@ -2982,6 +2986,7 @@ const CustomReportBuilder = () => {
                     <Tooltip
                       contentStyle={tooltipContentStyle}
                       formatter={(value) => formatValue(value, yAxis?.type)}
+                      cursor={false}
                     />
                     <Legend />
                   </PieChart>
@@ -3005,6 +3010,7 @@ const CustomReportBuilder = () => {
                     <Tooltip
                       contentStyle={tooltipContentStyle}
                       formatter={(value) => formatValue(value, yAxis?.type)}
+                      cursor={false}
                     />
                     <Legend />
                   </PieChart>
@@ -3026,6 +3032,7 @@ const CustomReportBuilder = () => {
                     <Tooltip
                       contentStyle={tooltipContentStyle}
                       formatter={(value) => formatValue(value, yAxis?.type)}
+                      cursor={false}
                     />
                     <Legend />
                     <Scatter name={yAxis?.label || dataKey} data={chartData} fill={chartColorSequence[0]} />
