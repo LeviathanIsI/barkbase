@@ -1358,6 +1358,8 @@ const CustomReportBuilder = () => {
   // Fetch fields when data sources change
   useEffect(() => {
     const fetchFields = async () => {
+      // Clear old fields first to prevent race condition with pendingSampleConfig
+      setFieldsConfig({ dimensions: [], measures: [] });
       setFieldsLoading(true);
       try {
         // Request fields for all selected data sources
