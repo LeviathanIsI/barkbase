@@ -1683,13 +1683,13 @@ const DATA_SOURCE_CONFIG = {
     table: '"Owner"',
     idField: 'record_id',
     dimensions: {
-      status: { column: 'status', label: 'Status' },
-      source: { column: 'source', label: 'Lead Source' },
-      created_month: { column: "TO_CHAR(created_at, 'YYYY-MM')", label: 'Signup Month' },
-      created_date: { column: 'DATE(created_at)', label: 'Signup Date' },
+      status: { column: 't.status', label: 'Status' },
+      source: { column: 't.source', label: 'Lead Source' },
+      created_month: { column: "TO_CHAR(t.created_at, 'YYYY-MM')", label: 'Signup Month' },
+      created_date: { column: 'DATE(t.created_at)', label: 'Signup Date' },
     },
     measures: {
-      count: { column: 'record_id', agg: 'COUNT', label: 'Count' },
+      count: { column: 't.record_id', agg: 'COUNT', label: 'Count' },
     },
     dateField: 'created_at',
   },
@@ -1697,25 +1697,25 @@ const DATA_SOURCE_CONFIG = {
     table: '"Pet"',
     idField: 'record_id',
     dimensions: {
-      species: { column: 'species', label: 'Species' },
-      breed: { column: 'breed', label: 'Breed' },
-      size: { column: 'size', label: 'Size' },
-      gender: { column: 'gender', label: 'Gender' },
+      species: { column: 't.species', label: 'Species' },
+      breed: { column: 't.breed', label: 'Breed' },
+      size: { column: 't.size', label: 'Size' },
+      gender: { column: 't.gender', label: 'Gender' },
       age_range: {
         column: `CASE
-          WHEN date_of_birth IS NULL THEN 'Unknown'
-          WHEN EXTRACT(YEAR FROM AGE(date_of_birth)) < 1 THEN 'Puppy/Kitten (<1)'
-          WHEN EXTRACT(YEAR FROM AGE(date_of_birth)) < 3 THEN 'Young (1-3)'
-          WHEN EXTRACT(YEAR FROM AGE(date_of_birth)) < 7 THEN 'Adult (3-7)'
-          WHEN EXTRACT(YEAR FROM AGE(date_of_birth)) < 10 THEN 'Mature (7-10)'
+          WHEN t.date_of_birth IS NULL THEN 'Unknown'
+          WHEN EXTRACT(YEAR FROM AGE(t.date_of_birth)) < 1 THEN 'Puppy/Kitten (<1)'
+          WHEN EXTRACT(YEAR FROM AGE(t.date_of_birth)) < 3 THEN 'Young (1-3)'
+          WHEN EXTRACT(YEAR FROM AGE(t.date_of_birth)) < 7 THEN 'Adult (3-7)'
+          WHEN EXTRACT(YEAR FROM AGE(t.date_of_birth)) < 10 THEN 'Mature (7-10)'
           ELSE 'Senior (10+)'
         END`,
         label: 'Age Range'
       },
-      fixed: { column: "CASE WHEN is_spayed_neutered THEN 'Fixed' ELSE 'Not Fixed' END", label: 'Fixed Status' },
+      fixed: { column: "CASE WHEN t.is_spayed_neutered THEN 'Fixed' ELSE 'Not Fixed' END", label: 'Fixed Status' },
     },
     measures: {
-      count: { column: 'record_id', agg: 'COUNT', label: 'Count' },
+      count: { column: 't.record_id', agg: 'COUNT', label: 'Count' },
     },
     dateField: 'created_at',
   },
@@ -1723,7 +1723,7 @@ const DATA_SOURCE_CONFIG = {
     table: '"Booking"',
     idField: 'record_id',
     dimensions: {
-      status: { column: 'status', label: 'Status' },
+      status: { column: 't.status', label: 'Status' },
       service_type: { column: 's.name', label: 'Service Type', join: 'LEFT JOIN "Service" s ON s.record_id = t.service_id AND s.tenant_id = t.tenant_id' },
       booking_date: { column: 'DATE(t.start_date)', label: 'Booking Date' },
       booking_month: { column: "TO_CHAR(t.start_date, 'YYYY-MM')", label: 'Booking Month' },
@@ -1731,9 +1731,9 @@ const DATA_SOURCE_CONFIG = {
       created_date: { column: 'DATE(t.created_at)', label: 'Created Date' },
     },
     measures: {
-      count: { column: 'record_id', agg: 'COUNT', label: 'Count' },
-      revenue: { column: 'COALESCE(total_cents, 0)', agg: 'SUM', label: 'Revenue (cents)' },
-      avg_revenue: { column: 'COALESCE(total_cents, 0)', agg: 'AVG', label: 'Avg Revenue (cents)' },
+      count: { column: 't.record_id', agg: 'COUNT', label: 'Count' },
+      revenue: { column: 'COALESCE(t.total_cents, 0)', agg: 'SUM', label: 'Revenue (cents)' },
+      avg_revenue: { column: 'COALESCE(t.total_cents, 0)', agg: 'AVG', label: 'Avg Revenue (cents)' },
     },
     dateField: 'start_date',
   },
@@ -1741,13 +1741,13 @@ const DATA_SOURCE_CONFIG = {
     table: '"Service"',
     idField: 'record_id',
     dimensions: {
-      name: { column: 'name', label: 'Service Name' },
-      category: { column: 'category', label: 'Category' },
-      is_active: { column: "CASE WHEN is_active THEN 'Active' ELSE 'Inactive' END", label: 'Status' },
+      name: { column: 't.name', label: 'Service Name' },
+      category: { column: 't.category', label: 'Category' },
+      is_active: { column: "CASE WHEN t.is_active THEN 'Active' ELSE 'Inactive' END", label: 'Status' },
     },
     measures: {
-      count: { column: 'record_id', agg: 'COUNT', label: 'Count' },
-      avg_price: { column: 'COALESCE(base_price_cents, 0)', agg: 'AVG', label: 'Avg Price (cents)' },
+      count: { column: 't.record_id', agg: 'COUNT', label: 'Count' },
+      avg_price: { column: 'COALESCE(t.base_price_cents, 0)', agg: 'AVG', label: 'Avg Price (cents)' },
       total_bookings: {
         column: '(SELECT COUNT(*) FROM "Booking" b WHERE b.service_id = t.record_id AND b.tenant_id = t.tenant_id)',
         agg: 'SUM',
@@ -1760,15 +1760,15 @@ const DATA_SOURCE_CONFIG = {
     table: '"Payment"',
     idField: 'record_id',
     dimensions: {
-      status: { column: 'status', label: 'Status' },
-      payment_method: { column: 'payment_method', label: 'Payment Method' },
+      status: { column: 't.status', label: 'Status' },
+      payment_method: { column: 't.payment_method', label: 'Payment Method' },
       payment_date: { column: 'DATE(t.processed_at)', label: 'Payment Date' },
       payment_month: { column: "TO_CHAR(t.processed_at, 'YYYY-MM')", label: 'Payment Month' },
     },
     measures: {
-      count: { column: 'record_id', agg: 'COUNT', label: 'Count' },
-      total: { column: 'COALESCE(amount_cents, 0)', agg: 'SUM', label: 'Total (cents)' },
-      avg_amount: { column: 'COALESCE(amount_cents, 0)', agg: 'AVG', label: 'Avg Amount (cents)' },
+      count: { column: 't.record_id', agg: 'COUNT', label: 'Count' },
+      total: { column: 'COALESCE(t.amount_cents, 0)', agg: 'SUM', label: 'Total (cents)' },
+      avg_amount: { column: 'COALESCE(t.amount_cents, 0)', agg: 'AVG', label: 'Avg Amount (cents)' },
     },
     dateField: 'processed_at',
   },
@@ -1776,12 +1776,12 @@ const DATA_SOURCE_CONFIG = {
     table: '"Staff"',
     idField: 'record_id',
     dimensions: {
-      role: { column: 'role', label: 'Role' },
-      status: { column: 'status', label: 'Status' },
-      hire_month: { column: "TO_CHAR(hire_date, 'YYYY-MM')", label: 'Hire Month' },
+      role: { column: 't.role', label: 'Role' },
+      status: { column: 't.status', label: 'Status' },
+      hire_month: { column: "TO_CHAR(t.hire_date, 'YYYY-MM')", label: 'Hire Month' },
     },
     measures: {
-      count: { column: 'record_id', agg: 'COUNT', label: 'Count' },
+      count: { column: 't.record_id', agg: 'COUNT', label: 'Count' },
     },
     dateField: 'hire_date',
   },
