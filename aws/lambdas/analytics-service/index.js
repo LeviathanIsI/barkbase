@@ -2195,10 +2195,21 @@ async function handleGetReportFields(tenantId, queryParams) {
         }
       }
 
-      // 3. Add standard count measure
+      // 3. Add standard count measure with source-specific label
+      const SOURCE_LABELS = {
+        bookings: 'Bookings',
+        owners: 'Owners',
+        pets: 'Pets',
+        services: 'Services',
+        payments: 'Payments',
+        staff: 'Staff',
+        invoices: 'Invoices',
+      };
+      const sourceLabel = SOURCE_LABELS[source] || source.charAt(0).toUpperCase() + source.slice(1);
+
       result[source].measures.unshift({
         key: 'count',
-        label: 'Record Count',
+        label: `Count of ${sourceLabel}`,
         dataType: 'number',
         group: 'Metrics',
         defaultAggregation: 'COUNT',
