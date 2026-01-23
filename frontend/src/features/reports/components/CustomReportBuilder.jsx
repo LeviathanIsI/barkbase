@@ -1421,9 +1421,31 @@ const CustomReportBuilder = () => {
 
   // Apply pending sample report config after fields load
   useEffect(() => {
-    if (!pendingSampleConfig || fieldsLoading || fieldsConfig.dimensions.length === 0) {
+    console.log('[SAMPLE] useEffect triggered:', {
+      hasPendingConfig: !!pendingSampleConfig,
+      fieldsLoading,
+      dimensionsCount: fieldsConfig.dimensions.length,
+      measuresCount: fieldsConfig.measures.length
+    });
+
+    if (!pendingSampleConfig) {
       return;
     }
+
+    if (fieldsLoading) {
+      console.log('[SAMPLE] Still loading fields, waiting...');
+      return;
+    }
+
+    // Don't require dimensions - some data sources may only have measures
+    if (fieldsConfig.dimensions.length === 0 && fieldsConfig.measures.length === 0) {
+      console.log('[SAMPLE] No fields loaded yet');
+      return;
+    }
+
+    console.log('[SAMPLE] Applying config:', pendingSampleConfig);
+    console.log('[SAMPLE] Available dimensions:', fieldsConfig.dimensions.map(d => d.key));
+    console.log('[SAMPLE] Available measures:', fieldsConfig.measures.map(m => m.key));
 
     const newZoneValues = {};
     const { dimensions, measures } = fieldsConfig;
@@ -1431,7 +1453,9 @@ const CustomReportBuilder = () => {
     // Helper to find a field by key
     const findField = (fieldConfig, isDimension) => {
       const list = isDimension ? dimensions : measures;
-      return list.find(f => f.key === fieldConfig.key) || {
+      const found = list.find(f => f.key === fieldConfig.key);
+      console.log('[SAMPLE] findField:', fieldConfig.key, 'isDimension:', isDimension, 'found:', !!found);
+      return found || {
         key: fieldConfig.key,
         label: fieldConfig.label,
         type: isDimension ? 'text' : 'number',
@@ -1454,6 +1478,7 @@ const CustomReportBuilder = () => {
       }
     }
 
+    console.log('[SAMPLE] Setting zoneValues:', newZoneValues);
     setZoneValues(newZoneValues);
     setPendingSampleConfig(null);
   }, [pendingSampleConfig, fieldsLoading, fieldsConfig]);
