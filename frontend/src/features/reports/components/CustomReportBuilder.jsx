@@ -1720,6 +1720,35 @@ const CustomReportBuilder = () => {
   // Get data key for chart
   const dataKey = yAxis?.key || 'count';
   const nameKey = xAxis?.key || 'name';
+  const breakdownField = zoneValues.breakDownBy;
+
+  // When there's a breakdown field, pivot the data for stacked/grouped bars
+  const { pivotedData, breakdownValues } = useMemo(() => {
+    if (!breakdownField || !chartData.length) {
+      return { pivotedData: chartData, breakdownValues: [] };
+    }
+
+    const breakdownKey = breakdownField.key;
+    const uniqueBreakdowns = [...new Set(chartData.map(row => row[breakdownKey]))].filter(Boolean);
+
+    // Group by the main dimension (xAxis)
+    const grouped = {};
+    chartData.forEach(row => {
+      const mainKey = row[nameKey];
+      if (!grouped[mainKey]) {
+        grouped[mainKey] = { [nameKey]: mainKey };
+      }
+      const breakdownValue = row[breakdownKey];
+      if (breakdownValue) {
+        grouped[mainKey][breakdownValue] = row[dataKey] || 0;
+      }
+    });
+
+    return {
+      pivotedData: Object.values(grouped),
+      breakdownValues: uniqueBreakdowns,
+    };
+  }, [breakdownField, chartData, nameKey, dataKey]);
 
   // Get current data source info
   const currentDataSource = DATA_SOURCES.find(ds => ds.value === dataSource);
@@ -2772,7 +2801,7 @@ const CustomReportBuilder = () => {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 {chartType === 'bar' ? (
-                  <BarChart data={chartData}>
+                  <BarChart data={breakdownValues.length > 0 ? pivotedData : chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
                     <XAxis
                       dataKey={nameKey}
@@ -2794,10 +2823,23 @@ const CustomReportBuilder = () => {
                       formatter={(value) => formatValue(value, yAxis?.type)}
                     />
                     <Legend />
-                    <Bar dataKey={dataKey} fill={chartColorSequence[0]} radius={[4, 4, 0, 0]} name={yAxis?.label || dataKey} />
+                    {breakdownValues.length > 0 ? (
+                      breakdownValues.map((breakdownVal, idx) => (
+                        <Bar
+                          key={breakdownVal}
+                          dataKey={breakdownVal}
+                          stackId="breakdown"
+                          fill={chartColorSequence[idx % chartColorSequence.length]}
+                          radius={idx === breakdownValues.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                          name={breakdownVal}
+                        />
+                      ))
+                    ) : (
+                      <Bar dataKey={dataKey} fill={chartColorSequence[0]} radius={[4, 4, 0, 0]} name={yAxis?.label || dataKey} />
+                    )}
                   </BarChart>
                 ) : chartType === 'column' ? (
-                  <BarChart data={chartData} layout="vertical">
+                  <BarChart data={breakdownValues.length > 0 ? pivotedData : chartData} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
                     <XAxis
                       type="number"
@@ -2817,10 +2859,23 @@ const CustomReportBuilder = () => {
                       formatter={(value) => formatValue(value, yAxis?.type)}
                     />
                     <Legend />
-                    <Bar dataKey={dataKey} fill={chartColorSequence[0]} radius={[0, 4, 4, 0]} name={yAxis?.label || dataKey} />
+                    {breakdownValues.length > 0 ? (
+                      breakdownValues.map((breakdownVal, idx) => (
+                        <Bar
+                          key={breakdownVal}
+                          dataKey={breakdownVal}
+                          stackId="breakdown"
+                          fill={chartColorSequence[idx % chartColorSequence.length]}
+                          radius={idx === breakdownValues.length - 1 ? [0, 4, 4, 0] : [0, 0, 0, 0]}
+                          name={breakdownVal}
+                        />
+                      ))
+                    ) : (
+                      <Bar dataKey={dataKey} fill={chartColorSequence[0]} radius={[0, 4, 4, 0]} name={yAxis?.label || dataKey} />
+                    )}
                   </BarChart>
                 ) : chartType === 'line' ? (
-                  <LineChart data={chartData}>
+                  <LineChart data={breakdownValues.length > 0 ? pivotedData : chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
                     <XAxis
                       dataKey={nameKey}
@@ -2840,17 +2895,31 @@ const CustomReportBuilder = () => {
                       formatter={(value) => formatValue(value, yAxis?.type)}
                     />
                     <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey={dataKey}
-                      stroke={chartColorSequence[0]}
-                      strokeWidth={2}
-                      dot={{ fill: chartColorSequence[0], r: 4 }}
-                      name={yAxis?.label || dataKey}
-                    />
+                    {breakdownValues.length > 0 ? (
+                      breakdownValues.map((breakdownVal, idx) => (
+                        <Line
+                          key={breakdownVal}
+                          type="monotone"
+                          dataKey={breakdownVal}
+                          stroke={chartColorSequence[idx % chartColorSequence.length]}
+                          strokeWidth={2}
+                          dot={{ fill: chartColorSequence[idx % chartColorSequence.length], r: 4 }}
+                          name={breakdownVal}
+                        />
+                      ))
+                    ) : (
+                      <Line
+                        type="monotone"
+                        dataKey={dataKey}
+                        stroke={chartColorSequence[0]}
+                        strokeWidth={2}
+                        dot={{ fill: chartColorSequence[0], r: 4 }}
+                        name={yAxis?.label || dataKey}
+                      />
+                    )}
                   </LineChart>
                 ) : chartType === 'area' ? (
-                  <AreaChart data={chartData}>
+                  <AreaChart data={breakdownValues.length > 0 ? pivotedData : chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--bb-color-chart-grid)" strokeOpacity={0.4} />
                     <XAxis
                       dataKey={nameKey}
@@ -2870,14 +2939,29 @@ const CustomReportBuilder = () => {
                       formatter={(value) => formatValue(value, yAxis?.type)}
                     />
                     <Legend />
-                    <Area
-                      type="monotone"
-                      dataKey={dataKey}
-                      stroke={chartColorSequence[0]}
-                      fill={chartColorSequence[0]}
-                      fillOpacity={0.3}
-                      name={yAxis?.label || dataKey}
-                    />
+                    {breakdownValues.length > 0 ? (
+                      breakdownValues.map((breakdownVal, idx) => (
+                        <Area
+                          key={breakdownVal}
+                          type="monotone"
+                          dataKey={breakdownVal}
+                          stackId="breakdown"
+                          stroke={chartColorSequence[idx % chartColorSequence.length]}
+                          fill={chartColorSequence[idx % chartColorSequence.length]}
+                          fillOpacity={0.3}
+                          name={breakdownVal}
+                        />
+                      ))
+                    ) : (
+                      <Area
+                        type="monotone"
+                        dataKey={dataKey}
+                        stroke={chartColorSequence[0]}
+                        fill={chartColorSequence[0]}
+                        fillOpacity={0.3}
+                        name={yAxis?.label || dataKey}
+                      />
+                    )}
                   </AreaChart>
                 ) : chartType === 'pie' ? (
                   <PieChart>
