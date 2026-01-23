@@ -1344,8 +1344,8 @@ const CustomReportBuilder = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Fields from API
-  const [fieldsConfig, setFieldsConfig] = useState({ dimensions: [], measures: [] });
+  // Fields from API - includes forDataSource to track which source the fields are for
+  const [fieldsConfig, setFieldsConfig] = useState({ dimensions: [], measures: [], forDataSource: null });
   const [fieldsLoading, setFieldsLoading] = useState(false);
   const [pendingSampleConfig, setPendingSampleConfig] = useState(null);
 
@@ -1359,7 +1359,8 @@ const CustomReportBuilder = () => {
   useEffect(() => {
     const fetchFields = async () => {
       // Clear old fields first to prevent race condition with pendingSampleConfig
-      setFieldsConfig({ dimensions: [], measures: [] });
+      // Set forDataSource to null to indicate fields are being loaded
+      setFieldsConfig({ dimensions: [], measures: [], forDataSource: null });
       setFieldsLoading(true);
       try {
         // Request fields for all selected data sources
@@ -1409,7 +1410,9 @@ const CustomReportBuilder = () => {
           });
         }
 
-        setFieldsConfig({ dimensions: allDimensions, measures: allMeasures });
+        // Include forDataSource to track which data source these fields are for
+        const primarySourceId = dataSources.find(ds => ds.isPrimary)?.id || dataSources[0]?.id;
+        setFieldsConfig({ dimensions: allDimensions, measures: allMeasures, forDataSource: primarySourceId });
       } catch (err) {
         console.error('[REPORT-BUILDER] Failed to fetch report fields:', err);
         // Keep existing fields on error
@@ -1426,7 +1429,7 @@ const CustomReportBuilder = () => {
     console.log('[SAMPLE] useEffect triggered:', {
       hasPendingConfig: !!pendingSampleConfig,
       expectedDataSource: pendingSampleConfig?.dataSource,
-      currentDataSource: primaryDataSource,
+      fieldsForDataSource: fieldsConfig.forDataSource,
       fieldsLoading,
       dimensionsCount: fieldsConfig.dimensions.length,
       measuresCount: fieldsConfig.measures.length
@@ -1436,9 +1439,13 @@ const CustomReportBuilder = () => {
       return;
     }
 
-    // Wait for the correct data source's fields to load
-    if (pendingSampleConfig.dataSource !== primaryDataSource) {
-      console.log('[SAMPLE] Data source mismatch, waiting for correct fields...');
+    // Wait for the correct data source's fields to be loaded
+    // This is the KEY check - fieldsConfig.forDataSource tells us which source the fields are actually from
+    if (fieldsConfig.forDataSource !== pendingSampleConfig.dataSource) {
+      console.log('[SAMPLE] Fields are for different data source, waiting...', {
+        fieldsFor: fieldsConfig.forDataSource,
+        needFieldsFor: pendingSampleConfig.dataSource
+      });
       return;
     }
 
@@ -1499,7 +1506,7 @@ const CustomReportBuilder = () => {
     console.log('[SAMPLE] Setting zoneValues:', newZoneValues);
     setZoneValues(newZoneValues);
     setPendingSampleConfig(null);
-  }, [pendingSampleConfig, fieldsLoading, fieldsConfig, primaryDataSource]);
+  }, [pendingSampleConfig, fieldsLoading, fieldsConfig]);
 
   // Global drag event listeners to track drag state and item
   useEffect(() => {
