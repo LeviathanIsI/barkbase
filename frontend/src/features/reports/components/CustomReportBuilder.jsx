@@ -1515,14 +1515,20 @@ const CustomReportBuilder = () => {
     // For table view, columns can be both dimensions and measures
     if (chartType === 'table' && zoneValues.columns) {
       const cols = zoneValues.columns;
-      // Clear and rebuild - columns go to dimensions for grouping
+      // Clear and rebuild - separate dimensions from measures by type
       dimensions.length = 0;
       measures.length = 0;
+      const measureTypes = ['number', 'integer', 'currency'];
       cols.forEach(col => {
-        // Add to dimensions for grouping
-        dimensions.push(col.key);
+        if (measureTypes.includes(col.type)) {
+          // Numeric types are measures - aggregate them
+          measures.push({ field: col.key });
+        } else {
+          // Text/date types are dimensions - group by them
+          dimensions.push(col.key);
+        }
       });
-      // Add record_count as default measure for tables
+      // If no measures were added, add record_count as default
       if (measures.length === 0) {
         measures.push({ field: 'record_count' });
       }
