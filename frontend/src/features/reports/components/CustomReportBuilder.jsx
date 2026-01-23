@@ -1425,12 +1425,20 @@ const CustomReportBuilder = () => {
   useEffect(() => {
     console.log('[SAMPLE] useEffect triggered:', {
       hasPendingConfig: !!pendingSampleConfig,
+      expectedDataSource: pendingSampleConfig?.dataSource,
+      currentDataSource: primaryDataSource,
       fieldsLoading,
       dimensionsCount: fieldsConfig.dimensions.length,
       measuresCount: fieldsConfig.measures.length
     });
 
     if (!pendingSampleConfig) {
+      return;
+    }
+
+    // Wait for the correct data source's fields to load
+    if (pendingSampleConfig.dataSource !== primaryDataSource) {
+      console.log('[SAMPLE] Data source mismatch, waiting for correct fields...');
       return;
     }
 
@@ -1445,7 +1453,8 @@ const CustomReportBuilder = () => {
       return;
     }
 
-    console.log('[SAMPLE] Applying config:', pendingSampleConfig);
+    const { config } = pendingSampleConfig;
+    console.log('[SAMPLE] Applying config:', config);
     console.log('[SAMPLE] Available dimensions:', fieldsConfig.dimensions.map(d => d.key));
     console.log('[SAMPLE] Available measures:', fieldsConfig.measures.map(m => m.key));
 
@@ -1465,7 +1474,7 @@ const CustomReportBuilder = () => {
     };
 
     // Apply each config value to the appropriate zone
-    for (const [zoneName, fieldConfig] of Object.entries(pendingSampleConfig)) {
+    for (const [zoneName, fieldConfig] of Object.entries(config)) {
       if (!fieldConfig) continue;
 
       // Check if zone expects multiple values
@@ -1490,7 +1499,7 @@ const CustomReportBuilder = () => {
     console.log('[SAMPLE] Setting zoneValues:', newZoneValues);
     setZoneValues(newZoneValues);
     setPendingSampleConfig(null);
-  }, [pendingSampleConfig, fieldsLoading, fieldsConfig]);
+  }, [pendingSampleConfig, fieldsLoading, fieldsConfig, primaryDataSource]);
 
   // Global drag event listeners to track drag state and item
   useEffect(() => {
@@ -1918,8 +1927,8 @@ const CustomReportBuilder = () => {
     setDataSources([{ id: sample.dataSource, isPrimary: true }]);
     setChartType(sample.chartType);
     setReportName(sample.name);
-    // Store the pending config to apply after fields load
-    setPendingSampleConfig(sample.config);
+    // Store the pending config WITH the expected data source to apply after correct fields load
+    setPendingSampleConfig({ dataSource: sample.dataSource, config: sample.config });
     setShowSampleReports(false);
   };
 
