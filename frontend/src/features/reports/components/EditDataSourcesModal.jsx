@@ -142,101 +142,114 @@ const DataSourceCard = ({
   const Icon = source.icon;
 
   return (
-    <button
-      onClick={onClick}
-      disabled={isDisabled && !isSelected}
-      className={cn(
-        "relative flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all",
-        "min-w-[100px] min-h-[90px]",
-        isSelected && !isDisabled
-          ? "border-primary bg-primary/10 ring-2 ring-primary/20"
-          : "border-border hover:border-primary/50 hover:bg-surface-hover",
-        isDisabled && !isSelected && "opacity-40 cursor-not-allowed hover:border-border hover:bg-transparent",
-      )}
-    >
-      {/* Primary star indicator */}
-      {isPrimary && (
-        <div className="absolute top-1 right-1">
-          <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-        </div>
-      )}
-
-      {/* Selection checkmark */}
-      {isSelected && (
-        <div className="absolute top-1 left-1">
-          <div className={cn("h-4 w-4 rounded-full flex items-center justify-center", source.color)}>
-            <span className="text-white text-[10px] font-bold">&#10003;</span>
+    <div className="relative">
+      <button
+        onClick={onClick}
+        disabled={isDisabled && !isSelected}
+        className={cn(
+          "relative flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all w-full",
+          "min-w-[100px] min-h-[90px]",
+          isSelected && !isDisabled
+            ? "border-primary bg-primary/10 ring-2 ring-primary/20"
+            : "border-border hover:border-primary/50 hover:bg-surface-hover",
+          isDisabled && !isSelected && "opacity-40 cursor-not-allowed hover:border-border hover:bg-transparent",
+        )}
+      >
+        {/* Primary star indicator */}
+        {isPrimary && (
+          <div className="absolute top-1 right-1">
+            <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
           </div>
+        )}
+
+        {/* Selection checkmark */}
+        {isSelected && !isPrimary && (
+          <div className="absolute top-1 left-1">
+            <div className={cn("h-4 w-4 rounded-full flex items-center justify-center", source.color)}>
+              <span className="text-white text-[10px] font-bold">&#10003;</span>
+            </div>
+          </div>
+        )}
+
+        {/* Icon */}
+        <div className={cn(
+          "h-10 w-10 rounded-lg flex items-center justify-center",
+          isSelected ? source.color : "bg-surface-hover"
+        )}>
+          <Icon className={cn("h-5 w-5", isSelected ? "text-white" : source.textColor)} />
         </div>
-      )}
 
-      {/* Icon */}
-      <div className={cn(
-        "h-10 w-10 rounded-lg flex items-center justify-center",
-        isSelected ? source.color : "bg-surface-hover"
-      )}>
-        <Icon className={cn("h-5 w-5", isSelected ? "text-white" : source.textColor)} />
-      </div>
+        {/* Label */}
+        <span className={cn(
+          "text-xs font-medium",
+          isSelected ? "text-text" : "text-muted"
+        )}>
+          {source.label}
+        </span>
+      </button>
 
-      {/* Label */}
-      <span className={cn(
-        "text-xs font-medium",
-        isSelected ? "text-text" : "text-muted"
-      )}>
-        {source.label}
-      </span>
-
-      {/* Set as primary button (shown when selected but not primary) */}
+      {/* Make Primary button - shown below card when selected but not primary */}
       {isSelected && !isPrimary && onSetPrimary && (
         <button
           onClick={(e) => {
             e.stopPropagation();
             onSetPrimary(source.id);
           }}
-          className="absolute bottom-1 right-1 text-[10px] text-primary hover:underline"
+          className="w-full mt-1 py-1 text-[10px] text-center text-primary hover:text-primary-dark hover:bg-primary/10 rounded transition-colors"
         >
-          Set primary
+          Make primary
         </button>
       )}
-    </button>
+    </div>
   );
 };
 
 /**
- * JoinPathPreview - Visual representation of join paths
+ * Get user-friendly description for a join relationship
  */
-const JoinPathPreview = ({ paths }) => {
+const getRelationshipDescription = (fromLabel, toLabel, type) => {
+  // INNER = all records must have a match, LEFT = includes records without matches
+  if (type === 'INNER') {
+    return `Each ${fromLabel.slice(0, -1)} with their ${toLabel}`;
+  }
+  return `${fromLabel} and any related ${toLabel}`;
+};
+
+/**
+ * DataRelationshipPreview - User-friendly explanation of how data sources connect
+ */
+const DataRelationshipPreview = ({ paths, primarySource }) => {
   if (paths.length === 0) return null;
+
+  const primaryLabel = DATA_SOURCE_OPTIONS.find(s => s.id === primarySource)?.label || primarySource;
 
   return (
     <div className="mt-4 p-3 bg-surface-secondary rounded-lg border border-border">
       <div className="flex items-center gap-2 mb-2">
         <Info className="h-4 w-4 text-muted" />
-        <span className="text-xs font-medium text-text">Join Preview</span>
+        <span className="text-xs font-medium text-text">How your data connects</span>
       </div>
-      <div className="space-y-1">
+      <div className="space-y-2">
         {paths.map((path, index) => {
           const fromSource = DATA_SOURCE_OPTIONS.find(s => s.id === path.from);
           const toSource = DATA_SOURCE_OPTIONS.find(s => s.id === path.to);
 
           return (
-            <div key={index} className="flex items-center gap-2 text-xs text-muted">
+            <div key={index} className="flex items-center gap-2 text-xs">
               <span className={cn("font-medium", fromSource?.textColor)}>
                 {fromSource?.label}
               </span>
-              <ArrowRight className="h-3 w-3" />
-              <span className="text-[10px] px-1.5 py-0.5 bg-surface-hover rounded">
-                {path.via}
-              </span>
-              <ArrowRight className="h-3 w-3" />
+              <ArrowRight className="h-3 w-3 text-muted" />
               <span className={cn("font-medium", toSource?.textColor)}>
                 {toSource?.label}
               </span>
-              <span className="text-[10px] text-muted/70">({path.type} JOIN)</span>
             </div>
           );
         })}
       </div>
+      <p className="text-[11px] text-muted mt-2">
+        Your report will show {primaryLabel.toLowerCase()} combined with data from the connected sources.
+      </p>
     </div>
   );
 };
@@ -414,8 +427,11 @@ const EditDataSourcesModal = ({
             </p>
           </div>
 
-          {/* Join path preview */}
-          <JoinPathPreview paths={joinPaths} />
+          {/* Data relationship preview */}
+          <DataRelationshipPreview
+            paths={joinPaths}
+            primarySource={selectedSources.find(s => s.isPrimary)?.id}
+          />
 
           {/* API-based unavailable sources hint */}
           {associationsData?.unavailableSources?.length > 0 && (
