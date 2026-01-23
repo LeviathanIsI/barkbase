@@ -1773,6 +1773,25 @@ const CustomReportBuilder = () => {
   const nameKey = xAxis?.key || 'name';
   const breakdownField = zoneValues.breakDownBy;
 
+  // Debug: log key mismatch issues
+  if (chartData.length > 0 && (nameKey || dataKey)) {
+    const sampleRow = chartData[0];
+    const dataKeys = Object.keys(sampleRow);
+    const nameKeyExists = dataKeys.includes(nameKey);
+    const dataKeyExists = dataKeys.includes(dataKey);
+    if (!nameKeyExists || !dataKeyExists) {
+      console.warn('[CHART DEBUG] Key mismatch!', {
+        nameKey,
+        dataKey,
+        nameKeyExists,
+        dataKeyExists,
+        dataKeys,
+        xAxisField: xAxis,
+        yAxisField: yAxis,
+      });
+    }
+  }
+
   // When there's a breakdown field, pivot the data for stacked/grouped bars
   const { pivotedData, breakdownValues } = useMemo(() => {
     if (!breakdownField || !chartData.length) {
