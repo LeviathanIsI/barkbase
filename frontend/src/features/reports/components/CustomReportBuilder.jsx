@@ -176,6 +176,7 @@ const DATE_RANGE_PRESETS = [
 ];
 
 // Sample report templates for beginners
+// Field keys must match what the API returns (from SystemProperty + standard measures)
 const SAMPLE_REPORTS = [
   {
     id: 'revenue-by-service',
@@ -186,8 +187,8 @@ const SAMPLE_REPORTS = [
     dataSource: 'bookings',
     chartType: 'bar',
     config: {
-      xAxis: 'service_name',
-      yAxis: 'total_price',
+      xAxis: { key: 'status', label: 'Status' },
+      yAxis: { key: 'total_cents', label: 'Total Revenue' },
     },
   },
   {
@@ -199,8 +200,8 @@ const SAMPLE_REPORTS = [
     dataSource: 'bookings',
     chartType: 'line',
     config: {
-      xAxis: 'check_in_date',
-      yAxis: 'record_count',
+      xAxis: { key: 'start_date', label: 'Start Date' },
+      yAxis: { key: 'count', label: 'Count of Bookings' },
     },
   },
   {
@@ -212,8 +213,8 @@ const SAMPLE_REPORTS = [
     dataSource: 'pets',
     chartType: 'pie',
     config: {
-      breakDownBy: 'species',
-      values: 'record_count',
+      breakDownBy: { key: 'species', label: 'Species' },
+      values: { key: 'count', label: 'Count of Pets' },
     },
   },
   {
@@ -225,7 +226,11 @@ const SAMPLE_REPORTS = [
     dataSource: 'owners',
     chartType: 'table',
     config: {
-      columns: ['name', 'total_spent', 'booking_count'],
+      columns: [
+        { key: 'first_name', label: 'First Name' },
+        { key: 'last_name', label: 'Last Name' },
+        { key: 'status', label: 'Status' },
+      ],
     },
   },
   {
@@ -237,8 +242,8 @@ const SAMPLE_REPORTS = [
     dataSource: 'staff',
     chartType: 'column',
     config: {
-      xAxis: 'staff_name',
-      yAxis: 'booking_count',
+      xAxis: { key: 'role', label: 'Role' },
+      yAxis: { key: 'count', label: 'Count of Staff' },
     },
   },
   {
@@ -250,8 +255,8 @@ const SAMPLE_REPORTS = [
     dataSource: 'payments',
     chartType: 'donut',
     config: {
-      breakDownBy: 'payment_method',
-      values: 'amount',
+      breakDownBy: { key: 'payment_method', label: 'Payment Method' },
+      values: { key: 'count', label: 'Count of Payments' },
     },
   },
 ];
@@ -1344,6 +1349,7 @@ const CustomReportBuilder = () => {
   // Fields from API
   const [fieldsConfig, setFieldsConfig] = useState({ dimensions: [], measures: [] });
   const [fieldsLoading, setFieldsLoading] = useState(false);
+  const [pendingSampleConfig, setPendingSampleConfig] = useState(null);
 
   // Get primary data source (for backwards compatibility)
   const primaryDataSource = useMemo(() => {
@@ -1414,6 +1420,45 @@ const CustomReportBuilder = () => {
 
     fetchFields();
   }, [dataSources]);
+
+  // Apply pending sample report config after fields load
+  useEffect(() => {
+    if (!pendingSampleConfig || fieldsLoading || fieldsConfig.dimensions.length === 0) {
+      return;
+    }
+
+    const newZoneValues = {};
+    const { dimensions, measures } = fieldsConfig;
+
+    // Helper to find a field by key
+    const findField = (fieldConfig, isDimension) => {
+      const list = isDimension ? dimensions : measures;
+      return list.find(f => f.key === fieldConfig.key) || {
+        key: fieldConfig.key,
+        label: fieldConfig.label,
+        type: isDimension ? 'text' : 'number',
+      };
+    };
+
+    // Apply each config value to the appropriate zone
+    for (const [zoneName, fieldConfig] of Object.entries(pendingSampleConfig)) {
+      if (!fieldConfig) continue;
+
+      if (zoneName === 'columns' && Array.isArray(fieldConfig)) {
+        // Table columns - array of fields
+        newZoneValues.columns = fieldConfig.map(fc => findField(fc, true));
+      } else if (zoneName === 'xAxis' || zoneName === 'breakDownBy' || zoneName === 'rows' || zoneName === 'category') {
+        // Dimension zones
+        newZoneValues[zoneName] = findField(fieldConfig, true);
+      } else if (zoneName === 'yAxis' || zoneName === 'values') {
+        // Measure zones
+        newZoneValues[zoneName] = findField(fieldConfig, false);
+      }
+    }
+
+    setZoneValues(newZoneValues);
+    setPendingSampleConfig(null);
+  }, [pendingSampleConfig, fieldsLoading, fieldsConfig]);
 
   // Global drag event listeners to track drag state and item
   useEffect(() => {
@@ -1837,10 +1882,12 @@ const CustomReportBuilder = () => {
 
   // Apply sample report template
   const applySampleReport = (sample) => {
+    // Set data source and chart type immediately
     setDataSources([{ id: sample.dataSource, isPrimary: true }]);
     setChartType(sample.chartType);
     setReportName(sample.name);
-    // Note: actual field application would require field lookup
+    // Store the pending config to apply after fields load
+    setPendingSampleConfig(sample.config);
     setShowSampleReports(false);
   };
 
