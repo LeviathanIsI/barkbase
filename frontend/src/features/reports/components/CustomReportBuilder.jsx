@@ -1752,6 +1752,21 @@ const CustomReportBuilder = () => {
     return String(value);
   };
 
+  // Format axis tick labels (handles dates, long strings)
+  const formatAxisTick = (value) => {
+    if (value === null || value === undefined) return '-';
+    // Check if it's an ISO date string
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+      const date = new Date(value);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    // Truncate long strings
+    if (typeof value === 'string' && value.length > 15) {
+      return value.substring(0, 12) + '...';
+    }
+    return String(value);
+  };
+
   // Get data key for chart
   const dataKey = yAxis?.key || 'count';
   const nameKey = xAxis?.key || 'name';
@@ -2894,9 +2909,10 @@ const CustomReportBuilder = () => {
                       stroke="var(--bb-color-chart-axis)"
                       tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }}
                       tickLine={{ stroke: 'var(--bb-color-chart-axis)' }}
+                      tickFormatter={formatAxisTick}
                       angle={-45}
                       textAnchor="end"
-                      height={60}
+                      height={80}
                     />
                     <YAxis
                       stroke="var(--bb-color-chart-axis)"
@@ -2939,7 +2955,8 @@ const CustomReportBuilder = () => {
                       type="category"
                       stroke="var(--bb-color-chart-axis)"
                       tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }}
-                      width={100}
+                      tickFormatter={formatAxisTick}
+                      width={120}
                     />
                     <Tooltip
                       contentStyle={tooltipContentStyle}
@@ -2969,9 +2986,10 @@ const CustomReportBuilder = () => {
                       dataKey={nameKey}
                       stroke="var(--bb-color-chart-axis)"
                       tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }}
+                      tickFormatter={formatAxisTick}
                       angle={-45}
                       textAnchor="end"
-                      height={60}
+                      height={80}
                     />
                     <YAxis
                       stroke="var(--bb-color-chart-axis)"
@@ -3014,9 +3032,10 @@ const CustomReportBuilder = () => {
                       dataKey={nameKey}
                       stroke="var(--bb-color-chart-axis)"
                       tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }}
+                      tickFormatter={formatAxisTick}
                       angle={-45}
                       textAnchor="end"
-                      height={60}
+                      height={80}
                     />
                     <YAxis
                       stroke="var(--bb-color-chart-axis)"
@@ -3108,6 +3127,10 @@ const CustomReportBuilder = () => {
                       type="category"
                       stroke="var(--bb-color-chart-axis)"
                       tick={{ fill: 'var(--bb-color-text-muted)', fontSize: 11 }}
+                      tickFormatter={formatAxisTick}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
                     />
                     <YAxis
                       dataKey={dataKey}
