@@ -1367,14 +1367,19 @@ const CustomReportBuilder = () => {
         for (const source of dataSources) {
           const data = response.data?.data?.[source.id] || { dimensions: [], measures: [] };
           const isMultiSource = dataSources.length > 1;
-          // Use '__' separator instead of '.' because Recharts interprets '.' as nested property access
-          const prefix = isMultiSource ? `${source.id}__` : '';
+          // Use camelCase format (e.g., 'bookingsStatus') because apiClient transforms all keys to camelCase
+          // This ensures field keys match the transformed data keys
+          const makeMultiSourceKey = (sourceId, fieldKey) => {
+            if (!isMultiSource) return fieldKey;
+            // Capitalize first letter of field key and concatenate: bookings + Status = bookingsStatus
+            return sourceId + fieldKey.charAt(0).toUpperCase() + fieldKey.slice(1);
+          };
           const groupPrefix = isMultiSource ? `${DATA_SOURCES.find(ds => ds.value === source.id)?.label || source.id} - ` : '';
 
           // Map dimensions
           (data.dimensions || []).forEach(d => {
             allDimensions.push({
-              key: prefix + d.key,
+              key: makeMultiSourceKey(source.id, d.key),
               label: d.label,
               type: d.dataType || 'text',
               group: groupPrefix + (d.group || 'Properties'),
@@ -1387,7 +1392,7 @@ const CustomReportBuilder = () => {
           // Map measures
           (data.measures || []).forEach(m => {
             allMeasures.push({
-              key: prefix + m.key,
+              key: makeMultiSourceKey(source.id, m.key),
               label: m.label,
               type: m.dataType || 'number',
               defaultAgg: m.defaultAggregation || 'COUNT',
@@ -1772,25 +1777,6 @@ const CustomReportBuilder = () => {
   const dataKey = yAxis?.key || 'count';
   const nameKey = xAxis?.key || 'name';
   const breakdownField = zoneValues.breakDownBy;
-
-  // Debug: log key mismatch issues
-  if (chartData.length > 0 && (nameKey || dataKey)) {
-    const sampleRow = chartData[0];
-    const dataKeys = Object.keys(sampleRow);
-    const nameKeyExists = dataKeys.includes(nameKey);
-    const dataKeyExists = dataKeys.includes(dataKey);
-    if (!nameKeyExists || !dataKeyExists) {
-      console.warn('[CHART DEBUG] Key mismatch!', {
-        nameKey,
-        dataKey,
-        nameKeyExists,
-        dataKeyExists,
-        dataKeys,
-        xAxisField: xAxis,
-        yAxisField: yAxis,
-      });
-    }
-  }
 
   // When there's a breakdown field, pivot the data for stacked/grouped bars
   const { pivotedData, breakdownValues } = useMemo(() => {

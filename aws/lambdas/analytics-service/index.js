@@ -1843,15 +1843,32 @@ async function handleCustomReportQuery(tenantId, body) {
     const DANGEROUS_PATTERNS = /[;'"\\(){}[\]<>|&$`!]/;
 
     /**
-     * Parse a field key that may be prefixed with source name (e.g., "bookings__status" or just "status")
-     * Uses '__' separator instead of '.' because Recharts interprets '.' as nested property access
-     * Returns { source, field } where source is the table alias and field is the column name
+     * Parse a field key that may be prefixed with source name in camelCase format
+     * e.g., "bookingsStatus" -> { source: "bookings", field: "status" }
+     * e.g., "status" -> { source: null, field: "status" }
+     *
+     * The camelCase format is used because the frontend apiClient transforms all
+     * response keys to camelCase, so field keys must match that format.
      */
     const parseFieldKey = (key) => {
-      if (key.includes('__')) {
-        const [source, field] = key.split('__', 2);
-        return { source, field };
+      // Known data source IDs from DATA_SOURCE_CONFIG
+      const knownSources = Object.keys(DATA_SOURCE_CONFIG);
+
+      // Check if key starts with a known source ID (case-sensitive match)
+      for (const sourceId of knownSources) {
+        if (key.startsWith(sourceId) && key.length > sourceId.length) {
+          // The character after sourceId should be uppercase (start of field name)
+          const nextChar = key.charAt(sourceId.length);
+          if (nextChar === nextChar.toUpperCase() && nextChar !== nextChar.toLowerCase()) {
+            // Extract field name and convert first char to lowercase
+            const fieldPart = key.slice(sourceId.length);
+            const field = fieldPart.charAt(0).toLowerCase() + fieldPart.slice(1);
+            return { source: sourceId, field };
+          }
+        }
       }
+
+      // No source prefix found - single source mode
       return { source: null, field: key };
     };
 
