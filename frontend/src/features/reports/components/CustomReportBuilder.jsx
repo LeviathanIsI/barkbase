@@ -1462,6 +1462,32 @@ const CustomReportBuilder = () => {
     return currentFields.measures.filter(f => f.label.toLowerCase().includes(search));
   }, [currentFields.measures, fieldSearch]);
 
+  // Group dimensions by source for multi-source display
+  const dimensionsBySource = useMemo(() => {
+    const groups = {};
+    for (const dim of filteredDimensions) {
+      const sourceId = dim.sourceId || 'unknown';
+      if (!groups[sourceId]) {
+        groups[sourceId] = [];
+      }
+      groups[sourceId].push(dim);
+    }
+    return groups;
+  }, [filteredDimensions]);
+
+  // Group measures by source for multi-source display
+  const measuresBySource = useMemo(() => {
+    const groups = {};
+    for (const measure of filteredMeasures) {
+      const sourceId = measure.sourceId || 'unknown';
+      if (!groups[sourceId]) {
+        groups[sourceId] = [];
+      }
+      groups[sourceId].push(measure);
+    }
+    return groups;
+  }, [filteredMeasures]);
+
   // Check if minimum requirements are met for current chart type
   const checkMinimumRequirements = useCallback(() => {
     const requirements = CHART_MINIMUM_REQUIREMENTS[chartType];
@@ -2110,69 +2136,73 @@ const CustomReportBuilder = () => {
               </div>
             ) : (
             <>
-            {/* Default Measures */}
-            <CollapsibleFieldGroup
-              title="Measures"
-              defaultOpen={true}
-              count={filteredMeasures.length}
-            >
-              <div className="px-1 group">
-                {filteredMeasures.map((field) => (
-                  <DraggableField
-                    key={field.key}
-                    field={field}
-                    isDimension={false}
-                    isSelected={yAxis?.key === field.key}
-                    onClick={() => handleFieldClick(field, false)}
-                  />
-                ))}
-                {filteredMeasures.length === 0 && (
-                  <p className="text-xs text-muted px-3 py-2">No measures found</p>
-                )}
-              </div>
-            </CollapsibleFieldGroup>
+            {/* Measures grouped by data source */}
+            {dataSources.map((source) => {
+              const sourceMeasures = measuresBySource[source.id] || [];
+              const sourceConfig = DATA_SOURCES.find(ds => ds.value === source.id);
+              const Icon = sourceConfig?.icon;
 
-            {/* Top Properties (Dimensions) */}
-            <CollapsibleFieldGroup
-              title="Top properties"
-              defaultOpen={true}
-              count={Math.min(filteredDimensions.length, 3)}
-            >
-              <div className="px-1 group">
-                {filteredDimensions.slice(0, 3).map((field) => (
-                  <DraggableField
-                    key={field.key}
-                    field={field}
-                    isDimension={true}
-                    isSelected={xAxis?.key === field.key || groupBy?.key === field.key || compareBy?.key === field.key}
-                    onClick={() => handleFieldClick(field, true)}
-                  />
-                ))}
-              </div>
-            </CollapsibleFieldGroup>
+              if (sourceMeasures.length === 0) return null;
 
-            {/* All Fields */}
-            <CollapsibleFieldGroup
-              title={currentDataSource?.label || 'Fields'}
-              icon={currentDataSource?.icon}
-              defaultOpen={true}
-              count={filteredDimensions.length}
-            >
-              <div className="px-1 group">
-                {filteredDimensions.map((field) => (
-                  <DraggableField
-                    key={field.key}
-                    field={field}
-                    isDimension={true}
-                    isSelected={xAxis?.key === field.key || groupBy?.key === field.key || compareBy?.key === field.key}
-                    onClick={() => handleFieldClick(field, true)}
-                  />
-                ))}
-                {filteredDimensions.length === 0 && (
-                  <p className="text-xs text-muted px-3 py-2">No fields found</p>
-                )}
-              </div>
-            </CollapsibleFieldGroup>
+              return (
+                <CollapsibleFieldGroup
+                  key={`measures-${source.id}`}
+                  title={`${sourceConfig?.label || source.id} measures`}
+                  icon={Icon}
+                  defaultOpen={true}
+                  count={sourceMeasures.length}
+                >
+                  <div className="px-1 group">
+                    {sourceMeasures.map((field) => (
+                      <DraggableField
+                        key={field.key}
+                        field={field}
+                        isDimension={false}
+                        isSelected={yAxis?.key === field.key}
+                        onClick={() => handleFieldClick(field, false)}
+                      />
+                    ))}
+                  </div>
+                </CollapsibleFieldGroup>
+              );
+            })}
+            {filteredMeasures.length === 0 && (
+              <p className="text-xs text-muted px-3 py-2">No measures found</p>
+            )}
+
+            {/* Dimensions grouped by data source */}
+            {dataSources.map((source) => {
+              const sourceDimensions = dimensionsBySource[source.id] || [];
+              const sourceConfig = DATA_SOURCES.find(ds => ds.value === source.id);
+              const Icon = sourceConfig?.icon;
+
+              if (sourceDimensions.length === 0) return null;
+
+              return (
+                <CollapsibleFieldGroup
+                  key={source.id}
+                  title={`${sourceConfig?.label || source.id} properties`}
+                  icon={Icon}
+                  defaultOpen={true}
+                  count={sourceDimensions.length}
+                >
+                  <div className="px-1 group">
+                    {sourceDimensions.map((field) => (
+                      <DraggableField
+                        key={field.key}
+                        field={field}
+                        isDimension={true}
+                        isSelected={xAxis?.key === field.key || groupBy?.key === field.key || compareBy?.key === field.key}
+                        onClick={() => handleFieldClick(field, true)}
+                      />
+                    ))}
+                  </div>
+                </CollapsibleFieldGroup>
+              );
+            })}
+            {filteredDimensions.length === 0 && (
+              <p className="text-xs text-muted px-3 py-2">No fields found</p>
+            )}
             </>
             )}
           </div>
