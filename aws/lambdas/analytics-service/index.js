@@ -1880,6 +1880,16 @@ async function handleCustomReportQuery(tenantId, body) {
       return source; // Secondary sources use their name as alias
     };
 
+    /**
+     * Replace 't.' prefix with the correct table alias for secondary sources
+     * This handles columns defined in DATA_SOURCE_CONFIG that use hardcoded 't.' prefix
+     */
+    const adjustColumnAlias = (column, tableAlias) => {
+      if (tableAlias === 't') return column; // Primary source, no change needed
+      // Replace 't.' with the correct alias - handles both simple (t.breed) and complex (CASE WHEN t.col...) expressions
+      return column.replace(/\bt\./g, `${tableAlias}.`);
+    };
+
     for (const dimKey of dimensions) {
       // Check for SQL injection patterns
       if (DANGEROUS_PATTERNS.test(dimKey)) {
@@ -1896,8 +1906,10 @@ async function handleCustomReportQuery(tenantId, body) {
       // Use hardcoded config if available (for computed columns), otherwise use column directly
       const dim = sourceConfig?.dimensions?.[field];
       if (dim) {
-        selectParts.push(`${dim.column} as "${dimKey}"`);
-        groupByParts.push(dim.column);
+        // Adjust the column alias for secondary sources (replace t. with correct alias)
+        const adjustedColumn = adjustColumnAlias(dim.column, tableAlias);
+        selectParts.push(`${adjustedColumn} as "${dimKey}"`);
+        groupByParts.push(adjustedColumn);
         if (dim.join) joins.add(dim.join);
       } else {
         // Dynamic column from SystemProperty - use column name directly
@@ -1927,7 +1939,9 @@ async function handleCustomReportQuery(tenantId, body) {
       const measure = sourceConfig?.measures?.[field];
       if (measure) {
         const agg = aggOverride || measure.agg;
-        selectParts.push(`${agg}(${measure.column}) as "${measureKey}"`);
+        // Adjust the column alias for secondary sources (replace t. with correct alias)
+        const adjustedColumn = adjustColumnAlias(measure.column, tableAlias);
+        selectParts.push(`${agg}(${adjustedColumn}) as "${measureKey}"`);
       } else {
         // Dynamic measure - default to COUNT for record_count/count, otherwise SUM
         const agg = aggOverride || (field === 'record_count' || field === 'count' ? 'COUNT' : 'SUM');
