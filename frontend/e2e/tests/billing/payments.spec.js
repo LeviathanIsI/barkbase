@@ -58,12 +58,14 @@ test.describe('Payment Processing', () => {
 
         const modalVisible = await page.locator('[role="dialog"]').isVisible();
         if (modalVisible) {
-          // Try to submit without filling required fields
+          // Submit button should be disabled when required fields are empty
           const submitButton = page.locator('button[type="submit"], button:has-text("Save")').first();
-          await submitButton.click();
-          await page.waitForTimeout(500);
 
-          // Should show validation errors or remain on modal
+          // Check that submit is disabled (validation prevents submission)
+          const isDisabled = await submitButton.isDisabled();
+          expect(isDisabled).toBeTruthy();
+
+          // Modal should remain open
           const stillVisible = await page.locator('[role="dialog"]').isVisible();
           expect(stillVisible).toBeTruthy();
 

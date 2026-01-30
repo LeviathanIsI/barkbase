@@ -4,7 +4,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { InvoicesPage } from '../../pages/PaymentsPage.js';
+import { InvoicesPage } from '../../pages/InvoicesPage.js';
 
 test.describe('Invoice Management', () => {
   let invoicesPage;
